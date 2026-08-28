@@ -31,6 +31,7 @@ do not incur decompression latency or false decompression counts on hits.
 """
 
 import sys
+
 import m5
 from m5.objects import *
 
@@ -39,7 +40,9 @@ from common.Caches import *
 
 # Set up simple memtest system with L2 cache compression
 nb_cores = 2
-cpus = [MemTest(max_loads=5000, progress_interval=1000) for i in range(nb_cores)]
+cpus = [
+    MemTest(max_loads=5000, progress_interval=1000) for i in range(nb_cores)
+]
 
 system = System(cpu=cpus, physmem=SimpleMemory(), membus=SystemXBar())
 system.voltage_domain = VoltageDomain()
