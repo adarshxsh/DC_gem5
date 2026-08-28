@@ -51,3 +51,11 @@ Source("sector_tags.cc")
 Source("super_blk.cc")
 
 GTest("dueling.test", "dueling.test.cc", "dueling.cc")
+GTest(
+    "compressed_tags.test",
+    "compressed_tags.test.cc",
+    "super_blk.cc",
+    "sector_blk.cc",
+    "#src/base/types.cc",
+    with_tag("gem5 simobject"),
+)

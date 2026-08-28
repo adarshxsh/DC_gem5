@@ -132,6 +132,13 @@ class CompressedTags : public SectorTags
      * @param visitor Visitor to call on each block.
      */
     bool anyBlk(std::function<bool(CacheBlk &)> visitor) override;
+
+    /**
+     * Check tag store invariants for compressed tags and superblocks.
+     *
+     * @return True if all invariants hold.
+     */
+    bool checkInvariants() const override;
 };
 
 } // namespace gem5
