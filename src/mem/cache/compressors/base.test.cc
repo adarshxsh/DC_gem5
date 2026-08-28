@@ -50,8 +50,8 @@ class DummyCompressor : public Base
     DummyCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
-             Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         comp_lat = Cycles(1);
         decomp_lat = Cycles(2);
@@ -61,9 +61,8 @@ class DummyCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* data) override
-    {
-    }
+    decompress(const CompressionData *comp_data, uint64_t *data) override
+    {}
 };
 
 class CompressorLatencyTest : public testing::Test
@@ -109,7 +108,8 @@ TEST_F(CompressorLatencyTest, BlockWithUncompressedSizeReturnsZeroLatency)
     blk.setCompressed();
     blk.setDecompressionLatency(Cycles(4));
 
-    // Even if marked compressed, size equal to 64 bytes (512 bits) means uncompressed payload.
+    // Even if marked compressed, size equal to 64 bytes (512 bits) means
+    // uncompressed payload.
     EXPECT_EQ(compressor->getDecompressionLatency(&blk), Cycles(0));
 }
 
