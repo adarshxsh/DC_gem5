@@ -1,11 +1,11 @@
 # Comprehensive Evaluation Report: SPEC CPU2017 505.mcf_r L2 Cache Compression
 
-**Author / Maintainer**: Adarsh (`adarshxsh`)  
-**Environment**: Google Cloud Platform (GCP) Nested Virtualization (`/dev/kvm`, x86_64)  
-**Target Simulator**: gem5 Full-System Mode (`X86/gem5.opt`, version 25.1.0.1)  
-**Benchmark**: SPEC CPU2017 `505.mcf_r` (Route Planning / Network Simplex Algorithm)  
-**Cache Architecture**: Private L1I (32KiB), Private L1D (32KiB), Private L2 (512KiB, 16-way associative)  
-**Compression Scheme**: Base-Delta-Immediate (BDI) with Superblock Co-allocation (`CompressedTags` / `SectorSubBlk`)  
+**Author / Maintainer**: Adarsh (`adarshxsh`)
+**Environment**: Google Cloud Platform (GCP) Nested Virtualization (`/dev/kvm`, x86_64)
+**Target Simulator**: gem5 Full-System Mode (`X86/gem5.opt`, version 25.1.0.1)
+**Benchmark**: SPEC CPU2017 `505.mcf_r` (Route Planning / Network Simplex Algorithm)
+**Cache Architecture**: Private L1I (32KiB), Private L1D (32KiB), Private L2 (512KiB, 16-way associative)
+**Compression Scheme**: Base-Delta-Immediate (BDI) with Superblock Co-allocation (`CompressedTags` / `SectorSubBlk`)
 
 ---
 
