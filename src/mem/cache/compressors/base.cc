@@ -175,6 +175,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.failedCompressions++;
     }
 
+    // Uncompressed lines do not incur decompression latency
+    if (comp_size_bits >= blkSize * CHAR_BIT) {
+        decomp_lat = Cycles(0);
+    }
+
     // Update stats
     stats.compressions++;
     stats.compressionSizeBits += comp_size_bits;
@@ -197,8 +202,10 @@ Base::getDecompressionLatency(const CacheBlk* blk)
 {
     const CompressionBlk* comp_blk = static_cast<const CompressionBlk*>(blk);
 
-    // If block is compressed, return its decompression latency
-    if (comp_blk && comp_blk->isCompressed()){
+    // If block is compressed and has a size strictly less than an uncompressed
+    // line, return its decompression latency
+    if (comp_blk && comp_blk->isCompressed() &&
+        (comp_blk->getSizeBits() < blkSize * CHAR_BIT)) {
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
         DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
                 comp_blk->print(), decomp_lat);

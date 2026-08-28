@@ -101,23 +101,19 @@ CompressionBlk::setSizeBits(const std::size_t size)
     _size = size;
 
     SuperBlk* superblock = static_cast<SuperBlk*>(getSectorBlock());
-    const uint8_t compression_factor =
-        superblock->calculateCompressionFactor(size);
-    superblock->setCompressionFactor(compression_factor);
+    if (superblock) {
+        const uint8_t compression_factor =
+            superblock->calculateCompressionFactor(size);
+        superblock->setCompressionFactor(compression_factor);
 
-    // Either this function is called after an insertion, or an update.
-    // If somebody else is present in the block, keep the superblock's
-    // compressibility. Otherwise, check if it can co-allocate
-    const uint8_t num_valid = superblock->getNumValid();
-    assert(num_valid >= 1);
-    if (num_valid == 1) {
+        // Set compression status of this sub-block based on whether it is compressed
         if (compression_factor != 1) {
             setCompressed();
         } else {
             setUncompressed();
         }
     } else {
-        if (superblock->isCompressed(this)) {
+        if (size > 0 && size < 512) {
             setCompressed();
         } else {
             setUncompressed();
