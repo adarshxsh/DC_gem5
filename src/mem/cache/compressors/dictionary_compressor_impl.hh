@@ -164,11 +164,11 @@ DictionaryCompressor<T>::compress(const std::vector<Chunk>& chunks,
 
     // If all matched chunk patterns in the block consist of zero patterns,
     // apply the zero-block decompression shortcut (1 cycle latency).
-    const CompData* const comp_data_ptr =
-        static_cast<const CompData*>(comp_data.get());
+    const CompData *const comp_data_ptr =
+        static_cast<const CompData *>(comp_data.get());
     if (comp_data_ptr && !comp_data_ptr->entries.empty()) {
         bool is_all_zero = true;
-        for (const auto& entry : comp_data_ptr->entries) {
+        for (const auto &entry : comp_data_ptr->entries) {
             if (!entry->isZero()) {
                 is_all_zero = false;
                 break;

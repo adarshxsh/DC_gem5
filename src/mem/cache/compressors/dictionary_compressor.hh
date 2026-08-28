@@ -322,9 +322,12 @@ class DictionaryCompressor<T>::Pattern
             const uint64_t metadata_length, const uint64_t num_unmatched_bits,
             const int match_location, const bool allocate = true,
             const bool is_zero = false)
-        : patternNumber(number), code(code), length(metadata_length),
+        : patternNumber(number),
+          code(code),
+          length(metadata_length),
           numUnmatchedBits(num_unmatched_bits),
-          matchLocation(match_location), allocate(allocate),
+          matchLocation(match_location),
+          allocate(allocate),
           isZeroPattern(is_zero)
     {
     }
@@ -337,7 +340,11 @@ class DictionaryCompressor<T>::Pattern
      *
      * @return True if pattern represents zero.
      */
-    virtual bool isZero() const { return isZeroPattern; }
+    virtual bool
+    isZero() const
+    {
+        return isZeroPattern;
+    }
 
     /**
      * Get enum number associated to this pattern.
@@ -434,15 +441,13 @@ class DictionaryCompressor<T>::UncompressedPattern
     const DictionaryEntry data;
 
   public:
-    UncompressedPattern(const int number,
-        const uint64_t code,
-        const uint64_t metadata_length,
-        const int match_location,
-        const DictionaryEntry bytes)
-      : DictionaryCompressor<T>::Pattern(number, code, metadata_length,
-            sizeof(T) * 8, match_location, true,
-            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
-        data(bytes)
+    UncompressedPattern(const int number, const uint64_t code,
+                        const uint64_t metadata_length,
+                        const int match_location, const DictionaryEntry bytes)
+        : DictionaryCompressor<T>::Pattern(
+              number, code, metadata_length, sizeof(T) * 8, match_location,
+              true, DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
+          data(bytes)
     {
     }
 
@@ -486,16 +491,14 @@ class DictionaryCompressor<T>::MaskedPattern
     const T bits;
 
   public:
-    MaskedPattern(const int number,
-        const uint64_t code,
-        const uint64_t metadata_length,
-        const int match_location,
-        const DictionaryEntry bytes,
-        const bool allocate = true)
-      : DictionaryCompressor<T>::Pattern(number, code, metadata_length,
-            popCount(static_cast<T>(~mask)), match_location, allocate,
-            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
-        bits(DictionaryCompressor<T>::fromDictionaryEntry(bytes) & ~mask)
+    MaskedPattern(const int number, const uint64_t code,
+                  const uint64_t metadata_length, const int match_location,
+                  const DictionaryEntry bytes, const bool allocate = true)
+        : DictionaryCompressor<T>::Pattern(
+              number, code, metadata_length, popCount(static_cast<T>(~mask)),
+              match_location, allocate,
+              DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
+          bits(DictionaryCompressor<T>::fromDictionaryEntry(bytes) & ~mask)
     {
     }
 
@@ -634,16 +637,15 @@ class DictionaryCompressor<T>::RepeatedValuePattern
     RepT value;
 
   public:
-    RepeatedValuePattern(const int number,
-        const uint64_t code,
-        const uint64_t metadata_length,
-        const int match_location,
-        const DictionaryEntry bytes,
-        const bool allocate = true)
-      : DictionaryCompressor<T>::Pattern(number, code, metadata_length,
-            8 * sizeof(RepT), match_location, allocate,
-            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
-        value(DictionaryCompressor<T>::fromDictionaryEntry(bytes))
+    RepeatedValuePattern(const int number, const uint64_t code,
+                         const uint64_t metadata_length,
+                         const int match_location, const DictionaryEntry bytes,
+                         const bool allocate = true)
+        : DictionaryCompressor<T>::Pattern(
+              number, code, metadata_length, 8 * sizeof(RepT), match_location,
+              allocate,
+              DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
+          value(DictionaryCompressor<T>::fromDictionaryEntry(bytes))
     {
     }
 
@@ -711,15 +713,13 @@ class DictionaryCompressor<T>::DeltaPattern
     const DictionaryEntry bytes;
 
   public:
-    DeltaPattern(const int number,
-        const uint64_t code,
-        const uint64_t metadata_length,
-        const int match_location,
-        const DictionaryEntry bytes)
-      : DictionaryCompressor<T>::Pattern(number, code, metadata_length,
-            DeltaSizeBits, match_location, false,
-            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
-        bytes(bytes)
+    DeltaPattern(const int number, const uint64_t code,
+                 const uint64_t metadata_length, const int match_location,
+                 const DictionaryEntry bytes)
+        : DictionaryCompressor<T>::Pattern(
+              number, code, metadata_length, DeltaSizeBits, match_location,
+              false, DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
+          bytes(bytes)
     {
     }
 
@@ -782,15 +782,14 @@ class DictionaryCompressor<T>::SignExtendedPattern
     const T bits : N;
 
   public:
-    SignExtendedPattern(const int number,
-        const uint64_t code,
-        const uint64_t metadata_length,
-        const DictionaryEntry bytes,
-        const bool allocate = false)
-      : DictionaryCompressor<T>::Pattern(number, code, metadata_length, N,
-            -1, allocate,
-            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
-        bits(fromDictionaryEntry(bytes) & mask(N))
+    SignExtendedPattern(const int number, const uint64_t code,
+                        const uint64_t metadata_length,
+                        const DictionaryEntry bytes,
+                        const bool allocate = false)
+        : DictionaryCompressor<T>::Pattern(
+              number, code, metadata_length, N, -1, allocate,
+              DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
+          bits(fromDictionaryEntry(bytes) & mask(N))
     {
     }
 
