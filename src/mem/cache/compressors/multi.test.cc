@@ -44,7 +44,8 @@
 #include "params/ZeroCompressor.hh"
 #include "sim/root.hh"
 
-namespace gem5 {
+namespace gem5
+{
 Root *Root::_root = nullptr;
 }
 
@@ -64,7 +65,8 @@ class MultiCompressorTest : public ::testing::Test
     uint64_t deltaLine[8];
     uint64_t randomLine[8];
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         // Zero line: all 0s
         std::memset(zeroLine, 0, sizeof(zeroLine));
@@ -90,7 +92,8 @@ class MultiCompressorTest : public ::testing::Test
         randomLine[7] = 0x9F8E7D6C5B4A3928ULL;
     }
 
-    void createMulti(unsigned threshold, unsigned probe_interval)
+    void
+    createMulti(unsigned threshold, unsigned probe_interval)
     {
         ZeroCompressorParams zero_p;
         zero_p.eventq_index = 0;
@@ -165,14 +168,17 @@ TEST_F(MultiCompressorTest, SelectionAndLatency)
     auto comp_data = multi->compress(zeroLine, comp_lat, decomp_lat);
     ASSERT_NE(comp_data, nullptr);
 
-    // Decompression latency must include winner's decomp extra latency (1) + Multi extra latency (1) + chunk cycles
+    // Decompression latency must include winner's decomp extra latency (1) +
+    // Multi extra latency (1) + chunk cycles
     ASSERT_GE((uint64_t)decomp_lat, 2);
-    // Compression latency must include max sub-compressor latency + Multi comp extra latency (1)
+    // Compression latency must include max sub-compressor latency + Multi comp
+    // extra latency (1)
     ASSERT_GE((uint64_t)comp_lat, 2);
 }
 
 /**
- * Test per-compressor effectiveness tracking and persistent unpromising skipping.
+ * Test per-compressor effectiveness tracking and persistent unpromising
+ * skipping.
  */
 TEST_F(MultiCompressorTest, EffectivenessTrackingAndSkipping)
 {
@@ -185,16 +191,19 @@ TEST_F(MultiCompressorTest, EffectivenessTrackingAndSkipping)
     ASSERT_FALSE(multi->isCompressorUnpromising(0));
     ASSERT_EQ(multi->getConsecutiveFailures(0), 0);
 
-    // Compress repeated line 3 times. ZeroCompressor cannot compress repeatedLine.
+    // Compress repeated line 3 times. ZeroCompressor cannot compress
+    // repeatedLine.
     for (int i = 0; i < 3; i++) {
         multi->compress(repeatedLine, comp_lat, decomp_lat);
     }
 
-    // ZeroCompressor (index 0) has failed 3 consecutive times and should be marked unpromising
+    // ZeroCompressor (index 0) has failed 3 consecutive times and should be
+    // marked unpromising
     ASSERT_GE(multi->getConsecutiveFailures(0), 3);
     ASSERT_TRUE(multi->isCompressorUnpromising(0));
 
-    // RepeatedQwordsCompressor (index 1) succeeded, so it must remain promising
+    // RepeatedQwordsCompressor (index 1) succeeded, so it must remain
+    // promising
     ASSERT_FALSE(multi->isCompressorUnpromising(1));
     ASSERT_EQ(multi->getConsecutiveFailures(1), 0);
 }
@@ -212,7 +221,8 @@ TEST_F(MultiCompressorTest, FallbackOnActiveFailure)
     // Compress repeatedLine 2 times.
     // ZeroCompressor (0) fails 2 times -> unpromising.
     // RepeatedQwords (1) succeeds 2 times -> active.
-    // Base16Delta8 (2) fails 2 times (16 bytes > 12.8 bytes threshold) -> unpromising.
+    // Base16Delta8 (2) fails 2 times (16 bytes > 12.8 bytes threshold) ->
+    // unpromising.
     for (int i = 0; i < 2; i++) {
         multi->compress(repeatedLine, comp_lat, decomp_lat);
     }
@@ -220,12 +230,13 @@ TEST_F(MultiCompressorTest, FallbackOnActiveFailure)
     ASSERT_TRUE(multi->isCompressorUnpromising(2));
     ASSERT_FALSE(multi->isCompressorUnpromising(1));
 
-    // Now compress deltaLine. Active compressor (index 1 RepeatedQwords) fails on deltaLine.
-    // Fallback pass evaluates skipped Base16Delta8 (index 2).
+    // Now compress deltaLine. Active compressor (index 1 RepeatedQwords) fails
+    // on deltaLine. Fallback pass evaluates skipped Base16Delta8 (index 2).
     auto comp_data = multi->compress(deltaLine, comp_lat, decomp_lat);
     ASSERT_NE(comp_data, nullptr);
 
-    // Base16Delta8 (index 2) should succeed, be selected as best, and recover from unpromising state
+    // Base16Delta8 (index 2) should succeed, be selected as best, and recover
+    // from unpromising state
     ASSERT_FALSE(multi->isCompressorUnpromising(2));
     ASSERT_EQ(multi->getConsecutiveFailures(2), 0);
 }
@@ -240,7 +251,8 @@ TEST_F(MultiCompressorTest, AllUnpromisingFallback)
     Cycles comp_lat(0);
     Cycles decomp_lat(0);
 
-    // Compress randomLine 2 times. All compressors fail 2 times and become unpromising.
+    // Compress randomLine 2 times. All compressors fail 2 times and become
+    // unpromising.
     for (int i = 0; i < 2; i++) {
         multi->compress(randomLine, comp_lat, decomp_lat);
     }
@@ -249,7 +261,8 @@ TEST_F(MultiCompressorTest, AllUnpromisingFallback)
     }
 
     // Call compress again with zeroLine.
-    // Fallback logic for all-unpromising state forces evaluation of sub-compressors.
+    // Fallback logic for all-unpromising state forces evaluation of
+    // sub-compressors.
     auto comp_data = multi->compress(zeroLine, comp_lat, decomp_lat);
     ASSERT_NE(comp_data, nullptr);
 
@@ -269,7 +282,8 @@ TEST_F(MultiCompressorTest, PeriodicProbing)
     Cycles comp_lat(0);
     Cycles decomp_lat(0);
 
-    // Compress repeatedLine 2 times to mark ZeroCompressor (index 0) unpromising
+    // Compress repeatedLine 2 times to mark ZeroCompressor (index 0)
+    // unpromising
     multi->compress(repeatedLine, comp_lat, decomp_lat); // Call 1
     multi->compress(repeatedLine, comp_lat, decomp_lat); // Call 2
     ASSERT_TRUE(multi->isCompressorUnpromising(0));
@@ -277,8 +291,8 @@ TEST_F(MultiCompressorTest, PeriodicProbing)
     // Call 3: ZeroCompressor remains skipped
     multi->compress(repeatedLine, comp_lat, decomp_lat); // Call 3
 
-    // Call 4: Probe interval (totalCompressions = 4). Probing evaluates ZeroCompressor.
-    // Pass zeroLine so ZeroCompressor succeeds and recovers.
+    // Call 4: Probe interval (totalCompressions = 4). Probing evaluates
+    // ZeroCompressor. Pass zeroLine so ZeroCompressor succeeds and recovers.
     multi->compress(zeroLine, comp_lat, decomp_lat); // Call 4
     ASSERT_FALSE(multi->isCompressorUnpromising(0));
 }

@@ -98,7 +98,8 @@ class Multi : public Base
      */
     const unsigned probeInterval;
 
-    /** Number of consecutive unpromising/failed compressions per sub-compressor. */
+    /** Number of consecutive unpromising/failed compressions per
+     * sub-compressor. */
     std::vector<unsigned> consecutiveFailures;
 
     /** Whether each sub-compressor is currently marked unpromising/skipped. */
@@ -166,7 +167,11 @@ class Multi : public Base
      *
      * @return Reference to compressors vector.
      */
-    const std::vector<Base*>& getCompressors() const { return compressors; }
+    const std::vector<Base *> &
+    getCompressors() const
+    {
+        return compressors;
+    }
 };
 
 class Multi::MultiCompData : public CompressionData
