@@ -131,6 +131,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         l2_size: str,
         l2_assoc: int = 16,
         use_compression: bool = False,
+        enable_adaptive_bypass: bool = False,
+        latency_breakeven_threshold: float = 1.0,
+        sampling_interval: int = 100,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -140,6 +143,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param l2_assoc: L2 Cache associativity.
         :param use_compression: If True, attach BDI compressor and
             CompressedTags to the L2 cache.
+        :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
+        :param latency_breakeven_threshold: Compression ratio threshold for bypass.
+        :param sampling_interval: Sampling interval for compression effectiveness.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -154,6 +160,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         )
 
         self._use_compression = use_compression
+        self._enable_adaptive_bypass = enable_adaptive_bypass
+        self._latency_breakeven_threshold = latency_breakeven_threshold
+        self._sampling_interval = sampling_interval
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -173,10 +182,17 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             from m5.objects import BDI, CompressedTags
 
             l2.compressor = BDI()
+            if self._enable_adaptive_bypass:
+                l2.compressor.enable_adaptive_bypass = True
+                l2.compressor.latency_breakeven_threshold = (
+                    self._latency_breakeven_threshold
+                )
+                l2.compressor.sampling_interval = self._sampling_interval
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
-                "and CompressedTags (max_compression_ratio=2)"
+                "and CompressedTags (max_compression_ratio=2, "
+                f"adaptive_bypass={self._enable_adaptive_bypass})"
             )
         else:
             print("[CompressionEval] L2 cache configured without compression (baseline)")
@@ -372,6 +388,30 @@ parser.add_argument(
     "or when the benchmark finishes, whichever comes first.",
 )
 
+parser.add_argument(
+    "--enable-adaptive-bypass",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable adaptive compression bypass when observed compression ratio is below threshold.",
+)
+
+parser.add_argument(
+    "--latency-breakeven-threshold",
+    type=float,
+    required=False,
+    default=1.0,
+    help="Compression ratio threshold below which compression is bypassed (default: 1.0).",
+)
+
+parser.add_argument(
+    "--sampling-interval",
+    type=int,
+    required=False,
+    default=100,
+    help="Sampling interval in number of compressions for tracking ratio (default: 100).",
+)
+
 args = parser.parse_args()
 
 
@@ -425,6 +465,9 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     l2_size="512KiB",
     l2_assoc=16,
     use_compression=args.compression,
+    enable_adaptive_bypass=args.enable_adaptive_bypass,
+    latency_breakeven_threshold=args.latency_breakeven_threshold,
+    sampling_interval=args.sampling_interval,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)

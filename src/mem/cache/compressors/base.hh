@@ -125,6 +125,24 @@ class Base : public SimObject
      */
     const Cycles decompExtraLatency;
 
+    /** Whether adaptive compression bypass is enabled. */
+    const bool enableAdaptiveBypass;
+
+    /** Compression ratio threshold below which compression is bypassed. */
+    const float latencyBreakevenThreshold;
+
+    /** Sampling interval for tracking compression effectiveness. */
+    const unsigned samplingInterval;
+
+    /** Total number of compression requests. */
+    uint64_t totalCompressionRequests;
+
+    /** Total uncompressed bits of sampled blocks. */
+    uint64_t sampledUncompressedBits;
+
+    /** Total compressed bits of sampled blocks. */
+    uint64_t sampledCompressedBits;
+
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
@@ -153,6 +171,24 @@ class Base : public SimObject
 
         /** Number of decompressions performed. */
         statistics::Scalar decompressions;
+
+        /** Number of compressions bypassed due to low compression ratio. */
+        statistics::Scalar bypassedCompressions;
+
+        /** Number of decompressions bypassed due to low compression ratio. */
+        statistics::Scalar bypassedDecompressions;
+
+        /** Number of compression attempts sampled. */
+        statistics::Scalar sampledCompressions;
+
+        /** Total uncompressed bits of sampled blocks. */
+        statistics::Scalar sampledUncompressedBits;
+
+        /** Total compressed bits of sampled blocks. */
+        statistics::Scalar sampledCompressedBits;
+
+        /** Observed compression ratio from sampling. */
+        statistics::Formula observedCompressionRatio;
     } stats;
 
     /**
