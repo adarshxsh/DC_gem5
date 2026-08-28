@@ -21,7 +21,10 @@ from m5.objects import (
     SystemXBar,
 )
 from m5.params import Port
-from m5.util import fatal, warn
+from m5.util import (
+    fatal,
+    warn,
+)
 
 from gem5.coherence_protocol import CoherenceProtocol
 from gem5.components.boards.x86_board import X86Board
@@ -51,10 +54,10 @@ from gem5.simulate.simulator import Simulator
 from gem5.utils.override import overrides
 from gem5.utils.requires import requires
 
-
 # ---------------------------------------------------------------------------
 # Custom Classic Cache Hierarchy with optional BDI compression on L2
 # ---------------------------------------------------------------------------
+
 
 class PrivateL1PrivateL2WithCompressionHierarchy(
     AbstractClassicCacheHierarchy, AbstractTwoLevelCacheHierarchy
@@ -66,6 +69,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
     def _get_default_membus(self) -> SystemXBar:
         from m5.objects import NULL
+
         membus = SystemXBar(width=64)
         membus.snoop_filter = NULL
         membus.badaddr_responder = BadAddr()
@@ -108,7 +112,10 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         l2 = L2Cache(size=self._l2_size, assoc=self._l2_assoc)
 
         if self._use_compression:
-            from m5.objects import BDI, CompressedTags
+            from m5.objects import (
+                BDI,
+                CompressedTags,
+            )
 
             l2.compressor = BDI()
             l2.tags = CompressedTags()
@@ -117,7 +124,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 "and CompressedTags"
             )
         else:
-            print("[CompressionEval] L2 cache configured without compression (baseline)")
+            print(
+                "[CompressionEval] L2 cache configured without compression (baseline)"
+            )
 
         return l2
 
@@ -129,6 +138,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             self.membus.mem_side_ports = port
 
         from m5.objects import NULL
+
         l2buses = []
         for i in range(board.get_processor().get_num_cores()):
             l2_bus = L2XBar()
@@ -191,18 +201,53 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 # ---------------------------------------------------------------------------
 
 benchmark_choices = [
-    "500.perlbench_r", "502.gcc_r", "503.bwaves_r", "505.mcf_r",
-    "507.cactusBSSN_r", "508.namd_r", "510.parest_r", "511.povray_r",
-    "519.lbm_r", "520.omnetpp_r", "521.wrf_r", "523.xalancbmk_r",
-    "525.x264_r", "527.cam4_r", "531.deepsjeng_r", "538.imagick_r",
-    "541.leela_r", "544.nab_r", "548.exchange2_r", "549.fotonik3d_r",
-    "554.roms_r", "557.xz_r", "600.perlbench_s", "602.gcc_s",
-    "603.bwaves_s", "605.mcf_s", "607.cactusBSSN_s", "608.namd_s",
-    "610.parest_s", "611.povray_s", "619.lbm_s", "620.omnetpp_s",
-    "621.wrf_s", "623.xalancbmk_s", "625.x264_s", "627.cam4_s",
-    "631.deepsjeng_s", "638.imagick_s", "641.leela_s", "644.nab_s",
-    "648.exchange2_s", "649.fotonik3d_s", "654.roms_s", "996.specrand_fs",
-    "997.specrand_fr", "998.specrand_is", "999.specrand_ir",
+    "500.perlbench_r",
+    "502.gcc_r",
+    "503.bwaves_r",
+    "505.mcf_r",
+    "507.cactusBSSN_r",
+    "508.namd_r",
+    "510.parest_r",
+    "511.povray_r",
+    "519.lbm_r",
+    "520.omnetpp_r",
+    "521.wrf_r",
+    "523.xalancbmk_r",
+    "525.x264_r",
+    "527.cam4_r",
+    "531.deepsjeng_r",
+    "538.imagick_r",
+    "541.leela_r",
+    "544.nab_r",
+    "548.exchange2_r",
+    "549.fotonik3d_r",
+    "554.roms_r",
+    "557.xz_r",
+    "600.perlbench_s",
+    "602.gcc_s",
+    "603.bwaves_s",
+    "605.mcf_s",
+    "607.cactusBSSN_s",
+    "608.namd_s",
+    "610.parest_s",
+    "611.povray_s",
+    "619.lbm_s",
+    "620.omnetpp_s",
+    "621.wrf_s",
+    "623.xalancbmk_s",
+    "625.x264_s",
+    "627.cam4_s",
+    "631.deepsjeng_s",
+    "638.imagick_s",
+    "641.leela_s",
+    "644.nab_s",
+    "648.exchange2_s",
+    "649.fotonik3d_s",
+    "654.roms_s",
+    "996.specrand_fs",
+    "997.specrand_fr",
+    "998.specrand_is",
+    "999.specrand_ir",
 ]
 
 size_choices = ["test", "train", "ref"]
@@ -306,20 +351,28 @@ if not os.path.exists(_disk_image_path):
 # Check KVM availability
 if args.use_kvm:
     if not os.path.exists("/dev/kvm"):
-        fatal("[CompressionEval] /dev/kvm does not exist! Aborting rather than falling back to Atomic.")
+        fatal(
+            "[CompressionEval] /dev/kvm does not exist! Aborting rather than falling back to Atomic."
+        )
     if not os.access("/dev/kvm", os.R_OK | os.W_OK):
-        fatal("[CompressionEval] /dev/kvm exists but is not readable/writable! Check permissions. Aborting.")
+        fatal(
+            "[CompressionEval] /dev/kvm exists but is not readable/writable! Check permissions. Aborting."
+        )
     starting_cpu = CPUTypes.KVM
     print("[CompressionEval] KVM is verified and enabled for fast boot-up.")
 else:
     starting_cpu = CPUTypes.ATOMIC
-    print("[CompressionEval] Using ATOMIC CPU for boot (KVM explicitly disabled).")
+    print(
+        "[CompressionEval] Using ATOMIC CPU for boot (KVM explicitly disabled)."
+    )
 
 print(f"[CompressionEval] Kernel:       {_kernel_path}")
 print(f"[CompressionEval] Disk image:   {_disk_image_path}")
 print(f"[CompressionEval] Benchmark:    {args.benchmark} ({args.size})")
 print(f"[CompressionEval] L2 Cache:     {args.l2_size}")
-print(f"[CompressionEval] Compression:  {'BDI' if args.compression else 'OFF (baseline)'}")
+print(
+    f"[CompressionEval] Compression:  {'BDI' if args.compression else 'OFF (baseline)'}"
+)
 print(f"[CompressionEval] Boot CPU:     {starting_cpu.value}")
 print(f"[CompressionEval] ROI CPU:      O3")
 print(f"[CompressionEval] Warmup:       {args.warmup_insts:,} instructions")
@@ -363,7 +416,9 @@ board = X86Board(
 # Set up workload
 # ---------------------------------------------------------------------------
 
-output_dir = "speclogs_" + "".join(x.strip() for x in time.asctime().split()).replace(":", "")
+output_dir = "speclogs_" + "".join(
+    x.strip() for x in time.asctime().split()
+).replace(":", "")
 try:
     os.makedirs(os.path.join(m5.options.outdir, output_dir))
 except FileExistsError:
@@ -373,7 +428,9 @@ command = f"{args.benchmark} {args.size} {output_dir}"
 
 board.set_kernel_disk_workload(
     kernel=KernelResource(local_path=_kernel_path),
-    disk_image=DiskImageResource(_disk_image_path, root_partition=args.partition),
+    disk_image=DiskImageResource(
+        _disk_image_path, root_partition=args.partition
+    ),
     readfile_contents=command,
 )
 
@@ -383,6 +440,7 @@ board.set_kernel_disk_workload(
 # ---------------------------------------------------------------------------
 
 from gem5.simulate.exit_event import ExitEvent
+
 
 def spec_exit_event_handler():
     """Handles m5 exit events from SPEC runscript."""
@@ -394,7 +452,9 @@ def spec_exit_event_handler():
     print(f"[CompressionEval] Switching from {starting_cpu.value} -> O3CPU")
     processor.switch()
 
-    print(f"[CompressionEval] Starting warm-up phase ({args.warmup_insts:,} insts)")
+    print(
+        f"[CompressionEval] Starting warm-up phase ({args.warmup_insts:,} insts)"
+    )
     simulator.schedule_max_insts(args.warmup_insts)
     yield False
 
@@ -403,16 +463,21 @@ def spec_exit_event_handler():
     m5.stats.dump()
     yield True
 
+
 def max_insts_exit_handler():
     """Two-phase handler: end-of-warmup -> end-of-ROI."""
     print("[CompressionEval] === WARM-UP COMPLETE ===")
     print("[CompressionEval] Resetting stats - beginning measured ROI")
     m5.stats.reset()
-    print(f"[CompressionEval] Measurement cap: {args.max_insts:,} instructions")
+    print(
+        f"[CompressionEval] Measurement cap: {args.max_insts:,} instructions"
+    )
     simulator.schedule_max_insts(args.max_insts)
     yield False
 
-    print(f"[CompressionEval] === ROI END (cap {args.max_insts:,} insts reached) ===")
+    print(
+        f"[CompressionEval] === ROI END (cap {args.max_insts:,} insts reached) ==="
+    )
     print("[CompressionEval] Dump #2: benchmark ROI stats")
     m5.stats.dump()
     yield True

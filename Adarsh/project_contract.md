@@ -716,7 +716,7 @@ The intended workflow is:
 
     Phase 9
     =======
-    Create checkpoint for repeated experiments 
+    Create checkpoint for repeated experiments
 
         ↓
 
