@@ -303,6 +303,9 @@ class DictionaryCompressor<T>::Pattern
     /** Wether the pattern allocates a dictionary entry or not. */
     const bool allocate;
 
+    /** Whether the pattern represents a zero value. */
+    const bool isZeroPattern;
+
   public:
     /**
      * Default constructor.
@@ -312,18 +315,29 @@ class DictionaryCompressor<T>::Pattern
      * @param metadata_length Length, in bits, of the code and match location.
      * @param num_unmatched_bits Number of unmatched bits.
      * @param match_location Index of the match location.
+     * @param allocate Whether pattern allocates dictionary entry.
+     * @param is_zero Whether pattern represents zero value.
      */
     Pattern(const int number, const uint64_t code,
             const uint64_t metadata_length, const uint64_t num_unmatched_bits,
-            const int match_location, const bool allocate = true)
+            const int match_location, const bool allocate = true,
+            const bool is_zero = false)
         : patternNumber(number), code(code), length(metadata_length),
           numUnmatchedBits(num_unmatched_bits),
-          matchLocation(match_location), allocate(allocate)
+          matchLocation(match_location), allocate(allocate),
+          isZeroPattern(is_zero)
     {
     }
 
     /** Default destructor. */
     virtual ~Pattern() = default;
+
+    /**
+     * Determine if pattern represents a zero value.
+     *
+     * @return True if pattern represents zero.
+     */
+    virtual bool isZero() const { return isZeroPattern; }
 
     /**
      * Get enum number associated to this pattern.
@@ -426,7 +440,8 @@ class DictionaryCompressor<T>::UncompressedPattern
         const int match_location,
         const DictionaryEntry bytes)
       : DictionaryCompressor<T>::Pattern(number, code, metadata_length,
-            sizeof(T) * 8, match_location, true),
+            sizeof(T) * 8, match_location, true,
+            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
         data(bytes)
     {
     }
@@ -478,7 +493,8 @@ class DictionaryCompressor<T>::MaskedPattern
         const DictionaryEntry bytes,
         const bool allocate = true)
       : DictionaryCompressor<T>::Pattern(number, code, metadata_length,
-            popCount(static_cast<T>(~mask)), match_location, allocate),
+            popCount(static_cast<T>(~mask)), match_location, allocate,
+            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
         bits(DictionaryCompressor<T>::fromDictionaryEntry(bytes) & ~mask)
     {
     }
@@ -625,7 +641,8 @@ class DictionaryCompressor<T>::RepeatedValuePattern
         const DictionaryEntry bytes,
         const bool allocate = true)
       : DictionaryCompressor<T>::Pattern(number, code, metadata_length,
-            8 * sizeof(RepT), match_location, allocate),
+            8 * sizeof(RepT), match_location, allocate,
+            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
         value(DictionaryCompressor<T>::fromDictionaryEntry(bytes))
     {
     }
@@ -700,7 +717,8 @@ class DictionaryCompressor<T>::DeltaPattern
         const int match_location,
         const DictionaryEntry bytes)
       : DictionaryCompressor<T>::Pattern(number, code, metadata_length,
-            DeltaSizeBits, match_location, false),
+            DeltaSizeBits, match_location, false,
+            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
         bytes(bytes)
     {
     }
@@ -770,7 +788,8 @@ class DictionaryCompressor<T>::SignExtendedPattern
         const DictionaryEntry bytes,
         const bool allocate = false)
       : DictionaryCompressor<T>::Pattern(number, code, metadata_length, N,
-            -1, allocate),
+            -1, allocate,
+            DictionaryCompressor<T>::fromDictionaryEntry(bytes) == 0),
         bits(fromDictionaryEntry(bytes) & mask(N))
     {
     }
