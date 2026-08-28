@@ -404,9 +404,9 @@ bool
 SectorTags::checkInvariants() const
 {
     int valid_sectors = 0;
-    for (const auto& sec_blk : secBlks) {
+    for (const auto &sec_blk : secBlks) {
         int count_valid_sub = 0;
-        for (const auto& sub_blk : sec_blk.blks) {
+        for (const auto &sub_blk : sec_blk.blks) {
             if (sub_blk->isValid()) {
                 count_valid_sub++;
                 assert(sub_blk->getSectorBlock() == &sec_blk);

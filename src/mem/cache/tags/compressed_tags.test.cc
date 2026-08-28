@@ -48,7 +48,8 @@ class SuperBlkTestFixture : public ::testing::Test
     SuperBlk superBlk;
     std::unique_ptr<CompressionBlk[]> subBlks;
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         Gem5Internal::_curTickPtr = &mockTick;
         superBlk.setBlkSize(BlkSize);
@@ -64,15 +65,18 @@ class SuperBlkTestFixture : public ::testing::Test
         superBlk.registerTagExtractor([](Addr addr) { return addr; });
     }
 
-    void verifyInvariants(const SuperBlk& sb)
+    void
+    verifyInvariants(const SuperBlk &sb)
     {
         uint8_t count_valid = 0;
         uint8_t min_cf = sb.blks.size();
-        for (const auto& blk : sb.blks) {
+        for (const auto &blk : sb.blks) {
             if (blk->isValid()) {
                 count_valid++;
-                const CompressionBlk* cblk = static_cast<const CompressionBlk*>(blk);
-                uint8_t cf = sb.calculateCompressionFactor(cblk->getSizeBits());
+                const CompressionBlk *cblk =
+                    static_cast<const CompressionBlk *>(blk);
+                uint8_t cf =
+                    sb.calculateCompressionFactor(cblk->getSizeBits());
                 if (cf < min_cf) {
                     min_cf = cf;
                 }
@@ -124,7 +128,8 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
 
     // Check co-allocation possibilities
     ASSERT_TRUE(superBlk.canCoAllocate(64));
-    ASSERT_TRUE(superBlk.canCoAllocate(128)); // target_cf = min(8, 4) = 4, 1 < 4, 128 <= 128
+    ASSERT_TRUE(superBlk.canCoAllocate(
+        128)); // target_cf = min(8, 4) = 4, 1 < 4, 128 <= 128
     ASSERT_FALSE(superBlk.canCoAllocate(512)); // target_cf = 1 -> uncompressed
 
     // Co-allocate block 1 at offset 1 (size 128 bits -> CF=4)
@@ -262,8 +267,10 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             int target_sub = sub_idx;
             if (!cblks[target_sb][target_sub].isValid() &&
                 (!sblks[target_sb].isValid() ||
-                 sblks[target_sb].getTag() == cblks[sb_idx][sub_idx].getTag())) {
-                cblks[target_sb][target_sub] = std::move(cblks[sb_idx][sub_idx]);
+                 sblks[target_sb].getTag() ==
+                     cblks[sb_idx][sub_idx].getTag())) {
+                cblks[target_sb][target_sub] =
+                    std::move(cblks[sb_idx][sub_idx]);
             }
         } else {
             // Update size (expansion / contraction)

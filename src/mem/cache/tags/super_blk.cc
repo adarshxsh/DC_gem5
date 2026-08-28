@@ -65,11 +65,11 @@ CompressionBlk::operator=(CompressionBlk&& other)
         setUncompressed();
     }
 
-    SuperBlk* src_super = static_cast<SuperBlk*>(other.getSectorBlock());
+    SuperBlk *src_super = static_cast<SuperBlk *>(other.getSectorBlock());
 
     SectorSubBlk::operator=(std::move(other));
 
-    SuperBlk* dest_super = static_cast<SuperBlk*>(getSectorBlock());
+    SuperBlk *dest_super = static_cast<SuperBlk *>(getSectorBlock());
     if (src_super) {
         src_super->updateCompressionFactor();
     }
@@ -153,7 +153,7 @@ CompressionBlk::invalidate()
     SectorSubBlk::invalidate();
     setUncompressed();
     _size = 0;
-    SuperBlk* superblock = static_cast<SuperBlk*>(getSectorBlock());
+    SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
         superblock->updateCompressionFactor();
     }
@@ -200,7 +200,7 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
 {
     for (const auto& blk : blks) {
         if (blk->isValid() && (blk != ignored_blk)) {
-            if (!static_cast<CompressionBlk*>(blk)->isCompressed()) {
+            if (!static_cast<CompressionBlk *>(blk)->isCompressed()) {
                 return false;
             }
         }
@@ -222,12 +222,12 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    const uint8_t target_cf = (getNumValid() == 0) ?
-        new_blk_cf : std::min(getCompressionFactor(), new_blk_cf);
+    const uint8_t target_cf =
+        (getNumValid() == 0) ? new_blk_cf
+                             : std::min(getCompressionFactor(), new_blk_cf);
 
-    return (target_cf > 1) &&
-        (getNumValid() < target_cf) &&
-        (compressed_size <= (blkSize * CHAR_BIT) / target_cf);
+    return (target_cf > 1) && (getNumValid() < target_cf) &&
+           (compressed_size <= (blkSize * CHAR_BIT) / target_cf);
 }
 
 void
@@ -267,10 +267,10 @@ SuperBlk::updateCompressionFactor()
 {
     uint8_t min_cf = blks.size();
     bool has_valid = false;
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk->isValid()) {
             has_valid = true;
-            CompressionBlk* cblk = static_cast<CompressionBlk*>(blk);
+            CompressionBlk *cblk = static_cast<CompressionBlk *>(blk);
             uint8_t cf = calculateCompressionFactor(cblk->getSizeBits());
             if (cf < min_cf) {
                 min_cf = cf;
