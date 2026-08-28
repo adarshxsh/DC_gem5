@@ -33,7 +33,8 @@
 using namespace gem5;
 
 /**
- * Test that CompressionBlk correctly sets compression status for uncompressed vs compressed sizes.
+ * Test that CompressionBlk correctly sets compression status for uncompressed
+ * vs compressed sizes.
  */
 TEST(SuperBlkTest, UncompressedSubBlockDetection)
 {

@@ -106,7 +106,8 @@ CompressionBlk::setSizeBits(const std::size_t size)
             superblock->calculateCompressionFactor(size);
         superblock->setCompressionFactor(compression_factor);
 
-        // Set compression status of this sub-block based on whether it is compressed
+        // Set compression status of this sub-block based on whether it is
+        // compressed
         if (compression_factor != 1) {
             setCompressed();
         } else {
