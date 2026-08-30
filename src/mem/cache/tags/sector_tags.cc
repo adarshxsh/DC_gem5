@@ -400,4 +400,28 @@ SectorTags::anyBlk(std::function<bool(CacheBlk &)> visitor)
     return false;
 }
 
+bool
+SectorTags::checkInvariants() const
+{
+    int valid_sectors = 0;
+    for (const auto &sec_blk : secBlks) {
+        int count_valid_sub = 0;
+        for (const auto &sub_blk : sec_blk.blks) {
+            if (sub_blk->isValid()) {
+                count_valid_sub++;
+                assert(sub_blk->getSectorBlock() == &sec_blk);
+                assert(sub_blk->getTag() == sec_blk.getTag());
+                assert(sub_blk->isSecure() == sec_blk.isSecure());
+            }
+        }
+        assert(sec_blk.getNumValid() == count_valid_sub);
+        assert(sec_blk.isValid() == (count_valid_sub > 0));
+        if (sec_blk.isValid()) {
+            valid_sectors++;
+        }
+    }
+    assert(stats.tagsInUse.value() == valid_sectors);
+    return true;
+}
+
 } // namespace gem5
