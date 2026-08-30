@@ -78,14 +78,14 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
     def __init__(
         self,
-        l1d_size: str,
-        l1i_size: str,
-        l2_size: str,
+        l1i_size: str = "32KiB",
+        l1d_size: str = "32KiB",
+        l2_size: str = "512KiB",
         l2_assoc: int = 16,
-        use_compression: bool = False,
-        membus: Optional[BaseXBar] = None,
+        compressor: str = "none",
+        membus: Optional[SystemXBar] = None,
     ) -> None:
-        AbstractClassicCacheHierarchy.__init__(self=self)
+        AbstractClassicCacheHierarchy.__init__(self)
         AbstractTwoLevelCacheHierarchy.__init__(
             self,
             l1i_size=l1i_size,
@@ -96,7 +96,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             l2_assoc=l2_assoc,
         )
 
-        self._use_compression = use_compression
+        self._l1i_size = l1i_size
+        self._l1d_size = l1d_size
+        self._l2_size = l2_size
+        self._l2_assoc = l2_assoc
+        self._compressor_choice = compressor.lower()
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -108,19 +112,32 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         return self.membus.cpu_side_ports
 
     def _create_l2_cache(self) -> L2Cache:
-        """Create an L2 cache, optionally with BDI compression."""
+        """Create an L2 cache, optionally with selected compressor."""
         l2 = L2Cache(size=self._l2_size, assoc=self._l2_assoc)
 
-        if self._use_compression:
+        if self._compressor_choice and self._compressor_choice != "none":
             from m5.objects import (
                 BDI,
+                CPack,
+                FPC,
+                ZeroCompressor,
                 CompressedTags,
             )
 
-            l2.compressor = BDI()
+            if self._compressor_choice == "bdi":
+                l2.compressor = BDI()
+            elif self._compressor_choice in ("cpack", "cpac"):
+                l2.compressor = CPack()
+            elif self._compressor_choice == "fpc":
+                l2.compressor = FPC()
+            elif self._compressor_choice in ("zero", "zerocompressor"):
+                l2.compressor = ZeroCompressor()
+            else:
+                l2.compressor = BDI()
+
             l2.tags = CompressedTags()
             print(
-                "[CompressionEval] L2 cache configured with BDI compressor "
+                f"[CompressionEval] L2 cache configured with {l2.compressor.type} compressor "
                 "and CompressedTags"
             )
         else:
@@ -276,7 +293,15 @@ parser.add_argument(
     "--compression",
     action="store_true",
     default=False,
-    help="Enable BDI compression on L2 cache.",
+    help="Enable compression on L2 cache (alias for --compressor bdi).",
+)
+
+parser.add_argument(
+    "--compressor",
+    type=str,
+    default="none",
+    choices=["none", "bdi", "cpack", "cpac", "fpc", "zero", "zerocompressor"],
+    help="Compressor engine to use on L2 cache (none, bdi, cpack, fpc, zero).",
 )
 
 parser.add_argument(
@@ -310,6 +335,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--fast-forward-insts",
+    type=int,
+    required=False,
+    default=0,
+    help="Number of instructions to fast-forward under KVM before warm-up (default: 0).",
+)
+
+parser.add_argument(
     "--warmup-insts",
     type=int,
     required=False,
@@ -322,10 +355,15 @@ parser.add_argument(
     type=int,
     required=False,
     default=10_000_000,
-    help="Number of instructions for measured ROI (default: 10M per contract).",
+    help="Number of instructions for measured ROI (default: 10M).",
 )
 
 args = parser.parse_args()
+
+# Normalize compressor choice
+chosen_compressor = args.compressor.lower()
+if chosen_compressor == "none" and args.compression:
+    chosen_compressor = "bdi"
 
 
 # ---------------------------------------------------------------------------
@@ -370,13 +408,12 @@ print(f"[CompressionEval] Kernel:       {_kernel_path}")
 print(f"[CompressionEval] Disk image:   {_disk_image_path}")
 print(f"[CompressionEval] Benchmark:    {args.benchmark} ({args.size})")
 print(f"[CompressionEval] L2 Cache:     {args.l2_size}")
-print(
-    f"[CompressionEval] Compression:  {'BDI' if args.compression else 'OFF (baseline)'}"
-)
+print(f"[CompressionEval] Compressor:   {chosen_compressor.upper()}")
 print(f"[CompressionEval] Boot CPU:     {starting_cpu.value}")
 print(f"[CompressionEval] ROI CPU:      O3")
+print(f"[CompressionEval] Fast-Forward: {args.fast_forward_insts:,} instructions")
 print(f"[CompressionEval] Warmup:       {args.warmup_insts:,} instructions")
-print(f"[CompressionEval] Max ROI:      {args.max_insts:,} instructions")
+print(f"[CompressionEval] ROI Cap:      {args.max_insts:,} instructions")
 
 
 # ---------------------------------------------------------------------------
@@ -388,7 +425,7 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     l1i_size="32KiB",
     l2_size=args.l2_size,
     l2_assoc=16,
-    use_compression=args.compression,
+    compressor=chosen_compressor,
 )
 
 memory = DualChannelDDR4_2400(size="3GiB")
@@ -449,6 +486,13 @@ def spec_exit_event_handler():
     m5.stats.dump()
     m5.stats.reset()
 
+    if args.fast_forward_insts > 0:
+        print(
+            f"[CompressionEval] Fast-forwarding {args.fast_forward_insts:,} insts under {starting_cpu.value}"
+        )
+        simulator.schedule_max_insts(args.fast_forward_insts)
+        yield False
+
     print(f"[CompressionEval] Switching from {starting_cpu.value} -> O3CPU")
     processor.switch()
 
@@ -465,7 +509,17 @@ def spec_exit_event_handler():
 
 
 def max_insts_exit_handler():
-    """Two-phase handler: end-of-warmup -> end-of-ROI."""
+    """Multi-phase handler: end-of-fast-forward -> end-of-warmup -> end-of-ROI."""
+    if args.fast_forward_insts > 0:
+        print("[CompressionEval] === FAST-FORWARD COMPLETE ===")
+        print(f"[CompressionEval] Switching from {starting_cpu.value} -> O3CPU")
+        processor.switch()
+        print(
+            f"[CompressionEval] Starting warm-up phase ({args.warmup_insts:,} insts)"
+        )
+        simulator.schedule_max_insts(args.warmup_insts)
+        yield False
+
     print("[CompressionEval] === WARM-UP COMPLETE ===")
     print("[CompressionEval] Resetting stats - beginning measured ROI")
     m5.stats.reset()
