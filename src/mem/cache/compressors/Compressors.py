@@ -64,6 +64,19 @@ class BaseCacheCompressor(SimObject):
         "to finish decompression (e.g., due to shifting and packaging).",
     )
 
+    enable_adaptive_bypass = Param.Bool(
+        False,
+        "Enable adaptive bypass of compression/decompression when observed compression ratio is below threshold",
+    )
+    latency_breakeven_threshold = Param.Float(
+        1.0,
+        "Observed compression ratio threshold below which compression is bypassed",
+    )
+    sampling_interval = Param.Unsigned(
+        100,
+        "Sampling interval (in number of compressions) to evaluate compression effectiveness",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"
