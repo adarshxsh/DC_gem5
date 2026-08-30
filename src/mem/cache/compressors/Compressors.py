@@ -268,6 +268,16 @@ class MultiCompressor(BaseCacheCompressor):
         "sub-compressor compressed some data are added to its corresponding "
         "tag entry.",
     )
+    unpromising_threshold = Param.Unsigned(
+        100,
+        "Number of consecutive unpromising/failed compressions before "
+        "skipping a sub-compressor (0 to disable skipping).",
+    )
+    probe_interval = Param.Unsigned(
+        1000,
+        "Number of compressions between periodic probing of skipped "
+        "sub-compressors (0 to disable periodic probing).",
+    )
 
     # Use the sub-compressors' latencies
     comp_chunks_per_cycle = 0

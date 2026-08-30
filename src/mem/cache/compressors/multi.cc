@@ -62,10 +62,17 @@ Multi::MultiCompData::getIndex() const
 }
 
 Multi::Multi(const Params &p)
-  : Base(p), compressors(p.compressors),
-    numEncodingBits(p.encoding_in_tags ? 0 :
-        std::log2(alignToPowerOfTwo(compressors.size()))),
-    multiStats(stats, *this)
+    : Base(p),
+      compressors(p.compressors),
+      numEncodingBits(p.encoding_in_tags
+                          ? 0
+                          : std::log2(alignToPowerOfTwo(compressors.size()))),
+      unpromisingThreshold(p.unpromising_threshold),
+      probeInterval(p.probe_interval),
+      consecutiveFailures(compressors.size(), 0),
+      isUnpromising(compressors.size(), false),
+      totalCompressions(0),
+      multiStats(stats, *this)
 {
     fatal_if(compressors.size() == 0, "There must be at least one compressor");
 }
@@ -86,6 +93,20 @@ Multi::setCache(BaseCache *_cache)
     }
 }
 
+bool
+Multi::isCompressorUnpromising(unsigned index) const
+{
+    assert(index < isUnpromising.size());
+    return isUnpromising[index];
+}
+
+unsigned
+Multi::getConsecutiveFailures(unsigned index) const
+{
+    assert(index < consecutiveFailures.size());
+    return consecutiveFailures[index];
+}
+
 std::unique_ptr<Base::CompressionData>
 Multi::compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
     Cycles& decomp_lat)
@@ -96,14 +117,21 @@ Multi::compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
         std::unique_ptr<Base::CompressionData> compData;
         Cycles decompLat;
         uint8_t compressionFactor;
+        bool successful;
 
         Results(unsigned index,
-            std::unique_ptr<Base::CompressionData> comp_data,
-            Cycles decomp_lat, std::size_t blk_size)
-            : index(index), compData(std::move(comp_data)),
+                std::unique_ptr<Base::CompressionData> comp_data,
+                Cycles decomp_lat, std::size_t blk_size,
+                std::size_t threshold_bytes)
+            : index(index),
+              compData(std::move(comp_data)),
               decompLat(decomp_lat)
         {
             const std::size_t size = compData->getSize();
+            // A compression attempt is successful if it fits within the
+            // size threshold and is smaller than the uncompressed block size.
+            successful = (size <= threshold_bytes) && (size < blk_size);
+
             // If the compressed size is worse than the uncompressed size,
             // we assume the size is the uncompressed size, and thus the
             // compression factor is 1.
@@ -141,38 +169,103 @@ Multi::compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
     auto data = std::make_unique<uint64_t[]>(blkSize/8);
     fromChunks(chunks, data.get());
 
-    // Find the ranking of the compressor outputs
-    std::priority_queue<std::shared_ptr<Results>,
-        std::vector<std::shared_ptr<Results>>, ResultsComparator> results;
-    Cycles max_comp_lat;
-    for (unsigned i = 0; i < compressors.size(); i++) {
-        Cycles temp_decomp_lat;
-        auto temp_comp_data =
-            compressors[i]->compress(data.get(), comp_lat, temp_decomp_lat);
-        temp_comp_data->setSizeBits(temp_comp_data->getSizeBits() +
-            numEncodingBits);
-        results.push(std::make_shared<Results>(i, std::move(temp_comp_data),
-            temp_decomp_lat, blkSize));
-        max_comp_lat = std::max(max_comp_lat, comp_lat);
+    totalCompressions++;
+
+    const bool periodic_probe =
+        (probeInterval > 0) && (totalCompressions % probeInterval == 0);
+
+    bool all_unpromising = true;
+    for (bool unp : isUnpromising) {
+        if (!unp) {
+            all_unpromising = false;
+            break;
+        }
     }
 
-    // Assign best compressor to compression data
-    const unsigned best_index = results.top()->index;
-    auto multi_comp_data = std::make_unique<MultiCompData>(
-            best_index, std::move(results.top()->compData));
-    DPRINTF(CacheComp, "Best compressor: %d\n", best_index);
+    std::vector<bool> evaluated(compressors.size(), false);
+    std::priority_queue<std::shared_ptr<Results>,
+        std::vector<std::shared_ptr<Results>>, ResultsComparator> results;
+    Cycles max_comp_lat(0);
+
+    auto run_compressor = [&](unsigned i) {
+        Cycles temp_comp_lat(0);
+        Cycles temp_decomp_lat(0);
+        auto temp_comp_data = compressors[i]->compress(
+            data.get(), temp_comp_lat, temp_decomp_lat);
+        temp_comp_data->setSizeBits(temp_comp_data->getSizeBits() +
+            numEncodingBits);
+        auto res =
+            std::make_shared<Results>(i, std::move(temp_comp_data),
+                                      temp_decomp_lat, blkSize, sizeThreshold);
+        results.push(res);
+        max_comp_lat = std::max(max_comp_lat, temp_comp_lat);
+        evaluated[i] = true;
+        multiStats.totalAttempts[i]++;
+        return res;
+    };
+
+    // Primary Evaluation Pass
+    bool has_successful_primary = false;
+    for (unsigned i = 0; i < compressors.size(); i++) {
+        if (!isUnpromising[i] || periodic_probe || all_unpromising) {
+            auto res = run_compressor(i);
+            if (res->successful) {
+                has_successful_primary = true;
+            }
+        } else {
+            multiStats.skippedCompressions[i]++;
+        }
+    }
+
+    // Fallback Pass: If no active candidate produced a successful compression
+    // and there are skipped candidates, evaluate the skipped candidates.
+    if (!has_successful_primary) {
+        for (unsigned i = 0; i < compressors.size(); i++) {
+            if (!evaluated[i]) {
+                run_compressor(i);
+            }
+        }
+    }
 
     // Set decompression latency of the best compressor
     decomp_lat = results.top()->decompLat + decompExtraLatency;
 
-    // Update compressor ranking stats
-    for (int rank = 0; rank < compressors.size(); rank++) {
-        multiStats.ranks[results.top()->index][rank]++;
+    // Collect evaluated results in rank order (best to worst)
+    std::vector<std::shared_ptr<Results>> evaluated_results;
+    while (!results.empty()) {
+        evaluated_results.push_back(results.top());
         results.pop();
     }
 
-    // Set compression latency (compression latency of the slowest compressor
-    // and 1 cycle to pack)
+    // Assign best compressor to compression data
+    const unsigned best_index = evaluated_results.front()->index;
+    auto multi_comp_data = std::make_unique<MultiCompData>(
+        best_index, std::move(evaluated_results.front()->compData));
+    DPRINTF(CacheComp, "Best compressor: %d\n", best_index);
+
+    // Update compressor ranking stats
+    for (int rank = 0; rank < evaluated_results.size(); rank++) {
+        multiStats.ranks[evaluated_results[rank]->index][rank]++;
+    }
+
+    // Update effectiveness tracking
+    for (const auto &res : evaluated_results) {
+        const unsigned idx = res->index;
+        if (res->successful) {
+            consecutiveFailures[idx] = 0;
+            isUnpromising[idx] = false;
+            multiStats.successfulCompressions[idx]++;
+        } else {
+            consecutiveFailures[idx]++;
+            if (unpromisingThreshold > 0 &&
+                consecutiveFailures[idx] >= unpromisingThreshold) {
+                isUnpromising[idx] = true;
+            }
+        }
+    }
+
+    // Set compression latency (compression latency of the slowest evaluated
+    // compressor plus extra latency)
     comp_lat = Cycles(max_comp_lat + compExtraLatency);
 
     return multi_comp_data;
@@ -188,10 +281,17 @@ Multi::decompress(const CompressionData* comp_data,
         casted_comp_data->compData.get(), cache_line);
 }
 
-Multi::MultiStats::MultiStats(BaseStats& base_group, Multi& _compressor)
-  : statistics::Group(&base_group), compressor(_compressor),
-    ADD_STAT(ranks, statistics::units::Count::get(),
-             "Number of times each compressor had the nth best compression")
+Multi::MultiStats::MultiStats(BaseStats &base_group, Multi &_compressor)
+    : statistics::Group(&base_group),
+      compressor(_compressor),
+      ADD_STAT(ranks, statistics::units::Count::get(),
+               "Number of times each compressor had the nth best compression"),
+      ADD_STAT(totalAttempts, statistics::units::Count::get(),
+               "Total evaluation attempts per sub-compressor"),
+      ADD_STAT(successfulCompressions, statistics::units::Count::get(),
+               "Successful compressions per sub-compressor"),
+      ADD_STAT(skippedCompressions, statistics::units::Count::get(),
+               "Skipped evaluation attempts per sub-compressor")
 {
 }
 
@@ -202,10 +302,26 @@ Multi::MultiStats::regStats()
 
     const std::size_t num_compressors = compressor.compressors.size();
     ranks.init(num_compressors, num_compressors);
+    totalAttempts.init(num_compressors);
+    successfulCompressions.init(num_compressors);
+    skippedCompressions.init(num_compressors);
+
     for (unsigned compressor = 0; compressor < num_compressors; compressor++) {
         ranks.subname(compressor, std::to_string(compressor));
         ranks.subdesc(compressor, "Number of times compressor " +
             std::to_string(compressor) + " had the nth best compression.");
+        totalAttempts.subname(compressor, std::to_string(compressor));
+        totalAttempts.subdesc(compressor,
+                              "Total evaluation attempts for compressor " +
+                                  std::to_string(compressor));
+        successfulCompressions.subname(compressor, std::to_string(compressor));
+        successfulCompressions.subdesc(
+            compressor, "Successful compressions for compressor " +
+                            std::to_string(compressor));
+        skippedCompressions.subname(compressor, std::to_string(compressor));
+        skippedCompressions.subdesc(compressor,
+                                    "Skipped compressions for compressor " +
+                                        std::to_string(compressor));
         for (unsigned rank = 0; rank < num_compressors; rank++) {
             ranks.ysubname(rank, std::to_string(rank));
         }

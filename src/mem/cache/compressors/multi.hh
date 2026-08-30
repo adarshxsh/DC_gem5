@@ -86,6 +86,28 @@ class Multi : public Base
      */
     const Cycles extraDecompressionLatency;
 
+    /**
+     * Threshold of consecutive failures to mark a sub-compressor unpromising.
+     * 0 disables skipping.
+     */
+    const unsigned unpromisingThreshold;
+
+    /**
+     * Interval in compressions to periodically probe skipped sub-compressors.
+     * 0 disables periodic probing.
+     */
+    const unsigned probeInterval;
+
+    /** Number of consecutive unpromising/failed compressions per
+     * sub-compressor. */
+    std::vector<unsigned> consecutiveFailures;
+
+    /** Whether each sub-compressor is currently marked unpromising/skipped. */
+    std::vector<bool> isUnpromising;
+
+    /** Total compressions evaluated by this Multi compressor. */
+    uint64_t totalCompressions;
+
     struct MultiStats : public statistics::Group
     {
         const Multi& compressor;
@@ -98,12 +120,23 @@ class Multi : public Base
          * Number of times each compressor provided the nth best compression.
          */
         statistics::Vector2d ranks;
+
+        /** Total attempts per sub-compressor. */
+        statistics::Vector totalAttempts;
+
+        /** Successful compressions per sub-compressor. */
+        statistics::Vector successfulCompressions;
+
+        /** Skipped compressions per sub-compressor. */
+        statistics::Vector skippedCompressions;
     } multiStats;
 
   public:
     typedef MultiCompressorParams Params;
     Multi(const Params &p);
     ~Multi();
+
+    using Base::compress;
 
     void setCache(BaseCache *_cache) override;
 
@@ -112,6 +145,33 @@ class Multi : public Base
         Cycles& comp_lat, Cycles& decomp_lat) override;
 
     void decompress(const CompressionData* comp_data, uint64_t* data) override;
+
+    /**
+     * Inspect whether a sub-compressor is marked unpromising.
+     *
+     * @param index Sub-compressor index.
+     * @return True if compressor is skipped/unpromising.
+     */
+    bool isCompressorUnpromising(unsigned index) const;
+
+    /**
+     * Get consecutive failure count for a sub-compressor.
+     *
+     * @param index Sub-compressor index.
+     * @return Number of consecutive unpromising compressions.
+     */
+    unsigned getConsecutiveFailures(unsigned index) const;
+
+    /**
+     * Get sub-compressors vector.
+     *
+     * @return Reference to compressors vector.
+     */
+    const std::vector<Base *> &
+    getCompressors() const
+    {
+        return compressors;
+    }
 };
 
 class Multi::MultiCompData : public CompressionData
