@@ -82,13 +82,22 @@ Base::CompressionData::getSize() const
 }
 
 Base::Base(const Params &p)
-  : SimObject(p), blkSize(p.block_size), chunkSizeBits(p.chunk_size_bits),
-    sizeThreshold((blkSize * p.size_threshold_percentage) / 100),
-    compChunksPerCycle(p.comp_chunks_per_cycle),
-    compExtraLatency(p.comp_extra_latency),
-    decompChunksPerCycle(p.decomp_chunks_per_cycle),
-    decompExtraLatency(p.decomp_extra_latency),
-    cache(nullptr), stats(*this)
+    : SimObject(p),
+      blkSize(p.block_size),
+      chunkSizeBits(p.chunk_size_bits),
+      sizeThreshold((blkSize * p.size_threshold_percentage) / 100),
+      compChunksPerCycle(p.comp_chunks_per_cycle),
+      compExtraLatency(p.comp_extra_latency),
+      decompChunksPerCycle(p.decomp_chunks_per_cycle),
+      decompExtraLatency(p.decomp_extra_latency),
+      enableAdaptiveBypass(p.enable_adaptive_bypass),
+      latencyBreakevenThreshold(p.latency_breakeven_threshold),
+      samplingInterval(p.sampling_interval),
+      totalCompressionRequests(0),
+      sampledUncompressedBits(0),
+      sampledCompressedBits(0),
+      cache(nullptr),
+      stats(*this)
 {
     fatal_if(64 % chunkSizeBits,
         "64 must be a multiple of the chunk granularity.");
@@ -149,6 +158,35 @@ Base::fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const
 std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
+    totalCompressionRequests++;
+
+    bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
+                     ((totalCompressionRequests - 1) % samplingInterval == 0);
+
+    double observedRatio =
+        (sampledCompressedBits > 0)
+            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
+            : (latencyBreakevenThreshold + 1.0);
+
+    bool shouldBypass =
+        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+
+    if (shouldBypass && !isSampled) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.bypassedCompressions++;
+        DPRINTF(
+            CacheComp,
+            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
+            "Bypassing compression.\n",
+            observedRatio, latencyBreakevenThreshold);
+        return comp_data;
+    }
+
     // Apply compression
     std::unique_ptr<CompressionData> comp_data =
         compress(toChunks(data), comp_lat, decomp_lat);
@@ -175,19 +213,43 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.failedCompressions++;
     }
 
-    // Update stats
-    stats.compressions++;
-    stats.compressionSizeBits += comp_size_bits;
-    if (comp_size_bits != 0) {
-        stats.compressionSize[1 + std::ceil(std::log2(comp_size_bits))]++;
-    } else {
-        stats.compressionSize[0]++;
+    // Uncompressed lines do not incur decompression latency
+    if (comp_size_bits >= blkSize * CHAR_BIT) {
+        decomp_lat = Cycles(0);
     }
 
-    // Print debug information
-    DPRINTF(CacheComp, "Compressed cache line from %d to %d bits. " \
-            "Compression latency: %llu, decompression latency: %llu\n",
-            blkSize*8, comp_size_bits, comp_lat, decomp_lat);
+    if (isSampled) {
+        uint64_t uncomp_bits = blkSize * CHAR_BIT;
+        sampledUncompressedBits += uncomp_bits;
+        sampledCompressedBits += comp_size_bits;
+        stats.sampledCompressions++;
+        stats.sampledUncompressedBits += uncomp_bits;
+        stats.sampledCompressedBits += comp_size_bits;
+    }
+
+    if (shouldBypass) {
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        stats.bypassedCompressions++;
+        DPRINTF(CacheComp, "Adaptive bypass active (sampled request). "
+                           "Bypassing compression.\n");
+    } else {
+        // Update stats
+        stats.compressions++;
+        stats.compressionSizeBits += comp_size_bits;
+        if (comp_size_bits != 0) {
+            stats.compressionSize[1 + std::ceil(std::log2(comp_size_bits))]++;
+        } else {
+            stats.compressionSize[0]++;
+        }
+
+        // Print debug information
+        DPRINTF(CacheComp,
+                "Compressed cache line from %d to %d bits. "
+                "Compression latency: %llu, decompression latency: %llu\n",
+                blkSize * 8, comp_size_bits, comp_lat, decomp_lat);
+    }
 
     return comp_data;
 }
@@ -197,13 +259,25 @@ Base::getDecompressionLatency(const CacheBlk* blk)
 {
     const CompressionBlk* comp_blk = static_cast<const CompressionBlk*>(blk);
 
-    // If block is compressed, return its decompression latency
-    if (comp_blk && comp_blk->isCompressed()){
+    // If block is compressed and has a size strictly less than an uncompressed
+    // line, return its decompression latency
+    if (comp_blk && comp_blk->isCompressed() &&
+        (comp_blk->getSizeBits() < blkSize * CHAR_BIT)) {
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
         DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
                 comp_blk->print(), decomp_lat);
         stats.decompressions += 1;
         return decomp_lat;
+    }
+
+    if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
+        double observedRatio = (sampledCompressedBits > 0)
+                                   ? ((double)sampledUncompressedBits /
+                                      (double)sampledCompressedBits)
+                                   : (latencyBreakevenThreshold + 1.0);
+        if (observedRatio < latencyBreakevenThreshold) {
+            stats.bypassedDecompressions += 1;
+        }
     }
 
     // Block is not compressed, so there is no decompression latency
@@ -230,22 +304,36 @@ Base::setSizeBits(CacheBlk* blk, const std::size_t size_bits)
     static_cast<CompressionBlk*>(blk)->setSizeBits(size_bits);
 }
 
-Base::BaseStats::BaseStats(Base& _compressor)
-  : statistics::Group(&_compressor), compressor(_compressor),
-    ADD_STAT(compressions, statistics::units::Count::get(),
-             "Total number of compressions"),
-    ADD_STAT(failedCompressions, statistics::units::Count::get(),
-             "Total number of failed compressions"),
-    ADD_STAT(compressionSize, statistics::units::Count::get(),
-             "Number of blocks that were compressed to this power of two "
-             "size"),
-    ADD_STAT(compressionSizeBits, statistics::units::Bit::get(),
-             "Total compressed data size"),
-    ADD_STAT(avgCompressionSizeBits, statistics::units::Rate<
-                statistics::units::Bit, statistics::units::Count>::get(),
-             "Average compression size"),
-    ADD_STAT(decompressions, statistics::units::Count::get(),
-             "Total number of decompressions")
+Base::BaseStats::BaseStats(Base &_compressor)
+    : statistics::Group(&_compressor),
+      compressor(_compressor),
+      ADD_STAT(compressions, statistics::units::Count::get(),
+               "Total number of compressions"),
+      ADD_STAT(failedCompressions, statistics::units::Count::get(),
+               "Total number of failed compressions"),
+      ADD_STAT(compressionSize, statistics::units::Count::get(),
+               "Number of blocks that were compressed to this power of two "
+               "size"),
+      ADD_STAT(compressionSizeBits, statistics::units::Bit::get(),
+               "Total compressed data size"),
+      ADD_STAT(avgCompressionSizeBits,
+               statistics::units::Rate<statistics::units::Bit,
+                                       statistics::units::Count>::get(),
+               "Average compression size"),
+      ADD_STAT(decompressions, statistics::units::Count::get(),
+               "Total number of decompressions"),
+      ADD_STAT(bypassedCompressions, statistics::units::Count::get(),
+               "Total number of bypassed compressions"),
+      ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
+               "Total number of bypassed decompressions"),
+      ADD_STAT(sampledCompressions, statistics::units::Count::get(),
+               "Total number of sampled compressions"),
+      ADD_STAT(sampledUncompressedBits, statistics::units::Bit::get(),
+               "Total uncompressed bits of sampled blocks"),
+      ADD_STAT(sampledCompressedBits, statistics::units::Bit::get(),
+               "Total compressed bits of sampled blocks"),
+      ADD_STAT(observedCompressionRatio, statistics::units::Ratio::get(),
+               "Observed compression ratio from sampling")
 {
 }
 
@@ -269,6 +357,10 @@ Base::BaseStats::regStats()
     avgCompressionSizeBits.flags(statistics::total | statistics::nozero |
         statistics::nonan);
     avgCompressionSizeBits = compressionSizeBits / compressions;
+
+    observedCompressionRatio.flags(statistics::total | statistics::nozero |
+                                   statistics::nonan);
+    observedCompressionRatio = sampledUncompressedBits / sampledCompressedBits;
 }
 
 } // namespace compression

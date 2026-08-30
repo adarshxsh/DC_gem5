@@ -216,6 +216,14 @@ class SectorTags : public BaseTags
      * @param visitor Visitor to call on each block.
      */
     bool anyBlk(std::function<bool(CacheBlk &)> visitor) override;
+
+    /**
+     * Check tag store invariants (sector validity, tag in use stats,
+     * sub-block count consistency).
+     *
+     * @return True if all invariants hold.
+     */
+    virtual bool checkInvariants() const;
 };
 
 } // namespace gem5

@@ -253,11 +253,13 @@ class FPC::SignExtendedTwoHalfwords : public Pattern
 
   public:
     SignExtendedTwoHalfwords(const DictionaryEntry bytes,
-        const int match_location)
-      : Pattern(SIGN_EXTENDED_TWO_HALFWORDS, SIGN_EXTENDED_TWO_HALFWORDS, 3,
-            16, -1, false),
-        extendedBytes{int8_t(fromDictionaryEntry(bytes) & mask(8)),
-            int8_t((fromDictionaryEntry(bytes) >> 16) & mask(8))}
+                             const int match_location)
+        : Pattern(SIGN_EXTENDED_TWO_HALFWORDS, SIGN_EXTENDED_TWO_HALFWORDS, 3,
+                  16, -1, false,
+                  DictionaryCompressor<uint32_t>::fromDictionaryEntry(bytes) ==
+                      0),
+          extendedBytes{int8_t(fromDictionaryEntry(bytes) & mask(8)),
+                        int8_t((fromDictionaryEntry(bytes) >> 16) & mask(8))}
     {
     }
 

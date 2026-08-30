@@ -64,6 +64,19 @@ class BaseCacheCompressor(SimObject):
         "to finish decompression (e.g., due to shifting and packaging).",
     )
 
+    enable_adaptive_bypass = Param.Bool(
+        False,
+        "Enable adaptive bypass of compression/decompression when observed compression ratio is below threshold",
+    )
+    latency_breakeven_threshold = Param.Float(
+        1.0,
+        "Observed compression ratio threshold below which compression is bypassed",
+    )
+    sampling_interval = Param.Unsigned(
+        100,
+        "Sampling interval (in number of compressions) to evaluate compression effectiveness",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"
@@ -267,6 +280,16 @@ class MultiCompressor(BaseCacheCompressor):
         "If set the bits to inform which "
         "sub-compressor compressed some data are added to its corresponding "
         "tag entry.",
+    )
+    unpromising_threshold = Param.Unsigned(
+        100,
+        "Number of consecutive unpromising/failed compressions before "
+        "skipping a sub-compressor (0 to disable skipping).",
+    )
+    probe_interval = Param.Unsigned(
+        1000,
+        "Number of compressions between periodic probing of skipped "
+        "sub-compressors (0 to disable periodic probing).",
     )
 
     # Use the sub-compressors' latencies

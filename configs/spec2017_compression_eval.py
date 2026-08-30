@@ -68,7 +68,10 @@ from m5.objects import (
     SystemXBar,
 )
 from m5.params import Port
-from m5.util import fatal, warn
+from m5.util import (
+    fatal,
+    warn,
+)
 
 from gem5.coherence_protocol import CoherenceProtocol
 from gem5.components.boards.x86_board import X86Board
@@ -98,10 +101,10 @@ from gem5.simulate.simulator import Simulator
 from gem5.utils.override import overrides
 from gem5.utils.requires import requires
 
-
 # ---------------------------------------------------------------------------
 # Custom Classic Cache Hierarchy with optional BDI compression on L2
 # ---------------------------------------------------------------------------
+
 
 class PrivateL1PrivateL2WithCompressionHierarchy(
     AbstractClassicCacheHierarchy, AbstractTwoLevelCacheHierarchy
@@ -118,6 +121,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
     def _get_default_membus(self) -> SystemXBar:
         from m5.objects import NULL
+
         membus = SystemXBar(width=64)
         membus.snoop_filter = NULL
         membus.badaddr_responder = BadAddr()
@@ -131,6 +135,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         l2_size: str,
         l2_assoc: int = 16,
         use_compression: bool = False,
+        enable_adaptive_bypass: bool = False,
+        latency_breakeven_threshold: float = 1.0,
+        sampling_interval: int = 100,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -140,6 +147,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param l2_assoc: L2 Cache associativity.
         :param use_compression: If True, attach BDI compressor and
             CompressedTags to the L2 cache.
+        :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
+        :param latency_breakeven_threshold: Compression ratio threshold for bypass.
+        :param sampling_interval: Sampling interval for compression effectiveness.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -154,6 +164,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         )
 
         self._use_compression = use_compression
+        self._enable_adaptive_bypass = enable_adaptive_bypass
+        self._latency_breakeven_threshold = latency_breakeven_threshold
+        self._sampling_interval = sampling_interval
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -170,16 +183,28 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         if self._use_compression:
             # Import compression-related SimObjects
-            from m5.objects import BDI, CompressedTags
+            from m5.objects import (
+                BDI,
+                CompressedTags,
+            )
 
             l2.compressor = BDI()
+            if self._enable_adaptive_bypass:
+                l2.compressor.enable_adaptive_bypass = True
+                l2.compressor.latency_breakeven_threshold = (
+                    self._latency_breakeven_threshold
+                )
+                l2.compressor.sampling_interval = self._sampling_interval
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
-                "and CompressedTags (max_compression_ratio=2)"
+                "and CompressedTags (max_compression_ratio=2, "
+                f"adaptive_bypass={self._enable_adaptive_bypass})"
             )
         else:
-            print("[CompressionEval] L2 cache configured without compression (baseline)")
+            print(
+                "[CompressionEval] L2 cache configured without compression (baseline)"
+            )
 
         return l2
 
@@ -192,6 +217,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             self.membus.mem_side_ports = port
 
         from m5.objects import NULL
+
         l2buses = []
         for i in range(board.get_processor().get_num_cores()):
             l2_bus = L2XBar()
@@ -372,6 +398,30 @@ parser.add_argument(
     "or when the benchmark finishes, whichever comes first.",
 )
 
+parser.add_argument(
+    "--enable-adaptive-bypass",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable adaptive compression bypass when observed compression ratio is below threshold.",
+)
+
+parser.add_argument(
+    "--latency-breakeven-threshold",
+    type=float,
+    required=False,
+    default=1.0,
+    help="Compression ratio threshold below which compression is bypassed (default: 1.0).",
+)
+
+parser.add_argument(
+    "--sampling-interval",
+    type=int,
+    required=False,
+    default=100,
+    help="Sampling interval in number of compressions for tracking ratio (default: 100).",
+)
+
 args = parser.parse_args()
 
 
@@ -382,8 +432,8 @@ args = parser.parse_args()
 # Resolve paths relative to this script's location
 # configs/ is inside gem5/ which is inside dcProject/
 _script_dir = os.path.dirname(os.path.abspath(__file__))  # .../gem5/configs
-_gem5_root = os.path.dirname(_script_dir)                 # .../gem5
-_project_root = os.path.dirname(_gem5_root)               # .../dcProject
+_gem5_root = os.path.dirname(_script_dir)  # .../gem5
+_project_root = os.path.dirname(_gem5_root)  # .../dcProject
 
 _kernel_path = os.path.join(
     _project_root, "resource", "kernel", "vmlinux-4.19.83"
@@ -400,7 +450,9 @@ if not os.path.exists(_disk_image_path):
 print(f"[CompressionEval] Kernel:     {_kernel_path}")
 print(f"[CompressionEval] Disk image: {_disk_image_path}")
 print(f"[CompressionEval] Benchmark:  {args.benchmark} ({args.size})")
-print(f"[CompressionEval] Compression: {'BDI' if args.compression else 'OFF (baseline)'}")
+print(
+    f"[CompressionEval] Compression: {'BDI' if args.compression else 'OFF (baseline)'}"
+)
 print(f"[CompressionEval] Cores:      {args.num_cores}")
 print(f"[CompressionEval] Warmup:     {args.warmup_insts:,} instructions")
 print(f"[CompressionEval] Max insts:  {args.max_insts:,} (measured ROI)")
@@ -425,6 +477,9 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     l2_size="512KiB",
     l2_assoc=16,
     use_compression=args.compression,
+    enable_adaptive_bypass=args.enable_adaptive_bypass,
+    latency_breakeven_threshold=args.latency_breakeven_threshold,
+    sampling_interval=args.sampling_interval,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
@@ -506,13 +561,15 @@ def spec_exit_event_handler():
     # ------------------------------------------------------------------ #
     print("[CompressionEval] === BOOT COMPLETE ===")
     print("[CompressionEval] Dump #1: boot-phase stats")
-    m5.stats.dump()   # <-- Dump #1: boot stats
+    m5.stats.dump()  # <-- Dump #1: boot stats
     m5.stats.reset()
 
     print("[CompressionEval] Switching from KVM -> O3CPU")
     processor.switch()
 
-    print(f"[CompressionEval] Starting warm-up phase ({args.warmup_insts:,} insts)")
+    print(
+        f"[CompressionEval] Starting warm-up phase ({args.warmup_insts:,} insts)"
+    )
     simulator.schedule_max_insts(args.warmup_insts)
     yield False  # Continue simulation (warm-up running)
 
@@ -521,7 +578,7 @@ def spec_exit_event_handler():
     # ------------------------------------------------------------------ #
     print("[CompressionEval] === ROI END (benchmark finished before cap) ===")
     print("[CompressionEval] Dump #2: benchmark ROI stats")
-    m5.stats.dump()   # <-- Dump #2: benchmark ROI stats
+    m5.stats.dump()  # <-- Dump #2: benchmark ROI stats
     yield True  # Exit simulation
 
 
@@ -534,7 +591,9 @@ def max_insts_exit_handler():
     print("[CompressionEval] === WARM-UP COMPLETE ===")
     print("[CompressionEval] Resetting stats - beginning measured ROI")
     m5.stats.reset()
-    print(f"[CompressionEval] Measurement cap: {args.max_insts:,} instructions")
+    print(
+        f"[CompressionEval] Measurement cap: {args.max_insts:,} instructions"
+    )
     simulator.schedule_max_insts(args.max_insts)
     yield False  # Continue simulation (measurement running)
 
@@ -546,7 +605,7 @@ def max_insts_exit_handler():
         f"(measurement cap {args.max_insts:,} insts reached) ==="
     )
     print("[CompressionEval] Dump #2: benchmark ROI stats")
-    m5.stats.dump()   # <-- Dump #2: benchmark ROI stats
+    m5.stats.dump()  # <-- Dump #2: benchmark ROI stats
     yield True  # Stop simulation
 
 

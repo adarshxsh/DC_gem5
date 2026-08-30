@@ -160,7 +160,26 @@ DictionaryCompressor<T>::compress(const std::vector<Chunk>& chunks,
     decomp_lat = Cycles(decompExtraLatency +
         (chunks.size() / decompChunksPerCycle));
 
-    return compress(chunks);
+    std::unique_ptr<Base::CompressionData> comp_data = compress(chunks);
+
+    // If all matched chunk patterns in the block consist of zero patterns,
+    // apply the zero-block decompression shortcut (1 cycle latency).
+    const CompData *const comp_data_ptr =
+        static_cast<const CompData *>(comp_data.get());
+    if (comp_data_ptr && !comp_data_ptr->entries.empty()) {
+        bool is_all_zero = true;
+        for (const auto &entry : comp_data_ptr->entries) {
+            if (!entry->isZero()) {
+                is_all_zero = false;
+                break;
+            }
+        }
+        if (is_all_zero) {
+            decomp_lat = Cycles(1);
+        }
+    }
+
+    return comp_data;
 }
 
 template <class T>
