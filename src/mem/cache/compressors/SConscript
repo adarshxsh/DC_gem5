@@ -46,3 +46,7 @@ Source('multi.cc')
 Source('perfect.cc')
 Source('repeated_qwords.cc')
 Source('zero.cc')
+
+GTest('dictionary_compressor.test', 'dictionary_compressor.test.cc',
+      'base.cc', 'base_dictionary_compressor.cc', 'cpack.cc', 'fpc.cc',
+      with_tag('gem5 lib'))
