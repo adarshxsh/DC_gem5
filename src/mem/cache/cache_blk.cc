@@ -67,6 +67,7 @@ CacheBlk::insert(const KeyType &tag,
 
     // Set insertion tick as current tick
     setTickInserted();
+    setLastTouchTick(curTick());
 
     // Insertion counts as a reference to the block
     increaseRefCount();
