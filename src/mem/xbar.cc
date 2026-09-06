@@ -131,8 +131,7 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
         // deliver the payload of the packet, after the header delay.
         // Pure transfer occupancy: payloadDelay represents strictly physical
         // payload transmission time without including endpoint delays.
-        pkt->payloadDelay = divCeil(pkt->getSize(), width) *
-                            clockPeriod();
+        pkt->payloadDelay = divCeil(pkt->getSize(), width) * clockPeriod();
     }
 
     // the payload delay is not paying for the clock offset as that is
