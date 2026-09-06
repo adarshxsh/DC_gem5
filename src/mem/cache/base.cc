@@ -1796,7 +1796,7 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->payloadDelay = cyclesToTicks(compressor->getDecompressionLatency(blk));
     }
 
     return pkt;
@@ -1841,7 +1841,7 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->payloadDelay = cyclesToTicks(compressor->getDecompressionLatency(blk));
     }
 
     return pkt;
