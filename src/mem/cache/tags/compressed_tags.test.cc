@@ -222,6 +222,169 @@ TEST_F(SuperBlkTestFixture, ExpansionContractionCheck)
               CompressionBlk::DATA_CONTRACTION);
 }
 
+TEST_F(SuperBlkTestFixture, PartialEvictionSufficientCapacityNoEvictions)
+{
+    // Insert subBlk 0 and subBlk 1 with 64 bits each (CF=8)
+    mockTick = 100;
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64);
+
+    mockTick = 200;
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Expand subBlk 0 to 128 bits (CF=4)
+    std::size_t new_size = 128;
+    uint8_t new_cf = superBlk.calculateCompressionFactor(new_size);
+    ASSERT_EQ(new_cf, 4);
+
+    // Calculate capacity deficit
+    std::vector<CompressionBlk *> valid_neighbors;
+    for (auto &sub_blk : superBlk.blks) {
+        if (sub_blk->isValid() && (sub_blk != &subBlks[0])) {
+            valid_neighbors.push_back(static_cast<CompressionBlk *>(sub_blk));
+        }
+    }
+
+    size_t current_valid = 1 + valid_neighbors.size();
+    size_t num_to_evict =
+        (current_valid > new_cf) ? (current_valid - new_cf) : 0;
+    ASSERT_EQ(num_to_evict, 0);
+
+    // Apply expansion directly
+    subBlks[0].setSizeBits(new_size);
+
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[1].isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, PartialEvictionLRUSelection)
+{
+    // Insert subBlks 0, 1, 2, 3 at ticks 100, 200, 300, 400
+    mockTick = 100;
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(64);
+
+    mockTick = 200;
+    subBlks[1].insert({0x5000, false});
+    subBlks[1].setSizeBits(64);
+
+    mockTick = 300;
+    subBlks[2].insert({0x5000, false});
+    subBlks[2].setSizeBits(64);
+
+    mockTick = 400;
+    subBlks[3].insert({0x5000, false});
+    subBlks[3].setSizeBits(64);
+
+    // Touch subBlk 1 at tick 500 (MRU neighbor)
+    mockTick = 500;
+    subBlks[1].touch();
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Expand subBlk 0 to 256 bits (CF=2)
+    std::size_t new_size = 256;
+    uint8_t new_cf = superBlk.calculateCompressionFactor(new_size);
+    ASSERT_EQ(new_cf, 2);
+
+    std::vector<CompressionBlk *> valid_neighbors;
+    for (auto &sub_blk : superBlk.blks) {
+        if (sub_blk->isValid() && (sub_blk != &subBlks[0])) {
+            valid_neighbors.push_back(static_cast<CompressionBlk *>(sub_blk));
+        }
+    }
+
+    size_t current_valid = 1 + valid_neighbors.size();
+    ASSERT_EQ(current_valid, 4);
+    size_t num_to_evict = current_valid - new_cf; // 4 - 2 = 2
+
+    std::sort(valid_neighbors.begin(), valid_neighbors.end(),
+              [](const CompressionBlk *a, const CompressionBlk *b) {
+                  if (a->getLastTouchTick() != b->getLastTouchTick()) {
+                      return a->getLastTouchTick() < b->getLastTouchTick();
+                  }
+                  return a->getSectorOffset() < b->getSectorOffset();
+              });
+
+    // Verify LRU ordering of neighbors: subBlk 2 (300), subBlk 3 (400), subBlk
+    // 1 (500)
+    ASSERT_EQ(valid_neighbors[0]->getSectorOffset(), 2);
+    ASSERT_EQ(valid_neighbors[1]->getSectorOffset(), 3);
+    ASSERT_EQ(valid_neighbors[2]->getSectorOffset(), 1);
+
+    // Evict the 2 LRU neighbors (subBlk 2 and subBlk 3)
+    for (size_t i = 0; i < num_to_evict; ++i) {
+        valid_neighbors[i]->invalidate();
+    }
+
+    // Apply expansion to subBlk 0
+    subBlks[0].setSizeBits(new_size);
+
+    // Check results
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[1].isValid());  // MRU neighbor preserved!
+    ASSERT_FALSE(subBlks[2].isValid()); // LRU neighbor evicted
+    ASSERT_FALSE(subBlks[3].isValid()); // LRU neighbor evicted
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, FullEvictionOnUncompressedExpansion)
+{
+    mockTick = 100;
+    subBlks[0].insert({0x6000, false});
+    subBlks[0].setSizeBits(64);
+
+    mockTick = 200;
+    subBlks[1].insert({0x6000, false});
+    subBlks[1].setSizeBits(64);
+
+    mockTick = 300;
+    subBlks[2].insert({0x6000, false});
+    subBlks[2].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+
+    // Expand subBlk 0 to 512 bits (CF=1, uncompressed)
+    std::size_t new_size = 512;
+    uint8_t new_cf = superBlk.calculateCompressionFactor(new_size);
+    ASSERT_EQ(new_cf, 1);
+
+    std::vector<CompressionBlk *> valid_neighbors;
+    for (auto &sub_blk : superBlk.blks) {
+        if (sub_blk->isValid() && (sub_blk != &subBlks[0])) {
+            valid_neighbors.push_back(static_cast<CompressionBlk *>(sub_blk));
+        }
+    }
+
+    size_t current_valid = 1 + valid_neighbors.size();
+    size_t num_to_evict = current_valid - new_cf; // 3 - 1 = 2
+
+    for (size_t i = 0; i < num_to_evict; ++i) {
+        valid_neighbors[i]->invalidate();
+    }
+
+    subBlks[0].setSizeBits(new_size);
+
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_FALSE(subBlks[1].isValid());
+    ASSERT_FALSE(subBlks[2].isValid());
+
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 1);
+    verifyInvariants(superBlk);
+}
+
 TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
 {
     // Stress test: 500 iterations of random allocation, co-allocation,
