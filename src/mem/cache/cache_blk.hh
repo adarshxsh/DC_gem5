@@ -300,6 +300,15 @@ class CacheBlk : public TaggedEntry
     /** Get the number of references to this block since insertion. */
     void increaseRefCount() { _refCount++; }
 
+    /** Get tick when this block was last touched or inserted. */
+    Tick getLastTouchTick() const { return _lastTouchTick; }
+
+    /** Set tick when this block was last touched or inserted. */
+    void setLastTouchTick(const Tick tick) { _lastTouchTick = tick; }
+
+    /** Touch the block by setting its last touch tick to current tick. */
+    void touch() { setLastTouchTick(curTick()); }
+
     /**
      * Get the block's age, that is, the number of ticks since its insertion.
      *
@@ -504,6 +513,11 @@ class CacheBlk : public TaggedEntry
      * meaningful if the block is valid.
      */
     Tick _tickInserted = 0;
+
+    /**
+     * Tick on which the block was last touched or inserted.
+     */
+    Tick _lastTouchTick = 0;
 
     /** Whether this block is an unaccessed hardware prefetch. */
     bool _prefetched = 0;
