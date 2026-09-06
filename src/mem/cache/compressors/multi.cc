@@ -228,7 +228,11 @@ Multi::compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
     }
 
     // Set decompression latency of the best compressor
-    decomp_lat = results.top()->decompLat + decompExtraLatency;
+    if (results.top()->compData->getSizeBits() >= blkSize * CHAR_BIT) {
+        decomp_lat = Cycles(0);
+    } else {
+        decomp_lat = results.top()->decompLat + decompExtraLatency;
+    }
 
     // Collect evaluated results in rank order (best to worst)
     std::vector<std::shared_ptr<Results>> evaluated_results;
