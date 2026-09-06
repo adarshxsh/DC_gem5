@@ -242,16 +242,16 @@ TEST_F(SuperBlkTestFixture, PartialEvictionSufficientCapacityNoEvictions)
     ASSERT_EQ(new_cf, 4);
 
     // Calculate capacity deficit
-    std::vector<CompressionBlk*> valid_neighbors;
-    for (auto& sub_blk : superBlk.blks) {
+    std::vector<CompressionBlk *> valid_neighbors;
+    for (auto &sub_blk : superBlk.blks) {
         if (sub_blk->isValid() && (sub_blk != &subBlks[0])) {
-            valid_neighbors.push_back(
-                static_cast<CompressionBlk*>(sub_blk));
+            valid_neighbors.push_back(static_cast<CompressionBlk *>(sub_blk));
         }
     }
 
     size_t current_valid = 1 + valid_neighbors.size();
-    size_t num_to_evict = (current_valid > new_cf) ? (current_valid - new_cf) : 0;
+    size_t num_to_evict =
+        (current_valid > new_cf) ? (current_valid - new_cf) : 0;
     ASSERT_EQ(num_to_evict, 0);
 
     // Apply expansion directly
@@ -295,11 +295,10 @@ TEST_F(SuperBlkTestFixture, PartialEvictionLRUSelection)
     uint8_t new_cf = superBlk.calculateCompressionFactor(new_size);
     ASSERT_EQ(new_cf, 2);
 
-    std::vector<CompressionBlk*> valid_neighbors;
-    for (auto& sub_blk : superBlk.blks) {
+    std::vector<CompressionBlk *> valid_neighbors;
+    for (auto &sub_blk : superBlk.blks) {
         if (sub_blk->isValid() && (sub_blk != &subBlks[0])) {
-            valid_neighbors.push_back(
-                static_cast<CompressionBlk*>(sub_blk));
+            valid_neighbors.push_back(static_cast<CompressionBlk *>(sub_blk));
         }
     }
 
@@ -308,14 +307,15 @@ TEST_F(SuperBlkTestFixture, PartialEvictionLRUSelection)
     size_t num_to_evict = current_valid - new_cf; // 4 - 2 = 2
 
     std::sort(valid_neighbors.begin(), valid_neighbors.end(),
-        [](const CompressionBlk* a, const CompressionBlk* b) {
-            if (a->getLastTouchTick() != b->getLastTouchTick()) {
-                return a->getLastTouchTick() < b->getLastTouchTick();
-            }
-            return a->getSectorOffset() < b->getSectorOffset();
-        });
+              [](const CompressionBlk *a, const CompressionBlk *b) {
+                  if (a->getLastTouchTick() != b->getLastTouchTick()) {
+                      return a->getLastTouchTick() < b->getLastTouchTick();
+                  }
+                  return a->getSectorOffset() < b->getSectorOffset();
+              });
 
-    // Verify LRU ordering of neighbors: subBlk 2 (300), subBlk 3 (400), subBlk 1 (500)
+    // Verify LRU ordering of neighbors: subBlk 2 (300), subBlk 3 (400), subBlk
+    // 1 (500)
     ASSERT_EQ(valid_neighbors[0]->getSectorOffset(), 2);
     ASSERT_EQ(valid_neighbors[1]->getSectorOffset(), 3);
     ASSERT_EQ(valid_neighbors[2]->getSectorOffset(), 1);
@@ -330,7 +330,7 @@ TEST_F(SuperBlkTestFixture, PartialEvictionLRUSelection)
 
     // Check results
     ASSERT_TRUE(subBlks[0].isValid());
-    ASSERT_TRUE(subBlks[1].isValid()); // MRU neighbor preserved!
+    ASSERT_TRUE(subBlks[1].isValid());  // MRU neighbor preserved!
     ASSERT_FALSE(subBlks[2].isValid()); // LRU neighbor evicted
     ASSERT_FALSE(subBlks[3].isValid()); // LRU neighbor evicted
 
@@ -360,11 +360,10 @@ TEST_F(SuperBlkTestFixture, FullEvictionOnUncompressedExpansion)
     uint8_t new_cf = superBlk.calculateCompressionFactor(new_size);
     ASSERT_EQ(new_cf, 1);
 
-    std::vector<CompressionBlk*> valid_neighbors;
-    for (auto& sub_blk : superBlk.blks) {
+    std::vector<CompressionBlk *> valid_neighbors;
+    for (auto &sub_blk : superBlk.blks) {
         if (sub_blk->isValid() && (sub_blk != &subBlks[0])) {
-            valid_neighbors.push_back(
-                static_cast<CompressionBlk*>(sub_blk));
+            valid_neighbors.push_back(static_cast<CompressionBlk *>(sub_blk));
         }
     }
 

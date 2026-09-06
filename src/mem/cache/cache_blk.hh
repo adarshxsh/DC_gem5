@@ -301,13 +301,25 @@ class CacheBlk : public TaggedEntry
     void increaseRefCount() { _refCount++; }
 
     /** Get tick when this block was last touched or inserted. */
-    Tick getLastTouchTick() const { return _lastTouchTick; }
+    Tick
+    getLastTouchTick() const
+    {
+        return _lastTouchTick;
+    }
 
     /** Set tick when this block was last touched or inserted. */
-    void setLastTouchTick(const Tick tick) { _lastTouchTick = tick; }
+    void
+    setLastTouchTick(const Tick tick)
+    {
+        _lastTouchTick = tick;
+    }
 
     /** Touch the block by setting its last touch tick to current tick. */
-    void touch() { setLastTouchTick(curTick()); }
+    void
+    touch()
+    {
+        setLastTouchTick(curTick());
+    }
 
     /**
      * Get the block's age, that is, the number of ticks since its insertion.
