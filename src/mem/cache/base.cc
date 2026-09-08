@@ -46,6 +46,7 @@
 #include "mem/cache/base.hh"
 
 #include "base/compiler.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
 #include "debug/CacheComp.hh"
@@ -1797,6 +1798,10 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        std::size_t comp_bytes = divCeil(compressor->getSizeBits(blk), 8);
+        if (comp_bytes > 0 && comp_bytes <= blkSize) {
+            req->setExtraData(comp_bytes);
+        }
     }
 
     return pkt;
@@ -1842,6 +1847,10 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        std::size_t comp_bytes = divCeil(compressor->getSizeBits(blk), 8);
+        if (comp_bytes > 0 && comp_bytes <= blkSize) {
+            req->setExtraData(comp_bytes);
+        }
     }
 
     return pkt;
