@@ -80,6 +80,7 @@ CompressedTags::tagsInit()
         // Superblocks must be aware of the block size due to their co-
         // allocation conditions
         superblock->setBlkSize(blkSize);
+        superblock->initIndirectMap(numBlocksPerSector);
 
         // Associate a replacement data entry to the block
         superblock->replacementData = replacementPolicy->instantiateEntry();
@@ -144,7 +145,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+            !superblock->isLogicalMapped(offset) &&
+            superblock->hasFreePhysicalSlot() &&
             superblock->isCompressed() &&
             superblock->canCoAllocate(compressed_size))
         {
@@ -176,8 +178,9 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         }
     }
 
-    // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = victim_superblock->blks[offset];
+    // Assign logical offset to a physical sub-block slot in victim superblock
+    int p_idx = victim_superblock->mapLogicalToPhysical(offset);
+    SectorSubBlk* victim = victim_superblock->blks[p_idx];
 
     // It would be a hit if victim was valid in a co-allocation, and upgrades
     // do not call findVictim, so it cannot happen

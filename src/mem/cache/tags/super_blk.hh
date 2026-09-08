@@ -169,6 +169,13 @@ class CompressionBlk : public SectorSubBlk
  */
 class SuperBlk : public SectorBlk
 {
+  public:
+    static constexpr int InvalidSlot = -1;
+
+  private:
+    /** Indirect translation map: logical sector offset -> physical slot index */
+    std::vector<int> indirectMap;
+
   protected:
     /** Block size, in bytes. */
     std::size_t blkSize;
@@ -185,6 +192,81 @@ class SuperBlk : public SectorBlk
     SuperBlk(const SuperBlk&) = delete;
     SuperBlk& operator=(const SuperBlk&) = delete;
     ~SuperBlk() {};
+
+    /**
+     * Initialize indirect translation map.
+     *
+     * @param num_sub_blks Number of sub-block slots.
+     */
+    void initIndirectMap(std::size_t num_sub_blks);
+
+    /**
+     * Get physical slot index for a logical sector offset.
+     *
+     * @param logical_offset Logical sector offset.
+     * @return Physical slot index or InvalidSlot (-1).
+     */
+    int getPhysicalSlot(int logical_offset) const;
+
+    /**
+     * Get sub-block for a logical sector offset via indirect map.
+     *
+     * @param logical_offset Logical sector offset.
+     * @return Pointer to sub-block, or nullptr if unmapped/invalid.
+     */
+    SectorSubBlk* getSubBlk(int logical_offset) const override;
+
+    /**
+     * Check if a logical sector offset is currently mapped to a valid block.
+     *
+     * @param logical_offset Logical sector offset.
+     * @return True if mapped to a valid sub-block.
+     */
+    bool isLogicalMapped(int logical_offset) const;
+
+    /**
+     * Check if superblock has an available (invalid) physical sub-block slot.
+     *
+     * @return True if at least one physical slot is free.
+     */
+    bool hasFreePhysicalSlot() const;
+
+    /**
+     * Map a logical sector offset to an available free physical slot.
+     *
+     * @param logical_offset Logical sector offset.
+     * @return Physical slot index assigned to the logical offset.
+     */
+    int mapLogicalToPhysical(int logical_offset);
+
+    /**
+     * Map a logical sector offset to a specific physical slot index.
+     *
+     * @param logical_offset Logical sector offset.
+     * @param physical_slot Physical slot index.
+     */
+    void mapLogicalToPhysical(int logical_offset, int physical_slot);
+
+    /**
+     * Unmap a logical sector offset.
+     *
+     * @param logical_offset Logical sector offset.
+     */
+    void unmapLogical(int logical_offset);
+
+    /**
+     * Unmap a physical slot index.
+     *
+     * @param physical_slot Physical slot index.
+     */
+    void unmapPhysical(int physical_slot);
+
+    /**
+     * Unmap a sub-block pointer if present in this superblock.
+     *
+     * @param sub_blk Pointer to sub-block.
+     */
+    void unmapSubBlk(const SectorSubBlk* sub_blk);
 
     /**
      * Returns whether the superblock contains compressed blocks or not. By

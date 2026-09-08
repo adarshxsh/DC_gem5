@@ -151,6 +151,14 @@ class SectorBlk : public TaggedEntry
     std::vector<SectorSubBlk*> blks;
 
     /**
+     * Get the sub-block associated with a logical sector offset.
+     *
+     * @param logical_offset The logical sector offset.
+     * @return Pointer to the sub-block, or nullptr if invalid/unmapped.
+     */
+    virtual SectorSubBlk* getSubBlk(int logical_offset) const;
+
+    /**
      * Checks that a sector block is valid.
      *
      * @return True if any of the blocks in the sector is valid.
