@@ -279,8 +279,8 @@ SectorTags::findBlock(const CacheBlk::KeyType &key) const
 
     // Search for block
     for (const auto& sector : entries) {
-        auto blk = static_cast<SectorBlk*>(sector)->blks[offset];
-        if (blk->match(key)) {
+        auto blk = static_cast<SectorBlk*>(sector)->getSubBlk(offset);
+        if (blk && blk->match(key)) {
             return blk;
         }
     }
