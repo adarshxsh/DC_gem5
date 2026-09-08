@@ -28,6 +28,8 @@
 
 #include "mem/hbm_ctrl.hh"
 
+#include <algorithm>
+
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
