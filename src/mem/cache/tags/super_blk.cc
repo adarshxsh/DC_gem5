@@ -219,12 +219,17 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    const uint8_t target_cf =
-        (getNumValid() == 0) ? new_blk_cf
-                             : std::min(getCompressionFactor(), new_blk_cf);
+    std::size_t current_bit_occupancy = 0;
+    for (const auto &blk : blks) {
+        if (blk->isValid()) {
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
+            current_bit_occupancy += cblk->getSizeBits();
+        }
+    }
 
-    return (target_cf > 1) && (getNumValid() < target_cf) &&
-           (compressed_size <= (blkSize * CHAR_BIT) / target_cf);
+    const std::size_t physical_capacity_bits = blkSize * CHAR_BIT;
+    return (current_bit_occupancy + compressed_size) <= physical_capacity_bits;
 }
 
 void
