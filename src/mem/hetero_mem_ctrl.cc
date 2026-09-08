@@ -40,6 +40,8 @@
 
 #include "mem/hetero_mem_ctrl.hh"
 
+#include <algorithm>
+
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
@@ -138,10 +140,16 @@ HeteroMemCtrl::recvTimingReq(PacketPtr pkt)
     // translates to only one memory packet. Otherwise, a pkt translates to
     // multiple memory packets
     unsigned size = pkt->getSize();
+    if (pkt->req && pkt->req->extraDataValid()) {
+        unsigned comp_size = pkt->req->getExtraData();
+        if (comp_size < size) {
+            size = comp_size;
+        }
+    }
     uint32_t burst_size = is_dram ? dram->bytesPerBurst() :
                                     nvm->bytesPerBurst();
     unsigned offset = pkt->getAddr() & (burst_size - 1);
-    unsigned int pkt_count = divCeil(offset + size, burst_size);
+    unsigned int pkt_count = std::max(1u, divCeil(offset + size, burst_size));
 
     // run the QoS scheduler and assign a QoS priority value to the packet
     qosSchedule( { &readQueue, &writeQueue }, burst_size, pkt);
