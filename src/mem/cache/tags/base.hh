@@ -280,12 +280,14 @@ class BaseTags : public ClockedObject
      * @param size Size, in bits, of new block to allocate.
      * @param evict_blks Cache blocks to be evicted.
      * @param partition_id Partition ID for resource management.
+     * @param is_prefetch True if request is a speculative prefetch fill.
      * @return Cache block to be replaced.
      */
     virtual CacheBlk* findVictim(const CacheBlk::KeyType &key,
                                  const std::size_t size,
                                  std::vector<CacheBlk*>& evict_blks,
-                                 const uint64_t partition_id=0) = 0;
+                                 const uint64_t partition_id=0,
+                                 bool is_prefetch=false) = 0;
 
     /**
      * Access block and update replacement data. May not succeed, in which case
