@@ -37,6 +37,7 @@
 
 #include "base/cprintf.hh"
 #include "base/logging.hh"
+#include "mem/cache/replacement_policies/dwlru_rp.hh"
 
 namespace gem5
 {
@@ -154,6 +155,14 @@ void
 SectorBlk::validateSubBlk()
 {
     _validCounter++;
+    if (replacementData) {
+        auto dw_data = std::dynamic_pointer_cast<
+            replacement_policy::DWLRU::DWLRUReplData>(replacementData);
+        if (dw_data) {
+            dw_data->validSubBlkCount = _validCounter;
+            dw_data->maxSubBlks = blks.size();
+        }
+    }
 }
 
 void
@@ -163,6 +172,14 @@ SectorBlk::invalidateSubBlk()
     // so clear secure bit
     if (--_validCounter == 0) {
         invalidate();
+    }
+    if (replacementData) {
+        auto dw_data = std::dynamic_pointer_cast<
+            replacement_policy::DWLRU::DWLRUReplData>(replacementData);
+        if (dw_data) {
+            dw_data->validSubBlkCount = _validCounter;
+            dw_data->maxSubBlks = blks.size();
+        }
     }
 }
 
