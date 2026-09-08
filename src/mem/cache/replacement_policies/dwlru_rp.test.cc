@@ -58,8 +58,9 @@ TEST_F(DWLRURPTestF, InstantiatedEntry)
     const auto repl_data = rp->instantiateEntry();
     ASSERT_NE(repl_data, nullptr);
 
-    auto dw_data = std::dynamic_pointer_cast<
-        replacement_policy::DWLRU::DWLRUReplData>(repl_data);
+    auto dw_data =
+        std::dynamic_pointer_cast<replacement_policy::DWLRU::DWLRUReplData>(
+            repl_data);
     ASSERT_NE(dw_data, nullptr);
     ASSERT_EQ(dw_data->validSubBlkCount, 0);
     ASSERT_EQ(dw_data->maxSubBlks, 1);
@@ -114,13 +115,22 @@ TEST_F(DWLRUVictimizationTestF, GetVictimDensityWeighted)
     // Entry 1: 3 valid sub-blocks (density = 0.75)
     // Entry 2: 1 valid sub-block  (sparse, density = 0.25)
     // Entry 3: 2 valid sub-blocks (density = 0.5)
-    for (int k = 0; k < 4; ++k) entries[0].validateSubBlk();
-    for (int k = 0; k < 3; ++k) entries[1].validateSubBlk();
-    for (int k = 0; k < 1; ++k) entries[2].validateSubBlk();
-    for (int k = 0; k < 2; ++k) entries[3].validateSubBlk();
+    for (int k = 0; k < 4; ++k) {
+        entries[0].validateSubBlk();
+    }
+    for (int k = 0; k < 3; ++k) {
+        entries[1].validateSubBlk();
+    }
+    for (int k = 0; k < 1; ++k) {
+        entries[2].validateSubBlk();
+    }
+    for (int k = 0; k < 2; ++k) {
+        entries[3].validateSubBlk();
+    }
 
     mockTick = 1000;
-    // Entry 2 has fewest valid sub-blocks (lowest density), so it must be chosen
+    // Entry 2 has fewest valid sub-blocks (lowest density), so it must be
+    // chosen
     ASSERT_EQ(rp->getVictim(candidates), &entries[2]);
 
     // Invalidate Entry 2 and make Entry 3 have 0 valid sub-blocks
@@ -132,7 +142,9 @@ TEST_F(DWLRUVictimizationTestF, GetVictimRecencyWeighted)
 {
     // All entries have 2 valid sub-blocks out of 4 (equal density = 0.5)
     for (auto &entry : entries) {
-        for (int k = 0; k < 2; ++k) entry.validateSubBlk();
+        for (int k = 0; k < 2; ++k) {
+            entry.validateSubBlk();
+        }
     }
 
     // Reset entries at different ticks
@@ -159,8 +171,9 @@ TEST_F(DWLRUVictimizationTestF, AutomaticMetadataUpdate)
     secBlk.replacementData = rp->instantiateEntry();
     secBlk.blks.resize(4, nullptr);
 
-    auto dw_data = std::dynamic_pointer_cast<
-        replacement_policy::DWLRU::DWLRUReplData>(secBlk.replacementData);
+    auto dw_data =
+        std::dynamic_pointer_cast<replacement_policy::DWLRU::DWLRUReplData>(
+            secBlk.replacementData);
     ASSERT_NE(dw_data, nullptr);
     ASSERT_EQ(dw_data->validSubBlkCount, 0);
 

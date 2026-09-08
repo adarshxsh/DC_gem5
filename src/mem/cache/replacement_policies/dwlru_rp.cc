@@ -42,13 +42,11 @@ namespace gem5
 namespace replacement_policy
 {
 
-DWLRU::DWLRU(const Params &p)
-  : LRU(p)
-{
-}
+DWLRU::DWLRU(const Params &p) : LRU(p)
+{}
 
 void
-DWLRU::invalidate(const std::shared_ptr<ReplacementData>& replacement_data)
+DWLRU::invalidate(const std::shared_ptr<ReplacementData> &replacement_data)
 {
     LRU::invalidate(replacement_data);
     auto dw_data = std::static_pointer_cast<DWLRUReplData>(replacement_data);
@@ -56,31 +54,32 @@ DWLRU::invalidate(const std::shared_ptr<ReplacementData>& replacement_data)
 }
 
 void
-DWLRU::touch(const std::shared_ptr<ReplacementData>& replacement_data) const
+DWLRU::touch(const std::shared_ptr<ReplacementData> &replacement_data) const
 {
     LRU::touch(replacement_data);
 }
 
 void
-DWLRU::reset(const std::shared_ptr<ReplacementData>& replacement_data) const
+DWLRU::reset(const std::shared_ptr<ReplacementData> &replacement_data) const
 {
     LRU::reset(replacement_data);
 }
 
-ReplaceableEntry*
-DWLRU::getVictim(const ReplacementCandidates& candidates) const
+ReplaceableEntry *
+DWLRU::getVictim(const ReplacementCandidates &candidates) const
 {
     assert(candidates.size() > 0);
 
-    ReplaceableEntry* victim = candidates[0];
+    ReplaceableEntry *victim = candidates[0];
     double max_score = -1.0;
 
-    for (const auto& candidate : candidates) {
+    for (const auto &candidate : candidates) {
         auto candidate_data = std::static_pointer_cast<DWLRUReplData>(
             candidate->replacementData);
 
-        // Synchronize validSubBlkCount and maxSubBlks from SectorBlk if available
-        SectorBlk* sec_blk = dynamic_cast<SectorBlk*>(candidate);
+        // Synchronize validSubBlkCount and maxSubBlks from SectorBlk if
+        // available
+        SectorBlk *sec_blk = dynamic_cast<SectorBlk *>(candidate);
         if (sec_blk) {
             candidate_data->validSubBlkCount = sec_blk->getNumValid();
             if (!sec_blk->blks.empty()) {
@@ -89,8 +88,8 @@ DWLRU::getVictim(const ReplacementCandidates& candidates) const
         }
 
         int valid_count = candidate_data->validSubBlkCount;
-        int max_blks = candidate_data->maxSubBlks > 0 ?
-            candidate_data->maxSubBlks : 1;
+        int max_blks =
+            candidate_data->maxSubBlks > 0 ? candidate_data->maxSubBlks : 1;
 
         double score;
         if (valid_count <= 0) {
