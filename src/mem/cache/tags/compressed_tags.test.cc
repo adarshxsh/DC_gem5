@@ -158,6 +158,37 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     verifyInvariants(superBlk);
 }
 
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuard)
+{
+    // Insert a demand block at offset 0 (size 64 bits -> CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // 1. Demand request with lower compression factor (size 128 bits -> CF=4)
+    // is permitted
+    ASSERT_TRUE(superBlk.canCoAllocate(128, /*is_prefetch=*/false));
+
+    // 2. Prefetch request with strictly lower compression factor (size 128
+    // bits -> CF=4 < 8) MUST BE REJECTED
+    ASSERT_FALSE(superBlk.canCoAllocate(128, /*is_prefetch=*/true));
+
+    // 3. Prefetch request with equal compression factor (size 64 bits -> CF=8
+    // >= 8) is permitted
+    ASSERT_TRUE(superBlk.canCoAllocate(64, /*is_prefetch=*/true));
+
+    // 4. Prefetch request with higher compression factor (size 32 bits -> CF=8
+    // >= 8) is permitted
+    ASSERT_TRUE(superBlk.canCoAllocate(32, /*is_prefetch=*/true));
+
+    // Verify existing sub-block and superblock invariants are preserved
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+}
+
 TEST_F(SuperBlkTestFixture, SubBlockMigration)
 {
     // Setup second superblock

@@ -120,11 +120,11 @@ CompressedTags::tagsInit()
     }
 }
 
-CacheBlk*
-CompressedTags::findVictim(const CacheBlk::KeyType& key,
+CacheBlk *
+CompressedTags::findVictim(const CacheBlk::KeyType &key,
                            const std::size_t compressed_size,
-                           std::vector<CacheBlk*>& evict_blks,
-                           const uint64_t partition_id=0)
+                           std::vector<CacheBlk *> &evict_blks,
+                           const uint64_t partition_id, bool is_prefetch)
 {
     // Get all possible locations of this superblock
     std::vector<ReplaceableEntry*> superblock_entries =
@@ -143,11 +143,9 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
             superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+            superblock->canCoAllocate(compressed_size, is_prefetch)) {
             victim_superblock = superblock;
             is_co_allocation = true;
             break;
