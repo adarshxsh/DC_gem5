@@ -282,3 +282,34 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, TotalBitOccupancyCoAllocation)
+{
+    // Physical line capacity = 64 bytes = 512 bits.
+    // Populate 5 sub-blocks with 64 bits each (aggregate occupancy = 320 bits).
+    for (unsigned k = 0; k < 5; ++k) {
+        subBlks[k].insert({0x1000, false});
+        subBlks[k].setSizeBits(64);
+    }
+
+    ASSERT_EQ(superBlk.getNumValid(), 5);
+
+    // Candidate block size = 128 bits.
+    // Total combined bit occupancy = 320 + 128 = 448 bits <= 512 bits.
+    // Should be approved under aggregate bit occupancy check without count cap.
+    ASSERT_TRUE(superBlk.canCoAllocate(128));
+
+    // Co-allocate 6th block of 128 bits (total aggregate occupancy = 448 bits).
+    subBlks[5].insert({0x1000, false});
+    subBlks[5].setSizeBits(128);
+
+    ASSERT_EQ(superBlk.getNumValid(), 6);
+
+    // Candidate block size = 64 bits. Total combined bits = 448 + 64 = 512 bits <= 512 bits.
+    // Exactly fits physical line capacity: should be approved.
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+
+    // Candidate block size = 128 bits. Total combined bits = 448 + 128 = 576 bits > 512 bits.
+    // Exceeds physical line capacity: must be cleanly rejected.
+    ASSERT_FALSE(superBlk.canCoAllocate(128));
+}
