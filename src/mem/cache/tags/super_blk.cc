@@ -43,7 +43,10 @@ namespace gem5
 {
 
 CompressionBlk::CompressionBlk()
-    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false),
+    : SectorSubBlk(),
+      _size(0),
+      _decompressionLatency(0),
+      _compressed(false),
       _qosValue(0)
 {
 }
@@ -226,10 +229,10 @@ uint8_t
 SuperBlk::getMaxQoSValue() const
 {
     uint8_t max_qos = 0;
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk->isValid()) {
-            const CompressionBlk* cblk =
-                static_cast<const CompressionBlk*>(blk);
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
             max_qos = std::max(max_qos, cblk->getQoSValue());
         }
     }
@@ -238,7 +241,7 @@ SuperBlk::getMaxQoSValue() const
 
 bool
 SuperBlk::canCoAllocate(const std::size_t compressed_size,
-                       const uint8_t qos) const
+                        const uint8_t qos) const
 {
     if (!isCompressed()) {
         return false;

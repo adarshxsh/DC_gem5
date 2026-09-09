@@ -283,11 +283,11 @@ class BaseTags : public ClockedObject
      * @param qos QoS priority value of the incoming request.
      * @return Cache block to be replaced.
      */
-    virtual CacheBlk* findVictim(const CacheBlk::KeyType &key,
+    virtual CacheBlk *findVictim(const CacheBlk::KeyType &key,
                                  const std::size_t size,
-                                 std::vector<CacheBlk*>& evict_blks,
-                                 const uint64_t partition_id=0,
-                                 const uint8_t qos=0) = 0;
+                                 std::vector<CacheBlk *> &evict_blks,
+                                 const uint64_t partition_id = 0,
+                                 const uint8_t qos = 0) = 0;
 
     /**
      * Access block and update replacement data. May not succeed, in which case

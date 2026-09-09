@@ -118,11 +118,11 @@ class CompressedTags : public SectorTags
      * @param qos QoS priority value of incoming request.
      * @return Cache block to be replaced.
      */
-    CacheBlk* findVictim(const CacheBlk::KeyType& key,
+    CacheBlk *findVictim(const CacheBlk::KeyType &key,
                          const std::size_t compressed_size,
-                         std::vector<CacheBlk*>& evict_blks,
-                         const uint64_t partition_id=0,
-                         const uint8_t qos=0) override;
+                         std::vector<CacheBlk *> &evict_blks,
+                         const uint64_t partition_id = 0,
+                         const uint8_t qos = 0) override;
 
     /**
      * Insert the new block into the cache and update replacement data and QoS.

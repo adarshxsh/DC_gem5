@@ -167,7 +167,8 @@ TEST_F(SuperBlkTestFixture, QoSGatedCoAllocation)
 
     ASSERT_EQ(superBlk.getMaxQoSValue(), 5);
 
-    // Low-priority (qos = 1) and un-prioritized (qos = 0) requests must be blocked
+    // Low-priority (qos = 1) and un-prioritized (qos = 0) requests must be
+    // blocked
     ASSERT_FALSE(superBlk.canCoAllocate(64, 1));
     ASSERT_FALSE(superBlk.canCoAllocate(64, 0));
 
@@ -190,7 +191,8 @@ TEST_F(SuperBlkTestFixture, QoSGatedCoAllocation)
     ASSERT_EQ(superBlk.getNumValid(), 0);
     ASSERT_EQ(superBlk.getMaxQoSValue(), 0);
 
-    // Un-prioritized request (qos = 0) can now co-allocate into empty/un-prioritized superblock
+    // Un-prioritized request (qos = 0) can now co-allocate into
+    // empty/un-prioritized superblock
     ASSERT_TRUE(superBlk.canCoAllocate(64, 0));
 }
 

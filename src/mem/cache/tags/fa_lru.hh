@@ -220,11 +220,10 @@ class FALRU : public BaseTags
      * @param partition_id Partition ID for resource management.
      * @return Cache block to be replaced.
      */
-    CacheBlk* findVictim(const CacheBlk::KeyType& key,
-                         const std::size_t size,
-                         std::vector<CacheBlk*>& evict_blks,
-                         const uint64_t partition_id=0,
-                         const uint8_t qos=0) override;
+    CacheBlk *findVictim(const CacheBlk::KeyType &key, const std::size_t size,
+                         std::vector<CacheBlk *> &evict_blks,
+                         const uint64_t partition_id = 0,
+                         const uint8_t qos = 0) override;
 
     /**
      * Insert the new block into the cache and update replacement data.
