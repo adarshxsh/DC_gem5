@@ -60,7 +60,8 @@ class SuperBlkTestFixture : public ::testing::Test
             superBlk.blks[k] = &subBlks[k];
             subBlks[k].setSectorBlock(&superBlk);
             subBlks[k].setSectorOffset(k);
-            subBlks[k].registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
+            subBlks[k].registerTagExtractor(
+                [](Addr addr) { return addr & ~0x1FF; });
         }
         superBlk.registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
     }
@@ -169,7 +170,8 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
         superBlkB.blks[k] = &subBlksB[k];
         subBlksB[k].setSectorBlock(&superBlkB);
         subBlksB[k].setSectorOffset(k);
-        subBlksB[k].registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
+        subBlksB[k].registerTagExtractor(
+            [](Addr addr) { return addr & ~0x1FF; });
     }
     superBlkB.registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
 
@@ -238,7 +240,8 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             sblks[i].blks[k] = &cblks[i][k];
             cblks[i][k].setSectorBlock(&sblks[i]);
             cblks[i][k].setSectorOffset(k);
-            cblks[i][k].registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
+            cblks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr & ~0x1FF; });
         }
         sblks[i].registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
     }
@@ -333,9 +336,10 @@ TEST_F(SuperBlkTestFixture, CoAllocationOffsetMismatch)
     ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 1);
     ASSERT_FALSE(superBlk.blks[1]->isValid());
 
-    // Co-allocate a new block with offset 5 into the free physical slot (slot 1)
-    CompressionBlk* freeSlot = static_cast<CompressionBlk*>(
-        superBlk.blks[superBlk.getNumValid()]);
+    // Co-allocate a new block with offset 5 into the free physical slot (slot
+    // 1)
+    CompressionBlk *freeSlot =
+        static_cast<CompressionBlk *>(superBlk.blks[superBlk.getNumValid()]);
     freeSlot->insert({0x1140, false}); // offset 5
     freeSlot->setSizeBits(64);
 
