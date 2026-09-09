@@ -282,7 +282,7 @@ SectorTags::findBlock(const CacheBlk::KeyType &key) const
 
     // Search for block
     for (const auto& sector : entries) {
-        SectorBlk* sector_blk = static_cast<SectorBlk*>(sector);
+        SectorBlk *sector_blk = static_cast<SectorBlk *>(sector);
         if (sector_blk->match(key)) {
             for (auto blk : sector_blk->blks) {
                 if (blk->isValid() && blk->getSectorOffset() == offset) {
@@ -334,7 +334,7 @@ SectorTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Get the entry of the victim block within the sector
-    SectorSubBlk* victim = nullptr;
+    SectorSubBlk *victim = nullptr;
 
     // Get evicted blocks. Blocks are only evicted if the sectors mismatch and
     // the currently existing sector is valid.

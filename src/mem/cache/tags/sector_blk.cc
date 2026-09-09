@@ -138,10 +138,8 @@ SectorSubBlk::print() const
                     getSectorOffset());
 }
 
-SectorBlk::SectorBlk()
-    : TaggedEntry(), _validCounter(0), blkSize(0)
-{
-}
+SectorBlk::SectorBlk() : TaggedEntry(), _validCounter(0), blkSize(0)
+{}
 
 void
 SectorBlk::setBlkSize(const std::size_t blk_size)
@@ -166,9 +164,10 @@ SectorBlk::extractSectorOffset(Addr addr) const
 void
 SectorBlk::compactSlots()
 {
-    std::stable_partition(blks.begin(), blks.end(), [](const SectorSubBlk* blk) {
-        return blk != nullptr && blk->isValid();
-    });
+    std::stable_partition(blks.begin(), blks.end(),
+                          [](const SectorSubBlk *blk) {
+                              return blk != nullptr && blk->isValid();
+                          });
 }
 
 bool
