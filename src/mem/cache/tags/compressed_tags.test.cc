@@ -282,3 +282,52 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, ExpansionRelocationTargetAvailable)
+{
+    // SuperBlock A with 2 co-allocated sub-blocks: subBlks[0] (64 bits, CF=8) and subBlks[1] (128 bits, CF=4)
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(128);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    verifyInvariants(superBlk);
+
+    // Setup second superblock B (initially invalid/free)
+    SuperBlk superBlkB;
+    superBlkB.setBlkSize(BlkSize);
+    std::unique_ptr<CompressionBlk[]> subBlksB(new CompressionBlk[NumSubBlks]);
+    superBlkB.blks.resize(NumSubBlks);
+    for (unsigned k = 0; k < NumSubBlks; ++k) {
+        superBlkB.blks[k] = &subBlksB[k];
+        subBlksB[k].setSectorBlock(&superBlkB);
+        subBlksB[k].setSectorOffset(k);
+        subBlksB[k].registerTagExtractor([](Addr addr) { return addr; });
+    }
+    superBlkB.registerTagExtractor([](Addr addr) { return addr; });
+
+    // Expansion check: subBlks[1] expanding to 512 bits (CF=1) triggers DATA_EXPANSION
+    ASSERT_EQ(subBlks[1].checkExpansionContraction(512),
+              CompressionBlk::DATA_EXPANSION);
+
+    // Perform relocation of expanded subBlks[1] to superBlkB at offset 1
+    subBlksB[1] = std::move(subBlks[1]);
+    subBlksB[1].setSizeBits(512);
+
+    // Verify subBlksB[1] is valid and has size 512
+    ASSERT_TRUE(subBlksB[1].isValid());
+    ASSERT_EQ(subBlksB[1].getSizeBits(), 512);
+    ASSERT_EQ(superBlkB.getNumValid(), 1);
+
+    // Source superBlk (A) preserved co-allocated neighbor line subBlks[0]!
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_EQ(subBlks[0].getSizeBits(), 64);
+    ASSERT_FALSE(subBlks[1].isValid()); // Expanded sub-block was moved out
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8); // Recovery of CF!
+
+    verifyInvariants(superBlk);
+    verifyInvariants(superBlkB);
+}

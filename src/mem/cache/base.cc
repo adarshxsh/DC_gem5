@@ -1094,7 +1094,9 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                 victim_itself = true;
                 auto it = std::find_if(evict_blks.begin(), evict_blks.end(),
                     [&blk](CacheBlk* evict_blk){ return evict_blk == blk; });
-                evict_blks.erase(it);
+                if (it != evict_blks.end()) {
+                    evict_blks.erase(it);
+                }
             }
 
             // Print victim block's information
