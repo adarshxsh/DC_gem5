@@ -285,7 +285,8 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
 
 TEST_F(SuperBlkTestFixture, ExpansionRelocationTargetAvailable)
 {
-    // SuperBlock A with 2 co-allocated sub-blocks: subBlks[0] (64 bits, CF=8) and subBlks[1] (128 bits, CF=4)
+    // SuperBlock A with 2 co-allocated sub-blocks: subBlks[0] (64 bits, CF=8)
+    // and subBlks[1] (128 bits, CF=4)
     subBlks[0].insert({0x4000, false});
     subBlks[0].setSizeBits(64);
     subBlks[1].insert({0x4000, false});
@@ -308,7 +309,8 @@ TEST_F(SuperBlkTestFixture, ExpansionRelocationTargetAvailable)
     }
     superBlkB.registerTagExtractor([](Addr addr) { return addr; });
 
-    // Expansion check: subBlks[1] expanding to 512 bits (CF=1) triggers DATA_EXPANSION
+    // Expansion check: subBlks[1] expanding to 512 bits (CF=1) triggers
+    // DATA_EXPANSION
     ASSERT_EQ(subBlks[1].checkExpansionContraction(512),
               CompressionBlk::DATA_EXPANSION);
 
