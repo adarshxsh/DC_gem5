@@ -45,6 +45,9 @@
 
 #include "mem/cache/base.hh"
 
+#include <algorithm>
+#include <cmath>
+
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
@@ -2789,12 +2792,14 @@ float
 BaseCache::getBusUtilization() const
 {
     float mshrUtil =
-        (mshrQueue.numEntries > 0)
-            ? (float)mshrQueue.allocated / (float)mshrQueue.numEntries
+        (mshrQueue.totalEntries() > 0)
+            ? (float)mshrQueue.allocatedEntries() /
+                  (float)mshrQueue.totalEntries()
             : 0.0f;
     float wbUtil =
-        (writeBuffer.numEntries > 0)
-            ? (float)writeBuffer.allocated / (float)writeBuffer.numEntries
+        (writeBuffer.totalEntries() > 0)
+            ? (float)writeBuffer.allocatedEntries() /
+                  (float)writeBuffer.totalEntries()
             : 0.0f;
 
     float congestion = std::max(mshrUtil, wbUtil);
