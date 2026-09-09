@@ -94,6 +94,7 @@ structure(RequestMsg, desc="...", interface="Message") {
   NetDest Destination,             desc="Multicast destination mask";
   MessageSizeType MessageSize, desc="size category of the message";
   bool DirectedProbe, default="false", desc="probe filter directed probe";
+  WriteMask InvalidationBitmap, desc="Multi-subblock invalidation bitmap";
 
   Cycles InitialRequestTime, default="Cycles(0)",
         desc="time the initial requests was sent from the L1Cache";

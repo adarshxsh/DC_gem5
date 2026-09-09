@@ -106,6 +106,7 @@ structure(RequestMsg, desc="...", interface="Message") {
   MessageSizeType MessageSize, desc="size category of the message";
   RubyAccessMode AccessMode,    desc="user/supervisor access type";
   PrefetchBit Prefetch,         desc="Is this a prefetch request";
+  WriteMask InvalidationBitmap, desc="Multi-subblock invalidation bitmap";
 
   bool functionalRead(Packet *pkt) {
     // Read only those messages that contain the data

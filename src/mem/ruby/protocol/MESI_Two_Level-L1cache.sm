@@ -158,6 +158,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
     DataBlock DataBlk,       desc="data for the block";
     bool Dirty, default="false",   desc="data is dirty";
     bool isPrefetch, desc="Set if this block was prefetched and not yet accessed";
+    WriteMask SubblockValidMask, desc="Validity bitmap for subblocks in cache entry";
   }
 
   // TBE fields
@@ -776,6 +777,21 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
         out_msg.Destination.add(in_msg.Requestor);
         out_msg.MessageSize := MessageSizeType:Response_Control;
       }
+      if (is_valid(cache_entry)) {
+        if (cache_entry.SubblockValidMask.isEmpty()) {
+          cache_entry.SubblockValidMask.fillMask();
+        }
+        if (in_msg.InvalidationBitmap.isEmpty() == false) {
+          WriteMask inv;
+          inv.setInvertedMask(in_msg.InvalidationBitmap);
+          cache_entry.SubblockValidMask.andMask(inv);
+        } else {
+          cache_entry.SubblockValidMask.clear();
+        }
+        if (cache_entry.SubblockValidMask.isEmpty() == false) {
+          cache_entry.CacheState := State:S;
+        }
+      }
     }
   }
 
@@ -816,6 +832,21 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
         out_msg.Destination.add(in_msg.Requestor);
         out_msg.MessageSize := MessageSizeType:Response_Control;
         out_msg.AckCount := 1;
+      }
+      if (is_valid(cache_entry)) {
+        if (cache_entry.SubblockValidMask.isEmpty()) {
+          cache_entry.SubblockValidMask.fillMask();
+        }
+        if (in_msg.InvalidationBitmap.isEmpty() == false) {
+          WriteMask inv;
+          inv.setInvertedMask(in_msg.InvalidationBitmap);
+          cache_entry.SubblockValidMask.andMask(inv);
+        } else {
+          cache_entry.SubblockValidMask.clear();
+        }
+        if (cache_entry.SubblockValidMask.isEmpty() == false) {
+          cache_entry.CacheState := State:S;
+        }
       }
     }
   }

@@ -119,6 +119,7 @@ structure(CHIRequestMsg, desc="", interface="Message") {
   bool is_remote_pf,        desc="Request generated a prefetcher in another cache";
 
   WriteMask atomic_op,      desc="Atomic Operation Wrapper";
+  WriteMask InvalidationBitmap, desc="Multi-subblock invalidation bitmap";
 
   bool usesTxnId,       desc="True if using a Transaction ID", default="false";
   Addr txnId,           desc="Transaction ID", default="0";
