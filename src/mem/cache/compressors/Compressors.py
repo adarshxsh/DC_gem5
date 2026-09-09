@@ -76,6 +76,14 @@ class BaseCacheCompressor(SimObject):
         100,
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
+    enable_bus_feedback = Param.Bool(
+        False,
+        "Enable interconnect bus feedback to adaptively adjust compression policy based on bus congestion",
+    )
+    bus_congestion_threshold = Param.Float(
+        0.5,
+        "Interconnect bus utilization/congestion threshold above which bus is considered congested",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
