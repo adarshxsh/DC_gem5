@@ -185,6 +185,66 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
     return  wrsize_new > writeBufferSize;
 }
 
+static unsigned
+estimateCompressedPayloadSize(PacketPtr pkt, MemInterface* mem_intr)
+{
+    if (pkt->isCompressed()) {
+        return pkt->getCompressedSize();
+    }
+
+    const uint8_t* data_ptr = nullptr;
+    if (pkt->hasData()) {
+        data_ptr = pkt->getConstPtr<uint8_t>();
+    } else if (mem_intr) {
+        data_ptr = mem_intr->toHostAddr(pkt->getAddr());
+    }
+
+    if (!data_ptr) {
+        return pkt->getSize();
+    }
+
+    unsigned blk_size = pkt->getSize();
+    if (blk_size != 64) {
+        return blk_size;
+    }
+
+    const uint64_t* words = reinterpret_cast<const uint64_t*>(data_ptr);
+    bool all_zero = true;
+    for (int i = 0; i < 8; ++i) {
+        if (words[i] != 0) {
+            all_zero = false;
+            break;
+        }
+    }
+    if (all_zero) {
+        return 8;
+    }
+
+    uint64_t base = words[0];
+    bool fits_8 = true;
+    bool fits_16 = true;
+    bool fits_32 = true;
+
+    for (int i = 1; i < 8; ++i) {
+        int64_t diff = static_cast<int64_t>(words[i]) - static_cast<int64_t>(base);
+        if (diff < -128 || diff > 127) {
+            fits_8 = false;
+        }
+        if (diff < -32768 || diff > 32767) {
+            fits_16 = false;
+        }
+        if (diff < -2147483648LL || diff > 2147483647LL) {
+            fits_32 = false;
+        }
+    }
+
+    if (fits_8) return 16;
+    if (fits_16) return 32;
+    if (fits_32) return 48;
+
+    return blk_size;
+}
+
 bool
 MemCtrl::addToReadQueue(PacketPtr pkt,
                 unsigned int pkt_count, MemInterface* mem_intr)
@@ -210,7 +270,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
-                        base_addr + pkt->getSize()) - addr;
+                        base_addr + pkt->getCompressedSize()) - addr;
         stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
         stats.requestorReadAccesses[pkt->requestorId()]++;
@@ -316,7 +376,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
 
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
-                        base_addr + pkt->getSize()) - addr;
+                        base_addr + pkt->getCompressedSize()) - addr;
         stats.writePktSize[ceilLog2(size)]++;
         stats.writeBursts++;
         stats.requestorWriteAccesses[pkt->requestorId()]++;
@@ -430,10 +490,12 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // translates to only one memory packet. Otherwise, a pkt translates to
     // multiple memory packets
     unsigned size = pkt->getSize();
+    unsigned comp_size = estimateCompressedPayloadSize(pkt, dram);
+    pkt->setCompressedSize(comp_size);
     uint32_t burst_size = dram->bytesPerBurst();
 
     unsigned offset = pkt->getAddr() & (burst_size - 1);
-    unsigned int pkt_count = divCeil(offset + size, burst_size);
+    unsigned int pkt_count = divCeil(offset + comp_size, burst_size);
 
     // run the QoS scheduler and assign a QoS priority value to the packet
     qosSchedule( { &readQueue, &writeQueue }, burst_size, pkt);
