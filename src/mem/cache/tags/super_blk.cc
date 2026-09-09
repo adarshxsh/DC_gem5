@@ -181,7 +181,7 @@ CompressionBlk::print() const
 }
 
 SuperBlk::SuperBlk()
-    : SectorBlk(), blkSize(0), compressionFactor(1)
+    : SectorBlk(), compressionFactor(1)
 {
 }
 
