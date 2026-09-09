@@ -18,7 +18,8 @@ static Tick dummyTick = 0;
 class PacketTest : public ::testing::Test
 {
   protected:
-    void SetUp() override
+    void
+    SetUp() override
     {
         Gem5Internal::_curTickPtr = &dummyTick;
     }
