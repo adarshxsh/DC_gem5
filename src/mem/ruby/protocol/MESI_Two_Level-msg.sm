@@ -74,6 +74,7 @@ structure(RequestMsg, desc="...", interface="Message") {
   int Len;
   bool Dirty, default="false",  desc="Dirty bit";
   PrefetchBit Prefetch,         desc="Is this a prefetch request";
+  WriteMask InvalidationBitmap, desc="Multi-subblock invalidation bitmap";
 
   bool functionalRead(Packet *pkt) {
     // Only PUTX messages contains the data block

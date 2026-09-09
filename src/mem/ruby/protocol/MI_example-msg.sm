@@ -57,6 +57,7 @@ structure(RequestMsg, desc="...", interface="Message") {
   NetDest Destination,             desc="Multicast destination mask";
   DataBlock DataBlk,           desc="data for the cache line";
   MessageSizeType MessageSize, desc="size category of the message";
+  WriteMask InvalidationBitmap, desc="Multi-subblock invalidation bitmap";
 
   bool functionalRead(Packet *pkt) {
     // Valid data block is only present in PUTX messages
