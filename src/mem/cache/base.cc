@@ -2791,16 +2791,14 @@ BaseCache::isBusCongested(float threshold) const
 float
 BaseCache::getBusUtilization() const
 {
-    float mshrUtil =
-        (mshrQueue.totalEntries() > 0)
-            ? (float)mshrQueue.allocatedEntries() /
-                  (float)mshrQueue.totalEntries()
-            : 0.0f;
-    float wbUtil =
-        (writeBuffer.totalEntries() > 0)
-            ? (float)writeBuffer.allocatedEntries() /
-                  (float)writeBuffer.totalEntries()
-            : 0.0f;
+    float mshrUtil = (mshrQueue.totalEntries() > 0)
+                         ? (float)mshrQueue.allocatedEntries() /
+                               (float)mshrQueue.totalEntries()
+                         : 0.0f;
+    float wbUtil = (writeBuffer.totalEntries() > 0)
+                       ? (float)writeBuffer.allocatedEntries() /
+                             (float)writeBuffer.totalEntries()
+                       : 0.0f;
 
     float congestion = std::max(mshrUtil, wbUtil);
     if (memSidePort.isConnected() && isBlocked()) {
