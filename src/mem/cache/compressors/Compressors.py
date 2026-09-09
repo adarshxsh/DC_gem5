@@ -80,6 +80,14 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    enable_bus_feedback = Param.Bool(
+        False,
+        "Enable interconnect bus feedback to adaptively adjust compression policy based on bus congestion",
+    )
+    bus_congestion_threshold = Param.Float(
+        0.5,
+        "Interconnect bus utilization/congestion threshold above which bus is considered congested",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):

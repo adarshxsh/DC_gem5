@@ -136,3 +136,36 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
         EXPECT_EQ(decomp_data[i], non_zero_data[i]);
     }
 }
+
+TEST(DictionaryCompressorTest, BusFeedbackAndParameterChecks)
+{
+    CPackParams p;
+    p.name = "cpack_bus";
+    p.block_size = 64;
+    p.chunk_size_bits = 32;
+    p.dictionary_size = 4;
+    p.comp_chunks_per_cycle = 2;
+    p.comp_extra_latency = Cycles(5);
+    p.decomp_chunks_per_cycle = 2;
+    p.decomp_extra_latency = Cycles(1);
+    p.enable_bus_feedback = true;
+    p.bus_congestion_threshold = 0.5f;
+
+    TestCPack compressor(p);
+
+    // 1. Test null pointer early exit
+    Cycles comp_lat(10), decomp_lat(10);
+    auto null_comp_data = compressor.compress(nullptr, comp_lat, decomp_lat);
+    EXPECT_NE(null_comp_data, nullptr);
+    EXPECT_EQ(null_comp_data->getSizeBits(), 512);
+    EXPECT_EQ(comp_lat, Cycles(0));
+    EXPECT_EQ(decomp_lat, Cycles(0));
+
+    // 2. Test isBusCongested when cache is not set
+    EXPECT_FALSE(compressor.isBusCongested());
+
+    // 3. Test compression execution under bus feedback
+    uint64_t data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    auto comp_data = compressor.compress(data, comp_lat, decomp_lat);
+    EXPECT_NE(comp_data, nullptr);
+}
