@@ -28,11 +28,14 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
 
+#include "mem/cache/replacement_policies/replaceable_entry.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
 
@@ -281,4 +284,162 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             verifyInvariants(sblks[i]);
         }
     }
+}
+
+static void
+filterCandidateSuperblocks(std::vector<ReplaceableEntry *> &superblock_entries)
+{
+    uint8_t min_valid = std::numeric_limits<uint8_t>::max();
+    for (const auto &entry : superblock_entries) {
+        SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+        min_valid = std::min(min_valid, superblock->getNumValid());
+    }
+
+    superblock_entries.erase(
+        std::remove_if(
+            superblock_entries.begin(), superblock_entries.end(),
+            [min_valid](ReplaceableEntry *entry) {
+                return static_cast<SuperBlk *>(entry)->getNumValid() !=
+                       min_valid;
+            }),
+        superblock_entries.end());
+}
+
+TEST_F(SuperBlkTestFixture, CandidatePrefiltering_SparseOverDense)
+{
+    constexpr int NumSuperBlks = 4;
+    SuperBlk sblks[NumSuperBlks];
+    std::unique_ptr<CompressionBlk[]> cblks[NumSuperBlks];
+
+    for (int i = 0; i < NumSuperBlks; ++i) {
+        sblks[i].setBlkSize(BlkSize);
+        cblks[i].reset(new CompressionBlk[NumSubBlks]);
+        sblks[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            sblks[i].blks[k] = &cblks[i][k];
+            cblks[i][k].setSectorBlock(&sblks[i]);
+            cblks[i][k].setSectorOffset(k);
+            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // Populate superblocks with different numbers of valid sub-blocks
+    // SuperBlk 0: 3 valid sub-blocks
+    for (int k = 0; k < 3; ++k) {
+        cblks[0][k].insert({0x1000, false});
+        cblks[0][k].setSizeBits(64);
+    }
+    // SuperBlk 1: 1 valid sub-block
+    cblks[1][0].insert({0x2000, false});
+    cblks[1][0].setSizeBits(64);
+
+    // SuperBlk 2: 4 valid sub-blocks
+    for (int k = 0; k < 4; ++k) {
+        cblks[2][k].insert({0x3000, false});
+        cblks[2][k].setSizeBits(64);
+    }
+
+    // SuperBlk 3: 2 valid sub-blocks
+    for (int k = 0; k < 2; ++k) {
+        cblks[3][k].insert({0x4000, false});
+        cblks[3][k].setSizeBits(64);
+    }
+
+    ASSERT_EQ(sblks[0].getNumValid(), 3);
+    ASSERT_EQ(sblks[1].getNumValid(), 1);
+    ASSERT_EQ(sblks[2].getNumValid(), 4);
+    ASSERT_EQ(sblks[3].getNumValid(), 2);
+
+    std::vector<ReplaceableEntry *> candidates = {&sblks[0], &sblks[1],
+                                                  &sblks[2], &sblks[3]};
+
+    filterCandidateSuperblocks(candidates);
+
+    ASSERT_EQ(candidates.size(), 1);
+    ASSERT_EQ(static_cast<SuperBlk *>(candidates[0]), &sblks[1]);
+    ASSERT_EQ(static_cast<SuperBlk *>(candidates[0])->getNumValid(), 1);
+}
+
+TEST_F(SuperBlkTestFixture, CandidatePrefiltering_EqualDensity)
+{
+    constexpr int NumSuperBlks = 3;
+    SuperBlk sblks[NumSuperBlks];
+    std::unique_ptr<CompressionBlk[]> cblks[NumSuperBlks];
+
+    for (int i = 0; i < NumSuperBlks; ++i) {
+        sblks[i].setBlkSize(BlkSize);
+        cblks[i].reset(new CompressionBlk[NumSubBlks]);
+        sblks[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            sblks[i].blks[k] = &cblks[i][k];
+            cblks[i][k].setSectorBlock(&sblks[i]);
+            cblks[i][k].setSectorOffset(k);
+            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+
+        // Each superblock gets 2 valid sub-blocks
+        for (int k = 0; k < 2; ++k) {
+            cblks[i][k].insert({Addr(0x1000 * (i + 1)), false});
+            cblks[i][k].setSizeBits(64);
+        }
+        ASSERT_EQ(sblks[i].getNumValid(), 2);
+    }
+
+    std::vector<ReplaceableEntry *> candidates = {&sblks[0], &sblks[1],
+                                                  &sblks[2]};
+
+    filterCandidateSuperblocks(candidates);
+
+    // Should retain all candidate superblocks when valid counts are equal
+    ASSERT_EQ(candidates.size(), 3);
+}
+
+TEST_F(SuperBlkTestFixture, CandidatePrefiltering_MultipleMinimums)
+{
+    constexpr int NumSuperBlks = 4;
+    SuperBlk sblks[NumSuperBlks];
+    std::unique_ptr<CompressionBlk[]> cblks[NumSuperBlks];
+
+    for (int i = 0; i < NumSuperBlks; ++i) {
+        sblks[i].setBlkSize(BlkSize);
+        cblks[i].reset(new CompressionBlk[NumSubBlks]);
+        sblks[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            sblks[i].blks[k] = &cblks[i][k];
+            cblks[i][k].setSectorBlock(&sblks[i]);
+            cblks[i][k].setSectorOffset(k);
+            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // SuperBlk 0: 3 valid sub-blocks
+    for (int k = 0; k < 3; ++k) {
+        cblks[0][k].insert({0x1000, false});
+        cblks[0][k].setSizeBits(64);
+    }
+    // SuperBlk 1: 1 valid sub-block
+    cblks[1][0].insert({0x2000, false});
+    cblks[1][0].setSizeBits(64);
+
+    // SuperBlk 2: 1 valid sub-block
+    cblks[2][0].insert({0x3000, false});
+    cblks[2][0].setSizeBits(64);
+
+    // SuperBlk 3: 2 valid sub-blocks
+    for (int k = 0; k < 2; ++k) {
+        cblks[3][k].insert({0x4000, false});
+        cblks[3][k].setSizeBits(64);
+    }
+
+    std::vector<ReplaceableEntry *> candidates = {&sblks[0], &sblks[1],
+                                                  &sblks[2], &sblks[3]};
+
+    filterCandidateSuperblocks(candidates);
+
+    ASSERT_EQ(candidates.size(), 2);
+    ASSERT_EQ(static_cast<SuperBlk *>(candidates[0]), &sblks[1]);
+    ASSERT_EQ(static_cast<SuperBlk *>(candidates[1]), &sblks[2]);
 }
