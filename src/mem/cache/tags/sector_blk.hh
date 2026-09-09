@@ -156,7 +156,7 @@ class SectorBlk : public TaggedEntry
      * @param logical_offset The logical sector offset.
      * @return Pointer to the sub-block, or nullptr if invalid/unmapped.
      */
-    virtual SectorSubBlk* getSubBlk(int logical_offset) const;
+    virtual SectorSubBlk *getSubBlk(int logical_offset) const;
 
     /**
      * Checks that a sector block is valid.

@@ -173,7 +173,8 @@ class SuperBlk : public SectorBlk
     static constexpr int InvalidSlot = -1;
 
   private:
-    /** Indirect translation map: logical sector offset -> physical slot index */
+    /** Indirect translation map: logical sector offset -> physical slot index
+     */
     std::vector<int> indirectMap;
 
   protected:
@@ -214,7 +215,7 @@ class SuperBlk : public SectorBlk
      * @param logical_offset Logical sector offset.
      * @return Pointer to sub-block, or nullptr if unmapped/invalid.
      */
-    SectorSubBlk* getSubBlk(int logical_offset) const override;
+    SectorSubBlk *getSubBlk(int logical_offset) const override;
 
     /**
      * Check if a logical sector offset is currently mapped to a valid block.
@@ -266,7 +267,7 @@ class SuperBlk : public SectorBlk
      *
      * @param sub_blk Pointer to sub-block.
      */
-    void unmapSubBlk(const SectorSubBlk* sub_blk);
+    void unmapSubBlk(const SectorSubBlk *sub_blk);
 
     /**
      * Returns whether the superblock contains compressed blocks or not. By
