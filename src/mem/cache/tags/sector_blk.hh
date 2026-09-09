@@ -134,12 +134,15 @@ class SectorSubBlk : public CacheBlk
  */
 class SectorBlk : public TaggedEntry
 {
-  private:
+  protected:
     /**
      * Counter of the number of valid sub-blocks. The sector is valid if any
      * of its sub-blocks is valid.
      */
     uint8_t _validCounter;
+
+    /** Block size, in bytes. */
+    std::size_t blkSize;
 
   public:
     SectorBlk();
@@ -149,6 +152,33 @@ class SectorBlk : public TaggedEntry
 
     /** List of blocks associated to this sector. */
     std::vector<SectorSubBlk*> blks;
+
+    /**
+     * Set block size.
+     *
+     * @param blk_size The block size.
+     */
+    void setBlkSize(const std::size_t blk_size);
+
+    /**
+     * Get block size.
+     *
+     * @return The block size.
+     */
+    std::size_t getBlkSize() const;
+
+    /**
+     * Calculate a block's offset in a sector from the address.
+     *
+     * @param addr Address to calculate offset for.
+     * @return Sector offset.
+     */
+    int extractSectorOffset(Addr addr) const;
+
+    /**
+     * Compact active sub-blocks to maintain contiguous free slots at the end.
+     */
+    void compactSlots();
 
     /**
      * Checks that a sector block is valid.

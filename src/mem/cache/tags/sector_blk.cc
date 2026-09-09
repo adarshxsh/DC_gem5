@@ -33,6 +33,7 @@
 
 #include "mem/cache/tags/sector_blk.hh"
 
+#include <algorithm>
 #include <cassert>
 
 #include "base/cprintf.hh"
@@ -88,6 +89,8 @@ SectorSubBlk::operator=(SectorSubBlk&& other)
     assert(!isValid());
     assert(other.isValid());
 
+    _sectorOffset = other._sectorOffset;
+
     // Make sure it is not overwriting another sector with different tag/secure
     panic_if(_sectorBlk && _sectorBlk->isValid() &&
         ((_sectorBlk->getTag() != other.getTag()) ||
@@ -115,6 +118,9 @@ SectorSubBlk::insert(const KeyType &tag)
     if ((_sectorBlk && !_sectorBlk->isValid()) && (tag.address != MaxAddr)) {
         _sectorBlk->insert(tag);
     }
+    if (_sectorBlk && tag.address != MaxAddr && _sectorBlk->getBlkSize() > 0) {
+        setSectorOffset(_sectorBlk->extractSectorOffset(tag.address));
+    }
     CacheBlk::insert(tag);
 }
 
@@ -132,9 +138,36 @@ SectorSubBlk::print() const
                     getSectorOffset());
 }
 
-SectorBlk::SectorBlk()
-    : TaggedEntry(), _validCounter(0)
+SectorBlk::SectorBlk() : TaggedEntry(), _validCounter(0), blkSize(0)
+{}
+
+void
+SectorBlk::setBlkSize(const std::size_t blk_size)
 {
+    blkSize = blk_size;
+}
+
+std::size_t
+SectorBlk::getBlkSize() const
+{
+    return blkSize;
+}
+
+int
+SectorBlk::extractSectorOffset(Addr addr) const
+{
+    assert(blkSize > 0);
+    assert(!blks.empty());
+    return (addr / blkSize) % blks.size();
+}
+
+void
+SectorBlk::compactSlots()
+{
+    std::stable_partition(blks.begin(), blks.end(),
+                          [](const SectorSubBlk *blk) {
+                              return blk != nullptr && blk->isValid();
+                          });
 }
 
 bool
@@ -154,6 +187,7 @@ void
 SectorBlk::validateSubBlk()
 {
     _validCounter++;
+    compactSlots();
 }
 
 void
@@ -164,6 +198,7 @@ SectorBlk::invalidateSubBlk()
     if (--_validCounter == 0) {
         invalidate();
     }
+    compactSlots();
 }
 
 void
