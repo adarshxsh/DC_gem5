@@ -115,12 +115,22 @@ class CompressedTags : public SectorTags
      * @param compressed_size Size, in bits, of new block to allocate.
      * @param evict_blks Cache blocks to be evicted.
      * @param partition_id Partition ID for resource management.
+     * @param qos QoS priority value of incoming request.
      * @return Cache block to be replaced.
      */
     CacheBlk* findVictim(const CacheBlk::KeyType& key,
                          const std::size_t compressed_size,
                          std::vector<CacheBlk*>& evict_blks,
-                         const uint64_t partition_id) override;
+                         const uint64_t partition_id=0,
+                         const uint8_t qos=0) override;
+
+    /**
+     * Insert the new block into the cache and update replacement data and QoS.
+     *
+     * @param pkt Packet holding the address to update.
+     * @param blk The block to update.
+     */
+    void insertBlock(const PacketPtr pkt, CacheBlk *blk) override;
 
     /**
      * Find if any of the sub-blocks satisfies a condition.

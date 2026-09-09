@@ -65,6 +65,9 @@ class CompressionBlk : public SectorSubBlk
     /** Compression bit. */
     bool _compressed;
 
+    /** QoS value. */
+    uint8_t _qosValue;
+
   public:
     /**
      * When an overwrite happens, the data size may change an not fit in its
@@ -141,6 +144,20 @@ class CompressionBlk : public SectorSubBlk
      */
     void setDecompressionLatency(const Cycles lat);
 
+    /**
+     * Get QoS value associated with this compressed sub-block.
+     *
+     * @return QoS value.
+     */
+    uint8_t getQoSValue() const;
+
+    /**
+     * Set QoS value for this compressed sub-block.
+     *
+     * @param qos_value QoS value.
+     */
+    void setQoSValue(const uint8_t qos_value);
+
     void invalidate() override;
 
     /**
@@ -196,12 +213,21 @@ class SuperBlk : public SectorBlk
     bool isCompressed(const CompressionBlk* ignored_blk = nullptr) const;
 
     /**
+     * Returns maximum QoS value among all currently valid sub-blocks.
+     *
+     * @return Maximum QoS priority value of valid sub-blocks.
+     */
+    uint8_t getMaxQoSValue() const;
+
+    /**
      * Checks whether a superblock can co-allocate given compressed data block.
      *
      * @param compressed_size Size, in bits, of new block to allocate.
+     * @param qos QoS priority value of incoming request.
      * @return True if block can be co-allocated in superblock.
      */
-    bool canCoAllocate(const std::size_t compressed_size) const;
+    bool canCoAllocate(const std::size_t compressed_size,
+                       const uint8_t qos = 0) const;
 
     /**
      * Set block size. Should be called only once, when initializing blocks.

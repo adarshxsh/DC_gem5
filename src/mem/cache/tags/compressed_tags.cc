@@ -124,7 +124,8 @@ CacheBlk*
 CompressedTags::findVictim(const CacheBlk::KeyType& key,
                            const std::size_t compressed_size,
                            std::vector<CacheBlk*>& evict_blks,
-                           const uint64_t partition_id=0)
+                           const uint64_t partition_id,
+                           const uint8_t qos)
 {
     // Get all possible locations of this superblock
     std::vector<ReplaceableEntry*> superblock_entries =
@@ -146,7 +147,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         if (superblock->match(key) &&
             !superblock->blks[offset]->isValid() &&
             superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
+            superblock->canCoAllocate(compressed_size, qos))
         {
             victim_superblock = superblock;
             is_co_allocation = true;
@@ -193,6 +194,16 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     sectorStats.evictionsReplacement[evict_blks.size()]++;
 
     return victim;
+}
+
+void
+CompressedTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
+{
+    SectorTags::insertBlock(pkt, blk);
+    if (blk && pkt) {
+        CompressionBlk* cblk = static_cast<CompressionBlk*>(blk);
+        cblk->setQoSValue(pkt->qosValue());
+    }
 }
 
 bool

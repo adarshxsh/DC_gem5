@@ -293,7 +293,8 @@ CacheBlk*
 SectorTags::findVictim(const CacheBlk::KeyType &key,
                        const std::size_t size,
                        std::vector<CacheBlk*>& evict_blks,
-                       const uint64_t partition_id)
+                       const uint64_t partition_id,
+                       const uint8_t qos)
 {
     // Get possible entries to be victimized
     std::vector<ReplaceableEntry*> sector_entries =
