@@ -161,6 +161,10 @@ class CompressedTags(SectorTags):
     # the cache size by the compression ratio
     size = Parent.size * Self.max_compression_ratio
 
+    enable_density_aware_replacement = Param.Bool(
+        True, "Enable density-weighted superblock replacement"
+    )
+
 
 class FALRU(BaseTags):
     type = "FALRU"

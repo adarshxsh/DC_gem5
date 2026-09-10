@@ -135,7 +135,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             else:
                 l2.compressor = BDI()
 
-            l2.tags = CompressedTags()
+            l2.tags = CompressedTags(enable_density_aware_replacement=True)
             print(
                 f"[CompressionEval] L2 cache configured with {l2.compressor.type} compressor "
                 "and CompressedTags"
@@ -156,10 +156,15 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         from m5.objects import NULL
 
+        if self._compressor_choice and self._compressor_choice != "none":
+            self.membus.point_to_point_compression = True
+
         l2buses = []
         for i in range(board.get_processor().get_num_cores()):
             l2_bus = L2XBar()
             l2_bus.snoop_filter = NULL
+            if self._compressor_choice and self._compressor_choice != "none":
+                l2_bus.point_to_point_compression = True
             l2buses.append(l2_bus)
         self.l2buses = l2buses
 

@@ -136,9 +136,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         l2_assoc: int = 16,
         use_compression: bool = False,
         enable_adaptive_bypass: bool = False,
-        latency_breakeven_threshold: float = 1.0,
+        latency_breakeven_threshold: float = 1.10,
         sampling_interval: int = 100,
         decay_shift: int = 4,
+        enable_density_aware_replacement: bool = True,
+        enable_compressed_transport: bool = True,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -151,6 +153,8 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
         :param latency_breakeven_threshold: Compression ratio threshold for bypass.
         :param sampling_interval: Sampling interval for compression effectiveness.
+        :param enable_density_aware_replacement: Enable density-weighted replacement.
+        :param enable_compressed_transport: Enable compressed packet transport on crossbars.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -169,7 +173,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._decay_shift = decay_shift
+        self._enable_density_aware_replacement = enable_density_aware_replacement
+        self._enable_compressed_transport = enable_compressed_transport
         self.membus = membus if membus else self._get_default_membus()
+        if self._use_compression and self._enable_compressed_transport:
+            self.membus.point_to_point_compression = True
 
     @overrides(AbstractClassicCacheHierarchy)
     def get_mem_side_port(self) -> Port:
@@ -198,11 +206,14 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
                 l2.compressor.decay_shift = self._decay_shift
-            l2.tags = CompressedTags()
+            l2.tags = CompressedTags(
+                enable_density_aware_replacement=self._enable_density_aware_replacement
+            )
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
                 "and CompressedTags (max_compression_ratio=2, "
-                f"adaptive_bypass={self._enable_adaptive_bypass})"
+                f"adaptive_bypass={self._enable_adaptive_bypass}, "
+                f"density_aware_replacement={self._enable_density_aware_replacement})"
             )
         else:
             print(
@@ -225,6 +236,8 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         for i in range(board.get_processor().get_num_cores()):
             l2_bus = L2XBar()
             l2_bus.snoop_filter = NULL
+            if self._use_compression and self._enable_compressed_transport:
+                l2_bus.point_to_point_compression = True
             l2buses.append(l2_bus)
         self.l2buses = l2buses
 
@@ -413,8 +426,8 @@ parser.add_argument(
     "--latency-breakeven-threshold",
     type=float,
     required=False,
-    default=1.0,
-    help="Compression ratio threshold below which compression is bypassed (default: 1.0).",
+    default=1.10,
+    help="Compression ratio threshold below which compression is bypassed (default: 1.10).",
 )
 
 parser.add_argument(
@@ -431,6 +444,22 @@ parser.add_argument(
     required=False,
     default=4,
     help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
+)
+
+parser.add_argument(
+    "--compressed-transport",
+    action="store_true",
+    required=False,
+    default=True,
+    help="Enable compressed payload transport on interconnect crossbars (default: True).",
+)
+
+parser.add_argument(
+    "--density-aware-replacement",
+    action="store_true",
+    required=False,
+    default=True,
+    help="Enable density-weighted superblock tag replacement (default: True).",
 )
 
 args = parser.parse_args()
@@ -492,6 +521,8 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
     decay_shift=args.decay_shift,
+    enable_density_aware_replacement=args.density_aware_replacement,
+    enable_compressed_transport=args.compressed_transport,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
