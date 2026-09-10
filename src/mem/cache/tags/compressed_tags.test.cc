@@ -109,10 +109,51 @@ TEST_F(SuperBlkTestFixture, CalculateCompressionFactor)
     // 64 bytes = 512 bits
     ASSERT_EQ(superBlk.calculateCompressionFactor(0), 8);
     ASSERT_EQ(superBlk.calculateCompressionFactor(64), 8);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(73), 7);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(85), 6);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(100), 5);
     ASSERT_EQ(superBlk.calculateCompressionFactor(128), 4);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(170), 3);
     ASSERT_EQ(superBlk.calculateCompressionFactor(256), 2);
     ASSERT_EQ(superBlk.calculateCompressionFactor(512), 1);
     ASSERT_EQ(superBlk.calculateCompressionFactor(1024), 1);
+}
+
+TEST_F(SuperBlkTestFixture, CoAllocateNonPowerOfTwo)
+{
+    // 170-bit compressed sub-block in 512-bit superblock (target_cf = 3)
+    ASSERT_EQ(superBlk.calculateCompressionFactor(170), 3);
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+
+    // First sub-block co-allocation
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(170);
+
+    ASSERT_TRUE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Second sub-block co-allocation (numValid=1 < target_cf=3)
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(170);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Third sub-block co-allocation (numValid=2 < target_cf=3)
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(170);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Fourth sub-block cannot co-allocate because numValid=3 is not < target_cf=3
+    ASSERT_FALSE(superBlk.canCoAllocate(170));
 }
 
 TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
