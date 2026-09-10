@@ -152,7 +152,8 @@ TEST_F(SuperBlkTestFixture, CoAllocateNonPowerOfTwo)
     ASSERT_EQ(superBlk.getCompressionFactor(), 3);
     verifyInvariants(superBlk);
 
-    // Fourth sub-block cannot co-allocate because numValid=3 is not < target_cf=3
+    // Fourth sub-block cannot co-allocate because numValid=3 is not <
+    // target_cf=3
     ASSERT_FALSE(superBlk.canCoAllocate(170));
 }
 
