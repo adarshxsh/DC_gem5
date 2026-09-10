@@ -120,6 +120,29 @@ CompressedTags::tagsInit()
     }
 }
 
+CacheBlk *
+CompressedTags::findBlock(const CacheBlk::KeyType &key) const
+{
+    const Addr offset = extractSectorOffset(key.address);
+    const std::vector<ReplaceableEntry *> entries =
+        indexingPolicy->getPossibleEntries(key);
+
+    for (const auto &entry : entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        if (superblock->match(key)) {
+            int slot = superblock->getSlot(offset);
+            if (slot != -1 && slot < superblock->blks.size()) {
+                auto blk = superblock->blks[slot];
+                if (blk->match(key)) {
+                    return blk;
+                }
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 CacheBlk*
 CompressedTags::findVictim(const CacheBlk::KeyType& key,
                            const std::size_t compressed_size,
@@ -143,11 +166,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+        if (superblock->match(key) && superblock->isCompressed() &&
+            superblock->canCoAllocate(compressed_size)) {
             victim_superblock = superblock;
             is_co_allocation = true;
             break;
@@ -176,8 +196,16 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         }
     }
 
-    // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = victim_superblock->blks[offset];
+    // Get the location of the victim block within the superblock.
+    // In a compacted superblock, valid blocks occupy contiguous low-index
+    // slots, so the next available slot for allocation is at slot index
+    // numValid.
+    int target_slot = victim_superblock->getNumValid();
+    assert(target_slot < victim_superblock->blks.size());
+    SectorSubBlk *victim = victim_superblock->blks[target_slot];
+
+    victim->setSectorOffset(offset);
+    victim_superblock->mapOffset(offset, target_slot);
 
     // It would be a hit if victim was valid in a co-allocation, and upgrades
     // do not call findVictim, so it cannot happen
@@ -218,13 +246,27 @@ CompressedTags::checkInvariants() const
             if (num_valid > 1) {
                 assert(super_blk.isCompressed());
             }
-            for (const auto &blk : super_blk.blks) {
+
+            // Check that valid sub-blocks occupy contiguous low-index slots
+            for (int k = 0; k < num_valid; ++k) {
+                assert(super_blk.blks[k]->isValid());
+            }
+            for (int k = num_valid; k < super_blk.blks.size(); ++k) {
+                assert(!super_blk.blks[k]->isValid());
+            }
+
+            for (int slot = 0; slot < super_blk.blks.size(); ++slot) {
+                const auto &blk = super_blk.blks[slot];
                 if (blk->isValid()) {
                     const CompressionBlk *cblk =
                         static_cast<const CompressionBlk *>(blk);
                     uint8_t blk_cf = super_blk.calculateCompressionFactor(
                         cblk->getSizeBits());
                     assert(blk_cf >= cf);
+
+                    int sec_off = cblk->getSectorOffset();
+                    assert(sec_off >= 0 && sec_off < super_blk.blks.size());
+                    assert(super_blk.getSlot(sec_off) == slot);
                 }
             }
         } else {
