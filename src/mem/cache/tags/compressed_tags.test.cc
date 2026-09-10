@@ -297,7 +297,8 @@ TEST_F(SuperBlkTestFixture, SuperBlockDensityCalculation)
     // Co-allocate second sub-block (128 bits -> CF=4)
     subBlks[1].insert({0x1000, false});
     subBlks[1].setSizeBits(128);
-    // Overall CF updated to min(8, 4) = 4, num_valid = 2 -> density = 2 * 4 = 8
+    // Overall CF updated to min(8, 4) = 4, num_valid = 2 -> density = 2 * 4 =
+    // 8
     ASSERT_EQ(superBlk.getDensity(), 8);
 
     // Co-allocate third sub-block (64 bits -> CF=4)
@@ -309,7 +310,8 @@ TEST_F(SuperBlkTestFixture, SuperBlockDensityCalculation)
     // High density superblock has higher density than low density superblock
     SuperBlk superBlkLowDensity;
     superBlkLowDensity.setBlkSize(BlkSize);
-    std::unique_ptr<CompressionBlk[]> subBlksLow(new CompressionBlk[NumSubBlks]);
+    std::unique_ptr<CompressionBlk[]> subBlksLow(
+        new CompressionBlk[NumSubBlks]);
     superBlkLowDensity.blks.resize(NumSubBlks);
     for (unsigned k = 0; k < NumSubBlks; ++k) {
         superBlkLowDensity.blks[k] = &subBlksLow[k];

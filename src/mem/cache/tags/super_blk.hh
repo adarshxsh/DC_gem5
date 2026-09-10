@@ -239,8 +239,8 @@ class SuperBlk : public SectorBlk
     void setCompressionFactor(const uint8_t compression_factor);
 
     /**
-     * Get the compaction density of this superblock, calculated from valid sub-blocks
-     * and compression factor.
+     * Get the compaction density of this superblock, calculated from valid
+     * sub-blocks and compression factor.
      *
      * @return The compaction density (0 if invalid).
      */

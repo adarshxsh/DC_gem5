@@ -66,8 +66,10 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
       width(p.width),
       pointToPointCompression(p.point_to_point_compression),
       gotAddrRanges(p.port_default_connection_count +
-                          p.port_mem_side_ports_connection_count, false),
-      gotAllAddrRanges(false), defaultPortID(InvalidPortID),
+                        p.port_mem_side_ports_connection_count,
+                    false),
+      gotAllAddrRanges(false),
+      defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
 
       ADD_STAT(transDist, statistics::units::Count::get(),
@@ -137,9 +139,8 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
             size_bits = pkt->getCompressedSizeBits();
         }
         std::size_t width_bits = width * CHAR_BIT;
-        pkt->payloadDelay = std::max<Tick>(pkt->payloadDelay,
-                                           divCeil(size_bits, width_bits) *
-                                           clockPeriod());
+        pkt->payloadDelay = std::max<Tick>(
+            pkt->payloadDelay, divCeil(size_bits, width_bits) * clockPeriod());
     }
 
     // the payload delay is not paying for the clock offset as that is
