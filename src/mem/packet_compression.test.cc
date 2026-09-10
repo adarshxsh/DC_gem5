@@ -35,12 +35,14 @@
 using namespace gem5;
 using namespace gem5::memory;
 
-namespace gem5 {
-namespace Gem5Internal {
+namespace gem5
+{
+namespace Gem5Internal
+{
 Tick _curTick = 0;
 __thread Tick *_curTickPtr = &_curTick;
-}
-}
+} // namespace Gem5Internal
+} // namespace gem5
 
 TEST(PacketCompressionTest, DefaultUncompressed)
 {

@@ -165,12 +165,20 @@ class MemPacket
     /**
      * Return true if the packet payload is compressed
      */
-    inline bool isCompressed() const { return _isCompressed; }
+    inline bool
+    isCompressed() const
+    {
+        return _isCompressed;
+    }
 
     /**
      * Get compressed size in bits
      */
-    inline std::size_t getCompressedSizeBits() const { return _compressedSizeBits; }
+    inline std::size_t
+    getCompressedSizeBits() const
+    {
+        return _compressedSizeBits;
+    }
 
     /**
      * Set the packet QoS value
@@ -220,15 +228,26 @@ class MemPacket
     inline bool isDram() const { return dram; }
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _channel,
-               uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
-               Addr _addr, unsigned int _size)
-        : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
+              uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
+              Addr _addr, unsigned int _size)
+        : entryTime(curTick()),
+          readyTime(curTick()),
+          pkt(_pkt),
           _requestorId(pkt->requestorId()),
-          read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
-          bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
+          read(is_read),
+          dram(is_dram),
+          pseudoChannel(_channel),
+          rank(_rank),
+          bank(_bank),
+          row(_row),
+          bankId(bank_id),
+          addr(_addr),
+          size(_size),
           burstHelper(NULL),
           _isCompressed(_pkt ? _pkt->isCompressed() : false),
-          _compressedSizeBits((_pkt && _pkt->isCompressed()) ? _pkt->getCompressedSizeBits() : 0),
+          _compressedSizeBits((_pkt && _pkt->isCompressed())
+                                  ? _pkt->getCompressedSizeBits()
+                                  : 0),
           _qosValue(_pkt->qosValue())
     { }
 
