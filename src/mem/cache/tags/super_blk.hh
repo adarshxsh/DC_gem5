@@ -221,7 +221,7 @@ class SuperBlk : public SectorBlk
      * @param sector_offset Sector offset.
      * @return CompressionBlk pointer or nullptr.
      */
-    CompressionBlk* getBlkByOffset(int sector_offset) const;
+    CompressionBlk *getBlkByOffset(int sector_offset) const;
 
     /**
      * Eagerly compact valid sub-blocks to contiguous low-index slots

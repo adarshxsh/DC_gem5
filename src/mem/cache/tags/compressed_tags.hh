@@ -107,12 +107,13 @@ class CompressedTags : public SectorTags
     void tagsInit() override;
 
     /**
-     * Finds the given address in the cache using dynamic sector offset mapping.
+     * Finds the given address in the cache using dynamic sector offset
+     * mapping.
      *
      * @param key The key (address, secure bit) to find.
      * @return Pointer to the cache block if found.
      */
-    CacheBlk* findBlock(const CacheBlk::KeyType &key) const override;
+    CacheBlk *findBlock(const CacheBlk::KeyType &key) const override;
 
     /**
      * Find replacement victim based on address. Checks if data can be co-

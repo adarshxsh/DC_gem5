@@ -192,9 +192,11 @@ SuperBlk::SuperBlk()
 int
 SuperBlk::getSlot(int sector_offset) const
 {
-    if (sector_offset < 0) return -1;
+    if (sector_offset < 0) {
+        return -1;
+    }
     if (sectorOffsetToSlot.size() != blks.size()) {
-        const_cast<SuperBlk*>(this)->compact();
+        const_cast<SuperBlk *>(this)->compact();
     }
     if (sector_offset < sectorOffsetToSlot.size()) {
         return sectorOffsetToSlot[sector_offset];
@@ -221,12 +223,12 @@ SuperBlk::unmapOffset(int sector_offset)
     }
 }
 
-CompressionBlk*
+CompressionBlk *
 SuperBlk::getBlkByOffset(int sector_offset) const
 {
     int slot = getSlot(sector_offset);
     if (slot != -1 && slot < blks.size()) {
-        return static_cast<CompressionBlk*>(blks[slot]);
+        return static_cast<CompressionBlk *>(blks[slot]);
     }
     return nullptr;
 }
@@ -234,7 +236,9 @@ SuperBlk::getBlkByOffset(int sector_offset) const
 void
 SuperBlk::compact()
 {
-    if (isCompacting) return;
+    if (isCompacting) {
+        return;
+    }
     isCompacting = true;
 
     if (sectorOffsetToSlot.size() != blks.size()) {
