@@ -301,7 +301,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        /// Payload data is compressed
+        IS_COMPRESSED          = 0x00020000
     };
 
     Flags flags;
@@ -403,6 +406,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     // Quality of Service priority value
     uint8_t _qosValue;
+
+    // Compressed payload size in bits (0 if uncompressed)
+    std::size_t _compressedSizeBits;
 
     // hardware transactional memory
 
@@ -760,6 +766,25 @@ class Packet : public Printable, public Extensible<Packet>
     bool isBlockCached() const     { return flags.isSet(BLOCK_CACHED); }
     void clearBlockCached()        { flags.clear(BLOCK_CACHED); }
 
+    /** Compression metadata accessors */
+    bool isCompressed() const { return flags.isSet(IS_COMPRESSED); }
+    std::size_t getCompressedSizeBits() const { return _compressedSizeBits; }
+    void setCompressedSizeBits(std::size_t size_bits)
+    {
+        if (size_bits > 0) {
+            flags.set(IS_COMPRESSED);
+            _compressedSizeBits = size_bits;
+        } else {
+            flags.clear(IS_COMPRESSED);
+            _compressedSizeBits = 0;
+        }
+    }
+    void setUncompressed()
+    {
+        flags.clear(IS_COMPRESSED);
+        _compressedSizeBits = 0;
+    }
+
     /**
      * QoS Value getter
      * Returns 0 if QoS value was never set (constructor default).
@@ -877,7 +902,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd)
         :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false), size(0),
-           _qosValue(0),
+           _qosValue(0), _compressedSizeBits(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0), snoopDelay(0),
@@ -918,7 +943,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
         :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false),
-           _qosValue(0),
+           _qosValue(0), _compressedSizeBits(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0),
@@ -948,6 +973,7 @@ class Packet : public Printable, public Extensible<Packet>
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
            bytesValid(pkt->bytesValid),
            _qosValue(pkt->qosValue()),
+           _compressedSizeBits(pkt->_compressedSizeBits),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(pkt->headerDelay),
