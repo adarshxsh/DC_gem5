@@ -397,6 +397,21 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     // the command; need to ensure minimum bus delay requirement is met
     Tick cmd_at = std::max({col_allowed_at, next_burst_at, curTick()});
 
+    // calculate scaled burst timing and bytes if compressed
+    Tick actual_tburst = tBURST;
+    unsigned actual_bytes = burstSize;
+
+    if (mem_pkt->isCompressed()) {
+        std::size_t comp_bits = mem_pkt->getCompressedSizeBits();
+        std::size_t comp_bytes = divCeil(comp_bits, 8);
+        if (comp_bytes > 0 && comp_bytes < burstSize) {
+            actual_bytes = comp_bytes;
+            Tick raw_tburst = divCeil(tBURST * comp_bytes, burstSize);
+            actual_tburst = divCeil(raw_tburst, tCK) * tCK;
+            actual_tburst = std::max(actual_tburst, tBURST_MIN);
+        }
+    }
+
     // verify that we have command bandwidth to issue the burst
     // if not, shift to next burst window
     Tick max_sync = clkResyncDelay + (mem_pkt->isRead() ? tRL : tWL);
@@ -412,22 +427,22 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     if (burstInterleave) {
         if (cmd_at == (rank_ref.lastBurstTick + tBURST_MIN)) {
             // already interleaving, push next command to end of full burst
-            burst_gap = tBURST;
-        } else if (cmd_at < (rank_ref.lastBurstTick + tBURST)) {
+            burst_gap = actual_tburst;
+        } else if (cmd_at < (rank_ref.lastBurstTick + actual_tburst)) {
             // not at an interleave boundary after bandwidth check
             // Shift command to tBURST boundary to avoid data contention
             // Command will remain in the same burst window given that
             // tBURST is less than tBURST_MAX
-            cmd_at = rank_ref.lastBurstTick + tBURST;
+            cmd_at = rank_ref.lastBurstTick + actual_tburst;
         }
     }
     DPRINTF(DRAM, "Schedule RD/WR burst at tick %d\n", cmd_at);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {
-        mem_pkt->readyTime = cmd_at + tRL + tBURST;
+        mem_pkt->readyTime = cmd_at + tRL + actual_tburst;
     } else {
-        mem_pkt->readyTime = cmd_at + tWL + tBURST;
+        mem_pkt->readyTime = cmd_at + tWL + actual_tburst;
     }
 
     rank_ref.lastBurstTick = cmd_at;
@@ -484,7 +499,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                                  mem_pkt->readyTime + tWR);
 
     // increment the bytes accessed and the accesses per row
-    bank_ref.bytesAccessed += burstSize;
+    bank_ref.bytesAccessed += actual_bytes;
     ++bank_ref.rowAccesses;
 
     // if we reached the max, then issue with an auto-precharge
@@ -579,13 +594,13 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.readBursts++;
         if (row_hit)
             stats.readRowHits++;
-        stats.dramBytesRead += burstSize;
+        stats.dramBytesRead += actual_bytes;
         stats.perBankRdBursts[mem_pkt->bankId]++;
 
         // Update latency stats
         stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
         stats.totQLat += cmd_at - mem_pkt->entryTime;
-        stats.totBusLat += tBURST;
+        stats.totBusLat += actual_tburst;
     } else {
         // Schedule write done event to decrement event count
         // after the readyTime has been reached
@@ -608,7 +623,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.writeBursts++;
         if (row_hit)
             stats.writeRowHits++;
-        stats.dramBytesWritten += burstSize;
+        stats.dramBytesWritten += actual_bytes;
         stats.perBankWrBursts[mem_pkt->bankId]++;
 
     }

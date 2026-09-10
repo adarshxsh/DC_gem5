@@ -328,6 +328,9 @@ Packet::copyResponderFlags(const PacketPtr pkt)
     // commit to responding
     assert(!pkt->cacheResponding() || !cacheResponding());
     flags.set(pkt->flags & RESPONDER_FLAGS);
+    if (pkt->isCompressed()) {
+        setCompressedSizeBits(pkt->getCompressedSizeBits());
+    }
 }
 
 void

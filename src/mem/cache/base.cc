@@ -333,6 +333,11 @@ BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
         assert(pkt->headerDelay == 0);
         assert(pkt->payloadDelay == 0);
 
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            pkt->setCompressedSizeBits(cblk->getSizeBits());
+        }
+
         pkt->makeTimingResponse();
 
         // In this case we are considering request_time that takes
@@ -1888,6 +1893,11 @@ BaseCache::writebackBlk(CacheBlk *blk)
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
     }
 
+    CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+    if (cblk && cblk->isCompressed()) {
+        pkt->setCompressedSizeBits(cblk->getSizeBits());
+    }
+
     return pkt;
 }
 
@@ -1931,6 +1941,10 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+    }
+
+    if (cblk && cblk->isCompressed()) {
+        pkt->setCompressedSizeBits(cblk->getSizeBits());
     }
 
     return pkt;

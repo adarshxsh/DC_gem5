@@ -152,9 +152,25 @@ class MemPacket
     BurstHelper* burstHelper;
 
     /**
+     * Compression metadata fields
+     */
+    const bool _isCompressed;
+    const std::size_t _compressedSizeBits;
+
+    /**
      * QoS value of the encapsulated packet read at queuing time
      */
     uint8_t _qosValue;
+
+    /**
+     * Return true if the packet payload is compressed
+     */
+    inline bool isCompressed() const { return _isCompressed; }
+
+    /**
+     * Get compressed size in bits
+     */
+    inline std::size_t getCompressedSizeBits() const { return _compressedSizeBits; }
 
     /**
      * Set the packet QoS value
@@ -210,7 +226,10 @@ class MemPacket
           _requestorId(pkt->requestorId()),
           read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
           bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
-          burstHelper(NULL), _qosValue(_pkt->qosValue())
+          burstHelper(NULL),
+          _isCompressed(_pkt ? _pkt->isCompressed() : false),
+          _compressedSizeBits((_pkt && _pkt->isCompressed()) ? _pkt->getCompressedSizeBits() : 0),
+          _qosValue(_pkt->qosValue())
     { }
 
 };
