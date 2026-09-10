@@ -195,7 +195,8 @@ FALRU::findBlockBySetAndWay(int set, int way) const
 CacheBlk*
 FALRU::findVictim(const CacheBlk::KeyType& key, const std::size_t size,
                   std::vector<CacheBlk*>& evict_blks,
-                  const uint64_t partition_id)
+                  const uint64_t partition_id,
+                  bool is_prefetch)
 {
     // The victim is always stored on the tail for the FALRU
     FALRUBlk* victim = tail;
