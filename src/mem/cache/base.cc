@@ -1081,7 +1081,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             victim = tags->findVictim(
                 {regenerateBlkAddr(blk), blk->isSecure()},
                 compression_size, evict_blks,
-                blk->getPartitionId());
+                blk->getPartitionId(),
+                blk->wasPrefetched());
 
             // It is valid to return nullptr if there is no victim
             if (!victim) {
@@ -1696,7 +1697,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim = tags->findVictim({addr, is_secure}, blk_size_bits,
-                                        evict_blks, partition_id);
+                                        evict_blks, partition_id,
+                                        pkt->isPrefetch());
 
     // It is valid to return nullptr if there is no victim
     if (!victim)
