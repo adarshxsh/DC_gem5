@@ -118,10 +118,10 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         if self._compressor_choice and self._compressor_choice != "none":
             from m5.objects import (
                 BDI,
-                CPack,
                 FPC,
-                ZeroCompressor,
                 CompressedTags,
+                CPack,
+                ZeroCompressor,
             )
 
             if self._compressor_choice == "bdi":
@@ -416,7 +416,9 @@ print(f"[CompressionEval] L2 Cache:     {args.l2_size}")
 print(f"[CompressionEval] Compressor:   {chosen_compressor.upper()}")
 print(f"[CompressionEval] Boot CPU:     {starting_cpu.value}")
 print(f"[CompressionEval] ROI CPU:      O3")
-print(f"[CompressionEval] Fast-Forward: {args.fast_forward_insts:,} instructions")
+print(
+    f"[CompressionEval] Fast-Forward: {args.fast_forward_insts:,} instructions"
+)
 print(f"[CompressionEval] Warmup:       {args.warmup_insts:,} instructions")
 print(f"[CompressionEval] ROI Cap:      {args.max_insts:,} instructions")
 
@@ -517,7 +519,9 @@ def max_insts_exit_handler():
     """Multi-phase handler: end-of-fast-forward -> end-of-warmup -> end-of-ROI."""
     if args.fast_forward_insts > 0:
         print("[CompressionEval] === FAST-FORWARD COMPLETE ===")
-        print(f"[CompressionEval] Switching from {starting_cpu.value} -> O3CPU")
+        print(
+            f"[CompressionEval] Switching from {starting_cpu.value} -> O3CPU"
+        )
         processor.switch()
         print(
             f"[CompressionEval] Starting warm-up phase ({args.warmup_insts:,} insts)"
