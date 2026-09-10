@@ -259,6 +259,15 @@ SuperBlk::setCompressionFactor(const uint8_t compression_factor)
     compressionFactor = compression_factor;
 }
 
+uint32_t
+SuperBlk::getDensity() const
+{
+    if (!isValid()) {
+        return 0;
+    }
+    return (uint32_t)getNumValid() * (uint32_t)getCompressionFactor();
+}
+
 void
 SuperBlk::updateCompressionFactor()
 {

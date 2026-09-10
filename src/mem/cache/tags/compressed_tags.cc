@@ -58,7 +58,8 @@ namespace gem5
 {
 
 CompressedTags::CompressedTags(const Params &p)
-    : SectorTags(p)
+    : SectorTags(p),
+      enableDensityAwareReplacement(p.enable_density_aware_replacement)
 {
 }
 
@@ -165,8 +166,26 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         }
 
         // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
-            replacementPolicy->getVictim(superblock_entries));
+        if (enableDensityAwareReplacement) {
+            std::vector<ReplaceableEntry *> min_density_entries;
+            uint32_t min_density = UINT32_MAX;
+            for (const auto &entry : superblock_entries) {
+                SuperBlk *sb = static_cast<SuperBlk *>(entry);
+                uint32_t density = sb->getDensity();
+                if (density < min_density) {
+                    min_density = density;
+                    min_density_entries.clear();
+                    min_density_entries.push_back(entry);
+                } else if (density == min_density) {
+                    min_density_entries.push_back(entry);
+                }
+            }
+            victim_superblock = static_cast<SuperBlk *>(
+                replacementPolicy->getVictim(min_density_entries));
+        } else {
+            victim_superblock = static_cast<SuperBlk *>(
+                replacementPolicy->getVictim(superblock_entries));
+        }
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){

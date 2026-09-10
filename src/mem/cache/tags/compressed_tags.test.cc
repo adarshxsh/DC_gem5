@@ -282,3 +282,46 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, SuperBlockDensityCalculation)
+{
+    // Empty superblock has density 0
+    ASSERT_EQ(superBlk.getDensity(), 0);
+
+    // Insert 1 sub-block (64 bits -> CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    // Density = num_valid (1) * cf (8) = 8
+    ASSERT_EQ(superBlk.getDensity(), 8);
+
+    // Co-allocate second sub-block (128 bits -> CF=4)
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(128);
+    // Overall CF updated to min(8, 4) = 4, num_valid = 2 -> density = 2 * 4 =
+    // 8
+    ASSERT_EQ(superBlk.getDensity(), 8);
+
+    // Co-allocate third sub-block (64 bits -> CF=4)
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(64);
+    // num_valid = 3, cf = 4 -> density = 3 * 4 = 12
+    ASSERT_EQ(superBlk.getDensity(), 12);
+
+    // High density superblock has higher density than low density superblock
+    SuperBlk superBlkLowDensity;
+    superBlkLowDensity.setBlkSize(BlkSize);
+    std::unique_ptr<CompressionBlk[]> subBlksLow(
+        new CompressionBlk[NumSubBlks]);
+    superBlkLowDensity.blks.resize(NumSubBlks);
+    for (unsigned k = 0; k < NumSubBlks; ++k) {
+        superBlkLowDensity.blks[k] = &subBlksLow[k];
+        subBlksLow[k].setSectorBlock(&superBlkLowDensity);
+        subBlksLow[k].setSectorOffset(k);
+    }
+    subBlksLow[0].insert({0x2000, false});
+    subBlksLow[0].setSizeBits(512); // uncompressed, CF=1
+    // num_valid = 1, cf = 1 -> density = 1
+    ASSERT_EQ(superBlkLowDensity.getDensity(), 1);
+
+    ASSERT_GT(superBlk.getDensity(), superBlkLowDensity.getDensity());
+}

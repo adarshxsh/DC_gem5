@@ -118,10 +118,10 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         if self._compressor_choice and self._compressor_choice != "none":
             from m5.objects import (
                 BDI,
-                CPack,
                 FPC,
-                ZeroCompressor,
                 CompressedTags,
+                CPack,
+                ZeroCompressor,
             )
 
             if self._compressor_choice == "bdi":
@@ -135,7 +135,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             else:
                 l2.compressor = BDI()
 
-            l2.tags = CompressedTags()
+            l2.tags = CompressedTags(enable_density_aware_replacement=True)
             print(
                 f"[CompressionEval] L2 cache configured with {l2.compressor.type} compressor "
                 "and CompressedTags"
@@ -156,10 +156,15 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         from m5.objects import NULL
 
+        if self._compressor_choice and self._compressor_choice != "none":
+            self.membus.point_to_point_compression = True
+
         l2buses = []
         for i in range(board.get_processor().get_num_cores()):
             l2_bus = L2XBar()
             l2_bus.snoop_filter = NULL
+            if self._compressor_choice and self._compressor_choice != "none":
+                l2_bus.point_to_point_compression = True
             l2buses.append(l2_bus)
         self.l2buses = l2buses
 
@@ -411,7 +416,9 @@ print(f"[CompressionEval] L2 Cache:     {args.l2_size}")
 print(f"[CompressionEval] Compressor:   {chosen_compressor.upper()}")
 print(f"[CompressionEval] Boot CPU:     {starting_cpu.value}")
 print(f"[CompressionEval] ROI CPU:      O3")
-print(f"[CompressionEval] Fast-Forward: {args.fast_forward_insts:,} instructions")
+print(
+    f"[CompressionEval] Fast-Forward: {args.fast_forward_insts:,} instructions"
+)
 print(f"[CompressionEval] Warmup:       {args.warmup_insts:,} instructions")
 print(f"[CompressionEval] ROI Cap:      {args.max_insts:,} instructions")
 
@@ -512,7 +519,9 @@ def max_insts_exit_handler():
     """Multi-phase handler: end-of-fast-forward -> end-of-warmup -> end-of-ROI."""
     if args.fast_forward_insts > 0:
         print("[CompressionEval] === FAST-FORWARD COMPLETE ===")
-        print(f"[CompressionEval] Switching from {starting_cpu.value} -> O3CPU")
+        print(
+            f"[CompressionEval] Switching from {starting_cpu.value} -> O3CPU"
+        )
         processor.switch()
         print(
             f"[CompressionEval] Starting warm-up phase ({args.warmup_insts:,} insts)"
