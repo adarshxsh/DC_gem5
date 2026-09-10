@@ -166,28 +166,30 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             return nullptr;
         }
 
-        // Determine the minimum valid sub-block count among candidate superblocks
+        // Determine the minimum valid sub-block count among candidate
+        // superblocks
         uint8_t min_valid = std::numeric_limits<uint8_t>::max();
-        for (const auto& entry : superblock_entries) {
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        for (const auto &entry : superblock_entries) {
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
             uint8_t num_valid = superblock->getNumValid();
             if (num_valid < min_valid) {
                 min_valid = num_valid;
             }
         }
 
-        // Filter candidates to those matching the minimum valid sub-block count
-        std::vector<ReplaceableEntry*> filtered_entries;
+        // Filter candidates to those matching the minimum valid sub-block
+        // count
+        std::vector<ReplaceableEntry *> filtered_entries;
         filtered_entries.reserve(superblock_entries.size());
-        for (const auto& entry : superblock_entries) {
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        for (const auto &entry : superblock_entries) {
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
             if (superblock->getNumValid() == min_valid) {
                 filtered_entries.push_back(entry);
             }
         }
 
         // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
+        victim_superblock = static_cast<SuperBlk *>(
             replacementPolicy->getVictim(filtered_entries));
 
         // The whole superblock must be evicted to make room for the new one
