@@ -220,7 +220,8 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size,
         return false;
     }
 
-    if (is_prefetch && hasValidDemand() && (new_blk_cf < getCompressionFactor())) {
+    if (is_prefetch && hasValidDemand() &&
+        (new_blk_cf < getCompressionFactor())) {
         return false;
     }
 
@@ -235,7 +236,7 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size,
 bool
 SuperBlk::hasValidDemand() const
 {
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk->isValid() && !blk->wasPrefetched()) {
             return true;
         }

@@ -333,9 +333,9 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuardPrefetchedOnlySuperblock)
     ASSERT_FALSE(superBlk.hasValidDemand());
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
-    // Prefetch request with size 128 bits (CF=4 < 8) is allowed when no valid demand sub-blocks exist
+    // Prefetch request with size 128 bits (CF=4 < 8) is allowed when no valid
+    // demand sub-blocks exist
     ASSERT_TRUE(superBlk.canCoAllocate(128, /* is_prefetch */ true));
 
     verifyInvariants(superBlk);
 }
-
