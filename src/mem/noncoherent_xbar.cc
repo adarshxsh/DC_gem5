@@ -112,7 +112,7 @@ NoncoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
 
     // test if the layer should be considered occupied for the current
     // port
-    if (!reqLayers[mem_side_port_id]->tryTiming(src_port)) {
+    if (!reqLayers[mem_side_port_id]->tryTiming(src_port, pkt)) {
         DPRINTF(NoncoherentXBar, "recvTimingReq: src %s %s 0x%x BUSY\n",
                 src_port->name(), pkt->cmdString(), pkt->getAddr());
         return false;
@@ -191,7 +191,7 @@ NoncoherentXBar::recvTimingResp(PacketPtr pkt, PortID mem_side_port_id)
 
     // test if the layer should be considered occupied for the current
     // port
-    if (!respLayers[cpu_side_port_id]->tryTiming(src_port)) {
+    if (!respLayers[cpu_side_port_id]->tryTiming(src_port, pkt)) {
         DPRINTF(NoncoherentXBar, "recvTimingResp: src %s %s 0x%x BUSY\n",
                 src_port->name(), pkt->cmdString(), pkt->getAddr());
         return false;

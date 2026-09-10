@@ -71,8 +71,7 @@ namespace gem5
 class BaseXBar : public ClockedObject
 {
 
-  protected:
-
+  public:
     /**
      * A layer is an internal crossbar arbitration point with its own
      * flow control. Each layer is a converging multiplexer tree. By
@@ -116,18 +115,18 @@ class BaseXBar : public ClockedObject
 
         const std::string name() const { return _name; }
 
-
         /**
          * Determine if the layer accepts a packet from a specific
          * port. If not, the port in question is also added to the
          * retry list. In either case the state of the layer is
          * updated accordingly.
          *
-         * @param port Source port presenting the packet
+         * @param src_port Source port presenting the packet
+         * @param pkt Packet presented by the source port
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port);
+        bool tryTiming(SrcType *src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -163,6 +162,13 @@ class BaseXBar : public ClockedObject
          * before calling retryWaiting.
          */
         void recvRetry();
+
+        /**
+         * Release the layer after being occupied and return to an
+         * idle state where we proceed to send a retry to any
+         * potential waiting port, or drain if asked to do so.
+         */
+        void releaseLayer();
 
       protected:
 
@@ -205,10 +211,20 @@ class BaseXBar : public ClockedObject
         State state;
 
         /**
-         * A deque of ports that retry should be called on because
-         * the original send was delayed due to a busy layer.
+         * Separate deques of ports that retry should be called on:
+         * high-priority demand requests vs lower-priority writeback requests.
          */
-        std::deque<SrcType*> waitingForLayer;
+        std::deque<SrcType *> waitingForLayerDemand;
+        std::deque<SrcType *> waitingForLayerWriteback;
+
+        /** Decompression latency and writeback classification tracking */
+        bool currentIsWriteback;
+        Tick currentDecompLat;
+        bool waitingForPeerIsWriteback;
+        Tick decompBusyUntil;
+
+        /** Counter for writeback anti-starvation mechanism */
+        unsigned int starvationCounter;
 
         /**
          * Track who is waiting for the retry when receiving it from a
@@ -216,13 +232,12 @@ class BaseXBar : public ClockedObject
          */
         SrcType* waitingForPeer;
 
-        /**
-         * Release the layer after being occupied and return to an
-         * idle state where we proceed to send a retry to any
-         * potential waiting port, or drain if asked to do so.
-         */
-        void releaseLayer();
         EventFunctionWrapper releaseEvent;
+
+        /** Event and handler to trigger retry when decompression unit frees up
+         */
+        EventFunctionWrapper decompFreeEvent;
+        void processDecompFree();
 
         /**
          * Stats for occupancy and utilization. These stats capture
@@ -304,6 +319,7 @@ class BaseXBar : public ClockedObject
         }
     };
 
+  protected:
     /**
      * Cycles of front-end pipeline including the delay to accept the request
      * and to decode the address.
@@ -315,6 +331,9 @@ class BaseXBar : public ClockedObject
     const Cycles headerLatency;
     /** the width of the xbar in bytes */
     const uint32_t width;
+
+    /** Maximum consecutive demand retries before servicing writebacks */
+    const unsigned int starvationThreshold;
 
     AddrRangeMap<PortID, 3> portMap;
 
