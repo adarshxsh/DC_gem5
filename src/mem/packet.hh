@@ -397,6 +397,11 @@ class Packet : public Printable, public Extensible<Packet>
     unsigned size;
 
     /**
+     * Compressed size of the transfer in bytes, if compressed.
+     */
+    std::size_t _compressedSize;
+
+    /**
      * Track the bytes found that satisfy a functional read.
      */
     std::vector<bool> bytesValid;
@@ -817,6 +822,21 @@ class Packet : public Printable, public Extensible<Packet>
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
 
     /**
+     * Get compressed size of packet payload in bytes.
+     */
+    std::size_t getCompressedSize() const { return _compressedSize; }
+
+    /**
+     * Set compressed size of packet payload in bytes.
+     */
+    void setCompressedSize(std::size_t _size) { _compressedSize = _size; }
+
+    /**
+     * Check if packet has a compressed payload size.
+     */
+    bool hasCompressedSize() const { return _compressedSize > 0; }
+
+    /**
      * Get address range to which this packet belongs.
      *
      * @return Address range of this packet.
@@ -877,7 +897,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd)
         :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false), size(0),
-           _qosValue(0),
+           _compressedSize(0), _qosValue(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0), snoopDelay(0),
@@ -918,7 +938,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
         :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false),
-           _qosValue(0),
+           _compressedSize(0), _qosValue(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0),
@@ -946,6 +966,7 @@ class Packet : public Printable, public Extensible<Packet>
            cmd(pkt->cmd), id(pkt->id), req(pkt->req),
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
+           _compressedSize(pkt->_compressedSize),
            bytesValid(pkt->bytesValid),
            _qosValue(pkt->qosValue()),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
