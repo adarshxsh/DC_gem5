@@ -30,6 +30,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -282,3 +283,133 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, VictimDensityFilterCandidateSelection)
+{
+    // Verify that replacement candidates are filtered by minimum getNumValid()
+    constexpr int NumSuperBlks = 4;
+    SuperBlk sblks[NumSuperBlks];
+    std::unique_ptr<CompressionBlk[]> cblks[NumSuperBlks];
+
+    for (int i = 0; i < NumSuperBlks; ++i) {
+        sblks[i].setBlkSize(BlkSize);
+        cblks[i].reset(new CompressionBlk[NumSubBlks]);
+        sblks[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            sblks[i].blks[k] = &cblks[i][k];
+            cblks[i][k].setSectorBlock(&sblks[i]);
+            cblks[i][k].setSectorOffset(k);
+            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // Populate superblocks with different numbers of valid sub-blocks:
+    // sblks[0]: 4 valid sub-blocks
+    // sblks[1]: 1 valid sub-block
+    // sblks[2]: 2 valid sub-blocks
+    // sblks[3]: 3 valid sub-blocks
+    for (int k = 0; k < 4; ++k) {
+        cblks[0][k].insert({0x1000, false});
+        cblks[0][k].setSizeBits(64);
+    }
+    for (int k = 0; k < 1; ++k) {
+        cblks[1][k].insert({0x2000, false});
+        cblks[1][k].setSizeBits(64);
+    }
+    for (int k = 0; k < 2; ++k) {
+        cblks[2][k].insert({0x3000, false});
+        cblks[2][k].setSizeBits(64);
+    }
+    for (int k = 0; k < 3; ++k) {
+        cblks[3][k].insert({0x4000, false});
+        cblks[3][k].setSizeBits(64);
+    }
+
+    ASSERT_EQ(sblks[0].getNumValid(), 4);
+    ASSERT_EQ(sblks[1].getNumValid(), 1);
+    ASSERT_EQ(sblks[2].getNumValid(), 2);
+    ASSERT_EQ(sblks[3].getNumValid(), 3);
+
+    std::vector<ReplaceableEntry*> superblock_entries = {
+        &sblks[0], &sblks[1], &sblks[2], &sblks[3]
+    };
+
+    // Simulate candidate density filtering logic from CompressedTags::findVictim
+    uint8_t min_valid = std::numeric_limits<uint8_t>::max();
+    for (const auto& entry : superblock_entries) {
+        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        uint8_t num_valid = superblock->getNumValid();
+        if (num_valid < min_valid) {
+            min_valid = num_valid;
+        }
+    }
+    ASSERT_EQ(min_valid, 1);
+
+    std::vector<ReplaceableEntry*> filtered_entries;
+    for (const auto& entry : superblock_entries) {
+        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        if (superblock->getNumValid() == min_valid) {
+            filtered_entries.push_back(entry);
+        }
+    }
+
+    // Only sblks[1] (1 valid sub-block) should be in filtered_entries
+    ASSERT_EQ(filtered_entries.size(), 1);
+    ASSERT_EQ(filtered_entries[0], &sblks[1]);
+
+    // Test tie-breaking: add another superblock with 1 valid sub-block
+    cblks[3][1].invalidate();
+    cblks[3][2].invalidate();
+    // Now sblks[3] has 1 valid sub-block as well
+    ASSERT_EQ(sblks[3].getNumValid(), 1);
+
+    min_valid = std::numeric_limits<uint8_t>::max();
+    for (const auto& entry : superblock_entries) {
+        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        uint8_t num_valid = superblock->getNumValid();
+        if (num_valid < min_valid) {
+            min_valid = num_valid;
+        }
+    }
+    ASSERT_EQ(min_valid, 1);
+
+    filtered_entries.clear();
+    for (const auto& entry : superblock_entries) {
+        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        if (superblock->getNumValid() == min_valid) {
+            filtered_entries.push_back(entry);
+        }
+    }
+    // Both sblks[1] and sblks[3] match min_valid == 1
+    ASSERT_EQ(filtered_entries.size(), 2);
+    ASSERT_EQ(filtered_entries[0], &sblks[1]);
+    ASSERT_EQ(filtered_entries[1], &sblks[3]);
+
+    // Test empty/invalid superblock priority: invalidate all sub-blocks in sblks[2]
+    cblks[2][0].invalidate();
+    cblks[2][1].invalidate();
+    ASSERT_EQ(sblks[2].getNumValid(), 0);
+
+    min_valid = std::numeric_limits<uint8_t>::max();
+    for (const auto& entry : superblock_entries) {
+        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        uint8_t num_valid = superblock->getNumValid();
+        if (num_valid < min_valid) {
+            min_valid = num_valid;
+        }
+    }
+    ASSERT_EQ(min_valid, 0);
+
+    filtered_entries.clear();
+    for (const auto& entry : superblock_entries) {
+        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        if (superblock->getNumValid() == min_valid) {
+            filtered_entries.push_back(entry);
+        }
+    }
+    // Only sblks[2] has min_valid == 0
+    ASSERT_EQ(filtered_entries.size(), 1);
+    ASSERT_EQ(filtered_entries[0], &sblks[2]);
+}
+
