@@ -28,11 +28,14 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
 
+#include "mem/cache/replacement_policies/replaceable_entry.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
 
@@ -281,4 +284,158 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             verifyInvariants(sblks[i]);
         }
     }
+}
+
+TEST_F(SuperBlkTestFixture, GetOccupiedSizeBits)
+{
+    ASSERT_EQ(superBlk.getOccupiedSizeBits(), 0);
+
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    ASSERT_EQ(superBlk.getOccupiedSizeBits(), 64);
+
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(128);
+    ASSERT_EQ(superBlk.getOccupiedSizeBits(), 192);
+
+    subBlks[0].invalidate();
+    ASSERT_EQ(superBlk.getOccupiedSizeBits(), 128);
+}
+
+static void
+filterCandidateSuperblocksByCapacity(
+    std::vector<ReplaceableEntry *> &superblock_entries)
+{
+    std::size_t min_occupied_bits = std::numeric_limits<std::size_t>::max();
+    for (const auto &entry : superblock_entries) {
+        SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+        min_occupied_bits =
+            std::min(min_occupied_bits, superblock->getOccupiedSizeBits());
+    }
+
+    superblock_entries.erase(
+        std::remove_if(
+            superblock_entries.begin(), superblock_entries.end(),
+            [min_occupied_bits](ReplaceableEntry *entry) {
+                return static_cast<SuperBlk *>(entry)->getOccupiedSizeBits() !=
+                       min_occupied_bits;
+            }),
+        superblock_entries.end());
+}
+
+TEST_F(SuperBlkTestFixture, CandidatePrefiltering_CapacityOverDensity)
+{
+    constexpr int NumSuperBlks = 3;
+    SuperBlk sblks[NumSuperBlks];
+    std::unique_ptr<CompressionBlk[]> cblks[NumSuperBlks];
+
+    for (int i = 0; i < NumSuperBlks; ++i) {
+        sblks[i].setBlkSize(BlkSize);
+        cblks[i].reset(new CompressionBlk[NumSubBlks]);
+        sblks[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            sblks[i].blks[k] = &cblks[i][k];
+            cblks[i][k].setSectorBlock(&sblks[i]);
+            cblks[i][k].setSectorOffset(k);
+            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // SuperBlk 0: 2 valid sub-blocks, 128 bits each -> total 256 bits
+    cblks[0][0].insert({0x1000, false});
+    cblks[0][0].setSizeBits(128);
+    cblks[0][1].insert({0x1000, false});
+    cblks[0][1].setSizeBits(128);
+
+    // SuperBlk 1: 3 valid sub-blocks, 32 bits each -> total 96 bits
+    cblks[1][0].insert({0x2000, false});
+    cblks[1][0].setSizeBits(32);
+    cblks[1][1].insert({0x2000, false});
+    cblks[1][1].setSizeBits(32);
+    cblks[1][2].insert({0x2000, false});
+    cblks[1][2].setSizeBits(32);
+
+    // SuperBlk 2: 1 valid sub-block, 256 bits -> total 256 bits
+    cblks[2][0].insert({0x3000, false});
+    cblks[2][0].setSizeBits(256);
+
+    ASSERT_EQ(sblks[0].getOccupiedSizeBits(), 256);
+    ASSERT_EQ(sblks[1].getOccupiedSizeBits(), 96);
+    ASSERT_EQ(sblks[2].getOccupiedSizeBits(), 256);
+
+    std::vector<ReplaceableEntry *> candidates = {&sblks[0], &sblks[1],
+                                                  &sblks[2]};
+
+    filterCandidateSuperblocksByCapacity(candidates);
+
+    ASSERT_EQ(candidates.size(), 1);
+    ASSERT_EQ(static_cast<SuperBlk *>(candidates[0]), &sblks[1]);
+    ASSERT_EQ(static_cast<SuperBlk *>(candidates[0])->getOccupiedSizeBits(),
+              96);
+}
+
+TEST_F(SuperBlkTestFixture, CandidatePrefiltering_EqualCapacity)
+{
+    constexpr int NumSuperBlks = 3;
+    SuperBlk sblks[NumSuperBlks];
+    std::unique_ptr<CompressionBlk[]> cblks[NumSuperBlks];
+
+    for (int i = 0; i < NumSuperBlks; ++i) {
+        sblks[i].setBlkSize(BlkSize);
+        cblks[i].reset(new CompressionBlk[NumSubBlks]);
+        sblks[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            sblks[i].blks[k] = &cblks[i][k];
+            cblks[i][k].setSectorBlock(&sblks[i]);
+            cblks[i][k].setSectorOffset(k);
+            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+
+        cblks[i][0].insert({Addr(0x1000 * (i + 1)), false});
+        cblks[i][0].setSizeBits(128);
+        ASSERT_EQ(sblks[i].getOccupiedSizeBits(), 128);
+    }
+
+    std::vector<ReplaceableEntry *> candidates = {&sblks[0], &sblks[1],
+                                                  &sblks[2]};
+
+    filterCandidateSuperblocksByCapacity(candidates);
+
+    ASSERT_EQ(candidates.size(), 3);
+}
+
+TEST_F(SuperBlkTestFixture, CandidatePrefiltering_UnusedSuperblock)
+{
+    constexpr int NumSuperBlks = 2;
+    SuperBlk sblks[NumSuperBlks];
+    std::unique_ptr<CompressionBlk[]> cblks[NumSuperBlks];
+
+    for (int i = 0; i < NumSuperBlks; ++i) {
+        sblks[i].setBlkSize(BlkSize);
+        cblks[i].reset(new CompressionBlk[NumSubBlks]);
+        sblks[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            sblks[i].blks[k] = &cblks[i][k];
+            cblks[i][k].setSectorBlock(&sblks[i]);
+            cblks[i][k].setSectorOffset(k);
+            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // SuperBlk 0: empty (0 bits)
+    // SuperBlk 1: 1 valid sub-block (64 bits)
+    cblks[1][0].insert({0x2000, false});
+    cblks[1][0].setSizeBits(64);
+
+    std::vector<ReplaceableEntry *> candidates = {&sblks[0], &sblks[1]};
+
+    filterCandidateSuperblocksByCapacity(candidates);
+
+    ASSERT_EQ(candidates.size(), 1);
+    ASSERT_EQ(static_cast<SuperBlk *>(candidates[0]), &sblks[0]);
+    ASSERT_EQ(static_cast<SuperBlk *>(candidates[0])->getOccupiedSizeBits(),
+              0);
 }
