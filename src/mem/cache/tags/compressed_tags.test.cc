@@ -185,9 +185,10 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
     // Move subBlks[1] (128 bits) to subBlksB[1] in superBlkB
     subBlksB[1] = std::move(subBlks[1]);
 
-    // Verify subBlksB[1] is valid and retained its 128-bit size
-    ASSERT_TRUE(subBlksB[1].isValid());
-    ASSERT_EQ(subBlksB[1].getSizeBits(), 128);
+    // Verify moved block in superBlkB was compacted to slot 0 and retained its 128-bit size
+    ASSERT_TRUE(superBlkB.blks[0]->isValid());
+    ASSERT_EQ(static_cast<CompressionBlk*>(superBlkB.blks[0])->getSizeBits(), 128);
+    ASSERT_EQ(superBlkB.getBlkByOffset(1), superBlkB.blks[0]);
     ASSERT_EQ(superBlkB.getNumValid(), 1);
     ASSERT_EQ(superBlkB.getCompressionFactor(), 4);
 
@@ -253,7 +254,8 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
 
         if (!cblks[sb_idx][sub_idx].isValid()) {
             Addr tag = tag_base + (sb_idx * 0x1000);
-            if (!sblks[sb_idx].isValid() || sblks[sb_idx].getTag() == tag) {
+            if (!sblks[sb_idx].isValid() ||
+                (sblks[sb_idx].getTag() == tag && sblks[sb_idx].canCoAllocate(sz))) {
                 cblks[sb_idx][sub_idx].insert({tag, false});
                 cblks[sb_idx][sub_idx].setSizeBits(sz);
             }
@@ -281,4 +283,30 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             verifyInvariants(sblks[i]);
         }
     }
+}
+
+TEST_F(SuperBlkTestFixture, CoAllocationSucceedsWhenStaticOffsetOccupied)
+{
+    // Populate slot 0 with offset 0
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSectorOffset(0);
+    subBlks[0].setSizeBits(64); // CF=8
+
+    EXPECT_EQ(superBlk.getNumValid(), 1);
+    EXPECT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Now try to allocate another block with sector offset 0 (e.g. co-allocating
+    // into the same superblock where slot 0 is already occupied)
+    EXPECT_TRUE(superBlk.canCoAllocate(64));
+
+    // Allocate into next available slot (slot 1)
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSectorOffset(0);
+    subBlks[1].setSizeBits(64);
+
+    EXPECT_EQ(superBlk.getNumValid(), 2);
+    EXPECT_EQ(superBlk.getCompressionFactor(), 8);
+    EXPECT_TRUE(superBlk.blks[0]->isValid());
+    EXPECT_TRUE(superBlk.blks[1]->isValid());
+    verifyInvariants(superBlk);
 }

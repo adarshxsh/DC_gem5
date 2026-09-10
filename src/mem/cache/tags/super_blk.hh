@@ -180,11 +180,54 @@ class SuperBlk : public SectorBlk
      */
     uint8_t compressionFactor;
 
+    /** Dynamic offset mapping table: maps sector offset to slot index. */
+    mutable std::vector<int> sectorOffsetToSlot;
+
+    /** Flag to prevent re-entrant compaction during moves. */
+    bool isCompacting;
+
   public:
     SuperBlk();
     SuperBlk(const SuperBlk&) = delete;
     SuperBlk& operator=(const SuperBlk&) = delete;
     ~SuperBlk() {};
+
+    /**
+     * Get slot index in blks vector mapped to given sector offset.
+     *
+     * @param sector_offset Sector offset to look up.
+     * @return Slot index if mapped, or -1 if unmapped.
+     */
+    int getSlot(int sector_offset) const;
+
+    /**
+     * Map a sector offset to a slot index in the mapping table.
+     *
+     * @param sector_offset Sector offset.
+     * @param slot Slot index.
+     */
+    void mapOffset(int sector_offset, int slot);
+
+    /**
+     * Unmap a sector offset in the mapping table.
+     *
+     * @param sector_offset Sector offset.
+     */
+    void unmapOffset(int sector_offset);
+
+    /**
+     * Get sub-block pointer corresponding to a sector offset.
+     *
+     * @param sector_offset Sector offset.
+     * @return CompressionBlk pointer or nullptr.
+     */
+    CompressionBlk* getBlkByOffset(int sector_offset) const;
+
+    /**
+     * Eagerly compact valid sub-blocks to contiguous low-index slots
+     * and update offset mappings.
+     */
+    void compact();
 
     /**
      * Returns whether the superblock contains compressed blocks or not. By
