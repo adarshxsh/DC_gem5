@@ -208,7 +208,8 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size) const
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        bool is_prefetch) const
 {
     if (!isCompressed()) {
         return false;
@@ -219,12 +220,28 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
+    if (is_prefetch && hasValidDemand() &&
+        (new_blk_cf < getCompressionFactor())) {
+        return false;
+    }
+
     const uint8_t target_cf =
         (getNumValid() == 0) ? new_blk_cf
                              : std::min(getCompressionFactor(), new_blk_cf);
 
     return (target_cf > 1) && (getNumValid() < target_cf) &&
            (compressed_size <= (blkSize * CHAR_BIT) / target_cf);
+}
+
+bool
+SuperBlk::hasValidDemand() const
+{
+    for (const auto &blk : blks) {
+        if (blk->isValid() && !blk->wasPrefetched()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void

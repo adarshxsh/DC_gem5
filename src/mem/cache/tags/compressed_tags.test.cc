@@ -282,3 +282,60 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuardBlocked)
+{
+    // Insert demand sub-block 0 with size 64 bits (CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].clearPrefetched();
+
+    ASSERT_TRUE(superBlk.hasValidDemand());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Prefetch request with size 128 bits (CF=4 < 8) should be blocked
+    ASSERT_FALSE(superBlk.canCoAllocate(128, /* is_prefetch */ true));
+
+    // Demand request with size 128 bits (CF=4) should be allowed
+    ASSERT_TRUE(superBlk.canCoAllocate(128, /* is_prefetch */ false));
+
+    // Warm demand sub-block remains valid and compression factor unchanged
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuardAllowedSameOrHigherCF)
+{
+    // Insert demand sub-block 0 with size 128 bits (CF=4)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(128);
+    subBlks[0].clearPrefetched();
+
+    ASSERT_TRUE(superBlk.hasValidDemand());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+
+    // Prefetch request with size 64 bits (CF=8 >= 4) should be allowed
+    ASSERT_TRUE(superBlk.canCoAllocate(64, /* is_prefetch */ true));
+    // Prefetch request with size 128 bits (CF=4 >= 4) should be allowed
+    ASSERT_TRUE(superBlk.canCoAllocate(128, /* is_prefetch */ true));
+
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuardPrefetchedOnlySuperblock)
+{
+    // Insert prefetched sub-block 0 with size 64 bits (CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setPrefetched();
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_FALSE(superBlk.hasValidDemand());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Prefetch request with size 128 bits (CF=4 < 8) is allowed when no valid
+    // demand sub-blocks exist
+    ASSERT_TRUE(superBlk.canCoAllocate(128, /* is_prefetch */ true));
+
+    verifyInvariants(superBlk);
+}
