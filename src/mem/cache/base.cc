@@ -1854,6 +1854,7 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
     }
 
+    CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
     if (cblk && cblk->isCompressed()) {
         pkt->setCompressedSizeBits(cblk->getSizeBits());
     }
