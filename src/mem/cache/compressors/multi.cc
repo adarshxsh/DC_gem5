@@ -141,9 +141,11 @@ Multi::compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
             // another compression layer. Their size can be 0, so it is
             // assigned the highest possible compression factor (the original
             // block's size).
-            compressionFactor = (size > blk_size) ? 1 :
-                ((size == 0) ? blk_size :
-                std::floor(blk_size / (double) size));
+            compressionFactor =
+                (size > blk_size)
+                    ? 1
+                    : ((size == 0) ? blk_size
+                                   : std::floor(blk_size / (double)size));
         }
     };
     struct ResultsComparator
