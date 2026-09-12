@@ -517,6 +517,19 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeLowThreshold;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
+    const bool enableDynamicThresholds;
+
+    /**
+     * Dynamic threshold calculations based on queue pressure ratios.
+     */
+    uint32_t dynamicWriteHighThreshold(double read_pressure,
+                                       double write_pressure) const;
+    uint32_t dynamicWriteLowThreshold(double read_pressure,
+                                      double write_pressure) const;
+    uint32_t dynamicMinWritesPerSwitch(double read_pressure,
+                                       double write_pressure) const;
+    uint32_t dynamicMinReadsPerSwitch(double read_pressure,
+                                      double write_pressure) const;
 
     /**
      * Memory controller configuration initialized based on parameter
