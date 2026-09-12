@@ -60,28 +60,37 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    enableDynamicThresholds(p.enable_dynamic_thresholds),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      enableDynamicThresholds(p.enable_dynamic_thresholds),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -901,7 +910,8 @@ MemCtrl::dynamicWriteHighThreshold(double read_pressure,
     }
 
     uint32_t min_thresh = std::max((uint32_t)1, writeLowThreshold);
-    uint32_t max_thresh = writeBufferSize > 0 ? writeBufferSize - 1 : writeHighThreshold;
+    uint32_t max_thresh =
+        writeBufferSize > 0 ? writeBufferSize - 1 : writeHighThreshold;
 
     uint32_t res = static_cast<uint32_t>(std::round(high_thresh));
     return std::clamp(res, min_thresh, max_thresh);
@@ -981,15 +991,24 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                         EventFunctionWrapper& resp_event,
                         EventFunctionWrapper& next_req_event,
                         bool& retry_wr_req) {
-    double write_pressure = writeBufferSize > 0 ?
-        static_cast<double>(totalWriteQueueSize) / writeBufferSize : 0.0;
-    double read_pressure = readBufferSize > 0 ?
-        static_cast<double>(totalReadQueueSize + respQueue.size()) / readBufferSize : 0.0;
+    double write_pressure =
+        writeBufferSize > 0
+            ? static_cast<double>(totalWriteQueueSize) / writeBufferSize
+            : 0.0;
+    double read_pressure =
+        readBufferSize > 0
+            ? static_cast<double>(totalReadQueueSize + respQueue.size()) /
+                  readBufferSize
+            : 0.0;
 
-    uint32_t curr_write_high_thresh = dynamicWriteHighThreshold(read_pressure, write_pressure);
-    uint32_t curr_write_low_thresh = dynamicWriteLowThreshold(read_pressure, write_pressure);
-    uint32_t curr_min_writes_per_switch = dynamicMinWritesPerSwitch(read_pressure, write_pressure);
-    uint32_t curr_min_reads_per_switch = dynamicMinReadsPerSwitch(read_pressure, write_pressure);
+    uint32_t curr_write_high_thresh =
+        dynamicWriteHighThreshold(read_pressure, write_pressure);
+    uint32_t curr_write_low_thresh =
+        dynamicWriteLowThreshold(read_pressure, write_pressure);
+    uint32_t curr_min_writes_per_switch =
+        dynamicMinWritesPerSwitch(read_pressure, write_pressure);
+    uint32_t curr_min_reads_per_switch =
+        dynamicMinReadsPerSwitch(read_pressure, write_pressure);
 
     // transition is handled by QoS algorithm if enabled
     if (turnPolicy) {
@@ -1145,9 +1164,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
             if ((mem_intr->writeQueueSize > curr_write_high_thresh) &&
-               (mem_intr->readsThisTime >= curr_min_reads_per_switch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+                (mem_intr->readsThisTime >= curr_min_reads_per_switch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 
@@ -1229,11 +1248,13 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // If we are interfacing to NVM and have filled the writeRespQueue,
         // with only NVM writes in Q, then switch to reads
         bool below_threshold =
-            mem_intr->writeQueueSize + curr_min_writes_per_switch < curr_write_low_thresh;
+            mem_intr->writeQueueSize + curr_min_writes_per_switch <
+            curr_write_low_thresh;
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= curr_min_writes_per_switch) ||
+            (mem_intr->readQueueSize &&
+             mem_intr->writesThisTime >= curr_min_writes_per_switch) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again
