@@ -138,6 +138,8 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         enable_adaptive_bypass: bool = False,
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
+        enable_crossbar_compression: bool = False,
+        density_replacement_weight: float = 1.0,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -150,6 +152,8 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
         :param latency_breakeven_threshold: Compression ratio threshold for bypass.
         :param sampling_interval: Sampling interval for compression effectiveness.
+        :param enable_crossbar_compression: Enable crossbar payload compression scaling.
+        :param density_replacement_weight: Sub-block density replacement weight for CompressedTags.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -167,7 +171,10 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._enable_adaptive_bypass = enable_adaptive_bypass
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
+        self._enable_crossbar_compression = enable_crossbar_compression
+        self._density_replacement_weight = density_replacement_weight
         self.membus = membus if membus else self._get_default_membus()
+        self.membus.enable_crossbar_compression = self._enable_crossbar_compression
 
     @overrides(AbstractClassicCacheHierarchy)
     def get_mem_side_port(self) -> Port:
@@ -195,11 +202,14 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                     self._latency_breakeven_threshold
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
-            l2.tags = CompressedTags()
+            l2.tags = CompressedTags(
+                density_replacement_weight=self._density_replacement_weight
+            )
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
                 "and CompressedTags (max_compression_ratio=2, "
-                f"adaptive_bypass={self._enable_adaptive_bypass})"
+                f"adaptive_bypass={self._enable_adaptive_bypass}, "
+                f"density_weight={self._density_replacement_weight})"
             )
         else:
             print(
@@ -220,7 +230,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         l2buses = []
         for i in range(board.get_processor().get_num_cores()):
-            l2_bus = L2XBar()
+            l2_bus = L2XBar(
+                enable_crossbar_compression=self._enable_crossbar_compression
+            )
             l2_bus.snoop_filter = NULL
             l2buses.append(l2_bus)
         self.l2buses = l2buses
@@ -422,6 +434,22 @@ parser.add_argument(
     help="Sampling interval in number of compressions for tracking ratio (default: 100).",
 )
 
+parser.add_argument(
+    "--enable-crossbar-compression",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable payload delay scaling based on packet compressed size in crossbars.",
+)
+
+parser.add_argument(
+    "--density-replacement-weight",
+    type=float,
+    required=False,
+    default=1.0,
+    help="Weight for sub-block density in CompressedTags replacement policy (default: 1.0).",
+)
+
 args = parser.parse_args()
 
 
@@ -480,6 +508,8 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     enable_adaptive_bypass=args.enable_adaptive_bypass,
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
+    enable_crossbar_compression=args.enable_crossbar_compression,
+    density_replacement_weight=args.density_replacement_weight,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
