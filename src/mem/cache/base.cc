@@ -236,12 +236,10 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
     Addr blk_addr = pkt->getBlockAddr(blkSize);
 
     // If using compression, on evictions the block is decompressed and
-    // the operation's latency is added to the payload delay. Consume
-    // that payload delay here, meaning that the data is always stored
-    // uncompressed in the writebuffer
+    // the operation's latency is absorbed locally in the writebuffer schedule
+    // time.
     if (compressor) {
-        time += pkt->payloadDelay;
-        pkt->payloadDelay = 0;
+        time += pkt->getDecompressionDelay();
     }
 
     WriteQueueEntry *wq_entry =
@@ -1793,10 +1791,17 @@ BaseCache::writebackBlk(CacheBlk *blk)
     pkt->allocate();
     pkt->setDataFromBlock(blk->data, blkSize);
 
-    // When a block is compressed, it must first be decompressed before being
-    // sent for writeback.
+    // When a block is compressed, set its compressed payload size and local
+    // decompression latency, absorbing decompression delay into cache event
+    // scheduling instead of interconnect payloadDelay.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        const CompressionBlk *comp_blk =
+            static_cast<const CompressionBlk *>(blk);
+        if (comp_blk && comp_blk->isCompressed()) {
+            pkt->setPayloadSize(divCeil(comp_blk->getSizeBits(), 8));
+        }
+        pkt->setDecompressionDelay(
+            cyclesToTicks(compressor->getDecompressionLatency(blk)));
     }
 
     return pkt;
@@ -1838,10 +1843,17 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     pkt->allocate();
     pkt->setDataFromBlock(blk->data, blkSize);
 
-    // When a block is compressed, it must first be decompressed before being
-    // sent for writeback.
+    // When a block is compressed, set its compressed payload size and local
+    // decompression latency, absorbing decompression delay into cache event
+    // scheduling instead of interconnect payloadDelay.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        const CompressionBlk *comp_blk =
+            static_cast<const CompressionBlk *>(blk);
+        if (comp_blk && comp_blk->isCompressed()) {
+            pkt->setPayloadSize(divCeil(comp_blk->getSizeBits(), 8));
+        }
+        pkt->setDecompressionDelay(
+            cyclesToTicks(compressor->getDecompressionLatency(blk)));
     }
 
     return pkt;
