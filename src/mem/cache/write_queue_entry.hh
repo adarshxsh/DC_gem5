@@ -60,6 +60,7 @@ namespace gem5
 {
 
 class BaseCache;
+class SuperBlk;
 
 /**
  * Write queue entry
@@ -111,11 +112,26 @@ class WriteQueueEntry : public QueueEntry, public Printable
     /** List of all requests that match the address */
     TargetList targets;
 
+    /** Pointer to parent SuperBlk when superblock compression is enabled. */
+    const SuperBlk *_superBlk = nullptr;
+
+    /** Superblock base address. */
+    Addr _superBlkAddr = 0;
+
+    /** Sub-block presence bitmask within the superblock. */
+    uint64_t _subBlkMask = 0;
+
+    /** Sub-block compressed size metadata indexed by sub-block offset. */
+    std::vector<std::size_t> _subBlkSizes;
+
   public:
 
     /** A simple constructor. */
     WriteQueueEntry(const std::string &name)
-        :   QueueEntry(name)
+        : QueueEntry(name),
+          _superBlk(nullptr),
+          _superBlkAddr(0),
+          _subBlkMask(0)
     {}
 
     /**
@@ -125,10 +141,82 @@ class WriteQueueEntry : public QueueEntry, public Printable
      * @param pkt The original write.
      * @param when_ready When should the write be sent out.
      * @param _order The logical order of this write.
+     * @param super_blk Pointer to parent superblock.
+     * @param super_blk_addr Base address of parent superblock.
+     * @param sub_blk_idx Offset of sub-block in superblock.
+     * @param comp_size Compressed size of sub-block in bits.
      */
     void allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                  Tick when_ready, Counter _order);
+                  Tick when_ready, Counter _order,
+                  const SuperBlk *super_blk = nullptr, Addr super_blk_addr = 0,
+                  int sub_blk_idx = -1, std::size_t comp_size = 0);
 
+    /**
+     * Coalesce an additional sub-block writeback targeting the same
+     * superblock.
+     * @param target The sub-block writeback packet.
+     * @param when_ready The ready time for this sub-block.
+     * @param _order The logical order.
+     * @param sub_blk_idx Sub-block index within superblock.
+     * @param comp_size Compressed size of sub-block.
+     * @param delay Decompression latency to account for in ready time.
+     */
+    void coalesceSubBlock(PacketPtr target, Tick when_ready, Counter _order,
+                          int sub_blk_idx = -1, std::size_t comp_size = 0,
+                          Tick delay = 0);
+
+    /** Get parent superblock pointer. */
+    const SuperBlk *
+    getSuperBlock() const
+    {
+        return _superBlk;
+    }
+
+    /** Get superblock base address. */
+    Addr
+    getSuperBlockAddr() const
+    {
+        return _superBlkAddr;
+    }
+
+    /** Get ready time. */
+    Tick
+    getReadyTime() const
+    {
+        return readyTime;
+    }
+
+    /** Get sub-block presence bitmask. */
+    uint64_t
+    getSubBlkMask() const
+    {
+        return _subBlkMask;
+    }
+
+    /** Get sub-block compressed size metadata vector. */
+    const std::vector<std::size_t> &
+    getSubBlkSizes() const
+    {
+        return _subBlkSizes;
+    }
+
+    /** Get total compressed size in bits across present sub-blocks. */
+    std::size_t
+    getTotalCompressedSizeBits() const
+    {
+        std::size_t total = 0;
+        for (auto sz : _subBlkSizes) {
+            total += sz;
+        }
+        return total;
+    }
+
+    /** Returns true if this entry tracks a superblock. */
+    bool
+    isSuperBlockEntry() const
+    {
+        return _superBlk != nullptr || _superBlkAddr != 0;
+    }
 
     /**
      * Mark this entry as free.

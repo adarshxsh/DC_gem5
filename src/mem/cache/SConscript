@@ -52,6 +52,14 @@ Source('noncoherent_cache.cc')
 Source('write_queue.cc')
 Source('write_queue_entry.cc')
 
+GTest('write_queue.test', 'write_queue.test.cc',
+      'write_queue.cc', 'write_queue_entry.cc',
+      'tags/super_blk.cc', 'tags/sector_blk.cc',
+      '#src/mem/packet.cc', '#src/sim/bufval.cc', '#src/base/bitfield.cc',
+      '#src/cpu/reg_class.cc',
+      Dir('#src').File('base/types.cc'),
+      with_tag('gem5 simobject'))
+
 DebugFlag('Cache')
 DebugFlag('CacheComp')
 DebugFlag('CachePort')
