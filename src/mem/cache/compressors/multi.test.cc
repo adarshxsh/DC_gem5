@@ -95,7 +95,7 @@ class MultiCompressorTest : public ::testing::Test
     void
     createMulti(unsigned threshold, unsigned probe_interval)
     {
-        ZeroCompressorParams zero_p;
+        ZeroCompressorParams zero_p{};
         zero_p.eventq_index = 0;
         zero_p.block_size = 64;
         zero_p.chunk_size_bits = 64;
@@ -105,9 +105,13 @@ class MultiCompressorTest : public ::testing::Test
         zero_p.decomp_chunks_per_cycle = 8;
         zero_p.decomp_extra_latency = Cycles(1);
         zero_p.dictionary_size = 64;
+        zero_p.enable_adaptive_bypass = false;
+        zero_p.latency_breakeven_threshold = 1.0;
+        zero_p.sampling_interval = 100;
+        zero_p.decay_shift = 4;
         zeroComp = new Zero(zero_p);
 
-        RepeatedQwordsCompressorParams rq_p;
+        RepeatedQwordsCompressorParams rq_p{};
         rq_p.eventq_index = 0;
         rq_p.block_size = 64;
         rq_p.chunk_size_bits = 64;
@@ -117,9 +121,13 @@ class MultiCompressorTest : public ::testing::Test
         rq_p.decomp_chunks_per_cycle = 8;
         rq_p.decomp_extra_latency = Cycles(2);
         rq_p.dictionary_size = 64;
+        rq_p.enable_adaptive_bypass = false;
+        rq_p.latency_breakeven_threshold = 1.0;
+        rq_p.sampling_interval = 100;
+        rq_p.decay_shift = 4;
         rqComp = new RepeatedQwords(rq_p);
 
-        Base16Delta8Params bdi_p;
+        Base16Delta8Params bdi_p{};
         bdi_p.eventq_index = 0;
         bdi_p.block_size = 64;
         bdi_p.chunk_size_bits = 16;
@@ -129,9 +137,13 @@ class MultiCompressorTest : public ::testing::Test
         bdi_p.decomp_chunks_per_cycle = 8;
         bdi_p.decomp_extra_latency = Cycles(3);
         bdi_p.dictionary_size = 64;
+        bdi_p.enable_adaptive_bypass = false;
+        bdi_p.latency_breakeven_threshold = 1.0;
+        bdi_p.sampling_interval = 100;
+        bdi_p.decay_shift = 4;
         bdiComp = new Base16Delta8(bdi_p);
 
-        MultiCompressorParams multi_p;
+        MultiCompressorParams multi_p{};
         multi_p.eventq_index = 0;
         multi_p.block_size = 64;
         multi_p.chunk_size_bits = 32;
@@ -143,6 +155,10 @@ class MultiCompressorTest : public ::testing::Test
         multi_p.encoding_in_tags = false;
         multi_p.unpromising_threshold = threshold;
         multi_p.probe_interval = probe_interval;
+        multi_p.enable_adaptive_bypass = false;
+        multi_p.latency_breakeven_threshold = 1.0;
+        multi_p.sampling_interval = 100;
+        multi_p.decay_shift = 4;
         multi_p.compressors = {zeroComp, rqComp, bdiComp};
 
         zeroComp->regStats();
