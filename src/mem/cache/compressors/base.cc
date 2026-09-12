@@ -94,6 +94,8 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      enablePressureThrottling(p.enable_pressure_throttling),
+      pressureThreshold(p.pressure_threshold),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),

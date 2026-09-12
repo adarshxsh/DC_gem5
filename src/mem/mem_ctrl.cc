@@ -76,6 +76,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
     commandWindow(p.command_window),
+    enablePressureSignaling(p.enable_pressure_signaling),
     prevArrival(0),
     stats(*this)
 {
