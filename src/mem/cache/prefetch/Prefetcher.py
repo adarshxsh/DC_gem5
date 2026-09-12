@@ -166,6 +166,30 @@ class QueuedPrefetcher(BasePrefetcher):
         that can be throttled depending on the accuracy of the prefetcher.",
     )
 
+    enable_cht = Param.Bool(
+        True, "Enable Compression History Table (CHT) filtering"
+    )
+    cht_entries = Param.Unsigned(
+        64, "Number of entries in Compression History Table"
+    )
+    cht_assoc = Param.Unsigned(
+        2, "Associativity of Compression History Table"
+    )
+    cht_min_cf_threshold = Param.Unsigned(
+        2, "Minimum predicted compression factor threshold for prefetch filtering"
+    )
+    cht_indexing_policy = Param.TaggedIndexingPolicy(
+        TaggedSetAssociative(
+            entry_size=1,
+            assoc=Parent.cht_assoc,
+            size=Parent.cht_entries,
+        ),
+        "Indexing policy of CHT",
+    )
+    cht_replacement_policy = Param.BaseReplacementPolicy(
+        LRURP(), "Replacement policy of CHT"
+    )
+
 
 class StridePrefetcherHashedSetAssociative(TaggedSetAssociative):
     type = "StridePrefetcherHashedSetAssociative"
