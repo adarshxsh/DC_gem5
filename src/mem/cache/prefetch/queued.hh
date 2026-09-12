@@ -183,12 +183,12 @@ class Queued : public Base
     struct CHTEntry : public TaggedEntry
     {
         SatCounter8 counter;
-        CHTEntry(TagExtractor ext)
-            : TaggedEntry(), counter(2, 2)
+        CHTEntry(TagExtractor ext) : TaggedEntry(), counter(2, 2)
         {
             registerTagExtractor(ext);
         }
-        void invalidate() override
+        void
+        invalidate() override
         {
             TaggedEntry::invalidate();
             counter = SatCounter8(2, 2);

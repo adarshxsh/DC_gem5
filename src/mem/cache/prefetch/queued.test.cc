@@ -57,18 +57,41 @@ class MockCacheAccessor : public CacheAccessor
     uint8_t compressionFactor = 1;
     std::size_t compressedSizeBits = 512;
 
-    bool inCache(Addr addr, bool is_secure) const override { return false; }
-    bool hasBeenPrefetched(Addr addr, bool is_secure) const override { return false; }
-    bool hasBeenPrefetched(Addr addr, bool is_secure, RequestorID requestor) const override { return false; }
-    bool inMissQueue(Addr addr, bool is_secure) const override { return false; }
-    bool coalesce() const override { return false; }
+    bool
+    inCache(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    hasBeenPrefetched(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    hasBeenPrefetched(Addr addr, bool is_secure,
+                      RequestorID requestor) const override
+    {
+        return false;
+    }
+    bool
+    inMissQueue(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    coalesce() const override
+    {
+        return false;
+    }
 
-    std::size_t getCompressedSizeBits(Addr addr, bool is_secure) const override
+    std::size_t
+    getCompressedSizeBits(Addr addr, bool is_secure) const override
     {
         return compressedSizeBits;
     }
 
-    uint8_t getCompressionFactor(Addr addr, bool is_secure) const override
+    uint8_t
+    getCompressionFactor(Addr addr, bool is_secure) const override
     {
         return compressionFactor;
     }
@@ -77,9 +100,7 @@ class MockCacheAccessor : public CacheAccessor
 class TestQueuedPrefetcher : public Queued
 {
   public:
-    TestQueuedPrefetcher(const QueuedPrefetcherParams &p)
-      : Queued(p)
-    {}
+    TestQueuedPrefetcher(const QueuedPrefetcherParams &p) : Queued(p) {}
 
     void
     calculatePrefetch(const PrefetchInfo &pfi,
@@ -90,8 +111,16 @@ class TestQueuedPrefetcher : public Queued
         addresses.push_back(std::make_pair(pfi.getAddr() + 64, 1));
     }
 
-    std::list<DeferredPacket>& getPFQ() { return pfq; }
-    QueuedStats& getStats() { return statsQueued; }
+    std::list<DeferredPacket> &
+    getPFQ()
+    {
+        return pfq;
+    }
+    QueuedStats &
+    getStats()
+    {
+        return statsQueued;
+    }
 };
 
 } // namespace
@@ -165,7 +194,8 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     // After 1 uncompressible fill, counter drops from 2 to 1 (< threshold 2)
     EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
 
-    // Attempting another insert for testPC1 should now be dropped due to low compression!
+    // Attempting another insert for testPC1 should now be dropped due to low
+    // compression!
     prefetcher.getPFQ().clear();
     prefetcher.insert(&pkt, pfi, 1, mockCache);
 

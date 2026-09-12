@@ -345,11 +345,17 @@ class BaseCache : public ClockedObject
         bool coalesce() const override
         { return cache.coalesce(); }
 
-        std::size_t getCompressedSizeBits(Addr addr, bool is_secure) const override
-        { return cache.getCompressedSizeBits(addr, is_secure); }
+        std::size_t
+        getCompressedSizeBits(Addr addr, bool is_secure) const override
+        {
+            return cache.getCompressedSizeBits(addr, is_secure);
+        }
 
-        uint8_t getCompressionFactor(Addr addr, bool is_secure) const override
-        { return cache.getCompressionFactor(addr, is_secure); }
+        uint8_t
+        getCompressionFactor(Addr addr, bool is_secure) const override
+        {
+            return cache.getCompressionFactor(addr, is_secure);
+        }
 
     } accessor;
 

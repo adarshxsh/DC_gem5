@@ -72,13 +72,15 @@ struct CacheAccessor
     virtual bool coalesce() const = 0;
 
     /** Get compressed size in bits for address in cache */
-    virtual std::size_t getCompressedSizeBits(Addr addr, bool is_secure) const
+    virtual std::size_t
+    getCompressedSizeBits(Addr addr, bool is_secure) const
     {
         return 512;
     }
 
     /** Get compression factor for address in cache */
-    virtual uint8_t getCompressionFactor(Addr addr, bool is_secure) const
+    virtual uint8_t
+    getCompressionFactor(Addr addr, bool is_secure) const
     {
         return 1;
     }
