@@ -148,7 +148,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
         if (superblock->match(key) &&
             !superblock->blks[offset]->isValid() &&
             superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
+            superblock->canCoAllocate(compressed_size, is_prefetch))
         {
             if (is_prefetch && superblock->hasValidDemand()) {
                 const uint8_t new_blk_cf =
@@ -179,6 +179,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
 
         std::vector<ReplaceableEntry *> replacement_candidates;
         if (is_prefetch) {
+            // Filter candidates to superblocks containing zero valid demand sub-blocks
             for (const auto &entry : superblock_entries) {
                 SuperBlk *superblock = static_cast<SuperBlk *>(entry);
                 if (!superblock->hasValidDemand()) {
@@ -195,7 +196,6 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
 
         // Choose replacement victim from replacement candidates
         victim_superblock = static_cast<SuperBlk *>(
-            replacementPolicy->getVictim(replacement_candidates));
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){
