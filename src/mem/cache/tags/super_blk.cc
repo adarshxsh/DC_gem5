@@ -71,10 +71,10 @@ CompressionBlk::operator=(CompressionBlk&& other)
 
     SuperBlk *dest_super = static_cast<SuperBlk *>(getSectorBlock());
     if (src_super) {
-        src_super->updateCompressionFactor();
+        src_super->compactSlots();
     }
     if (dest_super && dest_super != src_super) {
-        dest_super->updateCompressionFactor();
+        dest_super->compactSlots();
     }
 
     return *this;
@@ -152,7 +152,7 @@ CompressionBlk::invalidate()
     _size = 0;
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
-        superblock->updateCompressionFactor();
+        superblock->compactSlots();
     }
 }
 
@@ -190,6 +190,74 @@ SuperBlk::invalidate()
 {
     SectorBlk::invalidate();
     compressionFactor = 1;
+    initOffsetToSlot();
+}
+
+void
+SuperBlk::initOffsetToSlot()
+{
+    const std::size_t num_sub_blks = blks.size();
+    offsetToSlot.resize(num_sub_blks);
+    for (std::size_t i = 0; i < num_sub_blks; ++i) {
+        offsetToSlot[i] = i;
+        if (blks[i]) {
+            blks[i]->setSectorOffset(i);
+        }
+    }
+}
+
+int
+SuperBlk::getSlotForOffset(int offset) const
+{
+    if (offsetToSlot.size() != blks.size()) {
+        const_cast<SuperBlk *>(this)->initOffsetToSlot();
+    }
+    if (offset >= 0 && offset < static_cast<int>(offsetToSlot.size())) {
+        return offsetToSlot[offset];
+    }
+    return offset;
+}
+
+void
+SuperBlk::compactSlots()
+{
+    if (compacting) {
+        return;
+    }
+    compacting = true;
+
+    if (offsetToSlot.size() != blks.size()) {
+        initOffsetToSlot();
+    }
+
+    std::size_t next_free = 0;
+    const std::size_t num_sub_blks = blks.size();
+
+    for (std::size_t src = 0; src < num_sub_blks; ++src) {
+        if (blks[src] && blks[src]->isValid()) {
+            if (src != next_free) {
+                CompressionBlk *dest_blk =
+                    static_cast<CompressionBlk *>(blks[next_free]);
+                CompressionBlk *src_blk =
+                    static_cast<CompressionBlk *>(blks[src]);
+
+                int o_dest = dest_blk->getSectorOffset();
+                int o_src = src_blk->getSectorOffset();
+
+                *dest_blk = std::move(*src_blk);
+
+                dest_blk->setSectorOffset(o_src);
+                offsetToSlot[o_src] = next_free;
+
+                src_blk->setSectorOffset(o_dest);
+                offsetToSlot[o_dest] = src;
+            }
+            next_free++;
+        }
+    }
+
+    updateCompressionFactor();
+    compacting = false;
 }
 
 bool
@@ -262,6 +330,11 @@ SuperBlk::setCompressionFactor(const uint8_t compression_factor)
 void
 SuperBlk::updateCompressionFactor()
 {
+    if (!compacting) {
+        compactSlots();
+        return;
+    }
+
     uint8_t min_cf = blks.size();
     bool has_valid = false;
     for (const auto &blk : blks) {
