@@ -683,7 +683,8 @@ class DRAMInterface : public MemInterface
 
     MemPacket* decodePacket(const PacketPtr pkt, Addr pkt_addr,
                            unsigned int size, bool is_read,
-                           uint8_t pseudo_channel = 0) override;
+                           uint8_t pseudo_channel = 0,
+                           unsigned int compressed_size = 0) override;
 
     /**
      * Iterate through dram ranks to exit self-refresh in order to drain

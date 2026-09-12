@@ -323,7 +323,8 @@ class MemInterface : public AbstractMemory
      */
     virtual MemPacket* decodePacket(const PacketPtr pkt, Addr pkt_addr,
                            unsigned int size, bool is_read,
-                           uint8_t pseudo_channel = 0)
+                           uint8_t pseudo_channel = 0,
+                           unsigned int compressed_size = 0)
     {
         panic("MemInterface decodePacket should not be executed from here.\n");
         return nullptr;
