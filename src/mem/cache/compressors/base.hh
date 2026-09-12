@@ -137,6 +137,12 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether memory pressure-driven compression bypass is enabled. */
+    const bool enablePressureThrottling;
+
+    /** Memory pressure threshold (percentage). */
+    const unsigned pressureThreshold;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
