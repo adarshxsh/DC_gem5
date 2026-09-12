@@ -299,9 +299,10 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
     uint8_t new_cf = superBlk.calculateCompressionFactor(new_size);
     ASSERT_EQ(new_cf, 4);
 
-    // Evaluate post-expansion capacity with existing valid sub-block subBlks[1]
-    uint8_t target_cf = std::min(new_cf,
-        superBlk.calculateCompressionFactor(subBlks[1].getSizeBits()));
+    // Evaluate post-expansion capacity with existing valid sub-block
+    // subBlks[1]
+    uint8_t target_cf = std::min(
+        new_cf, superBlk.calculateCompressionFactor(subBlks[1].getSizeBits()));
     std::size_t total_bits = new_size + subBlks[1].getSizeBits();
 
     // Capacity check: 2 sub-blocks <= target_cf (4), total_bits 192 <= 512
@@ -346,30 +347,32 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     ASSERT_EQ(expansion_cf, 2);
 
     // Collect valid co-allocated sub-blocks (excluding subBlks[3])
-    std::vector<CompressionBlk*> co_blks;
-    for (auto& blk : superBlk.blks) {
+    std::vector<CompressionBlk *> co_blks;
+    for (auto &blk : superBlk.blks) {
         if (blk->isValid() && (blk != &subBlks[3])) {
-            co_blks.push_back(static_cast<CompressionBlk*>(blk));
+            co_blks.push_back(static_cast<CompressionBlk *>(blk));
         }
     }
     ASSERT_EQ(co_blks.size(), 3);
 
     // Sort by age (oldest/LRU first)
     std::sort(co_blks.begin(), co_blks.end(),
-        [](const CompressionBlk* a, const CompressionBlk* b) {
-            return a->getAge() > b->getAge();
-        });
+              [](const CompressionBlk *a, const CompressionBlk *b) {
+                  return a->getAge() > b->getAge();
+              });
 
-    // Oldest should be subBlks[0] (t=10), then subBlks[1] (t=20), then subBlks[2] (t=30)
+    // Oldest should be subBlks[0] (t=10), then subBlks[1] (t=20), then
+    // subBlks[2] (t=30)
     ASSERT_EQ(co_blks[0], &subBlks[0]);
     ASSERT_EQ(co_blks[1], &subBlks[1]);
     ASSERT_EQ(co_blks[2], &subBlks[2]);
 
-    auto fits_capacity = [&](const std::vector<CompressionBlk*>& sub_list) {
+    auto fits_capacity = [&](const std::vector<CompressionBlk *> &sub_list) {
         uint8_t target_cf = expansion_cf;
         std::size_t total_bits = expansion_size;
-        for (const auto* sblk : sub_list) {
-            uint8_t scf = superBlk.calculateCompressionFactor(sblk->getSizeBits());
+        for (const auto *sblk : sub_list) {
+            uint8_t scf =
+                superBlk.calculateCompressionFactor(sblk->getSizeBits());
             target_cf = std::min(target_cf, scf);
             total_bits += sblk->getSizeBits();
         }
@@ -378,26 +381,28 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
                (total_bits <= BlkSize * CHAR_BIT);
     };
 
-    std::vector<CacheBlk*> evict_blks;
+    std::vector<CacheBlk *> evict_blks;
     while (!co_blks.empty() && !fits_capacity(co_blks)) {
         evict_blks.push_back(co_blks.front());
         co_blks.erase(co_blks.begin());
     }
 
-    // Only the 2 oldest sub-blocks (subBlks[0] and subBlks[1]) should be selected for eviction
+    // Only the 2 oldest sub-blocks (subBlks[0] and subBlks[1]) should be
+    // selected for eviction
     ASSERT_EQ(evict_blks.size(), 2);
     ASSERT_EQ(evict_blks[0], &subBlks[0]);
     ASSERT_EQ(evict_blks[1], &subBlks[1]);
 
     // Perform selective eviction
-    for (auto* evict_blk : evict_blks) {
+    for (auto *evict_blk : evict_blks) {
         evict_blk->invalidate();
     }
 
     // Update expansion sub-block size
     subBlks[3].setSizeBits(expansion_size);
 
-    // Verify subBlks[2] and subBlks[3] are preserved, subBlks[0] and subBlks[1] evicted
+    // Verify subBlks[2] and subBlks[3] are preserved, subBlks[0] and
+    // subBlks[1] evicted
     ASSERT_FALSE(subBlks[0].isValid());
     ASSERT_FALSE(subBlks[1].isValid());
     ASSERT_TRUE(subBlks[2].isValid());
@@ -406,4 +411,3 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 }
-

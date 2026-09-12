@@ -43,8 +43,8 @@
  * Definition of BaseCache functions.
  */
 
-#include <algorithm>
 #include "mem/cache/base.hh"
+#include <algorithm>
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -1107,37 +1107,37 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             const SuperBlk* superblock = static_cast<const SuperBlk*>(
                 compression_blk->getSectorBlock());
 
-            std::vector<CompressionBlk*> co_blks;
+            std::vector<CompressionBlk *> co_blks;
             for (auto& sub_blk : superblock->blks) {
                 if (sub_blk->isValid() && (blk != sub_blk)) {
-                    co_blks.push_back(static_cast<CompressionBlk*>(sub_blk));
+                    co_blks.push_back(static_cast<CompressionBlk *>(sub_blk));
                 }
             }
 
             // Order candidate sub-blocks by age (oldest/LRU first)
             std::sort(co_blks.begin(), co_blks.end(),
-                [](const CompressionBlk* a, const CompressionBlk* b) {
-                    return a->getAge() > b->getAge();
-                });
+                      [](const CompressionBlk *a, const CompressionBlk *b) {
+                          return a->getAge() > b->getAge();
+                      });
 
             const uint8_t new_blk_cf =
                 superblock->calculateCompressionFactor(compression_size);
             const std::size_t max_bits = blkSize * CHAR_BIT;
 
-            auto fits_capacity = [&](const std::vector<CompressionBlk*>& sub_list) {
-                uint8_t target_cf = new_blk_cf;
-                std::size_t total_bits = compression_size;
-                for (const auto* sblk : sub_list) {
-                    uint8_t scf = superblock->calculateCompressionFactor(
-                        sblk->getSizeBits());
-                    target_cf = std::min(target_cf, scf);
-                    total_bits += sblk->getSizeBits();
-                }
-                std::size_t total_count = 1 + sub_list.size();
-                return (target_cf > 1) &&
-                       (total_count <= target_cf) &&
-                       (total_bits <= max_bits);
-            };
+            auto fits_capacity =
+                [&](const std::vector<CompressionBlk *> &sub_list) {
+                    uint8_t target_cf = new_blk_cf;
+                    std::size_t total_bits = compression_size;
+                    for (const auto *sblk : sub_list) {
+                        uint8_t scf = superblock->calculateCompressionFactor(
+                            sblk->getSizeBits());
+                        target_cf = std::min(target_cf, scf);
+                        total_bits += sblk->getSizeBits();
+                    }
+                    std::size_t total_count = 1 + sub_list.size();
+                    return (target_cf > 1) && (total_count <= target_cf) &&
+                           (total_bits <= max_bits);
+                };
 
             while (!co_blks.empty() && !fits_capacity(co_blks)) {
                 evict_blks.push_back(co_blks.front());
