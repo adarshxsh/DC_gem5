@@ -1795,11 +1795,13 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // decompression latency, absorbing decompression delay into cache event
     // scheduling instead of interconnect payloadDelay.
     if (compressor) {
-        const CompressionBlk* comp_blk = static_cast<const CompressionBlk*>(blk);
+        const CompressionBlk *comp_blk =
+            static_cast<const CompressionBlk *>(blk);
         if (comp_blk && comp_blk->isCompressed()) {
             pkt->setPayloadSize(divCeil(comp_blk->getSizeBits(), 8));
         }
-        pkt->setDecompressionDelay(cyclesToTicks(compressor->getDecompressionLatency(blk)));
+        pkt->setDecompressionDelay(
+            cyclesToTicks(compressor->getDecompressionLatency(blk)));
     }
 
     return pkt;
@@ -1845,11 +1847,13 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // decompression latency, absorbing decompression delay into cache event
     // scheduling instead of interconnect payloadDelay.
     if (compressor) {
-        const CompressionBlk* comp_blk = static_cast<const CompressionBlk*>(blk);
+        const CompressionBlk *comp_blk =
+            static_cast<const CompressionBlk *>(blk);
         if (comp_blk && comp_blk->isCompressed()) {
             pkt->setPayloadSize(divCeil(comp_blk->getSizeBits(), 8));
         }
-        pkt->setDecompressionDelay(cyclesToTicks(compressor->getDecompressionLatency(blk)));
+        pkt->setDecompressionDelay(
+            cyclesToTicks(compressor->getDecompressionLatency(blk)));
     }
 
     return pkt;
