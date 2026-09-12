@@ -60,6 +60,7 @@
 #include "mem/cache/queue_entry.hh"
 #include "mem/cache/tags/compressed_tags.hh"
 #include "mem/cache/tags/partitioning_policies/partition_manager.hh"
+#include "mem/cache/tags/sector_tags.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "params/BaseCache.hh"
 #include "params/WriteAllocator.hh"
@@ -235,22 +236,60 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
 
     Addr blk_addr = pkt->getBlockAddr(blkSize);
 
+    Tick delay = 0;
     // If using compression, on evictions the block is decompressed and
     // the operation's latency is added to the payload delay. Consume
     // that payload delay here, meaning that the data is always stored
     // uncompressed in the writebuffer
     if (compressor) {
+        delay = pkt->payloadDelay;
         time += pkt->payloadDelay;
         pkt->payloadDelay = 0;
     }
 
-    WriteQueueEntry *wq_entry =
-        writeBuffer.findMatch(blk_addr, pkt->isSecure());
-    if (wq_entry && !wq_entry->inService) {
-        DPRINTF(Cache, "Potential to merge writeback %s", pkt->print());
+    const SuperBlk* super_blk = nullptr;
+    Addr super_blk_addr = 0;
+    int sub_blk_idx = -1;
+    std::size_t comp_size = 0;
+
+    SectorTags* sec_tags = dynamic_cast<SectorTags*>(tags);
+    if (sec_tags) {
+        sub_blk_idx = sec_tags->extractSectorOffset(blk_addr);
+        super_blk_addr = blk_addr - (sub_blk_idx * blkSize);
+
+        CacheBlk* blk = tags->findBlock({blk_addr, pkt->isSecure()});
+        if (blk) {
+            SectorSubBlk* sub_blk = dynamic_cast<SectorSubBlk*>(blk);
+            if (sub_blk) {
+                super_blk = dynamic_cast<SuperBlk*>(sub_blk->getSectorBlock());
+            }
+            CompressionBlk* comp_blk = dynamic_cast<CompressionBlk*>(blk);
+            if (comp_blk) {
+                comp_size = comp_blk->getSizeBits();
+            }
+        }
     }
 
-    writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++);
+    bool is_uncacheable = pkt->req->isUncacheable();
+    bool is_strictly_ordered = pkt->req->isStrictlyOrdered();
+    bool is_atomic = pkt->isAtomicOp() || (pkt->cmd == MemCmd::SwapReq);
+    bool can_coalesce = !is_uncacheable && !is_strictly_ordered && !is_atomic;
+
+    WriteQueueEntry *wq_entry =
+        writeBuffer.findMatch(blk_addr, pkt->isSecure(), true, super_blk_addr, super_blk);
+
+    if (wq_entry && !wq_entry->inService && can_coalesce &&
+        (wq_entry->isSuperBlockEntry() || super_blk_addr != 0)) {
+        DPRINTF(Cache, "Coalescing writeback %s into entry %#llx\n",
+                pkt->print(), wq_entry->getSuperBlockAddr());
+        wq_entry->coalesceSubBlock(pkt, time, order++, sub_blk_idx, comp_size, delay);
+    } else {
+        if (wq_entry && !wq_entry->inService) {
+            DPRINTF(Cache, "Potential to merge writeback %s\n", pkt->print());
+        }
+        writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++,
+                             super_blk, super_blk_addr, sub_blk_idx, comp_size);
+    }
 
     if (writeBuffer.isFull()) {
         setBlocked((BlockedCause)MSHRQueue_WriteBuffer);

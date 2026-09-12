@@ -53,6 +53,8 @@
 namespace gem5
 {
 
+class SuperBlk;
+
 /**
  * A write queue for all eviction packets, i.e. writebacks and clean
  * evictions, as well as uncacheable writes.
@@ -72,6 +74,21 @@ class WriteQueue : public Queue<WriteQueueEntry>
             const std::string &name);
 
     /**
+     * Find the first entry that matches the provided address or superblock.
+     *
+     * @param blk_addr The block address to find.
+     * @param is_secure True if the target memory space is secure.
+     * @param ignore_uncacheable Should uncacheables be ignored or not.
+     * @param super_blk_addr Base address of parent superblock.
+     * @param super_blk Pointer to parent superblock.
+     * @return Pointer to the matching WriteQueueEntry, null if not found.
+     */
+    WriteQueueEntry* findMatch(Addr blk_addr, bool is_secure,
+                               bool ignore_uncacheable = true,
+                               Addr super_blk_addr = 0,
+                               const SuperBlk* super_blk = nullptr) const;
+
+    /**
      * Allocates a new WriteQueueEntry for the request and size. This
      * places the request as the first target in the WriteQueueEntry.
      *
@@ -79,14 +96,23 @@ class WriteQueue : public Queue<WriteQueueEntry>
      * @param blk_size The number of bytes to request.
      * @param pkt The original write.
      * @param when_ready When is the WriteQueueEntry be ready to act upon.
-     * @param order The logical order of this WriteQueueEntry
+     * @param order The logical order of this WriteQueueEntry.
+     * @param super_blk Pointer to parent superblock.
+     * @param super_blk_addr Base address of parent superblock.
+     * @param sub_blk_idx Offset of sub-block in superblock.
+     * @param comp_size Compressed size of sub-block in bits.
      *
      * @return The a pointer to the WriteQueueEntry allocated.
      *
      * @pre There are free entries.
      */
     WriteQueueEntry *allocate(Addr blk_addr, unsigned blk_size,
-                              PacketPtr pkt, Tick when_ready, Counter order);
+                              PacketPtr pkt, Tick when_ready, Counter order,
+                              const SuperBlk* super_blk = nullptr,
+                              Addr super_blk_addr = 0,
+                              int sub_blk_idx = -1,
+                              std::size_t comp_size = 0);
+
 
     /**
      * Mark the given entry as in service. This removes the entry from
