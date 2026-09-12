@@ -52,13 +52,17 @@
 #include "mem/cache/tags/indexing_policies/base.hh"
 #include "mem/cache/tags/partitioning_policies/partition_manager.hh"
 #include "mem/packet.hh"
+#include <cmath>
+#include <limits>
+
 #include "params/CompressedTags.hh"
 
 namespace gem5
 {
 
 CompressedTags::CompressedTags(const Params &p)
-    : SectorTags(p)
+    : SectorTags(p),
+      densityReplacementWeight(p.density_replacement_weight)
 {
 }
 
@@ -164,9 +168,47 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             return nullptr;
         }
 
+        std::vector<ReplaceableEntry*> candidates = superblock_entries;
+
+        if (densityReplacementWeight > 0.0) {
+            // Evaluate sub-block density score D = valid_sub_blocks * compression_factor
+            double min_density = std::numeric_limits<double>::max();
+            for (const auto& entry : superblock_entries) {
+                const SuperBlk* sb = static_cast<const SuperBlk*>(entry);
+                double density = 0.0;
+                if (sb->isValid()) {
+                    uint8_t num_valid = sb->getNumValid();
+                    uint8_t cf = sb->getCompressionFactor();
+                    density = (double)num_valid * (double)cf;
+                }
+                if (density < min_density) {
+                    min_density = density;
+                }
+            }
+
+            // Filter entries to candidates matching min_density (low-density superblocks)
+            std::vector<ReplaceableEntry*> low_density_entries;
+            for (const auto& entry : superblock_entries) {
+                const SuperBlk* sb = static_cast<const SuperBlk*>(entry);
+                double density = 0.0;
+                if (sb->isValid()) {
+                    uint8_t num_valid = sb->getNumValid();
+                    uint8_t cf = sb->getCompressionFactor();
+                    density = (double)num_valid * (double)cf;
+                }
+                if (std::abs(density - min_density) < 1e-5) {
+                    low_density_entries.push_back(entry);
+                }
+            }
+
+            if (!low_density_entries.empty()) {
+                candidates = low_density_entries;
+            }
+        }
+
         // Choose replacement victim from replacement candidates
         victim_superblock = static_cast<SuperBlk*>(
-            replacementPolicy->getVictim(superblock_entries));
+            replacementPolicy->getVictim(candidates));
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){

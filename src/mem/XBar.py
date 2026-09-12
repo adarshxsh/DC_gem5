@@ -73,6 +73,10 @@ class BaseXBar(ClockedObject):
     forward_latency = Param.Cycles("Forward latency")
     response_latency = Param.Cycles("Response latency")
 
+    enable_crossbar_compression = Param.Bool(
+        False, "Enable payload delay scaling based on packet compressed size."
+    )
+
     # The XBar uses one Layer per requestor. Each Layer forwards a packet
     # to its destination and is occupied for header_latency + size /
     # width cycles

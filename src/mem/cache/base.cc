@@ -1797,6 +1797,13 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        CompressionBlk* cblk = dynamic_cast<CompressionBlk*>(blk);
+        if (cblk && cblk->isCompressed()) {
+            std::size_t comp_bytes = divCeil(cblk->getSizeBits(), (std::size_t)CHAR_BIT);
+            pkt->setCompressedSize(comp_bytes);
+        } else {
+            pkt->setCompressedSize(blkSize);
+        }
     }
 
     return pkt;
@@ -1842,6 +1849,13 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        CompressionBlk* cblk = dynamic_cast<CompressionBlk*>(blk);
+        if (cblk && cblk->isCompressed()) {
+            std::size_t comp_bytes = divCeil(cblk->getSizeBits(), (std::size_t)CHAR_BIT);
+            pkt->setCompressedSize(comp_bytes);
+        } else {
+            pkt->setCompressedSize(blkSize);
+        }
     }
 
     return pkt;

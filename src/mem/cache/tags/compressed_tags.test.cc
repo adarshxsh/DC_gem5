@@ -282,3 +282,47 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, DensityWeightedReplacementScore)
+{
+    // Create two candidate superblocks
+    SuperBlk sb1, sb2;
+    sb1.setBlkSize(BlkSize);
+    sb2.setBlkSize(BlkSize);
+
+    CompressionBlk sub1[2], sub2[2];
+    sb1.blks.resize(2);
+    sb2.blks.resize(2);
+
+    for (int i = 0; i < 2; ++i) {
+        sb1.blks[i] = &sub1[i];
+        sub1[i].setSectorBlock(&sb1);
+        sub1[i].setSectorOffset(i);
+        sub1[i].registerTagExtractor([](Addr addr) { return addr; });
+
+        sb2.blks[i] = &sub2[i];
+        sub2[i].setSectorBlock(&sb2);
+        sub2[i].setSectorOffset(i);
+        sub2[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+    sb1.registerTagExtractor([](Addr addr) { return addr; });
+    sb2.registerTagExtractor([](Addr addr) { return addr; });
+
+    // sb1: Dense superblock (2 valid sub-blocks, cf = 2) -> Density = 2 * 2 = 4
+    sub1[0].insert({0x1000, false});
+    sub1[0].setSizeBits(256); // 32 bytes (cf=2)
+    sub1[1].insert({0x1000, false});
+    sub1[1].setSizeBits(256); // 32 bytes (cf=2)
+
+    // sb2: Sparse superblock (1 valid sub-block, cf = 1) -> Density = 1 * 1 = 1
+    sub2[0].insert({0x2000, false});
+    sub2[0].setSizeBits(512); // 64 bytes (cf=1)
+
+    // Calculate densities
+    double d1 = (double)sb1.getNumValid() * (double)sb1.getCompressionFactor();
+    double d2 = (double)sb2.getNumValid() * (double)sb2.getCompressionFactor();
+
+    ASSERT_EQ(d1, 4.0);
+    ASSERT_EQ(d2, 1.0);
+    ASSERT_LT(d2, d1); // Sparse superblock sb2 has lower density score and should be evicted first
+}
