@@ -107,6 +107,14 @@ class CompressedTags : public SectorTags
     void tagsInit() override;
 
     /**
+     * Finds the given address in the cache using the superblock offset-to-slot map.
+     *
+     * @param key The key (address, is_secure) to find.
+     * @return Pointer to the cache block if found.
+     */
+    CacheBlk* findBlock(const CacheBlk::KeyType &key) const override;
+
+    /**
      * Find replacement victim based on address. Checks if data can be co-
      * allocated before choosing blocks to be evicted.
      *
