@@ -283,9 +283,9 @@ class BaseTags : public ClockedObject
      * @param is_prefetch True if the request is a prefetch.
      * @return Cache block to be replaced.
      */
-    virtual CacheBlk* findVictim(const CacheBlk::KeyType &key,
+    virtual CacheBlk *findVictim(const CacheBlk::KeyType &key,
                                  const std::size_t size,
-                                 std::vector<CacheBlk*>& evict_blks,
+                                 std::vector<CacheBlk *> &evict_blks,
                                  const uint64_t partition_id = 0,
                                  bool is_prefetch = false) = 0;
 

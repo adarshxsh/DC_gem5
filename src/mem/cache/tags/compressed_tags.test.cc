@@ -293,13 +293,16 @@ TEST_F(SuperBlkTestFixture, PrefetchCompressionFactorGuard)
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
     verifyInvariants(superBlk);
 
-    // For demand fill (is_prefetch = false), co-allocation with CF=4 (128 bits) is allowed
+    // For demand fill (is_prefetch = false), co-allocation with CF=4 (128
+    // bits) is allowed
     ASSERT_TRUE(superBlk.canCoAllocate(128, /*is_prefetch=*/false));
 
-    // For prefetch fill (is_prefetch = true), co-allocation with CF=4 (128 bits < 8) MUST be rejected
+    // For prefetch fill (is_prefetch = true), co-allocation with CF=4 (128
+    // bits < 8) MUST be rejected
     ASSERT_FALSE(superBlk.canCoAllocate(128, /*is_prefetch=*/true));
 
-    // For prefetch fill with equal CF=8 (64 bits), co-allocation MUST be allowed
+    // For prefetch fill with equal CF=8 (64 bits), co-allocation MUST be
+    // allowed
     ASSERT_TRUE(superBlk.canCoAllocate(64, /*is_prefetch=*/true));
 
     // Co-allocate a prefetch block with equal CF=8
@@ -331,4 +334,3 @@ TEST_F(SuperBlkTestFixture, DemandSubBlockProtection)
     ASSERT_TRUE(subBlks[1].isValid());
     ASSERT_TRUE(subBlks[1].wasPrefetched());
 }
-
