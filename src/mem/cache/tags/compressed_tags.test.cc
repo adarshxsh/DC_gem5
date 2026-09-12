@@ -282,3 +282,132 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
+{
+    // Co-allocate two 64-bit sub-blocks (CF=8)
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // subBlks[0] expands to 128 bits (CF=4)
+    std::size_t new_size = 128;
+    uint8_t new_cf = superBlk.calculateCompressionFactor(new_size);
+    ASSERT_EQ(new_cf, 4);
+
+    // Evaluate post-expansion capacity with existing valid sub-block
+    // subBlks[1]
+    uint8_t target_cf = std::min(
+        new_cf, superBlk.calculateCompressionFactor(subBlks[1].getSizeBits()));
+    std::size_t total_bits = new_size + subBlks[1].getSizeBits();
+
+    // Capacity check: 2 sub-blocks <= target_cf (4), total_bits 192 <= 512
+    ASSERT_LE(2, target_cf);
+    ASSERT_LE(total_bits, BlkSize * CHAR_BIT);
+
+    // Update size without evicting subBlks[1]
+    subBlks[0].setSizeBits(new_size);
+
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[1].isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
+{
+    // Insert 4 sub-blocks with distinct insertion ticks
+    mockTick = 10;
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(64);
+
+    mockTick = 20;
+    subBlks[1].insert({0x5000, false});
+    subBlks[1].setSizeBits(64);
+
+    mockTick = 30;
+    subBlks[2].insert({0x5000, false});
+    subBlks[2].setSizeBits(64);
+
+    mockTick = 40;
+    subBlks[3].insert({0x5000, false});
+    subBlks[3].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // subBlks[3] expands to 256 bits (CF=2)
+    std::size_t expansion_size = 256;
+    uint8_t expansion_cf = superBlk.calculateCompressionFactor(expansion_size);
+    ASSERT_EQ(expansion_cf, 2);
+
+    // Collect valid co-allocated sub-blocks (excluding subBlks[3])
+    std::vector<CompressionBlk *> co_blks;
+    for (auto &blk : superBlk.blks) {
+        if (blk->isValid() && (blk != &subBlks[3])) {
+            co_blks.push_back(static_cast<CompressionBlk *>(blk));
+        }
+    }
+    ASSERT_EQ(co_blks.size(), 3);
+
+    // Sort by age (oldest/LRU first)
+    std::sort(co_blks.begin(), co_blks.end(),
+              [](const CompressionBlk *a, const CompressionBlk *b) {
+                  return a->getAge() > b->getAge();
+              });
+
+    // Oldest should be subBlks[0] (t=10), then subBlks[1] (t=20), then
+    // subBlks[2] (t=30)
+    ASSERT_EQ(co_blks[0], &subBlks[0]);
+    ASSERT_EQ(co_blks[1], &subBlks[1]);
+    ASSERT_EQ(co_blks[2], &subBlks[2]);
+
+    auto fits_capacity = [&](const std::vector<CompressionBlk *> &sub_list) {
+        uint8_t target_cf = expansion_cf;
+        std::size_t total_bits = expansion_size;
+        for (const auto *sblk : sub_list) {
+            uint8_t scf =
+                superBlk.calculateCompressionFactor(sblk->getSizeBits());
+            target_cf = std::min(target_cf, scf);
+            total_bits += sblk->getSizeBits();
+        }
+        std::size_t total_count = 1 + sub_list.size();
+        return (target_cf > 1) && (total_count <= target_cf) &&
+               (total_bits <= BlkSize * CHAR_BIT);
+    };
+
+    std::vector<CacheBlk *> evict_blks;
+    while (!co_blks.empty() && !fits_capacity(co_blks)) {
+        evict_blks.push_back(co_blks.front());
+        co_blks.erase(co_blks.begin());
+    }
+
+    // Only the 2 oldest sub-blocks (subBlks[0] and subBlks[1]) should be
+    // selected for eviction
+    ASSERT_EQ(evict_blks.size(), 2);
+    ASSERT_EQ(evict_blks[0], &subBlks[0]);
+    ASSERT_EQ(evict_blks[1], &subBlks[1]);
+
+    // Perform selective eviction
+    for (auto *evict_blk : evict_blks) {
+        evict_blk->invalidate();
+    }
+
+    // Update expansion sub-block size
+    subBlks[3].setSizeBits(expansion_size);
+
+    // Verify subBlks[2] and subBlks[3] are preserved, subBlks[0] and
+    // subBlks[1] evicted
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_FALSE(subBlks[1].isValid());
+    ASSERT_TRUE(subBlks[2].isValid());
+    ASSERT_TRUE(subBlks[3].isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+}
