@@ -76,6 +76,10 @@ class BaseCacheCompressor(SimObject):
         100,
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
+    enable_pressure_throttling = Param.Bool(
+        False, "Enable memory pressure-driven compression bypass"
+    )
+    pressure_threshold = Param.Percent(80, "Memory pressure threshold")
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
