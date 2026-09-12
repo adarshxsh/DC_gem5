@@ -118,10 +118,10 @@ void NVMInterface::setupRank(const uint8_t rank, const bool is_read)
     }
 }
 
-MemPacket*
-NVMInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
-                       unsigned size, bool is_read, uint8_t pseudo_channel,
-                       unsigned int compressed_size)
+MemPacket *
+NVMInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr, unsigned size,
+                           bool is_read, uint8_t pseudo_channel,
+                           unsigned int compressed_size)
 {
     // decode the address based on the address mapping scheme, with
     // Ro, Ra, Co, Ba and Ch denoting row, rank, column, bank and
@@ -201,11 +201,13 @@ NVMInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
     // later
     uint16_t bank_id = banksPerRank * rank + bank;
 
-    unsigned comp_size = compressed_size ? compressed_size :
-                         (pkt && pkt->hasCompressedSize() ? pkt->getCompressedSize() : size);
+    unsigned comp_size = compressed_size ? compressed_size
+                                         : (pkt && pkt->hasCompressedSize()
+                                                ? pkt->getCompressedSize()
+                                                : size);
 
     return new MemPacket(pkt, is_read, false, pseudo_channel, rank, bank, row,
-                   bank_id, pkt_addr, size, comp_size);
+                         bank_id, pkt_addr, size, comp_size);
 }
 
 std::pair<MemPacketQueue::iterator, Tick>
