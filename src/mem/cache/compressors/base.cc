@@ -93,6 +93,8 @@ Base::Base(const Params &p)
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
+      enablePressureThrottling(p.enable_pressure_throttling),
+      pressureThreshold(p.pressure_threshold),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),

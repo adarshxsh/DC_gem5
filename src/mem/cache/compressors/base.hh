@@ -134,6 +134,12 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
+    /** Whether memory pressure-driven compression bypass is enabled. */
+    const bool enablePressureThrottling;
+
+    /** Memory pressure threshold (percentage). */
+    const unsigned pressureThreshold;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
