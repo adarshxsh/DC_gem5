@@ -52,7 +52,9 @@
 #include "base/logging.hh"
 #include "base/types.hh"
 #include "mem/cache/base.hh"
+#include "mem/cache/tags/super_blk.hh"
 #include "mem/request.hh"
+
 
 namespace gem5
 {
@@ -88,7 +90,9 @@ WriteQueueEntry::TargetList::print(std::ostream &os, int verbosity,
 
 void
 WriteQueueEntry::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
-                          Tick when_ready, Counter _order)
+                          Tick when_ready, Counter _order,
+                          const SuperBlk* super_blk, Addr super_blk_addr,
+                          int sub_blk_idx, std::size_t comp_size)
 {
     blkAddr = blk_addr;
     blkSize = blk_size;
@@ -99,9 +103,23 @@ WriteQueueEntry::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
     _isUncacheable = target->req->isUncacheable();
     inService = false;
 
+    _superBlk = super_blk;
+    _superBlkAddr = super_blk_addr;
+    _subBlkMask = 0;
+    _subBlkSizes.clear();
+
+    if (sub_blk_idx >= 0 && sub_blk_idx < 64) {
+        _subBlkMask |= (1ULL << sub_blk_idx);
+        if (_subBlkSizes.size() <= static_cast<size_t>(sub_blk_idx)) {
+            _subBlkSizes.resize(sub_blk_idx + 1, 0);
+        }
+        _subBlkSizes[sub_blk_idx] = comp_size > 0 ? comp_size : (blk_size * 8);
+    }
+
     // we should never have more than a single target for cacheable
-    // writes (writebacks and clean evictions)
-    panic_if(!_isUncacheable && !targets.empty(),
+    // writes (writebacks and clean evictions) unless coalescing sub-blocks
+    // within the same superblock
+    panic_if(!_isUncacheable && !targets.empty() && !isSuperBlockEntry(),
              "Write queue entry %#llx should never have more than one "
              "cacheable target", blkAddr);
     panic_if(!((target->isWrite() && _isUncacheable) ||
@@ -112,8 +130,31 @@ WriteQueueEntry::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
 
     targets.add(target, when_ready, _order);
 
-    // All targets must refer to the same block
-    assert(target->matchBlockAddr(targets.front().pkt, blkSize));
+    // All targets must refer to the same block or same superblock
+    assert(isSuperBlockEntry() || target->matchBlockAddr(targets.front().pkt, blkSize));
+}
+
+void
+WriteQueueEntry::coalesceSubBlock(PacketPtr target, Tick when_ready,
+                                  Counter _order, int sub_blk_idx,
+                                  std::size_t comp_size, Tick delay)
+{
+    assert(target);
+    assert(!_isUncacheable);
+    assert(!target->req->isUncacheable());
+
+    // Update entry ready time accounting for decompression latency
+    readyTime = std::max(readyTime, when_ready + delay);
+
+    if (sub_blk_idx >= 0 && sub_blk_idx < 64) {
+        _subBlkMask |= (1ULL << sub_blk_idx);
+        if (_subBlkSizes.size() <= static_cast<size_t>(sub_blk_idx)) {
+            _subBlkSizes.resize(sub_blk_idx + 1, 0);
+        }
+        _subBlkSizes[sub_blk_idx] = comp_size > 0 ? comp_size : (blkSize * 8);
+    }
+
+    targets.add(target, when_ready, _order);
 }
 
 void
@@ -121,6 +162,10 @@ WriteQueueEntry::deallocate()
 {
     assert(targets.empty());
     inService = false;
+    _superBlk = nullptr;
+    _superBlkAddr = 0;
+    _subBlkMask = 0;
+    _subBlkSizes.clear();
 }
 
 bool
