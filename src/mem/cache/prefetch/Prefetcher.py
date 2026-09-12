@@ -172,11 +172,10 @@ class QueuedPrefetcher(BasePrefetcher):
     cht_entries = Param.Unsigned(
         64, "Number of entries in Compression History Table"
     )
-    cht_assoc = Param.Unsigned(
-        2, "Associativity of Compression History Table"
-    )
+    cht_assoc = Param.Unsigned(2, "Associativity of Compression History Table")
     cht_min_cf_threshold = Param.Unsigned(
-        2, "Minimum predicted compression factor threshold for prefetch filtering"
+        2,
+        "Minimum predicted compression factor threshold for prefetch filtering",
     )
     cht_indexing_policy = Param.TaggedIndexingPolicy(
         TaggedSetAssociative(
