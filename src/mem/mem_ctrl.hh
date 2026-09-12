@@ -785,7 +785,6 @@ class MemCtrl : public qos::MemCtrl
     void emitQueuePressure();
 
   protected:
-
     ProbePointArg<double> *queuePressureProbe;
 
     virtual Tick recvAtomic(PacketPtr pkt);

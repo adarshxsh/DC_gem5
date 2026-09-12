@@ -150,12 +150,18 @@ class Base : public SimObject
 
       public:
         MemoryPressureListener(Base &_parent, std::string name)
-            : ProbeListenerArgBase(std::move(name)), parent(_parent), currentPressure(0.0)
+            : ProbeListenerArgBase(std::move(name)),
+              parent(_parent),
+              currentPressure(0.0)
         {}
 
         void notify(const double &pressure) override;
 
-        double getPressure() const { return currentPressure; }
+        double
+        getPressure() const
+        {
+            return currentPressure;
+        }
     };
 
     std::vector<ProbeListenerPtr<MemoryPressureListener>> listeners;
@@ -163,7 +169,6 @@ class Base : public SimObject
     void updateMemoryPressure();
 
   protected:
-
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -271,7 +276,8 @@ class Base : public SimObject
     /** Register probe listeners. */
     void regProbeListeners() override;
 
-    /** Check whether compression should be bypassed due to memory pressure or adaptive threshold. */
+    /** Check whether compression should be bypassed due to memory pressure or
+     * adaptive threshold. */
     virtual bool shouldBypass() const;
 
     /** The cache can only be set once. */
