@@ -89,6 +89,11 @@ class MemCtrl(QoSMemCtrl):
         16, "Minimum read bursts before switching to writes"
     )
 
+    # enable dynamic pressure-adaptive bus turnaround thresholds
+    enable_dynamic_thresholds = Param.Bool(
+        False, "Enable dynamic pressure-adaptive bus turnaround thresholds"
+    )
+
     # scheduler, address map and page policy
     mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
