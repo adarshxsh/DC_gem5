@@ -204,8 +204,8 @@ class SuperBlk : public SectorBlk
     int getSlotForOffset(int offset) const;
 
     /**
-     * Compacts active sub-blocks into contiguous lower slots starting at slot 0
-     * upon sub-block invalidation and updates the indirection map.
+     * Compacts active sub-blocks into contiguous lower slots starting at slot
+     * 0 upon sub-block invalidation and updates the indirection map.
      */
     void compactSlots();
 
