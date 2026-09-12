@@ -126,7 +126,7 @@ void
 Base::regProbeListeners()
 {
     SimObject::regProbeListeners();
-    const Params &p = static_cast<const Params&>(params());
+    const Params &p = static_cast<const Params &>(params());
     listeners.reserve(p.mem_ctrl.size());
     for (auto obj : p.mem_ctrl) {
         if (obj) {
@@ -164,10 +164,10 @@ Base::shouldBypass() const
         return true;
     }
     if (enableAdaptiveBypass) {
-        double observedRatio =
-            (sampledCompressedBits > 0)
-                ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-                : (latencyBreakevenThreshold + 1.0);
+        double observedRatio = (sampledCompressedBits > 0)
+                                   ? ((double)sampledUncompressedBits /
+                                      (double)sampledCompressedBits)
+                                   : (latencyBreakevenThreshold + 1.0);
         return observedRatio < latencyBreakevenThreshold;
     }
     return false;
@@ -227,9 +227,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Compression bypass active. Bypassing compression.\n");
+        DPRINTF(CacheComp,
+                "Compression bypass active. Bypassing compression.\n");
         return comp_data;
     }
 
