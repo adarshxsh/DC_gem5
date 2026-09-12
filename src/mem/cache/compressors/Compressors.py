@@ -76,6 +76,14 @@ class BaseCacheCompressor(SimObject):
         100,
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
+    mem_pressure_threshold = Param.Float(
+        0.8,
+        "Memory queue pressure threshold to trigger compression bypass",
+    )
+    mem_ctrl = VectorParam.SimObject(
+        [],
+        "Memory controller(s) to monitor for queue pressure feedback",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):

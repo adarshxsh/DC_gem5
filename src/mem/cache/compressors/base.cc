@@ -93,6 +93,8 @@ Base::Base(const Params &p)
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
+      memPressureThreshold(p.mem_pressure_threshold),
+      memoryPressureHigh(false),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -117,6 +119,57 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+void
+Base::regProbeListeners()
+{
+    SimObject::regProbeListeners();
+    const Params &p = static_cast<const Params&>(params());
+    listeners.reserve(p.mem_ctrl.size());
+    for (auto obj : p.mem_ctrl) {
+        if (obj) {
+            listeners.push_back(
+                obj->getProbeManager()->connect<MemoryPressureListener>(
+                    *this, "QueuePressure"));
+        }
+    }
+}
+
+void
+Base::MemoryPressureListener::notify(const double &pressure)
+{
+    currentPressure = pressure;
+    parent.updateMemoryPressure();
+}
+
+void
+Base::updateMemoryPressure()
+{
+    bool high = false;
+    for (const auto &listener : listeners) {
+        if (listener->getPressure() >= memPressureThreshold) {
+            high = true;
+            break;
+        }
+    }
+    memoryPressureHigh = high;
+}
+
+bool
+Base::shouldBypass() const
+{
+    if (memoryPressureHigh) {
+        return true;
+    }
+    if (enableAdaptiveBypass) {
+        double observedRatio =
+            (sampledCompressedBits > 0)
+                ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
+                : (latencyBreakevenThreshold + 1.0);
+        return observedRatio < latencyBreakevenThreshold;
+    }
+    return false;
 }
 
 std::vector<Base::Chunk>
@@ -163,15 +216,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
 
-    double observedRatio =
-        (sampledCompressedBits > 0)
-            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+    bool bypass = shouldBypass();
 
-    bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
-
-    if (shouldBypass && !isSampled) {
+    if (bypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
             std::make_unique<CompressionData>();
         comp_data->setSizeBits(blkSize * CHAR_BIT);
@@ -181,9 +228,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.bypassedCompressions++;
         DPRINTF(
             CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+            "Compression bypass active. Bypassing compression.\n");
         return comp_data;
     }
 
@@ -227,7 +272,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.sampledCompressedBits += comp_size_bits;
     }
 
-    if (shouldBypass) {
+    if (bypass) {
         comp_lat = Cycles(0);
         decomp_lat = Cycles(0);
         comp_data->setSizeBits(blkSize * CHAR_BIT);
