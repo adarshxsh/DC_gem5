@@ -122,6 +122,24 @@ CompressedTags::tagsInit()
     }
 }
 
+CacheBlk*
+CompressedTags::findBlock(const CacheBlk::KeyType &key) const
+{
+    const int offset = extractSectorOffset(key.address);
+    const std::vector<ReplaceableEntry*> entries =
+        indexingPolicy->getPossibleEntries(key);
+
+    for (const auto& entry : entries) {
+        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        int slot = superblock->getSlotForOffset(offset);
+        auto blk = superblock->blks[slot];
+        if (blk->match(key)) {
+            return blk;
+        }
+    }
+    return nullptr;
+}
+
 CacheBlk *
 CompressedTags::findVictim(const CacheBlk::KeyType &key,
                            const std::size_t compressed_size,
@@ -142,11 +160,12 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     // so, try co-allocating
     SuperBlk* victim_superblock = nullptr;
     bool is_co_allocation = false;
-    const uint64_t offset = extractSectorOffset(key.address);
+    const int offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
+        int slot = superblock->getSlotForOffset(offset);
         if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+            !superblock->blks[slot]->isValid() &&
             superblock->isCompressed() &&
             superblock->canCoAllocate(compressed_size))
         {
@@ -206,7 +225,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = victim_superblock->blks[offset];
+    SectorSubBlk* victim =
+        victim_superblock->blks[victim_superblock->getSlotForOffset(offset)];
 
     // It would be a hit if victim was valid in a co-allocation, and upgrades
     // do not call findVictim, so it cannot happen
