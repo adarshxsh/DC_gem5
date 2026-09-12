@@ -143,7 +143,7 @@ Multi::compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
             // block's size).
             compressionFactor = (size > blk_size) ? 1 :
                 ((size == 0) ? blk_size :
-                alignToPowerOfTwo(std::floor(blk_size / (double) size)));
+                std::floor(blk_size / (double) size));
         }
     };
     struct ResultsComparator
@@ -152,6 +152,9 @@ Multi::compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
         operator()(const std::shared_ptr<Results>& lhs,
             const std::shared_ptr<Results>& rhs) const
         {
+            if (lhs->successful != rhs->successful) {
+                return !lhs->successful;
+            }
             const std::size_t lhs_cf = lhs->compressionFactor;
             const std::size_t rhs_cf = rhs->compressionFactor;
 
