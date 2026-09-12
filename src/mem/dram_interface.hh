@@ -681,9 +681,10 @@ class DRAMInterface : public MemInterface
      */
     void setupRank(const uint8_t rank, const bool is_read) override;
 
-    MemPacket* decodePacket(const PacketPtr pkt, Addr pkt_addr,
-                           unsigned int size, bool is_read,
-                           uint8_t pseudo_channel = 0) override;
+    MemPacket *decodePacket(const PacketPtr pkt, Addr pkt_addr,
+                            unsigned int size, bool is_read,
+                            uint8_t pseudo_channel = 0,
+                            unsigned int compressed_size = 0) override;
 
     /**
      * Iterate through dram ranks to exit self-refresh in order to drain

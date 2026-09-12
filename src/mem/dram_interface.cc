@@ -405,29 +405,46 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     else
         cmd_at = ctrl->verifySingleCmd(cmd_at, maxCommandsPerWindow, false);
 
+    // Calculate bytes per beat and dynamic tBURST_compressed
+    unsigned int comp_bytes =
+        mem_pkt->compressedSize ? mem_pkt->compressedSize : mem_pkt->size;
+    uint32_t beats_per_full_burst = tBURST / tCK;
+    uint32_t bytes_per_beat = beats_per_full_burst > 0
+                                  ? (burstSize / beats_per_full_burst)
+                                  : burstSize;
+    if (bytes_per_beat == 0) {
+        bytes_per_beat = 1;
+    }
+
+    uint32_t beats = divCeil(comp_bytes, bytes_per_beat);
+    if (beats == 0) {
+        beats = 1;
+    }
+    Tick tBURST_compressed = std::min(tBURST, beats * tCK);
+
     // if we are interleaving bursts, ensure that
     // 1) we don't double interleave on next burst issue
     // 2) we are at an interleave boundary; if not, shift to next boundary
-    Tick burst_gap = tBURST_MIN;
+    Tick burst_gap = tBURST_compressed;
     if (burstInterleave) {
         if (cmd_at == (rank_ref.lastBurstTick + tBURST_MIN)) {
             // already interleaving, push next command to end of full burst
-            burst_gap = tBURST;
-        } else if (cmd_at < (rank_ref.lastBurstTick + tBURST)) {
+            burst_gap = tBURST_compressed;
+        } else if (cmd_at < (rank_ref.lastBurstTick + tBURST_compressed)) {
             // not at an interleave boundary after bandwidth check
-            // Shift command to tBURST boundary to avoid data contention
-            // Command will remain in the same burst window given that
-            // tBURST is less than tBURST_MAX
-            cmd_at = rank_ref.lastBurstTick + tBURST;
+            // Shift command to tBURST_compressed boundary to avoid data
+            // contention Command will remain in the same burst window given
+            // that tBURST is less than tBURST_MAX
+            cmd_at = rank_ref.lastBurstTick + tBURST_compressed;
         }
     }
     DPRINTF(DRAM, "Schedule RD/WR burst at tick %d\n", cmd_at);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {
-        mem_pkt->readyTime = cmd_at + tRL + tBURST;
+        mem_pkt->readyTime = cmd_at + tRL + tBURST_compressed;
     } else {
-        mem_pkt->readyTime = cmd_at + tWL + tBURST;
+        mem_pkt->readyTime = cmd_at + tWL + tBURST_compressed;
     }
 
     rank_ref.lastBurstTick = cmd_at;
@@ -446,11 +463,13 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                     // tCCD_L is default requirement for same BG timing
                     // tCCD_L_WR is required for write-to-write
                     // Need to also take bus turnaround delays into account
-                    dly_to_rd_cmd = mem_pkt->isRead() ?
-                                    tCCD_L : std::max(tCCD_L, wrToRdDlySameBG);
-                    dly_to_wr_cmd = mem_pkt->isRead() ?
-                                    std::max(tCCD_L, rdToWrDlySameBG) :
-                                    tCCD_L_WR;
+                    dly_to_rd_cmd = mem_pkt->isRead()
+                                        ? std::max(tBURST_compressed, tCCD_L)
+                                        : std::max(tCCD_L, wrToRdDlySameBG);
+                    dly_to_wr_cmd =
+                        mem_pkt->isRead()
+                            ? std::max(tCCD_L, rdToWrDlySameBG)
+                            : std::max(tBURST_compressed, tCCD_L_WR);
                 } else {
                     // tBURST is default requirement for diff BG timing
                     // Need to also take bus turnaround delays into account
@@ -484,7 +503,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                                  mem_pkt->readyTime + tWR);
 
     // increment the bytes accessed and the accesses per row
-    bank_ref.bytesAccessed += burstSize;
+    bank_ref.bytesAccessed += comp_bytes;
     ++bank_ref.rowAccesses;
 
     // if we reached the max, then issue with an auto-precharge
@@ -579,13 +598,13 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.readBursts++;
         if (row_hit)
             stats.readRowHits++;
-        stats.dramBytesRead += burstSize;
+        stats.dramBytesRead += comp_bytes;
         stats.perBankRdBursts[mem_pkt->bankId]++;
 
         // Update latency stats
         stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
         stats.totQLat += cmd_at - mem_pkt->entryTime;
-        stats.totBusLat += tBURST;
+        stats.totBusLat += tBURST_compressed;
     } else {
         // Schedule write done event to decrement event count
         // after the readyTime has been reached
@@ -608,7 +627,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.writeBursts++;
         if (row_hit)
             stats.writeRowHits++;
-        stats.dramBytesWritten += burstSize;
+        stats.dramBytesWritten += comp_bytes;
         stats.perBankWrBursts[mem_pkt->bankId]++;
 
     }
@@ -831,9 +850,10 @@ DRAMInterface::isBusy(bool read_queue_empty, bool all_writes_nvm)
     return (busy_ranks == ranksPerChannel);
 }
 
-MemPacket*
-DRAMInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
-                       unsigned size, bool is_read, uint8_t pseudo_channel)
+MemPacket *
+DRAMInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr, unsigned size,
+                            bool is_read, uint8_t pseudo_channel,
+                            unsigned int compressed_size)
 {
     // decode the address based on the address mapping scheme, with
     // Ro, Ra, Co, Ba and Ch denoting row, rank, column, bank and
@@ -913,8 +933,13 @@ DRAMInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
     // later
     uint16_t bank_id = banksPerRank * rank + bank;
 
+    unsigned comp_size = compressed_size ? compressed_size
+                                         : (pkt && pkt->hasCompressedSize()
+                                                ? pkt->getCompressedSize()
+                                                : size);
+
     return new MemPacket(pkt, is_read, true, pseudo_channel, rank, bank, row,
-                   bank_id, pkt_addr, size);
+                         bank_id, pkt_addr, size, comp_size);
 }
 
 void DRAMInterface::setupRank(const uint8_t rank, const bool is_read)

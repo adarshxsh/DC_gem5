@@ -1688,6 +1688,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         const auto comp_data = compressor->compress(
             pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
         blk_size_bits = comp_data->getSizeBits();
+        pkt->setCompressedSize((blk_size_bits + 7) / 8);
     }
 
     // get partitionId from Packet
@@ -1797,6 +1798,10 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        auto comp_blk = dynamic_cast<const CompressionBlk *>(blk);
+        if (comp_blk && comp_blk->isCompressed()) {
+            pkt->setCompressedSize((comp_blk->getSizeBits() + 7) / 8);
+        }
     }
 
     return pkt;
@@ -1842,6 +1847,10 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        auto comp_blk = dynamic_cast<const CompressionBlk *>(blk);
+        if (comp_blk && comp_blk->isCompressed()) {
+            pkt->setCompressedSize((comp_blk->getSizeBits() + 7) / 8);
+        }
     }
 
     return pkt;
