@@ -146,6 +146,11 @@ class MemPacket
     unsigned int size;
 
     /**
+     * The compressed payload size of this dram packet in bytes
+     */
+    unsigned int compressedSize;
+
+    /**
      * A pointer to the BurstHelper if this MemPacket is a split packet
      * If not a split packet (common case), this is set to NULL
      */
@@ -181,6 +186,11 @@ class MemPacket
     inline unsigned int getSize() const { return size; }
 
     /**
+     * Get the compressed packet size
+     */
+    inline unsigned int getCompressedSize() const { return compressedSize; }
+
+    /**
      * Get the packet address
      * (interface compatibility with Packet)
      */
@@ -205,11 +215,12 @@ class MemPacket
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _channel,
                uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
-               Addr _addr, unsigned int _size)
+               Addr _addr, unsigned int _size, unsigned int _compressedSize = 0)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
           _requestorId(pkt->requestorId()),
           read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
           bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
+          compressedSize(_compressedSize ? _compressedSize : (_pkt && _pkt->hasCompressedSize() ? _pkt->getCompressedSize() : _size)),
           burstHelper(NULL), _qosValue(_pkt->qosValue())
     { }
 

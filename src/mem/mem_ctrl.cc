@@ -207,10 +207,11 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     BurstHelper* burst_helper = NULL;
 
     uint32_t burst_size = mem_intr->bytesPerBurst();
+    unsigned eff_pkt_size = pkt->hasCompressedSize() ? pkt->getCompressedSize() : pkt->getSize();
 
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
-                        base_addr + pkt->getSize()) - addr;
+                        base_addr + eff_pkt_size) - addr;
         stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
         stats.requestorReadAccesses[pkt->requestorId()]++;
@@ -256,7 +257,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 
             MemPacket* mem_pkt;
             mem_pkt = mem_intr->decodePacket(pkt, addr, size, true,
-                                                    mem_intr->pseudoChannel);
+                                                    mem_intr->pseudoChannel, size);
 
             // Increment read entries of the rank (dram)
             // Increment count to trigger issue of non-deterministic read (nvm)
@@ -313,10 +314,11 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
     const Addr base_addr = pkt->getAddr();
     Addr addr = base_addr;
     uint32_t burst_size = mem_intr->bytesPerBurst();
+    unsigned eff_pkt_size = pkt->hasCompressedSize() ? pkt->getCompressedSize() : pkt->getSize();
 
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
-                        base_addr + pkt->getSize()) - addr;
+                        base_addr + eff_pkt_size) - addr;
         stats.writePktSize[ceilLog2(size)]++;
         stats.writeBursts++;
         stats.requestorWriteAccesses[pkt->requestorId()]++;
@@ -331,7 +333,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
         if (!merged) {
             MemPacket* mem_pkt;
             mem_pkt = mem_intr->decodePacket(pkt, addr, size, false,
-                                                    mem_intr->pseudoChannel);
+                                                    mem_intr->pseudoChannel, size);
             // Default readyTime to Max if nvm interface;
             //will be reset once read is issued
             mem_pkt->readyTime = MaxTick;
@@ -429,7 +431,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // If the burst size is equal or larger than the pkt size, then a pkt
     // translates to only one memory packet. Otherwise, a pkt translates to
     // multiple memory packets
-    unsigned size = pkt->getSize();
+    unsigned size = pkt->hasCompressedSize() ? pkt->getCompressedSize() : pkt->getSize();
     uint32_t burst_size = dram->bytesPerBurst();
 
     unsigned offset = pkt->getAddr() & (burst_size - 1);
