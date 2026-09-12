@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -70,11 +71,13 @@ class SuperBlkTestFixture : public ::testing::Test
     {
         uint8_t count_valid = 0;
         uint8_t min_cf = sb.blks.size();
+        std::size_t total_bits = 0;
         for (const auto &blk : sb.blks) {
             if (blk->isValid()) {
                 count_valid++;
                 const CompressionBlk *cblk =
                     static_cast<const CompressionBlk *>(blk);
+                total_bits += cblk->getSizeBits();
                 uint8_t cf =
                     sb.calculateCompressionFactor(cblk->getSizeBits());
                 if (cf < min_cf) {
@@ -88,7 +91,7 @@ class SuperBlkTestFixture : public ::testing::Test
         ASSERT_EQ(sb.isValid(), (count_valid > 0));
         if (count_valid > 0) {
             ASSERT_EQ(sb.getCompressionFactor(), min_cf);
-            ASSERT_LE(count_valid, sb.getCompressionFactor());
+            ASSERT_LE(total_bits, BlkSize * CHAR_BIT);
         } else {
             ASSERT_EQ(sb.getCompressionFactor(), 1);
         }
@@ -117,44 +120,51 @@ TEST_F(SuperBlkTestFixture, CalculateCompressionFactor)
 
 TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
 {
-    // Insert block 0 at offset 0 (size 64 bits -> CF=8)
+    // Insert block 0 at offset 0 (size 256 bits -> CF=2)
     subBlks[0].insert({0x1000, false});
-    subBlks[0].setSizeBits(64);
+    subBlks[0].setSizeBits(256);
 
-    ASSERT_TRUE(superBlk.isValid());
-    ASSERT_EQ(superBlk.getNumValid(), 1);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
-    verifyInvariants(superBlk);
-
-    // Check co-allocation possibilities
-    ASSERT_TRUE(superBlk.canCoAllocate(64));
-    ASSERT_TRUE(superBlk.canCoAllocate(
-        128)); // target_cf = min(8, 4) = 4, 1 < 4, 128 <= 128
-    ASSERT_FALSE(superBlk.canCoAllocate(512)); // target_cf = 1 -> uncompressed
-
-    // Co-allocate block 1 at offset 1 (size 128 bits -> CF=4)
+    // Insert block 1 at offset 1 (size 128 bits -> CF=4)
+    // Total occupied bits = 384 bits out of 512 bits
     subBlks[1].insert({0x1000, false});
     subBlks[1].setSizeBits(128);
 
+    ASSERT_TRUE(superBlk.isValid());
     ASSERT_EQ(superBlk.getNumValid(), 2);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 
-    // Invalidate block 1 (free sub-block capacity)
+    // Check co-allocation possibilities with 384 bits occupied in 512-bit superblock:
+    // A 128-bit candidate sub-block (384 + 128 = 512 bits) co-allocates successfully
+    ASSERT_TRUE(superBlk.canCoAllocate(128));
+    // Exceeding 512 bits (384 + 129 = 513 bits) returns false
+    ASSERT_FALSE(superBlk.canCoAllocate(129));
+    // Uncompressed candidate (512 bits >= 512 bits) returns false
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
+
+    // Co-allocate block 2 at offset 2 (size 128 bits -> 384 + 128 = 512 bits)
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(128);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+
+    // With 512 bits occupied, no further co-allocation is possible
+    ASSERT_FALSE(superBlk.canCoAllocate(64));
+
+    // Invalidate block 1 (free sub-block capacity: 512 - 128 = 384 bits occupied)
     subBlks[1].invalidate();
 
-    ASSERT_EQ(superBlk.getNumValid(), 1);
-    // Capacity freed: compression factor should recover to 8!
-    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_EQ(superBlk.getNumValid(), 2);
     verifyInvariants(superBlk);
 
-    // Freed capacity can now co-allocate another 64-bit block
-    ASSERT_TRUE(superBlk.canCoAllocate(64));
-    subBlks[2].insert({0x1000, false});
-    subBlks[2].setSizeBits(64);
+    // Freed capacity can now co-allocate another 128-bit block
+    ASSERT_TRUE(superBlk.canCoAllocate(128));
+    subBlks[3].insert({0x1000, false});
+    subBlks[3].setSizeBits(128);
 
-    ASSERT_EQ(superBlk.getNumValid(), 2);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_EQ(superBlk.getNumValid(), 3);
     verifyInvariants(superBlk);
 }
 
