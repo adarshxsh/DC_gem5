@@ -158,6 +158,53 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     verifyInvariants(superBlk);
 }
 
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuard)
+{
+    // Insert block 0 at offset 0 (size 64 bits -> CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Demand request with size 128 bits (CF=4 < 8) should be allowed to co-allocate
+    ASSERT_TRUE(superBlk.canCoAllocate(128, false));
+
+    // Prefetch request with size 128 bits (CF=4 < 8) must be rejected
+    ASSERT_FALSE(superBlk.canCoAllocate(128, true));
+
+    // Prefetch request with size 64 bits (CF=8 >= 8) must be allowed
+    ASSERT_TRUE(superBlk.canCoAllocate(64, true));
+}
+
+TEST_F(SuperBlkTestFixture, HasValidDemandDetection)
+{
+    ASSERT_FALSE(superBlk.hasValidDemand());
+
+    // Insert prefetch block
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].setPrefetched();
+
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[0].wasPrefetched());
+    ASSERT_FALSE(superBlk.hasValidDemand());
+
+    // Insert demand block
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(64);
+    subBlks[1].clearPrefetched();
+
+    ASSERT_TRUE(superBlk.hasValidDemand());
+
+    // Invalidate demand block
+    subBlks[1].invalidate();
+    ASSERT_FALSE(superBlk.hasValidDemand());
+
+    // Access prefetch block (clearing prefetch flag)
+    subBlks[0].clearPrefetched();
+    ASSERT_TRUE(superBlk.hasValidDemand());
+}
+
 TEST_F(SuperBlkTestFixture, SubBlockMigration)
 {
     // Setup second superblock

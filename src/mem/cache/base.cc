@@ -1693,14 +1693,26 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // get partitionId from Packet
     const auto partition_id = partitionManager ?
         partitionManager->readPacketPartitionID(pkt) : 0;
+    const bool is_prefetch = pkt->isPrefetch();
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim = tags->findVictim({addr, is_secure}, blk_size_bits,
-                                        evict_blks, partition_id);
+                                        evict_blks, partition_id, is_prefetch);
 
     // It is valid to return nullptr if there is no victim
     if (!victim)
         return nullptr;
+
+    // Suppress prefetch fills that would cause collateral eviction of valid demand sub-blocks
+    if (is_prefetch) {
+        for (const auto& evict_blk : evict_blks) {
+            if (evict_blk && evict_blk->isValid() && !evict_blk->wasPrefetched()) {
+                DPRINTF(CacheRepl, "Suppressing prefetch fill for %#llx: would evict valid demand sub-block %#llx\n",
+                        addr, evict_blk->getAddr());
+                return nullptr;
+            }
+        }
+    }
 
     // Print victim block's information
     DPRINTF(CacheRepl, "Replacement victim: %s\n", victim->print());
