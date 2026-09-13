@@ -1526,8 +1526,12 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
             // When a block is compressed, it must first be decompressed
             // before being read. This adds to the access latency.
+            // Fast-path bypass zero-block hits and uncompressed lines.
             if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
+                CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+                if (cblk && cblk->isCompressed() && !cblk->isZero()) {
+                    lat += compressor->getDecompressionLatency(blk);
+                }
             }
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);

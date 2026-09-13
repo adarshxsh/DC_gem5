@@ -122,8 +122,27 @@ class Message
     int getVnet() const { return vnet; }
     void setVnet(int net) { vnet = net; }
 
+    virtual bool
+    isCompressed() const
+    {
+        return m_is_compressed;
+    }
+    virtual int
+    getCompressedSize() const
+    {
+        return m_compressed_size;
+    }
+    virtual void
+    setCompressedSize(int size)
+    {
+        m_compressed_size = size;
+        m_is_compressed = (size > 0);
+    }
+
   protected:
     int m_block_size = 0;
+    bool m_is_compressed = false;
+    int m_compressed_size = 0;
 
   private:
     Tick m_time;
