@@ -41,7 +41,7 @@ namespace Gem5Internal
 {
 __thread Tick *_curTickPtr = &mockTick;
 }
-}
+} // namespace gem5
 
 using namespace gem5;
 using namespace prefetch;
@@ -84,7 +84,8 @@ TEST(CompressionConfidenceTableTest, ThresholdFiltering)
 
     Addr pc1 = 0x2000;
 
-    // First compressed fill creates entry with confidence = init_counter + 1 = 5.
+    // First compressed fill creates entry with confidence = init_counter + 1
+    // = 5.
     table.update(pc1, true);
     // 5 < threshold 6 -> false
     EXPECT_FALSE(table.check(pc1));

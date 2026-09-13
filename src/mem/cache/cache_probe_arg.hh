@@ -72,13 +72,25 @@ struct CacheAccessor
     virtual bool coalesce() const = 0;
 
     /** Determine if block at address is compressed */
-    virtual bool isCompressed(Addr addr, bool is_secure) const { return false; }
+    virtual bool
+    isCompressed(Addr addr, bool is_secure) const
+    {
+        return false;
+    }
 
     /** Get compressed size of block in bits */
-    virtual std::size_t getCompressedSizeBits(Addr addr, bool is_secure) const { return 0; }
+    virtual std::size_t
+    getCompressedSizeBits(Addr addr, bool is_secure) const
+    {
+        return 0;
+    }
 
     /** Determine if cache compression is enabled */
-    virtual bool isCompressionEnabled() const { return false; }
+    virtual bool
+    isCompressionEnabled() const
+    {
+        return false;
+    }
 };
 
 /**

@@ -205,7 +205,9 @@ class Queued : public Base
         unsigned counterBits = 3;
         std::vector<CompressionConfidenceEntry> entries;
 
-        void init(bool _enabled, unsigned _threshold, unsigned _tableEntries, unsigned _counterBits)
+        void
+        init(bool _enabled, unsigned _threshold, unsigned _tableEntries,
+             unsigned _counterBits)
         {
             enabled = _enabled;
             threshold = _threshold;
@@ -214,9 +216,12 @@ class Queued : public Base
             entries.resize(tableEntries);
         }
 
-        void update(Addr pc, bool is_compressed)
+        void
+        update(Addr pc, bool is_compressed)
         {
-            if (tableEntries == 0 || pc == 0) return;
+            if (tableEntries == 0 || pc == 0) {
+                return;
+            }
 
             uint8_t max_counter = (1 << counterBits) - 1;
             uint8_t init_counter = (max_counter + 1) / 2;
@@ -224,9 +229,13 @@ class Queued : public Base
             for (auto &entry : entries) {
                 if (entry.valid && entry.pc == pc) {
                     if (is_compressed) {
-                        if (entry.confidence < max_counter) entry.confidence++;
+                        if (entry.confidence < max_counter) {
+                            entry.confidence++;
+                        }
                     } else {
-                        if (entry.confidence > 0) entry.confidence--;
+                        if (entry.confidence > 0) {
+                            entry.confidence--;
+                        }
                     }
                     entry.lastAccessTick = curTick();
                     return;
@@ -250,17 +259,22 @@ class Queued : public Base
                 victim->pc = pc;
                 victim->valid = true;
                 if (is_compressed) {
-                    victim->confidence = std::min((unsigned)max_counter, (unsigned)init_counter + 1);
+                    victim->confidence = std::min((unsigned)max_counter,
+                                                  (unsigned)init_counter + 1);
                 } else {
-                    victim->confidence = (init_counter > 0) ? init_counter - 1 : 0;
+                    victim->confidence =
+                        (init_counter > 0) ? init_counter - 1 : 0;
                 }
                 victim->lastAccessTick = curTick();
             }
         }
 
-        bool check(Addr pc) const
+        bool
+        check(Addr pc) const
         {
-            if (!enabled || pc == 0 || tableEntries == 0) return true;
+            if (!enabled || pc == 0 || tableEntries == 0) {
+                return true;
+            }
             for (const auto &entry : entries) {
                 if (entry.valid && entry.pc == pc) {
                     return entry.confidence >= threshold;
@@ -270,12 +284,14 @@ class Queued : public Base
         }
     } compressionConfidenceTable;
 
-    void updateCompressionConfidence(Addr pc, bool is_compressed)
+    void
+    updateCompressionConfidence(Addr pc, bool is_compressed)
     {
         compressionConfidenceTable.update(pc, is_compressed);
     }
 
-    bool checkCompressionConfidence(Addr pc) const
+    bool
+    checkCompressionConfidence(Addr pc) const
     {
         return compressionConfidenceTable.check(pc);
     }

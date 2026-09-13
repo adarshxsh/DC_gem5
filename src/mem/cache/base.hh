@@ -346,12 +346,15 @@ class BaseCache : public ClockedObject
         bool coalesce() const override
         { return cache.coalesce(); }
 
-        bool isCompressed(Addr addr, bool is_secure) const override
+        bool
+        isCompressed(Addr addr, bool is_secure) const override
         {
-            if (!cache.compressor || !cache.tags) return false;
+            if (!cache.compressor || !cache.tags) {
+                return false;
+            }
             CacheBlk *blk = cache.tags->findBlock({addr, is_secure});
             if (blk) {
-                CompressionBlk *cblk = dynamic_cast<CompressionBlk*>(blk);
+                CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
                 if (cblk) {
                     return cblk->isCompressed();
                 }
@@ -359,12 +362,15 @@ class BaseCache : public ClockedObject
             return false;
         }
 
-        std::size_t getCompressedSizeBits(Addr addr, bool is_secure) const override
+        std::size_t
+        getCompressedSizeBits(Addr addr, bool is_secure) const override
         {
-            if (!cache.compressor || !cache.tags) return cache.getBlockSize() * 8;
+            if (!cache.compressor || !cache.tags) {
+                return cache.getBlockSize() * 8;
+            }
             CacheBlk *blk = cache.tags->findBlock({addr, is_secure});
             if (blk) {
-                CompressionBlk *cblk = dynamic_cast<CompressionBlk*>(blk);
+                CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
                 if (cblk) {
                     return cblk->getSizeBits();
                 }
@@ -372,7 +378,8 @@ class BaseCache : public ClockedObject
             return cache.getBlockSize() * 8;
         }
 
-        bool isCompressionEnabled() const override
+        bool
+        isCompressionEnabled() const override
         {
             return cache.compressor != nullptr;
         }
