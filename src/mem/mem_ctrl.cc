@@ -70,6 +70,10 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeBufferSize(dram->writeBufferSize),
     writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+    congestionHighThresholdPercent(p.congestion_high_threshold_percent),
+    congestionLowThresholdPercent(p.congestion_low_threshold_percent),
+    isCongested(false),
+    ppMemoryCongestion(nullptr),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),
@@ -91,8 +95,44 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
         fatal("Write buffer low threshold %d must be smaller than the "
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
+
+    if (p.congestion_low_threshold_percent >= p.congestion_high_threshold_percent)
+        fatal("Memory congestion low threshold %f must be smaller than the "
+              "high threshold %f\n", p.congestion_low_threshold_percent,
+              p.congestion_high_threshold_percent);
+
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
+    }
+}
+
+void
+MemCtrl::regProbePoints()
+{
+    qos::MemCtrl::regProbePoints();
+    ppMemoryCongestion = new ProbePointArg<bool>(getProbeManager(), "MemoryCongestion");
+}
+
+void
+MemCtrl::checkCongestion()
+{
+    uint32_t totalCapacity = readBufferSize + writeBufferSize;
+    if (totalCapacity == 0)
+        return;
+
+    uint32_t currentOccupancy = totalReadQueueSize + respQueue.size() + totalWriteQueueSize;
+    double occupancyPercent = (static_cast<double>(currentOccupancy) / totalCapacity) * 100.0;
+
+    if (!isCongested && occupancyPercent >= congestionHighThresholdPercent) {
+        isCongested = true;
+        if (ppMemoryCongestion) {
+            ppMemoryCongestion->notify(true);
+        }
+    } else if (isCongested && occupancyPercent < congestionLowThresholdPercent) {
+        isCongested = false;
+        if (ppMemoryCongestion) {
+            ppMemoryCongestion->notify(false);
+        }
     }
 }
 
@@ -280,6 +320,8 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 
             // Update stats
             stats.avgRdQLen = totalReadQueueSize + respQueue.size();
+
+            checkCongestion();
         }
 
         // Starting address of next memory pkt (aligned to burst boundary)
@@ -356,6 +398,8 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
 
             // Update stats
             stats.avgWrQLen = totalWriteQueueSize;
+
+            checkCongestion();
 
         } else {
             DPRINTF(MemCtrl,
@@ -521,6 +565,7 @@ MemCtrl::processRespondEvent(MemInterface* mem_intr,
     }
 
     queue.pop_front();
+    checkCongestion();
 
     if (!queue.empty()) {
         assert(queue.front()->readyTime >= curTick());
@@ -1113,6 +1158,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         writeQueue[mem_pkt->qosValue()].erase(to_write);
 
         delete mem_pkt;
+        checkCongestion();
 
         // If we emptied the write queue, or got sufficiently below the
         // threshold (using the minWritesPerSwitch as the hysteresis) and
