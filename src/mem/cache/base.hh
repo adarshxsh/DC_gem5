@@ -1176,7 +1176,7 @@ class BaseCache : public ClockedObject
     {
         MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
                                         pkt, time, order++,
-                                        allocOnFill(pkt->cmd));
+                                        allocOnFill(pkt->cmd), tags);
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);

@@ -65,6 +65,7 @@ namespace gem5
 {
 
 class BaseCache;
+class BaseTags;
 
 /**
  * Miss Status and handling Register. This class keeps all the information
@@ -191,7 +192,7 @@ class MSHR : public QueueEntry, public Printable
          * @param alloc_on_fill Whether the pkt would allocate on a fill
          */
         void updateFlags(PacketPtr pkt, Target::Source source,
-                         bool alloc_on_fill);
+                         bool alloc_on_fill, const BaseTags* tags = nullptr);
 
         /**
          * Reset state
@@ -232,7 +233,7 @@ class MSHR : public QueueEntry, public Printable
          *
          * @param pkt Packet considered for adding
          */
-        void updateWriteFlags(PacketPtr pkt);
+        void updateWriteFlags(PacketPtr pkt, const BaseTags* tags = nullptr);
 
         /**
          * Tests if the flags of this TargetList have their default
@@ -258,7 +259,8 @@ class MSHR : public QueueEntry, public Printable
          * @param alloc_on_fill Whether it should allocate on a fill
          */
         void add(PacketPtr pkt, Tick readyTime, Counter order,
-                 Target::Source source, bool markPending, bool alloc_on_fill);
+                 Target::Source source, bool markPending, bool alloc_on_fill,
+                 const BaseTags* tags = nullptr);
 
         /**
          * Convert upgrades to the equivalent request if the cache line they
@@ -417,7 +419,8 @@ class MSHR : public QueueEntry, public Printable
      * @param alloc_on_fill Should the cache allocate a block on fill
      */
     void allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                  Tick when_ready, Counter _order, bool alloc_on_fill);
+                  Tick when_ready, Counter _order, bool alloc_on_fill,
+                  const BaseTags* tags = nullptr);
 
     void markInService(bool pending_modified_resp);
 
@@ -433,7 +436,7 @@ class MSHR : public QueueEntry, public Printable
      * @param target The target.
      */
     void allocateTarget(PacketPtr target, Tick when, Counter order,
-                        bool alloc_on_fill);
+                        bool alloc_on_fill, const BaseTags* tags = nullptr);
     bool handleSnoop(PacketPtr target, Counter order);
 
     /** A simple constructor. */
