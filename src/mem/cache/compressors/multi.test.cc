@@ -109,6 +109,9 @@ class MultiCompressorTest : public ::testing::Test
         zero_p.latency_breakeven_threshold = 1.0;
         zero_p.sampling_interval = 100;
         zero_p.decay_shift = 4;
+        zero_p.enable_queue_pressure_throttling = false;
+        zero_p.queue_pressure_threshold = 80.0;
+        zero_p.pressure_throttling_policy = "bypass";
         zeroComp = new Zero(zero_p);
 
         RepeatedQwordsCompressorParams rq_p{};
@@ -125,6 +128,9 @@ class MultiCompressorTest : public ::testing::Test
         rq_p.latency_breakeven_threshold = 1.0;
         rq_p.sampling_interval = 100;
         rq_p.decay_shift = 4;
+        rq_p.enable_queue_pressure_throttling = false;
+        rq_p.queue_pressure_threshold = 80.0;
+        rq_p.pressure_throttling_policy = "bypass";
         rqComp = new RepeatedQwords(rq_p);
 
         Base16Delta8Params bdi_p{};
@@ -141,6 +147,9 @@ class MultiCompressorTest : public ::testing::Test
         bdi_p.latency_breakeven_threshold = 1.0;
         bdi_p.sampling_interval = 100;
         bdi_p.decay_shift = 4;
+        bdi_p.enable_queue_pressure_throttling = false;
+        bdi_p.queue_pressure_threshold = 80.0;
+        bdi_p.pressure_throttling_policy = "bypass";
         bdiComp = new Base16Delta8(bdi_p);
 
         MultiCompressorParams multi_p{};
@@ -159,6 +168,9 @@ class MultiCompressorTest : public ::testing::Test
         multi_p.latency_breakeven_threshold = 1.0;
         multi_p.sampling_interval = 100;
         multi_p.decay_shift = 4;
+        multi_p.enable_queue_pressure_throttling = false;
+        multi_p.queue_pressure_threshold = 80.0;
+        multi_p.pressure_throttling_policy = "bypass";
         multi_p.compressors = {zeroComp, rqComp, bdiComp};
 
         zeroComp->regStats();

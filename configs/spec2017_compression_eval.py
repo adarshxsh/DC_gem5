@@ -139,6 +139,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
         decay_shift: int = 4,
+        enable_queue_pressure_throttling: bool = False,
+        queue_pressure_threshold: float = 80.0,
+        pressure_throttling_policy: str = "bypass",
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -151,6 +154,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
         :param latency_breakeven_threshold: Compression ratio threshold for bypass.
         :param sampling_interval: Sampling interval for compression effectiveness.
+        :param enable_queue_pressure_throttling: If True, enable compression throttling under high memory queue pressure.
+        :param queue_pressure_threshold: Memory queue pressure threshold percentage.
+        :param pressure_throttling_policy: Compression throttling policy.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -169,6 +175,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._decay_shift = decay_shift
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
+        self._queue_pressure_threshold = queue_pressure_threshold
+        self._pressure_throttling_policy = pressure_throttling_policy
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -198,11 +209,20 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
                 l2.compressor.decay_shift = self._decay_shift
+            if self._enable_queue_pressure_throttling:
+                l2.compressor.enable_queue_pressure_throttling = True
+                l2.compressor.queue_pressure_threshold = (
+                    self._queue_pressure_threshold
+                )
+                l2.compressor.pressure_throttling_policy = (
+                    self._pressure_throttling_policy
+                )
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
                 "and CompressedTags (max_compression_ratio=2, "
-                f"adaptive_bypass={self._enable_adaptive_bypass})"
+                f"adaptive_bypass={self._enable_adaptive_bypass}, "
+                f"queue_pressure_throttling={self._enable_queue_pressure_throttling})"
             )
         else:
             print(
@@ -433,6 +453,50 @@ parser.add_argument(
     help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
 )
 
+parser.add_argument(
+    "--enable-queue-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable compression throttling when memory queue pressure is high.",
+)
+
+parser.add_argument(
+    "--queue-pressure-threshold",
+    type=float,
+    required=False,
+    default=80.0,
+    help="Memory queue pressure threshold percentage to trigger compression throttling (default: 80).",
+)
+
+parser.add_argument(
+    "--pressure-throttling-policy",
+    type=str,
+    required=False,
+    default="bypass",
+    help="Compression throttling policy under high queue pressure (default: bypass).",
+)
+
+parser.add_argument(
+    "--mem-read-high-thresh",
+    "--read-queue-high-thresh-perc",
+    type=float,
+    required=False,
+    default=85.0,
+    dest="mem_read_high_thresh",
+    help="Memory read queue high watermark percentage threshold (default: 85).",
+)
+
+parser.add_argument(
+    "--mem-write-high-thresh",
+    "--write-queue-high-thresh-perc",
+    type=float,
+    required=False,
+    default=85.0,
+    dest="mem_write_high_thresh",
+    help="Memory write queue high watermark percentage threshold (default: 85).",
+)
+
 args = parser.parse_args()
 
 
@@ -492,10 +556,17 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
     decay_shift=args.decay_shift,
+    enable_queue_pressure_throttling=args.enable_queue_pressure_throttling,
+    queue_pressure_threshold=args.queue_pressure_threshold,
+    pressure_throttling_policy=args.pressure_throttling_policy,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
 memory = DualChannelDDR4_2400(size="3GiB")
+if hasattr(memory, "mem_ctrl"):
+    for ctrl in memory.mem_ctrl:
+        ctrl.read_queue_high_thresh_perc = args.mem_read_high_thresh
+        ctrl.write_queue_high_thresh_perc = args.mem_write_high_thresh
 
 # Processor: Atomic for boot → O3CPU for ROI measurement
 # (Original used KVM boot; Atomic is slower but works on Apple Silicon)
