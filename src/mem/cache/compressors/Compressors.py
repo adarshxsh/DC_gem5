@@ -76,6 +76,10 @@ class BaseCacheCompressor(SimObject):
         100,
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
+    hysteresis_margin = Param.Float(
+        0.05,
+        "Hysteresis margin for adaptive compression bypass threshold evaluation",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):

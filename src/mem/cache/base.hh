@@ -347,6 +347,20 @@ class BaseCache : public ClockedObject
 
     } accessor;
 
+    /** Downstream cross-level compression backpressure signal state */
+    bool l2Backpressure;
+
+    /** Cycle interval between non-critical dirty writebacks under backpressure
+     */
+    const Cycles writebackThrottleInterval;
+
+    /** Tick of last issued dirty writeback */
+    Tick lastWritebackTick;
+
+  public:
+    /** Check if this cache is generating compression backpressure */
+    bool hasCompressionBackpressure() const;
+
     /** Miss status registers */
     MSHRQueue mshrQueue;
 
