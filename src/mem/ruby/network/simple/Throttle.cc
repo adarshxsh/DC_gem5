@@ -209,8 +209,8 @@ Throttle::operateVnet(int vnet, int channel, int &total_bw_remaining,
             (*(throttleStats.
                 msg_counts[net_msg_ptr->getMessageSize()]))[vnet]++;
             throttleStats.total_msg_count += 1;
-            uint32_t total_size =
-                Network::MessageSizeType_to_int(net_msg_ptr->getMessageSize());
+            uint32_t total_size = Network::MessageSizeType_to_int(
+                net_msg_ptr->getMessageSize(), net_msg_ptr);
             throttleStats.total_msg_bytes += total_size;
             total_size -=
                 Network::MessageSizeType_to_int(MessageSizeType_Control);
@@ -323,7 +323,8 @@ network_message_to_size(Message *net_msg_ptr)
 {
     assert(net_msg_ptr != NULL);
 
-    int size = Network::MessageSizeType_to_int(net_msg_ptr->getMessageSize());
+    int size = Network::MessageSizeType_to_int(net_msg_ptr->getMessageSize(),
+                                               net_msg_ptr);
     size *=  MESSAGE_SIZE_MULTIPLIER;
 
     // Artificially increase the size of broadcast messages

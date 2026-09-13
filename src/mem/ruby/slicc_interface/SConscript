@@ -36,3 +36,21 @@ SimObject('Controller.py', sim_objects=['RubyController'])
 Source('AbstractController.cc')
 Source('AbstractCacheEntry.cc')
 Source('RubyRequest.cc')
+
+GTest('message.test', 'message.test.cc',
+      '#src/mem/ruby/network/Network.cc',
+      '#src/mem/ruby/network/garnet/flit.cc',
+      '#src/mem/ruby/network/Topology.cc',
+      '#src/mem/ruby/network/BasicLink.cc',
+      '#src/mem/ruby/network/BasicRouter.cc',
+      '#src/mem/ruby/system/RubySystem.cc',
+      '#src/mem/ruby/slicc_interface/RubyRequest.cc',
+      '#src/sim/clocked_object.cc',
+      '#src/sim/sim_object.cc',
+      '#src/sim/bufval.cc',
+      '#src/base/statistics.cc',
+      '#src/base/bitfield.cc',
+      '#src/base/types.cc',
+      '#src/cpu/reg_class.cc',
+      '#src/mem/packet.cc',
+      with_tag('gem5 simobject'))
