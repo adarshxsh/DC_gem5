@@ -35,7 +35,7 @@ class TestFPC : public FPC
 
 TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
 {
-    CPackParams p;
+    CPackParams p{};
     p.name = "cpack";
     p.block_size = 64;
     p.chunk_size_bits = 32;
@@ -44,6 +44,8 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
     p.comp_extra_latency = Cycles(5);
     p.decomp_chunks_per_cycle = 2;
     p.decomp_extra_latency = Cycles(1);
+    p.hysteresis_high_threshold = 1.2;
+    p.hysteresis_low_threshold = 1.0;
 
     TestCPack compressor(p);
 
@@ -94,7 +96,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
 
 TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
 {
-    FPCParams p;
+    FPCParams p{};
     p.name = "fpc";
     p.block_size = 64;
     p.chunk_size_bits = 32;
@@ -104,6 +106,8 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
     p.decomp_chunks_per_cycle = 4;
     p.decomp_extra_latency = Cycles(1);
     p.zero_run_bits = 3;
+    p.hysteresis_high_threshold = 1.2;
+    p.hysteresis_low_threshold = 1.0;
 
     TestFPC compressor(p);
 

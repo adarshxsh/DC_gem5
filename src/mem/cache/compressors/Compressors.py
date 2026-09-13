@@ -68,6 +68,14 @@ class BaseCacheCompressor(SimObject):
         False,
         "Enable adaptive bypass of compression/decompression when observed compression ratio is below threshold",
     )
+    hysteresis_high_threshold = Param.Float(
+        1.2,
+        "Upper compression ratio threshold to activate compression",
+    )
+    hysteresis_low_threshold = Param.Float(
+        1.0,
+        "Lower compression ratio threshold to deactivate compression",
+    )
     latency_breakeven_threshold = Param.Float(
         1.0,
         "Observed compression ratio threshold below which compression is bypassed",
