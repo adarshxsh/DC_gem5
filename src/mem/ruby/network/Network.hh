@@ -80,6 +80,7 @@ namespace ruby
 class NetDest;
 class MessageBuffer;
 class RubySystem;
+class Message;
 
 class Network : public ClockedObject
 {
@@ -92,7 +93,8 @@ class Network : public ClockedObject
     static uint32_t getNumberOfVirtualNetworks() { return m_virtual_networks; }
     int getNumNodes() const { return m_nodes; }
 
-    static uint32_t MessageSizeType_to_int(MessageSizeType size_type);
+    static uint32_t MessageSizeType_to_int(MessageSizeType size_type,
+                                           const Message *msg = nullptr);
 
     // returns the queue requested for the given component
     void setToNetQueue(NodeID global_id, bool ordered, int netNumber,
