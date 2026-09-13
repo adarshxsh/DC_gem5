@@ -122,9 +122,18 @@ class Message
     int getVnet() const { return vnet; }
     void setVnet(int net) { vnet = net; }
 
-    virtual bool isCompressed() const { return m_is_compressed; }
-    virtual int getCompressedSize() const { return m_compressed_size; }
-    virtual void setCompressedSize(int size)
+    virtual bool
+    isCompressed() const
+    {
+        return m_is_compressed;
+    }
+    virtual int
+    getCompressedSize() const
+    {
+        return m_compressed_size;
+    }
+    virtual void
+    setCompressedSize(int size)
     {
         m_compressed_size = size;
         m_is_compressed = (size > 0);

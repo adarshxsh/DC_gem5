@@ -126,10 +126,10 @@ class CompressedTags : public SectorTags
      * Update replacement data for a superblock with valid sub-block count
      * and compression factor.
      */
-    void updateSuperBlockReplacementData(SuperBlk* superblock);
+    void updateSuperBlockReplacementData(SuperBlk *superblock);
 
     void insertBlock(const PacketPtr pkt, CacheBlk *blk) override;
-    CacheBlk* accessBlock(const PacketPtr pkt, Cycles &lat) override;
+    CacheBlk *accessBlock(const PacketPtr pkt, Cycles &lat) override;
     void invalidate(CacheBlk *blk) override;
     void moveBlock(CacheBlk *src_blk, CacheBlk *dest_blk) override;
 

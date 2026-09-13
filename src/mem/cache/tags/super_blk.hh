@@ -108,7 +108,11 @@ class CompressionBlk : public SectorSubBlk
      *
      * @return True if compressed and size is 0.
      */
-    bool isZero() const { return _compressed && (_size == 0); }
+    bool
+    isZero() const
+    {
+        return _compressed && (_size == 0);
+    }
 
     /**
      * Set compression bit.
@@ -239,11 +243,16 @@ class SuperBlk : public SectorBlk
     uint8_t getCompressionFactor() const;
 
     /**
-     * Get the density weight of this superblock (valid sub-blocks * compression factor).
+     * Get the density weight of this superblock (valid sub-blocks *
+     * compression factor).
      *
      * @return The density weight.
      */
-    int getDensity() const { return getNumValid() * getCompressionFactor(); }
+    int
+    getDensity() const
+    {
+        return getNumValid() * getCompressionFactor();
+    }
 
     /**
      * Set the compression factor of this superblock.
