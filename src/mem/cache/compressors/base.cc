@@ -132,7 +132,8 @@ Base::handleMemoryCongestion(bool congested)
         congestedMemCtrlCount--;
     }
     isMemoryCongested = (congestedMemCtrlCount > 0);
-    DPRINTF(CacheComp, "Memory congestion state updated: congested=%d (count=%u)\n",
+    DPRINTF(CacheComp,
+            "Memory congestion state updated: congested=%d (count=%u)\n",
             isMemoryCongested, congestedMemCtrlCount);
 }
 
@@ -141,8 +142,9 @@ Base::regProbeListeners()
 {
     SimObject::regProbeListeners();
 
-    if (!enableMemoryPressureThrottling)
+    if (!enableMemoryPressureThrottling) {
         return;
+    }
 
     const Params &p = dynamic_cast<const Params &>(params());
 
@@ -156,7 +158,8 @@ Base::regProbeListeners()
         if (mgr_obj) {
             ProbeManager *pm = mgr_obj->getProbeManager();
             congestionListeners.push_back(
-                pm->connect<MemoryCongestionListener>(*this, "MemoryCongestion"));
+                pm->connect<MemoryCongestionListener>(*this,
+                                                      "MemoryCongestion"));
         }
     }
 }
@@ -401,10 +404,14 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total compressed bits of sampled blocks"),
       ADD_STAT(observedCompressionRatio, statistics::units::Ratio::get(),
                "Observed compression ratio from sampling"),
-      ADD_STAT(memoryQueueThrottledCompressions, statistics::units::Count::get(),
-               "Total number of compressions bypassed due to memory queue pressure"),
-      ADD_STAT(memoryQueueThrottledDecompressions, statistics::units::Count::get(),
-               "Total number of decompressions bypassed due to memory queue pressure")
+      ADD_STAT(memoryQueueThrottledCompressions,
+               statistics::units::Count::get(),
+               "Total number of compressions bypassed due to memory queue "
+               "pressure"),
+      ADD_STAT(memoryQueueThrottledDecompressions,
+               statistics::units::Count::get(),
+               "Total number of decompressions bypassed due to memory queue "
+               "pressure")
 {
 }
 
