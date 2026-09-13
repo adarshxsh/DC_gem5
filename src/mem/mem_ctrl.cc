@@ -76,6 +76,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
     commandWindow(p.command_window),
+    enableCompressedTransport(p.enable_compressed_transport),
     prevArrival(0),
     stats(*this)
 {
@@ -207,10 +208,12 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     BurstHelper* burst_helper = NULL;
 
     uint32_t burst_size = mem_intr->bytesPerBurst();
+    unsigned total_size = (enableCompressedTransport && pkt->isCompressed()) ?
+                          pkt->getCompressedSize() : pkt->getSize();
 
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
-                        base_addr + pkt->getSize()) - addr;
+                        base_addr + total_size) - addr;
         stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
         stats.requestorReadAccesses[pkt->requestorId()]++;
@@ -313,10 +316,12 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
     const Addr base_addr = pkt->getAddr();
     Addr addr = base_addr;
     uint32_t burst_size = mem_intr->bytesPerBurst();
+    unsigned total_size = (enableCompressedTransport && pkt->isCompressed()) ?
+                          pkt->getCompressedSize() : pkt->getSize();
 
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
-                        base_addr + pkt->getSize()) - addr;
+                        base_addr + total_size) - addr;
         stats.writePktSize[ceilLog2(size)]++;
         stats.writeBursts++;
         stats.requestorWriteAccesses[pkt->requestorId()]++;
@@ -429,11 +434,12 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // If the burst size is equal or larger than the pkt size, then a pkt
     // translates to only one memory packet. Otherwise, a pkt translates to
     // multiple memory packets
-    unsigned size = pkt->getSize();
+    unsigned size = (enableCompressedTransport && pkt->isCompressed()) ?
+                    pkt->getCompressedSize() : pkt->getSize();
     uint32_t burst_size = dram->bytesPerBurst();
 
     unsigned offset = pkt->getAddr() & (burst_size - 1);
-    unsigned int pkt_count = divCeil(offset + size, burst_size);
+    unsigned int pkt_count = std::max(1U, divCeil(offset + size, burst_size));
 
     // run the QoS scheduler and assign a QoS priority value to the packet
     qosSchedule( { &readQueue, &writeQueue }, burst_size, pkt);
