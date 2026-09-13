@@ -106,6 +106,8 @@ class MultiCompressorTest : public ::testing::Test
         zero_p.decomp_extra_latency = Cycles(1);
         zero_p.dictionary_size = 64;
         zero_p.enable_adaptive_bypass = false;
+        zero_p.hysteresis_high_threshold = 1.2;
+        zero_p.hysteresis_low_threshold = 1.0;
         zero_p.latency_breakeven_threshold = 1.0;
         zero_p.sampling_interval = 100;
         zero_p.decay_shift = 4;
@@ -122,6 +124,8 @@ class MultiCompressorTest : public ::testing::Test
         rq_p.decomp_extra_latency = Cycles(2);
         rq_p.dictionary_size = 64;
         rq_p.enable_adaptive_bypass = false;
+        rq_p.hysteresis_high_threshold = 1.2;
+        rq_p.hysteresis_low_threshold = 1.0;
         rq_p.latency_breakeven_threshold = 1.0;
         rq_p.sampling_interval = 100;
         rq_p.decay_shift = 4;
@@ -138,6 +142,8 @@ class MultiCompressorTest : public ::testing::Test
         bdi_p.decomp_extra_latency = Cycles(3);
         bdi_p.dictionary_size = 64;
         bdi_p.enable_adaptive_bypass = false;
+        bdi_p.hysteresis_high_threshold = 1.2;
+        bdi_p.hysteresis_low_threshold = 1.0;
         bdi_p.latency_breakeven_threshold = 1.0;
         bdi_p.sampling_interval = 100;
         bdi_p.decay_shift = 4;
@@ -156,6 +162,8 @@ class MultiCompressorTest : public ::testing::Test
         multi_p.unpromising_threshold = threshold;
         multi_p.probe_interval = probe_interval;
         multi_p.enable_adaptive_bypass = false;
+        multi_p.hysteresis_high_threshold = 1.2;
+        multi_p.hysteresis_low_threshold = 1.0;
         multi_p.latency_breakeven_threshold = 1.0;
         multi_p.sampling_interval = 100;
         multi_p.decay_shift = 4;
@@ -339,4 +347,52 @@ TEST_F(MultiCompressorTest, DecompressionCorrectness)
 
     // Verify decompressed data matches original zeroLine
     ASSERT_EQ(std::memcmp(zeroLine, decompLine, sizeof(zeroLine)), 0);
+}
+
+/**
+ * Test BaseCacheCompressor dual-threshold hysteresis windowing for adaptive bypass.
+ */
+TEST_F(MultiCompressorTest, HysteresisWindowing)
+{
+    ZeroCompressorParams zero_p{};
+    zero_p.eventq_index = 0;
+    zero_p.block_size = 64;
+    zero_p.chunk_size_bits = 64;
+    zero_p.size_threshold_percentage = 100;
+    zero_p.comp_chunks_per_cycle = 8;
+    zero_p.comp_extra_latency = Cycles(1);
+    zero_p.decomp_chunks_per_cycle = 8;
+    zero_p.decomp_extra_latency = Cycles(1);
+    zero_p.dictionary_size = 64;
+    zero_p.enable_adaptive_bypass = true;
+    zero_p.hysteresis_high_threshold = 1.2;
+    zero_p.hysteresis_low_threshold = 1.0;
+    zero_p.sampling_interval = 1;
+
+    std::unique_ptr<Zero> zero = std::make_unique<Zero>(zero_p);
+    zero->regStats();
+
+    Cycles comp_lat(0), decomp_lat(0);
+
+    // Initial state: not bypassed
+    Base* baseZero = zero.get();
+    auto cdata = baseZero->compress(zeroLine, comp_lat, decomp_lat);
+    EXPECT_EQ(cdata->getSizeBits(), 0);
+
+    // Compress uncompressible random lines until cumulative ratio drops below low threshold (1.0)
+    for (int i = 0; i < 20; i++) {
+        cdata = baseZero->compress(randomLine, comp_lat, decomp_lat);
+    }
+
+    // Observed ratio drops below 1.0 -> mode transitions to BYPASSED
+    cdata = baseZero->compress(randomLine, comp_lat, decomp_lat);
+    EXPECT_EQ(cdata->getSizeBits(), 512);
+
+    // Highly compressible lines -> ratio rises above high threshold (1.2) -> transitions back to ACTIVE
+    for (int i = 0; i < 50; i++) {
+        cdata = baseZero->compress(zeroLine, comp_lat, decomp_lat);
+    }
+
+    cdata = baseZero->compress(zeroLine, comp_lat, decomp_lat);
+    EXPECT_EQ(cdata->getSizeBits(), 0);
 }
