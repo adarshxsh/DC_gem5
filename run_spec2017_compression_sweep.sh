@@ -14,7 +14,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GEM5_ROOT="$SCRIPT_DIR"
-GEM5_BIN="$GEM5_ROOT/build/X86/gem5.opt"
+GEM5_BIN="${GEM5_BIN:-$GEM5_ROOT/build/X86/gem5.opt}"
 CONFIG_SCRIPT="$GEM5_ROOT/configs/spec2017_compression_kvm.py"
 OUTPUT_BASE="$GEM5_ROOT/m5out_eval_sweep"
 
@@ -43,10 +43,29 @@ run_simulation() {
     local bench="$1"
     local csize="$2"
     local comp="$3"
+    shift 3 || true
 
     local outdir="$OUTPUT_BASE/${bench}_${csize}_${comp}"
     mkdir -p "$outdir"
 
+    local extra_args=()
+    if [ "${ENABLE_QUEUE_PRESSURE_THROTTLING:-false}" = "true" ]; then
+        extra_args+=("--enable-queue-pressure-throttling")
+    fi
+    if [ -n "${QUEUE_PRESSURE_THRESHOLD:-}" ]; then
+        extra_args+=("--queue-pressure-threshold=$QUEUE_PRESSURE_THRESHOLD")
+    fi
+    if [ -n "${MEM_READ_HIGH_THRESH:-}" ]; then
+        extra_args+=("--mem-read-high-thresh=$MEM_READ_HIGH_THRESH")
+    fi
+    if [ -n "${MEM_WRITE_HIGH_THRESH:-}" ]; then
+        extra_args+=("--mem-write-high-thresh=$MEM_WRITE_HIGH_THRESH")
+    fi
+
+    # Append any remaining positional arguments passed to the script
+    if [ "$#" -gt 0 ]; then
+        extra_args+=("$@")
+    fi
     echo ""
     echo "--------------------------------------------------------------------------------"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: Benchmark=$bench | L2=$csize | Compressor=$comp"
@@ -64,13 +83,14 @@ run_simulation() {
         --fast-forward-insts="$FAST_FORWARD_INSTS" \
         --warmup-insts="$WARMUP_INSTS" \
         --max-insts="$MAX_INSTS" \
+        "${extra_args[@]}" \
         2>&1 | tee "$outdir/sim_run.log"
 }
 
 # If arguments passed, allow running a single target, e.g.:
-# ./run_spec2017_compression_sweep.sh 541.leela_r 256KiB cpack
+# ./run_spec2017_compression_sweep.sh 541.leela_r 256KiB cpack --enable-queue-pressure-throttling
 if [ "$#" -ge 3 ]; then
-    run_simulation "$1" "$2" "$3"
+    run_simulation "$@"
     exit 0
 fi
 
