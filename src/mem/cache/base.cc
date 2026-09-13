@@ -398,7 +398,7 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 // port and also takes into account the additional
                 // delay of the xbar.
                 mshr->allocateTarget(pkt, forward_time, order++,
-                                     allocOnFill(pkt->cmd));
+                                     allocOnFill(pkt->cmd), tags);
                 if (mshr->getNumTargets() >= numTarget) {
                     noTargetMSHR = mshr;
                     setBlocked(Blocked_NoTargets);
@@ -1942,10 +1942,26 @@ BaseCache::sendMSHRQueuePacket(MSHR* mshr)
     // then reset the write mode
     if (writeAllocator && writeAllocator->coalesce() && tgt_pkt->isWrite()) {
         if (!mshr->isWholeLineWrite()) {
-            // if we are currently write coalescing, hold on the
-            // MSHR as many cycles extra as we need to completely
-            // write a cache line
-            if (writeAllocator->delay(mshr->blkAddr)) {
+            bool subblock_expansion_risk = false;
+            if (tags) {
+                CacheBlk *blk = tags->findBlock({mshr->blkAddr, mshr->isSecure});
+                if (blk) {
+                    CompressionBlk *cblk = dynamic_cast<CompressionBlk*>(blk);
+                    if (cblk) {
+                        SuperBlk *super_blk = dynamic_cast<SuperBlk*>(cblk->getSectorBlock());
+                        if (super_blk && (super_blk->isCompressed() || cblk->isCompressed())) {
+                            subblock_expansion_risk = true;
+                        }
+                    }
+                } else if (dynamic_cast<CompressedTags*>(tags)) {
+                    subblock_expansion_risk = true;
+                }
+            }
+
+            if (subblock_expansion_risk) {
+                // Bypass writeAllocator delay when sub-block expansion risk is identified
+                writeAllocator->reset();
+            } else if (writeAllocator->delay(mshr->blkAddr)) {
                 Tick delay = blkSize / tgt_pkt->getSize() * clockPeriod();
                 DPRINTF(CacheVerbose, "Delaying pkt %s %llu ticks to allow "
                         "for write coalescing\n", tgt_pkt->print(), delay);
