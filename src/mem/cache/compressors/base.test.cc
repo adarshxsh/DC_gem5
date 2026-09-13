@@ -45,10 +45,7 @@ namespace compression
 class TestCompressorData : public Base::CompressionData
 {
   public:
-    TestCompressorData(std::size_t size_bits)
-    {
-        setSizeBits(size_bits);
-    }
+    TestCompressorData(std::size_t size_bits) { setSizeBits(size_bits); }
 };
 
 class DummyCompressor : public Base
@@ -56,14 +53,13 @@ class DummyCompressor : public Base
   public:
     DummyCompressor(const BaseCacheCompressorParams &p)
         : Base(p), forcedCompSizeBits(512)
-    {
-    }
+    {}
 
     std::size_t forcedCompSizeBits;
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
-             Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         comp_lat = Cycles(1);
         decomp_lat = Cycles(1);
@@ -71,11 +67,11 @@ class DummyCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* cache_line) override
-    {
-    }
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
+    {}
 
-    void setSampledBits(uint64_t uncomp, uint64_t comp)
+    void
+    setSampledBits(uint64_t uncomp, uint64_t comp)
     {
         sampledUncompressedBits = uncomp;
         sampledCompressedBits = comp;
@@ -119,8 +115,8 @@ TEST(BaseCompressorTest, HysteresisBypassEvaluation)
     comp.compress(line, c_lat, d_lat);
     EXPECT_TRUE(comp.isBypassing());
 
-    // Ratio recovers slightly to breakeven (1.00x), but within hysteresis range [0.95, 1.05]
-    // Must remain in bypassed state!
+    // Ratio recovers slightly to breakeven (1.00x), but within hysteresis
+    // range [0.95, 1.05] Must remain in bypassed state!
     comp.setSampledBits(512, 512);
     comp.compress(line, c_lat, d_lat);
     EXPECT_TRUE(comp.isBypassing());
@@ -133,8 +129,7 @@ TEST(BaseCompressorTest, HysteresisBypassEvaluation)
 
 TEST(PacketTest, CompressionBackpressureFlags)
 {
-    RequestPtr req = std::make_shared<Request>(
-        0x1000, 64, 0, 0);
+    RequestPtr req = std::make_shared<Request>(0x1000, 64, 0, 0);
     Packet pkt(req, MemCmd::ReadReq);
 
     EXPECT_FALSE(pkt.isCompressionBackpressure());
@@ -150,10 +145,26 @@ class TestEntry : public QueueEntry
 {
   public:
     TestEntry() : QueueEntry() {}
-    bool matchBlockAddr(Addr b_addr, bool is_sec) const override { return false; }
-    bool matchBlockAddr(const PacketPtr p) const override { return false; }
-    bool trySatisfyFunctional(PacketPtr p) override { return false; }
-    bool sendPacket(BaseCache& c) override { return true; }
+    bool
+    matchBlockAddr(Addr b_addr, bool is_sec) const override
+    {
+        return false;
+    }
+    bool
+    matchBlockAddr(const PacketPtr p) const override
+    {
+        return false;
+    }
+    bool
+    trySatisfyFunctional(PacketPtr p) override
+    {
+        return false;
+    }
+    bool
+    sendPacket(BaseCache &c) override
+    {
+        return true;
+    }
 };
 
 TEST(QueueTest, OccupancyRatioAndCapacity)

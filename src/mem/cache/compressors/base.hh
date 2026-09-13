@@ -248,7 +248,11 @@ class Base : public SimObject
     virtual void setCache(BaseCache *_cache);
 
     /** Check if adaptive compression bypass is currently active. */
-    bool isBypassing() const { return enableAdaptiveBypass && bypassedState; }
+    bool
+    isBypassing() const
+    {
+        return enableAdaptiveBypass && bypassedState;
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression
