@@ -158,13 +158,15 @@ class Base : public SimObject
             : ProbeListenerArgBase(std::move(name)), compressor(_compressor)
         {}
 
-        void notify(const bool &congested) override
+        void
+        notify(const bool &congested) override
         {
             compressor.handleMemoryCongestion(congested);
         }
     };
 
-    std::vector<ProbeListenerPtr<MemoryCongestionListener>> congestionListeners;
+    std::vector<ProbeListenerPtr<MemoryCongestionListener>>
+        congestionListeners;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;

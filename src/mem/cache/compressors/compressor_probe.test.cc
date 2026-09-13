@@ -20,10 +20,10 @@ class TestCPackProbe : public CPack
 {
   public:
     using Base::compress;
+    using Base::handleMemoryCongestion;
+    using Base::isMemoryCongested;
     using CPack::CPack;
     using CPack::decompress;
-    using Base::isMemoryCongested;
-    using Base::handleMemoryCongestion;
 };
 
 TEST(CompressorProbeTest, MemoryPressureThrottlingBypass)

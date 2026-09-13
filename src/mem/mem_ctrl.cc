@@ -57,31 +57,40 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    congestionHighThresholdPercent(p.congestion_high_threshold_percent),
-    congestionLowThresholdPercent(p.congestion_low_threshold_percent),
-    isCongested(false),
-    ppMemoryCongestion(nullptr),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      congestionHighThresholdPercent(p.congestion_high_threshold_percent),
+      congestionLowThresholdPercent(p.congestion_low_threshold_percent),
+      isCongested(false),
+      ppMemoryCongestion(nullptr),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -96,10 +105,13 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
 
-    if (p.congestion_low_threshold_percent >= p.congestion_high_threshold_percent)
+    if (p.congestion_low_threshold_percent >=
+        p.congestion_high_threshold_percent) {
         fatal("Memory congestion low threshold %f must be smaller than the "
-              "high threshold %f\n", p.congestion_low_threshold_percent,
+              "high threshold %f\n",
+              p.congestion_low_threshold_percent,
               p.congestion_high_threshold_percent);
+    }
 
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
@@ -110,25 +122,30 @@ void
 MemCtrl::regProbePoints()
 {
     qos::MemCtrl::regProbePoints();
-    ppMemoryCongestion = new ProbePointArg<bool>(getProbeManager(), "MemoryCongestion");
+    ppMemoryCongestion =
+        new ProbePointArg<bool>(getProbeManager(), "MemoryCongestion");
 }
 
 void
 MemCtrl::checkCongestion()
 {
     uint32_t totalCapacity = readBufferSize + writeBufferSize;
-    if (totalCapacity == 0)
+    if (totalCapacity == 0) {
         return;
+    }
 
-    uint32_t currentOccupancy = totalReadQueueSize + respQueue.size() + totalWriteQueueSize;
-    double occupancyPercent = (static_cast<double>(currentOccupancy) / totalCapacity) * 100.0;
+    uint32_t currentOccupancy =
+        totalReadQueueSize + respQueue.size() + totalWriteQueueSize;
+    double occupancyPercent =
+        (static_cast<double>(currentOccupancy) / totalCapacity) * 100.0;
 
     if (!isCongested && occupancyPercent >= congestionHighThresholdPercent) {
         isCongested = true;
         if (ppMemoryCongestion) {
             ppMemoryCongestion->notify(true);
         }
-    } else if (isCongested && occupancyPercent < congestionLowThresholdPercent) {
+    } else if (isCongested &&
+               occupancyPercent < congestionLowThresholdPercent) {
         isCongested = false;
         if (ppMemoryCongestion) {
             ppMemoryCongestion->notify(false);
