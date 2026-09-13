@@ -244,6 +244,19 @@ class SuperBlk : public SectorBlk
      */
     void updateCompressionFactor();
 
+    /**
+     * Collect minimum necessary least-recently-used co-allocated sub-blocks
+     * to be evicted when an expanding sub-block reduces capacity cap below
+     * current valid count.
+     *
+     * @param expanding_blk The sub-block that is expanding.
+     * @param target_cf The target compression factor limit after expansion.
+     * @param evict_blks Vector to append victim sub-blocks to.
+     */
+    void getVictimsOnExpansion(const CacheBlk *expanding_blk,
+                               uint8_t target_cf,
+                               std::vector<CacheBlk *> &evict_blks) const;
+
     void invalidate() override;
 
     std::string print() const override;
