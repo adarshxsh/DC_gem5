@@ -196,10 +196,9 @@ class SuperBlk : public SectorBlk
     bool isCompressed(const CompressionBlk* ignored_blk = nullptr) const;
 
     /**
-     * Checks whether the superblock contains any valid demand (non-prefetched)
-     * sub-blocks.
+     * Checks if this superblock contains any valid demand sub-blocks.
      *
-     * @return True if at least one valid sub-block was not prefetched.
+     * @return True if at least one valid sub-block is not an unaccessed prefetch.
      */
     bool hasValidDemand() const;
 
@@ -207,9 +206,11 @@ class SuperBlk : public SectorBlk
      * Checks whether a superblock can co-allocate given compressed data block.
      *
      * @param compressed_size Size, in bits, of new block to allocate.
+     * @param is_prefetch True if the request is a prefetch fill.
      * @return True if block can be co-allocated in superblock.
      */
-    bool canCoAllocate(const std::size_t compressed_size) const;
+    bool canCoAllocate(const std::size_t compressed_size,
+                       bool is_prefetch = false) const;
 
     /**
      * Set block size. Should be called only once, when initializing blocks.
