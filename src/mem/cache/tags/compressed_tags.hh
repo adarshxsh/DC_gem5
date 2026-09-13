@@ -123,6 +123,17 @@ class CompressedTags : public SectorTags
                          const uint64_t partition_id) override;
 
     /**
+     * Update replacement data for a superblock with valid sub-block count
+     * and compression factor.
+     */
+    void updateSuperBlockReplacementData(SuperBlk* superblock);
+
+    void insertBlock(const PacketPtr pkt, CacheBlk *blk) override;
+    CacheBlk* accessBlock(const PacketPtr pkt, Cycles &lat) override;
+    void invalidate(CacheBlk *blk) override;
+    void moveBlock(CacheBlk *src_blk, CacheBlk *dest_blk) override;
+
+    /**
      * Find if any of the sub-blocks satisfies a condition.
      *
      * The visitor should be a std::function that takes a cache block

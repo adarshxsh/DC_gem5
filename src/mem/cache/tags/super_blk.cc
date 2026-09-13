@@ -124,7 +124,7 @@ CompressionBlk::setSizeBits(const std::size_t size)
             setUncompressed();
         }
     } else {
-        if (size > 0 && size < 512) {
+        if (size < 512) {
             setCompressed();
         } else {
             setUncompressed();

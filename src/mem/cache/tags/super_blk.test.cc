@@ -61,3 +61,37 @@ TEST(SuperBlkTest, SetUncompressedClearsCompressed)
     blk.setUncompressed();
     EXPECT_FALSE(blk.isCompressed());
 }
+
+TEST(SuperBlkTest, ZeroBlockDetection)
+{
+    CompressionBlk blk;
+    blk.setSizeBits(0);
+    EXPECT_TRUE(blk.isCompressed());
+    EXPECT_TRUE(blk.isZero());
+
+    blk.setSizeBits(256);
+    EXPECT_TRUE(blk.isCompressed());
+    EXPECT_FALSE(blk.isZero());
+}
+
+TEST(SuperBlkTest, SuperBlkDensity)
+{
+    SuperBlk super_blk;
+    super_blk.setBlkSize(64);
+    super_blk.setCompressionFactor(2);
+
+    CompressionBlk sub0, sub1;
+    sub0.setSectorBlock(&super_blk);
+    sub1.setSectorBlock(&super_blk);
+    super_blk.blks.push_back(&sub0);
+    super_blk.blks.push_back(&sub1);
+
+    // Initial density with 0 valid blocks
+    EXPECT_EQ(super_blk.getDensity(), 0);
+
+    // Validate sub-blocks
+    sub0.setValid();
+    sub1.setValid();
+    EXPECT_EQ(super_blk.getNumValid(), 2);
+    EXPECT_EQ(super_blk.getDensity(), 4); // 2 valid * 2 factor = 4
+}
