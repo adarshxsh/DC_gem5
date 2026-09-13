@@ -54,6 +54,8 @@
 #include "base/types.hh"
 #include "debug/MSHR.hh"
 #include "mem/cache/base.hh"
+#include "mem/cache/tags/compressed_tags.hh"
+#include "mem/cache/tags/super_blk.hh"
 #include "mem/request.hh"
 
 namespace gem5
@@ -72,10 +74,9 @@ MSHR::TargetList::TargetList(const std::string &name)
       hasFromCache(false), canMergeWrites(true)
 {}
 
-
 void
 MSHR::TargetList::updateFlags(PacketPtr pkt, Target::Source source,
-                              bool alloc_on_fill)
+                              bool alloc_on_fill, const BaseTags *tags)
 {
     if (source != Target::FromSnoop) {
         if (pkt->needsWritable()) {
@@ -96,7 +97,7 @@ MSHR::TargetList::updateFlags(PacketPtr pkt, Target::Source source,
         if (source != Target::FromPrefetcher) {
             hasFromCache = hasFromCache || pkt->fromCache();
 
-            updateWriteFlags(pkt);
+            updateWriteFlags(pkt, tags);
         }
     }
 }
@@ -111,7 +112,7 @@ MSHR::TargetList::populateFlags()
 }
 
 void
-MSHR::TargetList::updateWriteFlags(PacketPtr pkt)
+MSHR::TargetList::updateWriteFlags(PacketPtr pkt, const BaseTags *tags)
 {
     if (isWholeLineWrite()) {
         // if we have already seen writes for the full block
@@ -138,6 +139,34 @@ MSHR::TargetList::updateWriteFlags(PacketPtr pkt)
         bool compat_write = !req_flags.isSet(no_merge_flags);
         bool masked_write = pkt->isMaskedWrite();
 
+        // Sub-block aware coalescing guard for compressed superblocks
+        if (compat_write && tags) {
+            bool is_compressed_subblock = false;
+            CacheBlk *blk = tags->findBlock({blkAddr, pkt->isSecure()});
+            if (blk) {
+                CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+                if (cblk) {
+                    SuperBlk *super_blk =
+                        dynamic_cast<SuperBlk *>(cblk->getSectorBlock());
+                    if (super_blk &&
+                        (super_blk->isCompressed() || cblk->isCompressed())) {
+                        is_compressed_subblock = true;
+                    }
+                }
+            } else if (dynamic_cast<const CompressedTags *>(tags)) {
+                is_compressed_subblock = true;
+            }
+
+            if (is_compressed_subblock) {
+                bool is_partial_store =
+                    !pkt->isWholeLineWrite(blkSize) || !isWholeLineWrite();
+                if (is_partial_store) {
+                    canMergeWrites = false;
+                    return;
+                }
+            }
+        }
+
         // if this is the first write, it might be a whole
         // line write and even if we can't merge any
         // subsequent write requests, we still need to service
@@ -157,11 +186,11 @@ MSHR::TargetList::updateWriteFlags(PacketPtr pkt)
 }
 
 inline void
-MSHR::TargetList::add(PacketPtr pkt, Tick readyTime,
-                      Counter order, Target::Source source, bool markPending,
-                      bool alloc_on_fill)
+MSHR::TargetList::add(PacketPtr pkt, Tick readyTime, Counter order,
+                      Target::Source source, bool markPending,
+                      bool alloc_on_fill, const BaseTags *tags)
 {
-    updateFlags(pkt, source, alloc_on_fill);
+    updateFlags(pkt, source, alloc_on_fill, tags);
     if (markPending) {
         // Iterate over the SenderState stack and see if we find
         // an MSHR entry. If we do, set the downstreamPending
@@ -295,10 +324,10 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
     }
 }
 
-
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
-               Tick when_ready, Counter _order, bool alloc_on_fill)
+               Tick when_ready, Counter _order, bool alloc_on_fill,
+               const BaseTags *tags)
 {
     blkAddr = blk_addr;
     blkSize = blk_size;
@@ -319,7 +348,7 @@ MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
     // snoop (mem-side request), so set source according to request here
     Target::Source source = (target->cmd == MemCmd::HardPFReq) ?
         Target::FromPrefetcher : Target::FromCPU;
-    targets.add(target, when_ready, _order, source, true, alloc_on_fill);
+    targets.add(target, when_ready, _order, source, true, alloc_on_fill, tags);
 
     // All targets must refer to the same block
     assert(target->matchBlockAddr(targets.front().pkt, blkSize));
@@ -371,7 +400,7 @@ MSHR::deallocate()
  */
 void
 MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
-                     bool alloc_on_fill)
+                     bool alloc_on_fill, const BaseTags *tags)
 {
     // assume we'd never issue a prefetch when we've got an
     // outstanding miss
@@ -403,14 +432,14 @@ MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
         if (inService && hasPostInvalidate())
             replaceUpgrade(pkt);
         deferredTargets.add(pkt, whenReady, _order, Target::FromCPU, true,
-                            alloc_on_fill);
+                            alloc_on_fill, tags);
     } else {
         // No request outstanding, or still OK to append to
         // outstanding request: append to regular target list.  Only
         // mark pending if current request hasn't been issued yet
         // (isn't in service).
         targets.add(pkt, whenReady, _order, Target::FromCPU, !inService,
-                    alloc_on_fill);
+                    alloc_on_fill, tags);
     }
 
     DPRINTF(MSHR, "After target allocation: %s", print());

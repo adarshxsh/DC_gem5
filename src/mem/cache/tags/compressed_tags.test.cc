@@ -282,3 +282,21 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, SubBlockCoalescingGuard)
+{
+    // Insert a valid compressed sub-block with CF=4 (128 bits)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(128);
+
+    // Verify sub-block is compressed and part of a compressed superblock
+    EXPECT_TRUE(subBlks[0].isCompressed());
+    EXPECT_TRUE(superBlk.isCompressed());
+    EXPECT_EQ(superBlk.getCompressionFactor(), 4);
+
+    // Verify that co-allocation limit allows sub-blocks within threshold
+    EXPECT_TRUE(superBlk.canCoAllocate(128));
+
+    // Expansion to uncompressed size (512 bits) breaches co-allocation bounds
+    EXPECT_FALSE(superBlk.canCoAllocate(512));
+}

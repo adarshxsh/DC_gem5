@@ -97,7 +97,8 @@ class MSHRQueue : public Queue<MSHR>
      * @pre There are free entries.
      */
     MSHR *allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                   Tick when_ready, Counter order, bool alloc_on_fill);
+                   Tick when_ready, Counter order, bool alloc_on_fill,
+                   const BaseTags *tags = nullptr);
 
     /**
      * Deallocate a MSHR and its targets
