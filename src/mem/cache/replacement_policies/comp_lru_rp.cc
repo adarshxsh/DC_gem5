@@ -43,15 +43,11 @@ namespace gem5
 namespace replacement_policy
 {
 
-CompLRU::CompLRU(const Params &p)
-  : LRU(p)
-{
-}
+CompLRU::CompLRU(const Params &p) : LRU(p)
+{}
 
-DensityAwareLRU::DensityAwareLRU(const Params &p)
-  : CompLRU(p)
-{
-}
+DensityAwareLRU::DensityAwareLRU(const Params &p) : CompLRU(p)
+{}
 
 std::shared_ptr<ReplacementData>
 CompLRU::instantiateEntry()
@@ -59,20 +55,21 @@ CompLRU::instantiateEntry()
     return std::shared_ptr<ReplacementData>(new CompLRUReplData());
 }
 
-ReplaceableEntry*
-CompLRU::getVictim(const ReplacementCandidates& candidates) const
+ReplaceableEntry *
+CompLRU::getVictim(const ReplacementCandidates &candidates) const
 {
     assert(candidates.size() > 0);
 
-    ReplaceableEntry* victim = candidates[0];
+    ReplaceableEntry *victim = candidates[0];
     uint64_t min_score = UINT64_MAX;
 
-    for (const auto& candidate : candidates) {
+    for (const auto &candidate : candidates) {
         std::shared_ptr<CompLRUReplData> data =
-            std::dynamic_pointer_cast<CompLRUReplData>(candidate->replacementData);
+            std::dynamic_pointer_cast<CompLRUReplData>(
+                candidate->replacementData);
 
         // Sync attributes from SuperBlk if candidate is a SuperBlk
-        SuperBlk* sb = dynamic_cast<SuperBlk*>(candidate);
+        SuperBlk *sb = dynamic_cast<SuperBlk *>(candidate);
         if (sb && data) {
             data->compressionFactor = sb->getCompressionFactor();
             data->validBlocks = sb->getNumValid();
@@ -81,7 +78,8 @@ CompLRU::getVictim(const ReplacementCandidates& candidates) const
         uint8_t cf = data ? data->compressionFactor : 1;
         uint8_t valid = data ? data->validBlocks : 1;
 
-        // An invalid entry with 0 valid sub-blocks is prioritized for replacement
+        // An invalid entry with 0 valid sub-blocks is prioritized for
+        // replacement
         if (valid == 0) {
             return candidate;
         }
