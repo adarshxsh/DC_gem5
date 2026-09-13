@@ -105,6 +105,10 @@ class MultiCompressorTest : public ::testing::Test
         zero_p.decomp_chunks_per_cycle = 8;
         zero_p.decomp_extra_latency = Cycles(1);
         zero_p.dictionary_size = 64;
+        zero_p.enable_adaptive_bypass = false;
+        zero_p.enable_queue_pressure_throttling = false;
+        zero_p.queue_pressure_threshold = 80.0;
+        zero_p.pressure_throttling_policy = "bypass";
         zeroComp = new Zero(zero_p);
 
         RepeatedQwordsCompressorParams rq_p;
@@ -117,6 +121,10 @@ class MultiCompressorTest : public ::testing::Test
         rq_p.decomp_chunks_per_cycle = 8;
         rq_p.decomp_extra_latency = Cycles(2);
         rq_p.dictionary_size = 64;
+        rq_p.enable_adaptive_bypass = false;
+        rq_p.enable_queue_pressure_throttling = false;
+        rq_p.queue_pressure_threshold = 80.0;
+        rq_p.pressure_throttling_policy = "bypass";
         rqComp = new RepeatedQwords(rq_p);
 
         Base16Delta8Params bdi_p;
@@ -129,6 +137,10 @@ class MultiCompressorTest : public ::testing::Test
         bdi_p.decomp_chunks_per_cycle = 8;
         bdi_p.decomp_extra_latency = Cycles(3);
         bdi_p.dictionary_size = 64;
+        bdi_p.enable_adaptive_bypass = false;
+        bdi_p.enable_queue_pressure_throttling = false;
+        bdi_p.queue_pressure_threshold = 80.0;
+        bdi_p.pressure_throttling_policy = "bypass";
         bdiComp = new Base16Delta8(bdi_p);
 
         MultiCompressorParams multi_p;
@@ -143,6 +155,10 @@ class MultiCompressorTest : public ::testing::Test
         multi_p.encoding_in_tags = false;
         multi_p.unpromising_threshold = threshold;
         multi_p.probe_interval = probe_interval;
+        multi_p.enable_adaptive_bypass = false;
+        multi_p.enable_queue_pressure_throttling = false;
+        multi_p.queue_pressure_threshold = 80.0;
+        multi_p.pressure_throttling_policy = "bypass";
         multi_p.compressors = {zeroComp, rqComp, bdiComp};
 
         zeroComp->regStats();

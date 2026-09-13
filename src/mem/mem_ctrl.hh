@@ -328,6 +328,12 @@ class MemCtrl : public qos::MemCtrl
      */
     bool writeQueueFull(unsigned int pkt_count) const;
 
+    /** Check if read queue occupancy exceeds high pressure threshold. */
+    bool isReadQueueHigh() const;
+
+    /** Check if write queue occupancy exceeds high pressure threshold. */
+    bool isWriteQueueHigh() const;
+
     /**
      * When a new read comes in, first check if the write q has a
      * pending request to the same address.\ If not, decode the
@@ -515,6 +521,8 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    uint32_t readQueueHighThreshold;
+    uint32_t writeQueueHighThreshold;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
