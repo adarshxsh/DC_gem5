@@ -299,27 +299,28 @@ TEST_F(SuperBlkTestFixture, SelectiveLRUEvictionOnExpansion)
 
     // Expand subBlks[3] (ready at tick 400) to 256 bits (new target CF = 2).
     // num_valid = 4, new_target_cf = 2 -> num_to_evict = 2.
-    // Candidates are subBlks[0] (ready=100), subBlks[1] (ready=200), subBlks[2] (ready=300).
-    // LRU order among candidates: subBlks[0] (100), subBlks[1] (200), subBlks[2] (300).
-    // The 2 LRU candidates to evict are subBlks[0] and subBlks[1].
+    // Candidates are subBlks[0] (ready=100), subBlks[1] (ready=200),
+    // subBlks[2] (ready=300). LRU order among candidates: subBlks[0] (100),
+    // subBlks[1] (200), subBlks[2] (300). The 2 LRU candidates to evict are
+    // subBlks[0] and subBlks[1].
 
-    std::vector<CacheBlk*> candidate_blks;
-    for (auto& sub_blk : superBlk.blks) {
+    std::vector<CacheBlk *> candidate_blks;
+    for (auto &sub_blk : superBlk.blks) {
         if (sub_blk->isValid() && (&subBlks[3] != sub_blk)) {
             candidate_blks.push_back(sub_blk);
         }
     }
 
     std::sort(candidate_blks.begin(), candidate_blks.end(),
-        [](const CacheBlk* a, const CacheBlk* b) {
-            if (a->getWhenReady() != b->getWhenReady()) {
-                return a->getWhenReady() < b->getWhenReady();
-            }
-            if (a->getAge() != b->getAge()) {
-                return a->getAge() > b->getAge();
-            }
-            return a->getRefCount() < b->getRefCount();
-        });
+              [](const CacheBlk *a, const CacheBlk *b) {
+                  if (a->getWhenReady() != b->getWhenReady()) {
+                      return a->getWhenReady() < b->getWhenReady();
+                  }
+                  if (a->getAge() != b->getAge()) {
+                      return a->getAge() > b->getAge();
+                  }
+                  return a->getRefCount() < b->getRefCount();
+              });
 
     uint8_t new_target_cf = superBlk.calculateCompressionFactor(256);
     int num_to_evict = superBlk.getNumValid() - new_target_cf;
@@ -358,8 +359,9 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionNoOpWhenFitting)
     // Expand subBlks[0] to 256 bits (new target CF = 2).
     // num_valid = 2, new_target_cf = 2 -> num_to_evict = 0.
     uint8_t new_target_cf = superBlk.calculateCompressionFactor(256);
-    int num_to_evict = (superBlk.getNumValid() > new_target_cf) ?
-        (superBlk.getNumValid() - new_target_cf) : 0;
+    int num_to_evict = (superBlk.getNumValid() > new_target_cf)
+                           ? (superBlk.getNumValid() - new_target_cf)
+                           : 0;
     ASSERT_EQ(num_to_evict, 0);
 
     subBlks[0].setSizeBits(256);
@@ -371,4 +373,3 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionNoOpWhenFitting)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 }
-
