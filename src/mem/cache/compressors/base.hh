@@ -137,7 +137,8 @@ class Base : public SimObject
     /** Whether memory queue pressure throttling is enabled. */
     const bool enableQueuePressureThrottling;
 
-    /** Memory queue pressure percentage threshold above which compression is throttled. */
+    /** Memory queue pressure percentage threshold above which compression is
+     * throttled. */
     const double queuePressureThreshold;
 
     /** Compression throttling policy under high queue pressure. */
