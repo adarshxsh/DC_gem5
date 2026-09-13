@@ -59,6 +59,7 @@
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
+#include "sim/probe/probe.hh"
 
 namespace gem5
 {
@@ -515,6 +516,12 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    const double congestionHighThresholdPercent;
+    const double congestionLowThresholdPercent;
+    bool isCongested;
+    ProbePointArg<bool> *ppMemoryCongestion;
+
+    virtual void checkCongestion();
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
@@ -778,6 +785,7 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
+    void regProbePoints() override;
 
   protected:
 
