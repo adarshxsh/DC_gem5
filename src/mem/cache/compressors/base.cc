@@ -263,6 +263,10 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     // line, return its decompression latency
     if (comp_blk && comp_blk->isCompressed() &&
         (comp_blk->getSizeBits() < blkSize * CHAR_BIT)) {
+        if (comp_blk->getSizeBits() == 0) {
+            // Zero-block decompression fast-pathing: 0 cycles penalty
+            return Cycles(0);
+        }
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
         DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
                 comp_blk->print(), decomp_lat);
