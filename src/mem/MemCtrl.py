@@ -89,6 +89,16 @@ class MemCtrl(QoSMemCtrl):
         16, "Minimum read bursts before switching to writes"
     )
 
+    # adaptive queue pressure parameters
+    adaptive_queue_pressure = Param.Bool(
+        False,
+        "Enable adaptive queue pressure watermark scaling and burst scheduling",
+    )
+    pressure_sensitivity = Param.Percent(
+        50,
+        "Pressure sensitivity threshold percentage for dynamic watermark scaling",
+    )
+
     # scheduler, address map and page policy
     mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
