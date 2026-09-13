@@ -137,6 +137,12 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Hysteresis margin for adaptive bypass threshold evaluation. */
+    const float hysteresisMargin;
+
+    /** Current adaptive bypass state (true if bypassing compression). */
+    bool bypassedState;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -243,6 +249,9 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Check if adaptive compression bypass is currently active. */
+    bool isBypassing() const { return enableAdaptiveBypass && bypassedState; }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

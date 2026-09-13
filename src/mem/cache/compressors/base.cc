@@ -94,6 +94,8 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      hysteresisMargin(p.hysteresis_margin),
+      bypassedState(false),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -169,8 +171,21 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
-    bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+    if (enableAdaptiveBypass) {
+        float lowThreshold = latencyBreakevenThreshold - hysteresisMargin;
+        float highThreshold = latencyBreakevenThreshold + hysteresisMargin;
+        if (bypassedState) {
+            if (observedRatio > highThreshold) {
+                bypassedState = false;
+            }
+        } else {
+            if (observedRatio < lowThreshold) {
+                bypassedState = true;
+            }
+        }
+    }
+
+    bool shouldBypass = enableAdaptiveBypass && bypassedState;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -280,7 +295,7 @@ Base::getDecompressionLatency(const CacheBlk* blk)
                                    ? ((double)sampledUncompressedBits /
                                       (double)sampledCompressedBits)
                                    : (latencyBreakevenThreshold + 1.0);
-        if (observedRatio < latencyBreakevenThreshold) {
+        if (bypassedState) {
             stats.bypassedDecompressions += 1;
         }
     }

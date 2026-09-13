@@ -80,6 +80,10 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    hysteresis_margin = Param.Float(
+        0.05,
+        "Hysteresis margin for adaptive compression bypass threshold evaluation",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):

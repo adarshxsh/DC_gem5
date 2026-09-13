@@ -270,6 +270,8 @@ Cache::recvTimingSnoopResp(PacketPtr pkt)
 {
     DPRINTF(Cache, "%s for %s\n", __func__, pkt->print());
 
+    l2Backpressure = pkt->isCompressionBackpressure();
+
     // determine if the response is from a snoop request we created
     // (in which case it should be in the outstandingSnoop), or if we
     // merely forwarded someone else's snoop request
@@ -1040,6 +1042,9 @@ Cache::doTimingSupplyResponse(PacketPtr req_pkt, const uint8_t *blk_data,
     Tick forward_time = clockEdge(forwardLatency) + pkt->headerDelay;
     // Here we reset the timing of the packet.
     pkt->headerDelay = pkt->payloadDelay = 0;
+    if (hasCompressionBackpressure()) {
+        pkt->setCompressionBackpressure();
+    }
     DPRINTF(CacheVerbose, "%s: created response: %s tick: %lu\n", __func__,
             pkt->print(), forward_time);
     memSidePort.schedTimingSnoopResp(pkt, forward_time);
@@ -1082,6 +1087,9 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
             // there is a snoop hit in upper levels
             Packet snoopPkt(pkt, true, true);
             snoopPkt.setExpressSnoop();
+            if (hasCompressionBackpressure()) {
+                snoopPkt.setCompressionBackpressure();
+            }
             // the snoop packet does not need to wait any additional
             // time
             snoopPkt.headerDelay = snoopPkt.payloadDelay = 0;

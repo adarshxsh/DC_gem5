@@ -85,6 +85,9 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
+      l2Backpressure(false),
+      writebackThrottleInterval(p.writeback_throttle_interval),
+      lastWritebackTick(0),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
@@ -334,6 +337,9 @@ BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
         assert(pkt->payloadDelay == 0);
 
         pkt->makeTimingResponse();
+        if (hasCompressionBackpressure()) {
+            pkt->setCompressionBackpressure();
+        }
 
         // In this case we are considering request_time that takes
         // into account the delay of the xbar, if any, and just
@@ -533,6 +539,10 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
     // Reset the bus additional time as it is now accounted for
     pkt->headerDelay = pkt->payloadDelay = 0;
 
+    if (hasCompressionBackpressure()) {
+        pkt->setCompressionBackpressure();
+    }
+
     cpuSidePort.schedTimingResp(pkt, completion_time);
 }
 
@@ -540,6 +550,8 @@ void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
+
+    l2Backpressure = pkt->isCompressionBackpressure();
 
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above
@@ -922,6 +934,31 @@ BaseCache::getNextQueueEntry()
             return conflict_mshr;
 
             // @todo Note that we ignore the ready time of the conflict here
+        }
+
+        // Check if writeback should be throttled due to downstream L2 backpressure
+        bool is_dirty_writeback = wq_entry->getTarget() &&
+                                  wq_entry->getTarget()->pkt &&
+                                  wq_entry->getTarget()->pkt->isWriteback();
+        bool is_critical = writeBuffer.isFull() ||
+                           writeBuffer.getOccupancyRatio() > 0.80 ||
+                           conflict_mshr != nullptr;
+
+        if (l2Backpressure && is_dirty_writeback && !is_critical) {
+            Tick throttle_ticks = clockPeriod() * writebackThrottleInterval;
+            if (curTick() < lastWritebackTick + throttle_ticks) {
+                if (miss_mshr) {
+                    WriteQueueEntry *conflict_mshr_write = writeBuffer.findPending(miss_mshr);
+                    if (!conflict_mshr_write) {
+                        return miss_mshr;
+                    }
+                }
+                return nullptr;
+            }
+        }
+
+        if (is_dirty_writeback) {
+            lastWritebackTick = curTick();
         }
 
         // No conflicts; issue write
