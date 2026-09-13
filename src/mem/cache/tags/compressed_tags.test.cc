@@ -28,8 +28,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -285,6 +287,7 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
     }
 }
 
+<<<<<<< HEAD
 TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
 {
     // Co-allocate two 64-bit sub-blocks (CF=8)
@@ -558,4 +561,136 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, DensityAwareCandidateFiltering)
+{
+    // Setup a set of 4 candidate superblocks
+    constexpr unsigned NumCandidates = 4;
+    SuperBlk candidates[NumCandidates];
+    std::unique_ptr<CompressionBlk[]> candidate_subblks[NumCandidates];
+
+    for (unsigned i = 0; i < NumCandidates; ++i) {
+        candidates[i].setBlkSize(BlkSize);
+        candidate_subblks[i].reset(new CompressionBlk[NumSubBlks]);
+        candidates[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            candidates[i].blks[k] = &candidate_subblks[i][k];
+            candidate_subblks[i][k].setSectorBlock(&candidates[i]);
+            candidate_subblks[i][k].setSectorOffset(k);
+            candidate_subblks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr; });
+        }
+        candidates[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // candidate 0: 4 valid sub-blocks
+    for (unsigned k = 0; k < 4; ++k) {
+        candidate_subblks[0][k].insert({0x1000, false});
+        candidate_subblks[0][k].setSizeBits(128);
+    }
+    ASSERT_EQ(candidates[0].getNumValid(), 4);
+
+    // candidate 1: 3 valid sub-blocks
+    for (unsigned k = 0; k < 3; ++k) {
+        candidate_subblks[1][k].insert({0x2000, false});
+        candidate_subblks[1][k].setSizeBits(128);
+    }
+    ASSERT_EQ(candidates[1].getNumValid(), 3);
+
+    // candidate 2: 1 valid sub-block (lowest valid sub-block count / density)
+    candidate_subblks[2][0].insert({0x3000, false});
+    candidate_subblks[2][0].setSizeBits(128);
+    ASSERT_EQ(candidates[2].getNumValid(), 1);
+
+    // candidate 3: 4 valid sub-blocks
+    for (unsigned k = 0; k < 4; ++k) {
+        candidate_subblks[3][k].insert({0x4000, false});
+        candidate_subblks[3][k].setSizeBits(128);
+    }
+    ASSERT_EQ(candidates[3].getNumValid(), 4);
+
+    // Construct superblock_entries vector
+    std::vector<ReplaceableEntry *> superblock_entries;
+    for (unsigned i = 0; i < NumCandidates; ++i) {
+        superblock_entries.push_back(&candidates[i]);
+    }
+
+    // Perform density-aware candidate filtering
+    uint8_t min_valid = std::numeric_limits<uint8_t>::max();
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        min_valid = std::min(min_valid, superblock->getNumValid());
+    }
+    ASSERT_EQ(min_valid, 1);
+
+    std::vector<ReplaceableEntry *> filtered_entries;
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        if (superblock->getNumValid() == min_valid) {
+            filtered_entries.push_back(entry);
+        }
+    }
+
+    // Superblock with 1 valid sub-block (candidate 2) must be preferred for
+    // eviction
+    ASSERT_EQ(filtered_entries.size(), 1);
+    ASSERT_EQ(filtered_entries[0], &candidates[2]);
+}
+
+TEST_F(SuperBlkTestFixture, DensityAwareCandidateFilteringEqualDensity)
+{
+    constexpr unsigned NumCandidates = 4;
+    SuperBlk candidates[NumCandidates];
+    std::unique_ptr<CompressionBlk[]> candidate_subblks[NumCandidates];
+
+    for (unsigned i = 0; i < NumCandidates; ++i) {
+        candidates[i].setBlkSize(BlkSize);
+        candidate_subblks[i].reset(new CompressionBlk[NumSubBlks]);
+        candidates[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            candidates[i].blks[k] = &candidate_subblks[i][k];
+            candidate_subblks[i][k].setSectorBlock(&candidates[i]);
+            candidate_subblks[i][k].setSectorOffset(k);
+            candidate_subblks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr; });
+        }
+        candidates[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // All candidate superblocks have identical valid sub-block counts (2)
+    for (unsigned i = 0; i < NumCandidates; ++i) {
+        for (unsigned k = 0; k < 2; ++k) {
+            candidate_subblks[i][k].insert({0x1000 * (i + 1), false});
+            candidate_subblks[i][k].setSizeBits(128);
+        }
+        ASSERT_EQ(candidates[i].getNumValid(), 2);
+    }
+
+    std::vector<ReplaceableEntry *> superblock_entries;
+    for (unsigned i = 0; i < NumCandidates; ++i) {
+        superblock_entries.push_back(&candidates[i]);
+    }
+
+    uint8_t min_valid = std::numeric_limits<uint8_t>::max();
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        min_valid = std::min(min_valid, superblock->getNumValid());
+    }
+    ASSERT_EQ(min_valid, 2);
+
+    std::vector<ReplaceableEntry *> filtered_entries;
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        if (superblock->getNumValid() == min_valid) {
+            filtered_entries.push_back(entry);
+        }
+    }
+
+    // When all candidate superblocks have equal valid sub-block count, all
+    // must be retained
+    ASSERT_EQ(filtered_entries.size(), NumCandidates);
+    for (unsigned i = 0; i < NumCandidates; ++i) {
+        ASSERT_EQ(filtered_entries[i], &candidates[i]);
+    }
 }
