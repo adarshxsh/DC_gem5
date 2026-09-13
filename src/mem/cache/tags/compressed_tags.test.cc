@@ -109,10 +109,92 @@ TEST_F(SuperBlkTestFixture, CalculateCompressionFactor)
     // 64 bytes = 512 bits
     ASSERT_EQ(superBlk.calculateCompressionFactor(0), 8);
     ASSERT_EQ(superBlk.calculateCompressionFactor(64), 8);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(73), 7);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(85), 6);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(102), 5);
     ASSERT_EQ(superBlk.calculateCompressionFactor(128), 4);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(170), 3);
     ASSERT_EQ(superBlk.calculateCompressionFactor(256), 2);
     ASSERT_EQ(superBlk.calculateCompressionFactor(512), 1);
     ASSERT_EQ(superBlk.calculateCompressionFactor(1024), 1);
+}
+
+TEST_F(SuperBlkTestFixture, IntermediateIntegerFactorsCoAllocation)
+{
+    // Test 3x compression factor (170 bits for 512-bit block)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(170);
+
+    ASSERT_TRUE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Can co-allocate second sub-block (170 bits)
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(170);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Can co-allocate third sub-block (170 bits)
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(170);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Cannot co-allocate fourth sub-block (capacity limit reached for factor 3)
+    ASSERT_FALSE(superBlk.canCoAllocate(170));
+
+    // Test capacity recovery: invalidate one sub-block
+    subBlks[2].invalidate();
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Now fourth sub-block (or new third sub-block) can co-allocate again
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+
+    // Clean up
+    subBlks[0].invalidate();
+    subBlks[1].invalidate();
+    ASSERT_EQ(superBlk.getCompressionFactor(), 1);
+
+    // Test 6x compression factor (85 bits)
+    for (unsigned k = 0; k < 6; ++k) {
+        ASSERT_TRUE(superBlk.canCoAllocate(85));
+        subBlks[k].insert({0x2000, false});
+        subBlks[k].setSizeBits(85);
+        ASSERT_EQ(superBlk.getCompressionFactor(), 6);
+        verifyInvariants(superBlk);
+    }
+    ASSERT_EQ(superBlk.getNumValid(), 6);
+    ASSERT_FALSE(superBlk.canCoAllocate(85));
+
+    // Clean up
+    for (unsigned k = 0; k < 6; ++k) {
+        subBlks[k].invalidate();
+    }
+
+    // Test 5x (102 bits) and 7x (73 bits) factors for invariant checks
+    subBlks[0].insert({0x3000, false});
+    subBlks[0].setSizeBits(102); // factor 5
+    ASSERT_EQ(superBlk.getCompressionFactor(), 5);
+    verifyInvariants(superBlk);
+
+    subBlks[1].insert({0x3000, false});
+    subBlks[1].setSizeBits(73); // factor 7, min factor becomes 5
+    ASSERT_EQ(superBlk.getCompressionFactor(), 5);
+    verifyInvariants(superBlk);
+
+    subBlks[0].invalidate();
+    ASSERT_EQ(superBlk.getCompressionFactor(), 7);
+    verifyInvariants(superBlk);
 }
 
 TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
@@ -243,13 +325,13 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         sblks[i].registerTagExtractor([](Addr addr) { return addr; });
     }
 
-    const std::size_t sizes[] = {32, 64, 128, 256};
+    const std::size_t sizes[] = {32, 64, 73, 85, 102, 128, 170, 256};
     uint64_t tag_base = 0x10000;
 
     for (int iter = 0; iter < 500; ++iter) {
         int sb_idx = iter % NumSuperBlks;
         int sub_idx = (iter * 3) % NumSubBlks;
-        std::size_t sz = sizes[(iter * 7) % 4];
+        std::size_t sz = sizes[(iter * 7) % 8];
 
         if (!cblks[sb_idx][sub_idx].isValid()) {
             Addr tag = tag_base + (sb_idx * 0x1000);

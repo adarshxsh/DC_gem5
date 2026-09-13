@@ -242,8 +242,7 @@ SuperBlk::calculateCompressionFactor(const std::size_t size) const
     // the size is the uncompressed size, and thus the compression factor is 1
     const std::size_t blk_size_bits = CHAR_BIT * blkSize;
     const std::size_t compression_factor = (size > blk_size_bits) ? 1 :
-        ((size == 0) ? blk_size_bits :
-        alignToPowerOfTwo(std::floor(double(blk_size_bits) / size)));
+        ((size == 0) ? blk_size_bits : (blk_size_bits / size));
     return std::min<std::size_t>(compression_factor, blks.size());
 }
 
