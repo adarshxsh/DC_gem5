@@ -60,7 +60,11 @@ class WeightedLRU : public LRU
          * Default constructor. Invalidate data.
          */
         WeightedLRUReplData()
-            : LRUReplData(), last_occ_ptr(0), validSubBlocks(0), compressionFactor(1) {}
+            : LRUReplData(),
+              last_occ_ptr(0),
+              validSubBlocks(0),
+              compressionFactor(1)
+        {}
     };
   public:
     typedef WeightedLRURPParams Params;
