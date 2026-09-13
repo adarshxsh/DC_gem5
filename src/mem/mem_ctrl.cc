@@ -70,6 +70,8 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeBufferSize(dram->writeBufferSize),
     writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+    readQueueHighThreshold(readBufferSize * p.read_queue_high_thresh_perc / 100.0),
+    writeQueueHighThreshold(writeBufferSize * p.write_queue_high_thresh_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),
@@ -183,6 +185,18 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 
     auto wrsize_new = (totalWriteQueueSize + neededEntries);
     return  wrsize_new > writeBufferSize;
+}
+
+bool
+MemCtrl::isReadQueueHigh() const
+{
+    return (totalReadQueueSize + respQueue.size()) >= readQueueHighThreshold;
+}
+
+bool
+MemCtrl::isWriteQueueHigh() const
+{
+    return totalWriteQueueSize >= writeQueueHighThreshold;
 }
 
 bool

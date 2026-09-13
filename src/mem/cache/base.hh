@@ -359,6 +359,13 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+  public:
+    /** Get current maximum queue pressure percentage across write and MSHR queues. */
+    double getQueuePressure() const
+    {
+        return std::max(writeBuffer.occupancyPercentage(), mshrQueue.occupancyPercentage());
+    }
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 

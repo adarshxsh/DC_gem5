@@ -134,6 +134,15 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
+    /** Whether memory queue pressure throttling is enabled. */
+    const bool enableQueuePressureThrottling;
+
+    /** Memory queue pressure percentage threshold above which compression is throttled. */
+    const double queuePressureThreshold;
+
+    /** Compression throttling policy under high queue pressure. */
+    const std::string pressureThrottlingPolicy;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -145,6 +154,9 @@ class Base : public SimObject
 
     /** Pointer to the parent cache. */
     BaseCache* cache;
+
+    /** Get current memory queue pressure percentage. */
+    double getQueuePressure() const;
 
     struct BaseStats : public statistics::Group
     {
@@ -177,6 +189,12 @@ class Base : public SimObject
 
         /** Number of decompressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedDecompressions;
+
+        /** Number of compressions bypassed due to high queue pressure. */
+        statistics::Scalar queuePressureBypassedCompressions;
+
+        /** Number of decompressions bypassed due to high queue pressure. */
+        statistics::Scalar queuePressureBypassedDecompressions;
 
         /** Number of compression attempts sampled. */
         statistics::Scalar sampledCompressions;
