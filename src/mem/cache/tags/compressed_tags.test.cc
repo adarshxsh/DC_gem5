@@ -131,9 +131,9 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
 
     // Check co-allocation possibilities
     ASSERT_TRUE(superBlk.canCoAllocate(64));
-    ASSERT_TRUE(superBlk.canCoAllocate(
-        128)); // 64 + 128 = 192 <= 512 bits
-    ASSERT_FALSE(superBlk.canCoAllocate(512)); // new_blk_cf = 1 -> uncompressed
+    ASSERT_TRUE(superBlk.canCoAllocate(128)); // 64 + 128 = 192 <= 512 bits
+    ASSERT_FALSE(
+        superBlk.canCoAllocate(512)); // new_blk_cf = 1 -> uncompressed
 
     // Co-allocate block 1 at offset 1 (size 128 bits -> CF=4)
     subBlks[1].insert({0x1000, false});
@@ -184,8 +184,9 @@ TEST_F(SuperBlkTestFixture, MultiFactorCoAllocation)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 
-    // Legacy factor cap would reject a 3rd block (getNumValid() < min_cf was 2 < 2 -> false).
-    // Physical bit occupancy check allows candidate block of 50 bits (300 <= 512).
+    // Legacy factor cap would reject a 3rd block (getNumValid() < min_cf was 2
+    // < 2 -> false). Physical bit occupancy check allows candidate block of 50
+    // bits (300 <= 512).
     ASSERT_TRUE(superBlk.canCoAllocate(50));
 
     // Insert Block 2: 50 bits
@@ -196,13 +197,16 @@ TEST_F(SuperBlkTestFixture, MultiFactorCoAllocation)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 
-    // Candidate 250 bits would exceed line capacity (300 + 250 = 550 > 512) -> false.
+    // Candidate 250 bits would exceed line capacity (300 + 250 = 550 > 512) ->
+    // false.
     ASSERT_FALSE(superBlk.canCoAllocate(250));
 
-    // Candidate 212 bits exactly fills remaining line capacity (300 + 212 = 512 <= 512) -> true.
+    // Candidate 212 bits exactly fills remaining line capacity (300 + 212 =
+    // 512 <= 512) -> true.
     ASSERT_TRUE(superBlk.canCoAllocate(212));
 
-    // Test sub-block slot limit: fill remaining sub-blocks up to NumSubBlks (8 sub-blocks total)
+    // Test sub-block slot limit: fill remaining sub-blocks up to NumSubBlks (8
+    // sub-blocks total)
     for (unsigned k = 3; k < NumSubBlks; ++k) {
         ASSERT_TRUE(superBlk.canCoAllocate(10));
         subBlks[k].insert({0x5000, false});
@@ -212,7 +216,8 @@ TEST_F(SuperBlkTestFixture, MultiFactorCoAllocation)
     ASSERT_EQ(superBlk.getNumValid(), NumSubBlks);
     verifyInvariants(superBlk);
 
-    // Tag slots full: getNumValid() == NumSubBlks, should reject co-allocation even if bit capacity remains
+    // Tag slots full: getNumValid() == NumSubBlks, should reject co-allocation
+    // even if bit capacity remains
     ASSERT_FALSE(superBlk.canCoAllocate(10));
 }
 
