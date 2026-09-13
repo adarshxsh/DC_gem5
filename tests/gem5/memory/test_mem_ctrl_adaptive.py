@@ -25,7 +25,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from m5.objects import MemCtrl, DDR3_1600_8x8
+
+from m5.objects import (
+    DDR3_1600_8x8,
+    MemCtrl,
+)
+
 
 class MemCtrlAdaptiveParamTest(unittest.TestCase):
     def test_default_parameters(self):
@@ -37,10 +42,11 @@ class MemCtrlAdaptiveParamTest(unittest.TestCase):
         ctrl = MemCtrl(
             adaptive_queue_pressure=True,
             pressure_sensitivity=60,
-            dram=DDR3_1600_8x8()
+            dram=DDR3_1600_8x8(),
         )
         self.assertTrue(ctrl.adaptive_queue_pressure)
         self.assertEqual(int(ctrl.pressure_sensitivity), 60)
+
 
 if __name__ == "__main__":
     unittest.main()
