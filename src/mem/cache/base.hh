@@ -1174,9 +1174,9 @@ class BaseCache : public ClockedObject
 
     MSHR *allocateMissBuffer(PacketPtr pkt, Tick time, bool sched_send = true)
     {
-        MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
-                                        pkt, time, order++,
-                                        allocOnFill(pkt->cmd), tags);
+        MSHR *mshr =
+            mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize, pkt, time,
+                               order++, allocOnFill(pkt->cmd), tags);
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);

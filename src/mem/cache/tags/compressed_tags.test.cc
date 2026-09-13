@@ -300,4 +300,3 @@ TEST_F(SuperBlkTestFixture, SubBlockCoalescingGuard)
     // Expansion to uncompressed size (512 bits) breaches co-allocation bounds
     EXPECT_FALSE(superBlk.canCoAllocate(512));
 }
-
