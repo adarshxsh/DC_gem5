@@ -282,3 +282,93 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, SelectiveLRUEvictionOnExpansion)
+{
+    // Populate superblock with 4 sub-blocks of size 64 bits (CF=8).
+    // Sub-blocks inserted at ticks 100, 200, 300, 400.
+    for (int k = 0; k < 4; ++k) {
+        subBlks[k].insert({0x4000, false});
+        subBlks[k].setWhenReady(100 * (k + 1));
+        subBlks[k].setSizeBits(64);
+    }
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+
+    // Expand subBlks[3] (ready at tick 400) to 256 bits (new target CF = 2).
+    // num_valid = 4, new_target_cf = 2 -> num_to_evict = 2.
+    // Candidates are subBlks[0] (ready=100), subBlks[1] (ready=200), subBlks[2] (ready=300).
+    // LRU order among candidates: subBlks[0] (100), subBlks[1] (200), subBlks[2] (300).
+    // The 2 LRU candidates to evict are subBlks[0] and subBlks[1].
+
+    std::vector<CacheBlk*> candidate_blks;
+    for (auto& sub_blk : superBlk.blks) {
+        if (sub_blk->isValid() && (&subBlks[3] != sub_blk)) {
+            candidate_blks.push_back(sub_blk);
+        }
+    }
+
+    std::sort(candidate_blks.begin(), candidate_blks.end(),
+        [](const CacheBlk* a, const CacheBlk* b) {
+            if (a->getWhenReady() != b->getWhenReady()) {
+                return a->getWhenReady() < b->getWhenReady();
+            }
+            if (a->getAge() != b->getAge()) {
+                return a->getAge() > b->getAge();
+            }
+            return a->getRefCount() < b->getRefCount();
+        });
+
+    uint8_t new_target_cf = superBlk.calculateCompressionFactor(256);
+    int num_to_evict = superBlk.getNumValid() - new_target_cf;
+    ASSERT_EQ(new_target_cf, 2);
+    ASSERT_EQ(num_to_evict, 2);
+
+    for (int i = 0; i < num_to_evict; ++i) {
+        candidate_blks[i]->invalidate();
+    }
+
+    subBlks[3].setSizeBits(256);
+
+    // Verify subBlks[0] and subBlks[1] were evicted
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_FALSE(subBlks[1].isValid());
+
+    // Verify subBlks[2] and subBlks[3] remain valid
+    ASSERT_TRUE(subBlks[2].isValid());
+    ASSERT_TRUE(subBlks[3].isValid());
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, SelectiveEvictionNoOpWhenFitting)
+{
+    // Populate superblock with 2 sub-blocks of size 64 bits (CF=8).
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[1].insert({0x5000, false});
+    subBlks[1].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+
+    // Expand subBlks[0] to 256 bits (new target CF = 2).
+    // num_valid = 2, new_target_cf = 2 -> num_to_evict = 0.
+    uint8_t new_target_cf = superBlk.calculateCompressionFactor(256);
+    int num_to_evict = (superBlk.getNumValid() > new_target_cf) ?
+        (superBlk.getNumValid() - new_target_cf) : 0;
+    ASSERT_EQ(num_to_evict, 0);
+
+    subBlks[0].setSizeBits(256);
+
+    // Both sub-blocks remain valid
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[1].isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+}
+

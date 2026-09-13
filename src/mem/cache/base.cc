@@ -45,6 +45,9 @@
 
 #include "mem/cache/base.hh"
 
+#include <algorithm>
+#include <vector>
+
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
@@ -1074,7 +1077,6 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // must be evicted to make room for the expanded/contracted block
     std::vector<CacheBlk*> evict_blks;
     if (is_data_expansion || is_data_contraction) {
-        std::vector<CacheBlk*> evict_blks;
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
@@ -1102,12 +1104,37 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                 op_name, victim->print());
         } else {
             // If we do not move the expanded block, we must make room for
-            // the expansion to happen, so evict every co-allocated block
+            // the expansion to happen by selectively evicting only the
+            // minimal number of LRU co-allocated sub-blocks required to
+            // satisfy the updated compression factor invariant.
             const SuperBlk* superblock = static_cast<const SuperBlk*>(
                 compression_blk->getSectorBlock());
-            for (auto& sub_blk : superblock->blks) {
-                if (sub_blk->isValid() && (blk != sub_blk)) {
-                    evict_blks.push_back(sub_blk);
+            const uint8_t new_target_cf =
+                superblock->calculateCompressionFactor(compression_size);
+            const uint8_t num_valid = superblock->getNumValid();
+
+            if (num_valid > new_target_cf) {
+                const int num_to_evict = num_valid - new_target_cf;
+                std::vector<CacheBlk*> candidate_blks;
+                for (auto& sub_blk : superblock->blks) {
+                    if (sub_blk->isValid() && (blk != sub_blk)) {
+                        candidate_blks.push_back(sub_blk);
+                    }
+                }
+
+                std::sort(candidate_blks.begin(), candidate_blks.end(),
+                    [](const CacheBlk* a, const CacheBlk* b) {
+                        if (a->getWhenReady() != b->getWhenReady()) {
+                            return a->getWhenReady() < b->getWhenReady();
+                        }
+                        if (a->getAge() != b->getAge()) {
+                            return a->getAge() > b->getAge();
+                        }
+                        return a->getRefCount() < b->getRefCount();
+                    });
+
+                for (int i = 0; i < num_to_evict && i < candidate_blks.size(); ++i) {
+                    evict_blks.push_back(candidate_blks[i]);
                 }
             }
         }
