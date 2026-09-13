@@ -362,7 +362,8 @@ class BaseCache : public ClockedObject
     /** Downstream cross-level compression backpressure signal state */
     bool l2Backpressure;
 
-    /** Cycle interval between non-critical dirty writebacks under backpressure */
+    /** Cycle interval between non-critical dirty writebacks under backpressure
+     */
     const Cycles writebackThrottleInterval;
 
     /** Tick of last issued dirty writeback */
@@ -370,7 +371,8 @@ class BaseCache : public ClockedObject
 
   public:
     /** Check if this cache is generating compression backpressure */
-    bool hasCompressionBackpressure() const
+    bool
+    hasCompressionBackpressure() const
     {
         bool comp_bypass = compressor && compressor->isBypassing();
         bool queue_press = writeBuffer.getOccupancyRatio() > 0.70;
