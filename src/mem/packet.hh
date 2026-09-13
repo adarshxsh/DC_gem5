@@ -301,7 +301,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        /// Payload compression status flag
+        IS_COMPRESSED          = 0x00020000
     };
 
     Flags flags;
@@ -395,6 +398,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     /// The size of the request or transfer.
     unsigned size;
+
+    /// The compressed size of payload in bytes (if compressed).
+    unsigned _compressedSize;
 
     /**
      * Track the bytes found that satisfy a functional read.
@@ -758,6 +764,42 @@ class Packet : public Printable, public Extensible<Packet>
     bool suppressFuncError() const  { return flags.isSet(SUPPRESS_FUNC_ERROR); }
     void setBlockCached()          { flags.set(BLOCK_CACHED); }
     bool isBlockCached() const     { return flags.isSet(BLOCK_CACHED); }
+
+    /**
+     * Payload compression methods and attributes.
+     */
+    bool isCompressed() const
+    {
+        return flags.isSet(IS_COMPRESSED) || (req && req->extraDataValid());
+    }
+
+    void setCompressed(bool comp = true)
+    {
+        if (comp)
+            flags.set(IS_COMPRESSED);
+        else
+            flags.clear(IS_COMPRESSED);
+    }
+
+    void setCompressedSize(unsigned _size)
+    {
+        _compressedSize = _size;
+        setCompressed(true);
+        if (req && _size > 0) {
+            req->setExtraData(_size);
+        }
+    }
+
+    unsigned getCompressedSize() const
+    {
+        if (isCompressed()) {
+            if (_compressedSize > 0)
+                return _compressedSize;
+            if (req && req->extraDataValid())
+                return req->getExtraData();
+        }
+        return getSize();
+    }
     void clearBlockCached()        { flags.clear(BLOCK_CACHED); }
 
     /**
@@ -877,6 +919,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd)
         :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false), size(0),
+           _compressedSize(0),
            _qosValue(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
@@ -918,6 +961,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
         :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false),
+           _compressedSize(0),
            _qosValue(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
@@ -946,6 +990,7 @@ class Packet : public Printable, public Extensible<Packet>
            cmd(pkt->cmd), id(pkt->id), req(pkt->req),
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
+           _compressedSize(pkt->_compressedSize),
            bytesValid(pkt->bytesValid),
            _qosValue(pkt->qosValue()),
            htmReturnReason(HtmCacheFailure::NO_FAIL),

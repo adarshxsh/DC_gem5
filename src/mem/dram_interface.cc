@@ -405,6 +405,17 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     else
         cmd_at = ctrl->verifySingleCmd(cmd_at, maxCommandsPerWindow, false);
 
+    Tick effective_tBURST = tBURST;
+    if (enableCompressedTransport && mem_pkt->pkt && mem_pkt->pkt->isCompressed()) {
+        unsigned comp_bytes = mem_pkt->pkt->getCompressedSize();
+        unsigned uncomp_bytes = bytesPerBurst();
+        if (uncomp_bytes > 0) {
+            effective_tBURST = (tBURST * comp_bytes) / uncomp_bytes;
+        }
+        Tick min_burst = (tBURST_MIN < tBURST) ? tBURST_MIN : (tBURST / 2);
+        effective_tBURST = std::max(effective_tBURST, min_burst);
+    }
+
     // if we are interleaving bursts, ensure that
     // 1) we don't double interleave on next burst issue
     // 2) we are at an interleave boundary; if not, shift to next boundary
@@ -412,22 +423,24 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     if (burstInterleave) {
         if (cmd_at == (rank_ref.lastBurstTick + tBURST_MIN)) {
             // already interleaving, push next command to end of full burst
-            burst_gap = tBURST;
-        } else if (cmd_at < (rank_ref.lastBurstTick + tBURST)) {
+            burst_gap = effective_tBURST;
+        } else if (cmd_at < (rank_ref.lastBurstTick + effective_tBURST)) {
             // not at an interleave boundary after bandwidth check
-            // Shift command to tBURST boundary to avoid data contention
+            // Shift command to effective_tBURST boundary to avoid data contention
             // Command will remain in the same burst window given that
             // tBURST is less than tBURST_MAX
-            cmd_at = rank_ref.lastBurstTick + tBURST;
+            cmd_at = rank_ref.lastBurstTick + effective_tBURST;
         }
+    } else {
+        burst_gap = effective_tBURST;
     }
     DPRINTF(DRAM, "Schedule RD/WR burst at tick %d\n", cmd_at);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {
-        mem_pkt->readyTime = cmd_at + tRL + tBURST;
+        mem_pkt->readyTime = cmd_at + tRL + effective_tBURST;
     } else {
-        mem_pkt->readyTime = cmd_at + tWL + tBURST;
+        mem_pkt->readyTime = cmd_at + tWL + effective_tBURST;
     }
 
     rank_ref.lastBurstTick = cmd_at;
@@ -585,7 +598,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         // Update latency stats
         stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
         stats.totQLat += cmd_at - mem_pkt->entryTime;
-        stats.totBusLat += tBURST;
+        stats.totBusLat += effective_tBURST;
     } else {
         // Schedule write done event to decrement event count
         // after the readyTime has been reached
@@ -657,6 +670,7 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       maxAccessesPerRow(_p.max_accesses_per_row),
       timeStampOffset(0), activeRank(0),
       enableDRAMPowerdown(_p.enable_dram_powerdown),
+      enableCompressedTransport(_p.enable_compressed_transport),
       lastStatsResetTick(0),
       stats(*this)
 {
