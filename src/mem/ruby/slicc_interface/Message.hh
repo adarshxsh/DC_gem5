@@ -81,6 +81,13 @@ class Message
     virtual MessageSizeType& getMessageSize()
     { panic("MessageSizeType() called on wrong message!"); }
 
+    virtual int getPayloadSize() const { return m_payload_size; }
+    virtual void setPayloadSize(int size)
+    {
+        assert(size >= 0);
+        m_payload_size = size;
+    }
+
     /**
      * The two functions below are used for reading / writing the message
      * functionally. The methods return true if the address in the packet
@@ -124,6 +131,7 @@ class Message
 
   protected:
     int m_block_size = 0;
+    int m_payload_size = 0;
 
   private:
     Tick m_time;
