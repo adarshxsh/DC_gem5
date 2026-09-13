@@ -104,8 +104,18 @@ Queued::Queued(const QueuedPrefetcherParams &p)
       latency(p.latency), queueSquash(p.queue_squash),
       queueFilter(p.queue_filter), cacheSnoop(p.cache_snoop),
       tagPrefetch(p.tag_prefetch),
-      throttleControlPct(p.throttle_control_percentage), statsQueued(this)
+      throttleControlPct(p.throttle_control_percentage),
+      enableCompressionFilter(p.enable_compression_filter),
+      compressionConfidenceThreshold(p.compression_confidence_threshold),
+      compressionTableEntries(p.compression_table_entries),
+      compressionCounterBits(p.compression_counter_bits),
+      statsQueued(this)
 {
+    compressionConfidenceTable.init(
+        p.enable_compression_filter,
+        p.compression_confidence_threshold,
+        p.compression_table_entries,
+        p.compression_counter_bits);
 }
 
 Queued::~Queued()
@@ -279,8 +289,25 @@ Queued::QueuedStats::QueuedStats(statistics::Group *parent)
     ADD_STAT(pfSpanPage, statistics::units::Count::get(),
              "number of prefetches that crossed the page"),
     ADD_STAT(pfUsefulSpanPage, statistics::units::Count::get(),
-             "number of prefetches that is useful and crossed the page")
+             "number of prefetches that is useful and crossed the page"),
+    ADD_STAT(pfRemovedCompressionFilter, statistics::units::Count::get(),
+             "number of prefetches dropped due to low compression confidence")
 {
+}
+
+void
+Queued::notifyFill(const CacheAccessProbeArg &acc)
+{
+    Base::notifyFill(acc);
+    if (!compressionConfidenceTable.enabled || !acc.cache.isCompressionEnabled()) {
+        return;
+    }
+    const PacketPtr pkt = acc.pkt;
+    if (pkt && pkt->req && pkt->req->hasPC()) {
+        Addr pc = pkt->req->getPC();
+        bool is_compressed = acc.cache.isCompressed(pkt->getAddr(), pkt->isSecure());
+        updateCompressionConfidence(pc, is_compressed);
+    }
 }
 
 
@@ -388,6 +415,18 @@ void
 Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
                int32_t priority, const CacheAccessor &cache)
 {
+    if (enableCompressionFilter && cache.isCompressionEnabled()) {
+        Addr pc = new_pfi.hasPC() ? new_pfi.getPC() :
+            (pkt && pkt->req && pkt->req->hasPC() ? pkt->req->getPC() : 0);
+        if (pc != 0 && !checkCompressionConfidence(pc)) {
+            DPRINTF(HWPrefetch, "Dropping prefetch candidate for addr %#x (PC %#x) "
+                    "due to low compression confidence\n",
+                    new_pfi.getAddr(), pc);
+            statsQueued.pfRemovedCompressionFilter++;
+            return;
+        }
+    }
+
     if (queueFilter) {
         if (alreadyInQueue(pfq, new_pfi, priority)) {
             return;

@@ -62,6 +62,7 @@
 #include "mem/cache/cache_probe_arg.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/cache/tags/base.hh"
+#include "mem/cache/tags/super_blk.hh"
 #include "mem/cache/write_queue.hh"
 #include "mem/packet.hh"
 #include "mem/packet_queue.hh"
@@ -344,6 +345,37 @@ class BaseCache : public ClockedObject
 
         bool coalesce() const override
         { return cache.coalesce(); }
+
+        bool isCompressed(Addr addr, bool is_secure) const override
+        {
+            if (!cache.compressor || !cache.tags) return false;
+            CacheBlk *blk = cache.tags->findBlock({addr, is_secure});
+            if (blk) {
+                CompressionBlk *cblk = dynamic_cast<CompressionBlk*>(blk);
+                if (cblk) {
+                    return cblk->isCompressed();
+                }
+            }
+            return false;
+        }
+
+        std::size_t getCompressedSizeBits(Addr addr, bool is_secure) const override
+        {
+            if (!cache.compressor || !cache.tags) return cache.getBlockSize() * 8;
+            CacheBlk *blk = cache.tags->findBlock({addr, is_secure});
+            if (blk) {
+                CompressionBlk *cblk = dynamic_cast<CompressionBlk*>(blk);
+                if (cblk) {
+                    return cblk->getSizeBits();
+                }
+            }
+            return cache.getBlockSize() * 8;
+        }
+
+        bool isCompressionEnabled() const override
+        {
+            return cache.compressor != nullptr;
+        }
 
     } accessor;
 
