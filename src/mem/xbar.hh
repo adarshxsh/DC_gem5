@@ -116,18 +116,18 @@ class BaseXBar : public ClockedObject
 
         const std::string name() const { return _name; }
 
-
         /**
          * Determine if the layer accepts a packet from a specific
          * port. If not, the port in question is also added to the
          * retry list. In either case the state of the layer is
          * updated accordingly.
          *
-         * @param port Source port presenting the packet
+         * @param src_port Source port presenting the packet
+         * @param pkt Packet presented by the source port
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port);
+        bool tryTiming(SrcType *src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -163,6 +163,13 @@ class BaseXBar : public ClockedObject
          * before calling retryWaiting.
          */
         void recvRetry();
+
+        /**
+         * Release the layer after being occupied and return to an
+         * idle state where we proceed to send a retry to any
+         * potential waiting port, or drain if asked to do so.
+         */
+        void releaseLayer();
 
       protected:
 
@@ -205,10 +212,52 @@ class BaseXBar : public ClockedObject
         State state;
 
         /**
-         * A deque of ports that retry should be called on because
-         * the original send was delayed due to a busy layer.
+         * Data structure representing a port waiting for the layer retry.
+         * Captures packet attributes including QoS priority, request type,
+         * endpoint decompression latency, and arrival tick.
          */
-        std::deque<SrcType*> waitingForLayer;
+        struct WaitingPort
+        {
+            SrcType *srcPort;
+            uint8_t qos;
+            bool isRead;
+            bool isWriteback;
+            Tick decompDelay;
+            Tick arrivalTick;
+
+            WaitingPort(SrcType *port = nullptr, uint8_t q = 0,
+                        bool rd = false, bool wb = false, Tick delay = 0,
+                        Tick arrival = 0)
+                : srcPort(port),
+                  qos(q),
+                  isRead(rd),
+                  isWriteback(wb),
+                  decompDelay(delay),
+                  arrivalTick(arrival)
+            {}
+        };
+
+        /**
+         * Priority queue of ports waiting for the layer to be freed up,
+         * sorted according to QoS priority, packet command type (demand read
+         * vs writeback), and endpoint decompression payload delay.
+         */
+        std::deque<WaitingPort> waitingForLayer;
+
+        /** Current transaction packet metadata */
+        bool currentIsWriteback;
+        Tick currentDecompLat;
+        uint8_t currentQoS;
+        bool currentIsRead;
+
+        /** Waiting peer metadata for retries from peer */
+        WaitingPort waitingForPeerEntry;
+
+        /** Pipeline completion tick for active endpoint decompression */
+        Tick decompBusyUntil;
+
+        /** Counter for lower-priority writeback starvation prevention */
+        unsigned int starvationCounter;
 
         /**
          * Track who is waiting for the retry when receiving it from a
@@ -216,13 +265,12 @@ class BaseXBar : public ClockedObject
          */
         SrcType* waitingForPeer;
 
-        /**
-         * Release the layer after being occupied and return to an
-         * idle state where we proceed to send a retry to any
-         * potential waiting port, or drain if asked to do so.
-         */
-        void releaseLayer();
         EventFunctionWrapper releaseEvent;
+
+        /** Event and handler to trigger retry when endpoint decompression unit
+         * frees up */
+        EventFunctionWrapper decompFreeEvent;
+        void processDecompFree();
 
         /**
          * Stats for occupancy and utilization. These stats capture
@@ -315,6 +363,9 @@ class BaseXBar : public ClockedObject
     const Cycles headerLatency;
     /** the width of the xbar in bytes */
     const uint32_t width;
+
+    /** Maximum consecutive demand retries before servicing writebacks */
+    const unsigned int starvationThreshold;
 
     AddrRangeMap<PortID, 3> portMap;
 
