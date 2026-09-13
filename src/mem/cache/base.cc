@@ -1102,14 +1102,13 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                 op_name, victim->print());
         } else {
             // If we do not move the expanded block, we must make room for
-            // the expansion to happen, so evict every co-allocated block
+            // the expansion to happen, so evict only the minimum necessary
+            // least-recently-used co-allocated sub-blocks.
             const SuperBlk* superblock = static_cast<const SuperBlk*>(
                 compression_blk->getSectorBlock());
-            for (auto& sub_blk : superblock->blks) {
-                if (sub_blk->isValid() && (blk != sub_blk)) {
-                    evict_blks.push_back(sub_blk);
-                }
-            }
+            const uint8_t target_cf =
+                superblock->calculateCompressionFactor(compression_size);
+            superblock->getVictimsOnExpansion(blk, target_cf, evict_blks);
         }
 
         // Try to evict blocks; if it fails, give up on update

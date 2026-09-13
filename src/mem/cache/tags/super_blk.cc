@@ -34,6 +34,7 @@
 
 #include "mem/cache/tags/super_blk.hh"
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 
@@ -275,6 +276,34 @@ SuperBlk::updateCompressionFactor()
         }
     }
     setCompressionFactor(has_valid ? min_cf : 1);
+}
+
+void
+SuperBlk::getVictimsOnExpansion(const CacheBlk* expanding_blk,
+                                uint8_t target_cf,
+                                std::vector<CacheBlk*>& evict_blks) const
+{
+    const uint8_t num_valid = getNumValid();
+    if (num_valid <= target_cf) {
+        return;
+    }
+
+    const std::size_t num_to_evict = num_valid - target_cf;
+    std::vector<CacheBlk*> candidates;
+    for (auto& sub_blk : blks) {
+        if (sub_blk->isValid() && (expanding_blk != sub_blk)) {
+            candidates.push_back(sub_blk);
+        }
+    }
+
+    std::stable_sort(candidates.begin(), candidates.end(),
+        [](const CacheBlk* a, const CacheBlk* b) {
+            return a->getAge() > b->getAge();
+        });
+
+    for (std::size_t i = 0; i < num_to_evict && i < candidates.size(); ++i) {
+        evict_blks.push_back(candidates[i]);
+    }
 }
 
 std::string
