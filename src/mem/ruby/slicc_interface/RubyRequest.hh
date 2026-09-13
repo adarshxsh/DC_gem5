@@ -113,6 +113,9 @@ class RubyRequest : public Message
         if (_pkt) {
             m_isGLCSet = m_pkt->req->isGLCSet();
             m_isSLCSet = m_pkt->req->isSLCSet();
+            if (_pkt->getCompressedSize() > 0) {
+                setCompressedSize(_pkt->getCompressedSize());
+            }
         } else {
             m_isGLCSet = 0;
             m_isSLCSet = 0;

@@ -1885,7 +1885,11 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->headerDelay += compressor->getDecompressionLatency(blk);
+        const CompressionBlk *comp_blk = static_cast<const CompressionBlk *>(blk);
+        if (comp_blk && comp_blk->isCompressed()) {
+            pkt->setCompressedSize((comp_blk->getSizeBits() + 7) / 8);
+        }
     }
 
     return pkt;
@@ -1930,7 +1934,11 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->headerDelay += compressor->getDecompressionLatency(blk);
+        const CompressionBlk *comp_blk = static_cast<const CompressionBlk *>(blk);
+        if (comp_blk && comp_blk->isCompressed()) {
+            pkt->setCompressedSize((comp_blk->getSizeBits() + 7) / 8);
+        }
     }
 
     return pkt;
