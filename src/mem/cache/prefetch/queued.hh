@@ -176,6 +176,126 @@ class Queued : public Base
     /** Percentage of requests that can be throttled */
     const unsigned int throttleControlPct;
 
+    /** Enable PC-indexed compression filtering */
+    const bool enableCompressionFilter;
+
+    /** Threshold for compression confidence score */
+    const unsigned compressionConfidenceThreshold;
+
+    /** Number of entries in PC compression confidence table */
+    const unsigned compressionTableEntries;
+
+    /** Bits for saturating confidence counter */
+    const unsigned compressionCounterBits;
+
+  public:
+    struct CompressionConfidenceEntry
+    {
+        Addr pc = 0;
+        bool valid = false;
+        uint8_t confidence = 4;
+        Tick lastAccessTick = 0;
+    };
+
+    struct CompressionConfidenceTable
+    {
+        bool enabled = false;
+        unsigned threshold = 4;
+        unsigned tableEntries = 256;
+        unsigned counterBits = 3;
+        std::vector<CompressionConfidenceEntry> entries;
+
+        void
+        init(bool _enabled, unsigned _threshold, unsigned _tableEntries,
+             unsigned _counterBits)
+        {
+            enabled = _enabled;
+            threshold = _threshold;
+            tableEntries = _tableEntries;
+            counterBits = _counterBits;
+            entries.resize(tableEntries);
+        }
+
+        void
+        update(Addr pc, bool is_compressed)
+        {
+            if (tableEntries == 0 || pc == 0) {
+                return;
+            }
+
+            uint8_t max_counter = (1 << counterBits) - 1;
+            uint8_t init_counter = (max_counter + 1) / 2;
+
+            for (auto &entry : entries) {
+                if (entry.valid && entry.pc == pc) {
+                    if (is_compressed) {
+                        if (entry.confidence < max_counter) {
+                            entry.confidence++;
+                        }
+                    } else {
+                        if (entry.confidence > 0) {
+                            entry.confidence--;
+                        }
+                    }
+                    entry.lastAccessTick = curTick();
+                    return;
+                }
+            }
+
+            CompressionConfidenceEntry *victim = nullptr;
+            Tick min_tick = MaxTick;
+            for (auto &entry : entries) {
+                if (!entry.valid) {
+                    victim = &entry;
+                    break;
+                }
+                if (entry.lastAccessTick < min_tick) {
+                    min_tick = entry.lastAccessTick;
+                    victim = &entry;
+                }
+            }
+
+            if (victim) {
+                victim->pc = pc;
+                victim->valid = true;
+                if (is_compressed) {
+                    victim->confidence = std::min((unsigned)max_counter,
+                                                  (unsigned)init_counter + 1);
+                } else {
+                    victim->confidence =
+                        (init_counter > 0) ? init_counter - 1 : 0;
+                }
+                victim->lastAccessTick = curTick();
+            }
+        }
+
+        bool
+        check(Addr pc) const
+        {
+            if (!enabled || pc == 0 || tableEntries == 0) {
+                return true;
+            }
+            for (const auto &entry : entries) {
+                if (entry.valid && entry.pc == pc) {
+                    return entry.confidence >= threshold;
+                }
+            }
+            return true;
+        }
+    } compressionConfidenceTable;
+
+    void
+    updateCompressionConfidence(Addr pc, bool is_compressed)
+    {
+        compressionConfidenceTable.update(pc, is_compressed);
+    }
+
+    bool
+    checkCompressionConfidence(Addr pc) const
+    {
+        return compressionConfidenceTable.check(pc);
+    }
+
     struct QueuedStats : public statistics::Group
     {
         QueuedStats(statistics::Group *parent);
@@ -187,6 +307,7 @@ class Queued : public Base
         statistics::Scalar pfRemovedFull;
         statistics::Scalar pfSpanPage;
         statistics::Scalar pfUsefulSpanPage;
+        statistics::Scalar pfRemovedCompressionFilter;
     } statsQueued;
   public:
     using AddrPriority = std::pair<Addr, int32_t>;
@@ -196,6 +317,8 @@ class Queued : public Base
 
     void
     notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi) override;
+
+    void notifyFill(const CacheAccessProbeArg &acc) override;
 
     void insert(const PacketPtr &pkt, PrefetchInfo &new_pfi, int32_t priority,
                 const CacheAccessor &cache);
