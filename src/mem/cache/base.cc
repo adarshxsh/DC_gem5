@@ -46,6 +46,9 @@
 #include "mem/cache/base.hh"
 #include <algorithm>
 
+#include <algorithm>
+#include <vector>
+
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
@@ -1134,47 +1137,39 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             DPRINTF(CacheRepl, "Data %s replacement victim: %s\n",
                 op_name, victim->print());
         } else {
-            // Evaluate post-expansion superblock capacity before evicting
-            // co-allocated sub-blocks. Evict only as many sub-blocks as
-            // necessary to fit the expanded block within capacity limits.
+            // If we do not move the expanded block, we must make room for
+            // the expansion to happen by selectively evicting only the
+            // minimal number of LRU co-allocated sub-blocks required to
+            // satisfy the updated compression factor invariant.
             const SuperBlk* superblock = static_cast<const SuperBlk*>(
                 compression_blk->getSectorBlock());
-
-            std::vector<CompressionBlk *> co_blks;
-            for (auto& sub_blk : superblock->blks) {
-                if (sub_blk->isValid() && (blk != sub_blk)) {
-                    co_blks.push_back(static_cast<CompressionBlk *>(sub_blk));
-                }
-            }
-
-            // Order candidate sub-blocks by age (oldest/LRU first)
-            std::sort(co_blks.begin(), co_blks.end(),
-                      [](const CompressionBlk *a, const CompressionBlk *b) {
-                          return a->getAge() > b->getAge();
-                      });
-
-            const uint8_t new_blk_cf =
+            const uint8_t new_target_cf =
                 superblock->calculateCompressionFactor(compression_size);
-            const std::size_t max_bits = blkSize * CHAR_BIT;
+            const uint8_t num_valid = superblock->getNumValid();
 
-            auto fits_capacity =
-                [&](const std::vector<CompressionBlk *> &sub_list) {
-                    uint8_t target_cf = new_blk_cf;
-                    std::size_t total_bits = compression_size;
-                    for (const auto *sblk : sub_list) {
-                        uint8_t scf = superblock->calculateCompressionFactor(
-                            sblk->getSizeBits());
-                        target_cf = std::min(target_cf, scf);
-                        total_bits += sblk->getSizeBits();
+            if (num_valid > new_target_cf) {
+                const int num_to_evict = num_valid - new_target_cf;
+                std::vector<CacheBlk*> candidate_blks;
+                for (auto& sub_blk : superblock->blks) {
+                    if (sub_blk->isValid() && (blk != sub_blk)) {
+                        candidate_blks.push_back(sub_blk);
                     }
-                    std::size_t total_count = 1 + sub_list.size();
-                    return (target_cf > 1) && (total_count <= target_cf) &&
-                           (total_bits <= max_bits);
-                };
+                }
 
-            while (!co_blks.empty() && !fits_capacity(co_blks)) {
-                evict_blks.push_back(co_blks.front());
-                co_blks.erase(co_blks.begin());
+                std::sort(candidate_blks.begin(), candidate_blks.end(),
+                    [](const CacheBlk* a, const CacheBlk* b) {
+                        if (a->getWhenReady() != b->getWhenReady()) {
+                            return a->getWhenReady() < b->getWhenReady();
+                        }
+                        if (a->getAge() != b->getAge()) {
+                            return a->getAge() > b->getAge();
+                        }
+                        return a->getRefCount() < b->getRefCount();
+                    });
+
+                for (int i = 0; i < num_to_evict && i < candidate_blks.size(); ++i) {
+                    evict_blks.push_back(candidate_blks[i]);
+                }
             }
         }
 
