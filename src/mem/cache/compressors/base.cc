@@ -93,6 +93,9 @@ Base::Base(const Params &p)
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
+      enableMemoryPressureThrottling(p.enable_memory_pressure_throttling),
+      isMemoryCongested(false),
+      congestedMemCtrlCount(0),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -117,6 +120,47 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+void
+Base::handleMemoryCongestion(bool congested)
+{
+    if (congested) {
+        congestedMemCtrlCount++;
+    } else if (congestedMemCtrlCount > 0) {
+        congestedMemCtrlCount--;
+    }
+    isMemoryCongested = (congestedMemCtrlCount > 0);
+    DPRINTF(CacheComp,
+            "Memory congestion state updated: congested=%d (count=%u)\n",
+            isMemoryCongested, congestedMemCtrlCount);
+}
+
+void
+Base::regProbeListeners()
+{
+    SimObject::regProbeListeners();
+
+    if (!enableMemoryPressureThrottling) {
+        return;
+    }
+
+    const Params &p = dynamic_cast<const Params &>(params());
+
+    if (p.memory_congestion_manager) {
+        ProbeManager *pm = p.memory_congestion_manager->getProbeManager();
+        congestionListeners.push_back(
+            pm->connect<MemoryCongestionListener>(*this, "MemoryCongestion"));
+    }
+
+    for (auto *mgr_obj : p.memory_congestion_managers) {
+        if (mgr_obj) {
+            ProbeManager *pm = mgr_obj->getProbeManager();
+            congestionListeners.push_back(
+                pm->connect<MemoryCongestionListener>(*this,
+                                                      "MemoryCongestion"));
+        }
+    }
 }
 
 std::vector<Base::Chunk>
@@ -158,6 +202,19 @@ Base::fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const
 std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
+    if (enableMemoryPressureThrottling && isMemoryCongested) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.memoryQueueThrottledCompressions++;
+        DPRINTF(CacheComp,
+                "Memory queue pressure active. Bypassing compression.\n");
+        return comp_data;
+    }
+
     totalCompressionRequests++;
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
@@ -263,6 +320,14 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     // line, return its decompression latency
     if (comp_blk && comp_blk->isCompressed() &&
         (comp_blk->getSizeBits() < blkSize * CHAR_BIT)) {
+        if (enableMemoryPressureThrottling && isMemoryCongested) {
+            stats.memoryQueueThrottledDecompressions++;
+            DPRINTF(CacheComp,
+                    "Memory queue pressure active. "
+                    "Bypassing decompression latency for block %s.\n",
+                    comp_blk->print());
+            return Cycles(0);
+        }
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
         DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
                 comp_blk->print(), decomp_lat);
@@ -333,7 +398,15 @@ Base::BaseStats::BaseStats(Base &_compressor)
       ADD_STAT(sampledCompressedBits, statistics::units::Bit::get(),
                "Total compressed bits of sampled blocks"),
       ADD_STAT(observedCompressionRatio, statistics::units::Ratio::get(),
-               "Observed compression ratio from sampling")
+               "Observed compression ratio from sampling"),
+      ADD_STAT(memoryQueueThrottledCompressions,
+               statistics::units::Count::get(),
+               "Total number of compressions bypassed due to memory queue "
+               "pressure"),
+      ADD_STAT(memoryQueueThrottledDecompressions,
+               statistics::units::Count::get(),
+               "Total number of decompressions bypassed due to memory queue "
+               "pressure")
 {
 }
 

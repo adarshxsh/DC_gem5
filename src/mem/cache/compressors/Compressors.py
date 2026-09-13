@@ -77,6 +77,18 @@ class BaseCacheCompressor(SimObject):
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
 
+    enable_memory_pressure_throttling = Param.Bool(
+        False,
+        "Enable compression/decompression bypass when downstream memory queues are congested",
+    )
+    memory_congestion_manager = Param.SimObject(
+        NULL,
+        "SimObject (e.g. MemCtrl) providing memory congestion probe point",
+    )
+    memory_congestion_managers = VectorParam.SimObject(
+        [], "List of SimObjects providing memory congestion probe points"
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"

@@ -41,6 +41,7 @@
 #include "base/compiler.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "sim/probe/probe.hh"
 #include "sim/sim_object.hh"
 
 namespace gem5
@@ -134,6 +135,39 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
+    /** Whether memory pressure throttling is enabled. */
+    const bool enableMemoryPressureThrottling;
+
+    /** Internal memory queue congestion state. */
+    bool isMemoryCongested;
+
+    /** Number of connected memory controllers reporting congestion. */
+    uint32_t congestedMemCtrlCount;
+
+    /** Process memory congestion state update. */
+    void handleMemoryCongestion(bool congested);
+
+    /** Listener for memory queue congestion probe points. */
+    class MemoryCongestionListener : public ProbeListenerArgBase<bool>
+    {
+      private:
+        Base &compressor;
+
+      public:
+        MemoryCongestionListener(Base &_compressor, std::string name)
+            : ProbeListenerArgBase(std::move(name)), compressor(_compressor)
+        {}
+
+        void
+        notify(const bool &congested) override
+        {
+            compressor.handleMemoryCongestion(congested);
+        }
+    };
+
+    std::vector<ProbeListenerPtr<MemoryCongestionListener>>
+        congestionListeners;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -189,6 +223,12 @@ class Base : public SimObject
 
         /** Observed compression ratio from sampling. */
         statistics::Formula observedCompressionRatio;
+
+        /** Number of compressions bypassed due to memory queue pressure. */
+        statistics::Scalar memoryQueueThrottledCompressions;
+
+        /** Number of decompressions bypassed due to memory queue pressure. */
+        statistics::Scalar memoryQueueThrottledDecompressions;
     } stats;
 
     /**
@@ -240,6 +280,8 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    void regProbeListeners() override;
 
     /**
      * Apply the compression process to the cache line. Ignores compression
