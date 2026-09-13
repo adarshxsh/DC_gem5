@@ -36,6 +36,7 @@
 from m5.objects.ClockedObject import ClockedObject
 from m5.objects.IndexingPolicies import *
 from m5.objects.PartitioningPolicies import PartitionManager
+from m5.objects.ReplacementPolicies import CompLRURP
 from m5.params import *
 from m5.proxy import *
 from m5.SimObject import SimObject
@@ -160,6 +161,11 @@ class CompressedTags(SectorTags):
     # We virtually increase the number of data blocks per tag by multiplying
     # the cache size by the compression ratio
     size = Parent.size * Self.max_compression_ratio
+
+    # Default replacement policy for CompressedTags is CompLRURP
+    replacement_policy = Param.BaseReplacementPolicy(
+        CompLRURP(), "Replacement policy"
+    )
 
 
 class FALRU(BaseTags):

@@ -32,10 +32,11 @@ SimObject('ReplacementPolicies.py', sim_objects=[
     'BaseReplacementPolicy', 'DuelingRP', 'FIFORP', 'SecondChanceRP',
     'LFURP', 'LRURP', 'BIPRP', 'MRURP', 'RandomRP', 'BRRIPRP', 'SHiPRP',
     'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP', 'DWLRURP',
-    'DensityWeightedLRURP'])
+    'DensityWeightedLRURP', 'CompLRURP', 'DensityAwareLRURP'])
 
 Source('bip_rp.cc')
 Source('brrip_rp.cc')
+Source('comp_lru_rp.cc')
 Source('dueling_rp.cc')
 Source('dwlru_rp.cc')
 Source('fifo_rp.cc')
