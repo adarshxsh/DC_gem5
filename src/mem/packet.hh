@@ -301,7 +301,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Payload carries compressed data
+        IS_COMPRESSED         = 0x00020000
     };
 
     Flags flags;
@@ -395,6 +398,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     /// The size of the request or transfer.
     unsigned size;
+
+    /// Compressed size in bits if packet carries compressed payload.
+    std::size_t _compressedSizeBits = 0;
 
     /**
      * Track the bytes found that satisfy a functional read.
@@ -759,6 +765,22 @@ class Packet : public Printable, public Extensible<Packet>
     void setBlockCached()          { flags.set(BLOCK_CACHED); }
     bool isBlockCached() const     { return flags.isSet(BLOCK_CACHED); }
     void clearBlockCached()        { flags.clear(BLOCK_CACHED); }
+
+    void setCompressedSizeBits(std::size_t bits)
+    {
+        _compressedSizeBits = bits;
+        flags.set(IS_COMPRESSED);
+    }
+    bool hasCompressedSizeBits() const { return flags.isSet(IS_COMPRESSED); }
+    bool isCompressed() const { return flags.isSet(IS_COMPRESSED); }
+    std::size_t getCompressedSizeBits() const
+    {
+        return flags.isSet(IS_COMPRESSED) ? _compressedSizeBits : (size * 8);
+    }
+    std::size_t getCompressedSize() const
+    {
+        return flags.isSet(IS_COMPRESSED) ? ((_compressedSizeBits + 7) / 8) : size;
+    }
 
     /**
      * QoS Value getter
