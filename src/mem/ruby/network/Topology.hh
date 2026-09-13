@@ -56,6 +56,7 @@ namespace ruby
 
 class NetDest;
 class Network;
+class RubySystem;
 
 /*
  * We use a three-dimensional vector matrix for calculating
