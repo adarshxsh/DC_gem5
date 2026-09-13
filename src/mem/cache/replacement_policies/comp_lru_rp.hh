@@ -50,7 +50,8 @@ namespace replacement_policy
 
 /**
  * Compression-density-aware replacement data entry.
- * Incorporates compression factor and valid sub-block count alongside LRU timestamp.
+ * Incorporates compression factor and valid sub-block count alongside LRU
+ * timestamp.
  */
 struct CompLRUReplData : LRUReplData
 {
@@ -60,14 +61,13 @@ struct CompLRUReplData : LRUReplData
     /** Number of valid sub-blocks in the superblock / entry. */
     uint8_t validBlocks;
 
-    CompLRUReplData()
-        : LRUReplData(), compressionFactor(1), validBlocks(0)
-    {}
+    CompLRUReplData() : LRUReplData(), compressionFactor(1), validBlocks(0) {}
 };
 
 /**
  * Compression-density-aware LRU replacement policy (CompLRU).
- * Calculates victim scores based on superblock compression factors and valid sub-block counts.
+ * Calculates victim scores based on superblock compression factors and valid
+ * sub-block counts.
  */
 class CompLRU : public LRU
 {
@@ -82,8 +82,8 @@ class CompLRU : public LRU
      * @param candidates Replacement candidates.
      * @return Entry chosen for replacement.
      */
-    ReplaceableEntry* getVictim(
-        const ReplacementCandidates& candidates) const override;
+    ReplaceableEntry *
+    getVictim(const ReplacementCandidates &candidates) const override;
 
     /**
      * Instantiate replacement data entry.

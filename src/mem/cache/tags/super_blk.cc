@@ -192,7 +192,9 @@ SuperBlk::invalidate()
     SectorBlk::invalidate();
     compressionFactor = 1;
     if (replacementData) {
-        auto data = std::dynamic_pointer_cast<replacement_policy::CompLRUReplData>(replacementData);
+        auto data =
+            std::dynamic_pointer_cast<replacement_policy::CompLRUReplData>(
+                replacementData);
         if (data) {
             data->compressionFactor = 1;
             data->validBlocks = 0;
@@ -284,7 +286,9 @@ SuperBlk::updateCompressionFactor()
     }
     setCompressionFactor(has_valid ? min_cf : 1);
     if (replacementData) {
-        auto data = std::dynamic_pointer_cast<replacement_policy::CompLRUReplData>(replacementData);
+        auto data =
+            std::dynamic_pointer_cast<replacement_policy::CompLRUReplData>(
+                replacementData);
         if (data) {
             data->compressionFactor = getCompressionFactor();
             data->validBlocks = getNumValid();

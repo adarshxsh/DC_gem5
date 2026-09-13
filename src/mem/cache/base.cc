@@ -1218,7 +1218,8 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         assert(pkt->hasRespData());
         pkt->setDataFromBlock(blk->data, blkSize);
         if (compressor) {
-            const CompressionBlk* cblk = dynamic_cast<const CompressionBlk*>(blk);
+            const CompressionBlk *cblk =
+                dynamic_cast<const CompressionBlk *>(blk);
             if (cblk && cblk->isCompressed()) {
                 pkt->setCompressedSize(cblk->getSizeBits() / 8);
             }
@@ -1803,7 +1804,7 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
-        const CompressionBlk* cblk = dynamic_cast<const CompressionBlk*>(blk);
+        const CompressionBlk *cblk = dynamic_cast<const CompressionBlk *>(blk);
         if (cblk && cblk->isCompressed()) {
             pkt->setCompressedSize(cblk->getSizeBits() / 8);
         }
@@ -1852,7 +1853,7 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
-        const CompressionBlk* cblk = dynamic_cast<const CompressionBlk*>(blk);
+        const CompressionBlk *cblk = dynamic_cast<const CompressionBlk *>(blk);
         if (cblk && cblk->isCompressed()) {
             pkt->setCompressedSize(cblk->getSizeBits() / 8);
         }
