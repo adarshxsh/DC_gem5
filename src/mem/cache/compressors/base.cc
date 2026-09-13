@@ -114,7 +114,8 @@ Base::Base(const Params &p)
 
     fatal_if(blkSize < sizeThreshold, "Compressed data must fit in a block");
     fatal_if(hysteresisLowThreshold > hysteresisHighThreshold,
-        "hysteresis_low_threshold cannot be greater than hysteresis_high_threshold");
+             "hysteresis_low_threshold cannot be greater than "
+             "hysteresis_high_threshold");
 }
 
 void
@@ -195,11 +196,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < low threshold: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, hysteresisLowThreshold);
+        DPRINTF(CacheComp,
+                "Adaptive bypass active (observed ratio: %.4f < low "
+                "threshold: %.4f). "
+                "Bypassing compression.\n",
+                observedRatio, hysteresisLowThreshold);
         return comp_data;
     }
 

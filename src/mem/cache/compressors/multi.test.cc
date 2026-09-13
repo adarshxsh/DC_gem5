@@ -338,7 +338,8 @@ TEST_F(MultiCompressorTest, DecompressionCorrectness)
 }
 
 /**
- * Test BaseCacheCompressor dual-threshold hysteresis windowing for adaptive bypass.
+ * Test BaseCacheCompressor dual-threshold hysteresis windowing for adaptive
+ * bypass.
  */
 TEST_F(MultiCompressorTest, HysteresisWindowing)
 {
@@ -363,11 +364,12 @@ TEST_F(MultiCompressorTest, HysteresisWindowing)
     Cycles comp_lat(0), decomp_lat(0);
 
     // Initial state: not bypassed
-    Base* baseZero = zero.get();
+    Base *baseZero = zero.get();
     auto cdata = baseZero->compress(zeroLine, comp_lat, decomp_lat);
     EXPECT_EQ(cdata->getSizeBits(), 0);
 
-    // Compress uncompressible random lines until cumulative ratio drops below low threshold (1.0)
+    // Compress uncompressible random lines until cumulative ratio drops below
+    // low threshold (1.0)
     for (int i = 0; i < 20; i++) {
         cdata = baseZero->compress(randomLine, comp_lat, decomp_lat);
     }
@@ -376,7 +378,8 @@ TEST_F(MultiCompressorTest, HysteresisWindowing)
     cdata = baseZero->compress(randomLine, comp_lat, decomp_lat);
     EXPECT_EQ(cdata->getSizeBits(), 512);
 
-    // Highly compressible lines -> ratio rises above high threshold (1.2) -> transitions back to ACTIVE
+    // Highly compressible lines -> ratio rises above high threshold (1.2) ->
+    // transitions back to ACTIVE
     for (int i = 0; i < 50; i++) {
         cdata = baseZero->compress(zeroLine, comp_lat, decomp_lat);
     }
