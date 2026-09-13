@@ -89,6 +89,20 @@ class MemCtrl(QoSMemCtrl):
         16, "Minimum read bursts before switching to writes"
     )
 
+    # adaptive write buffer draining parameters
+    enable_adaptive_drain = Param.Bool(
+        False, "Enable dynamic write buffer draining based on pressure gradients"
+    )
+    write_high_thresh_max_perc = Param.Percent(
+        95, "Maximum percentage ceiling for dynamic write high threshold"
+    )
+    max_read_stall_latency = Param.Latency(
+        "100ns", "Maximum allowable wait time for read requests before emergency preemption"
+    )
+    max_writes_per_switch = Param.Unsigned(
+        32, "Maximum adaptive write burst batch size under high write pressure"
+    )
+
     # scheduler, address map and page policy
     mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
