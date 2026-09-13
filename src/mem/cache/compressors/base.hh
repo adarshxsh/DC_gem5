@@ -134,6 +134,12 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
+    /** Hysteresis margin for adaptive bypass threshold evaluation. */
+    const float hysteresisMargin;
+
+    /** Current adaptive bypass state (true if bypassing compression). */
+    bool bypassedState;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -240,6 +246,9 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Check if adaptive compression bypass is currently active. */
+    bool isBypassing() const { return enableAdaptiveBypass && bypassedState; }
 
     /**
      * Apply the compression process to the cache line. Ignores compression
