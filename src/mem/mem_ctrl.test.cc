@@ -40,7 +40,8 @@ namespace memory
 class TestMemCtrl
 {
   public:
-    static void calculateDynamicThresholds(
+    static void
+    calculateDynamicThresholds(
         bool adaptiveQueuePressure, int pressureSensitivity,
         uint32_t writeBufferSize, uint32_t readBufferSize,
         uint32_t writeHighThreshold, uint32_t writeLowThreshold,
@@ -56,44 +57,50 @@ class TestMemCtrl
 
         if (adaptiveQueuePressure && writeBufferSize > 0) {
             uint32_t writeUtilPct = (writeQueueSize * 100) / writeBufferSize;
-            uint32_t readUtilPct = (readBufferSize > 0) ?
-                (readQueueSize * 100) / readBufferSize : 0;
+            uint32_t readUtilPct = (readBufferSize > 0)
+                                       ? (readQueueSize * 100) / readBufferSize
+                                       : 0;
 
-            uint32_t sensitivity = (pressureSensitivity > 0) ?
-                static_cast<uint32_t>(pressureSensitivity) : 50;
+            uint32_t sensitivity =
+                (pressureSensitivity > 0)
+                    ? static_cast<uint32_t>(pressureSensitivity)
+                    : 50;
 
             if (writeUtilPct > sensitivity) {
                 uint32_t pressureDelta = writeUtilPct - sensitivity;
-                uint32_t maxPressureRange = (100 > sensitivity) ?
-                    (100 - sensitivity) : 1;
+                uint32_t maxPressureRange =
+                    (100 > sensitivity) ? (100 - sensitivity) : 1;
 
                 uint32_t minAllowedHigh = writeLowThreshold + 1;
                 if (writeHighThreshold > minAllowedHigh) {
-                    uint32_t maxReduction = writeHighThreshold - minAllowedHigh;
-                    uint32_t reduction = (maxReduction * pressureDelta) /
-                        maxPressureRange;
-                    effectiveWriteHighThreshold = writeHighThreshold - reduction;
+                    uint32_t maxReduction =
+                        writeHighThreshold - minAllowedHigh;
+                    uint32_t reduction =
+                        (maxReduction * pressureDelta) / maxPressureRange;
+                    effectiveWriteHighThreshold =
+                        writeHighThreshold - reduction;
                 }
 
-                uint32_t writeAllocIncrease = (minWritesPerSwitch * pressureDelta) /
-                    maxPressureRange;
-                effectiveMinWritesPerSwitch = minWritesPerSwitch +
-                    writeAllocIncrease;
+                uint32_t writeAllocIncrease =
+                    (minWritesPerSwitch * pressureDelta) / maxPressureRange;
+                effectiveMinWritesPerSwitch =
+                    minWritesPerSwitch + writeAllocIncrease;
 
                 if (readUtilPct < writeUtilPct) {
-                    uint32_t readReduction = (minReadsPerSwitch * pressureDelta) /
+                    uint32_t readReduction =
+                        (minReadsPerSwitch * pressureDelta) /
                         (maxPressureRange * 2);
                     if (minReadsPerSwitch > readReduction) {
-                        effectiveMinReadsPerSwitch = std::max(
-                            1U, minReadsPerSwitch - readReduction);
+                        effectiveMinReadsPerSwitch =
+                            std::max(1U, minReadsPerSwitch - readReduction);
                     } else {
                         effectiveMinReadsPerSwitch = 1;
                     }
                 }
             }
-            effectiveWriteHighThreshold = std::clamp(
-                effectiveWriteHighThreshold, writeLowThreshold + 1,
-                writeBufferSize);
+            effectiveWriteHighThreshold =
+                std::clamp(effectiveWriteHighThreshold, writeLowThreshold + 1,
+                           writeBufferSize);
         }
     }
 };
@@ -109,12 +116,12 @@ TEST(MemCtrlAdaptiveTest, BaselineDisabledMode)
 
     uint32_t effHigh, effMinReads, effMinWrites;
 
-    // Test with adaptiveQueuePressure = false and high write queue utilization (28/32)
+    // Test with adaptiveQueuePressure = false and high write queue utilization
+    // (28/32)
     TestMemCtrl::calculateDynamicThresholds(
-        false, 50, writeBufferSize, readBufferSize,
-        writeHighThreshold, writeLowThreshold,
-        minReadsPerSwitch, minWritesPerSwitch,
-        28, 5, effHigh, effMinReads, effMinWrites);
+        false, 50, writeBufferSize, readBufferSize, writeHighThreshold,
+        writeLowThreshold, minReadsPerSwitch, minWritesPerSwitch, 28, 5,
+        effHigh, effMinReads, effMinWrites);
 
     EXPECT_EQ(effHigh, writeHighThreshold);
     EXPECT_EQ(effMinReads, minReadsPerSwitch);
@@ -132,12 +139,12 @@ TEST(MemCtrlAdaptiveTest, AdaptiveLowPressureMode)
 
     uint32_t effHigh, effMinReads, effMinWrites;
 
-    // Test with adaptiveQueuePressure = true, pressureSensitivity = 50, write size 12/32 (37.5% <= 50%)
+    // Test with adaptiveQueuePressure = true, pressureSensitivity = 50, write
+    // size 12/32 (37.5% <= 50%)
     TestMemCtrl::calculateDynamicThresholds(
-        true, 50, writeBufferSize, readBufferSize,
-        writeHighThreshold, writeLowThreshold,
-        minReadsPerSwitch, minWritesPerSwitch,
-        12, 10, effHigh, effMinReads, effMinWrites);
+        true, 50, writeBufferSize, readBufferSize, writeHighThreshold,
+        writeLowThreshold, minReadsPerSwitch, minWritesPerSwitch, 12, 10,
+        effHigh, effMinReads, effMinWrites);
 
     EXPECT_EQ(effHigh, writeHighThreshold);
     EXPECT_EQ(effMinReads, minReadsPerSwitch);
@@ -155,12 +162,12 @@ TEST(MemCtrlAdaptiveTest, AdaptiveHighPressureMode)
 
     uint32_t effHigh, effMinReads, effMinWrites;
 
-    // Test with adaptiveQueuePressure = true, pressureSensitivity = 50, write size 27/32 (84% > 50%)
+    // Test with adaptiveQueuePressure = true, pressureSensitivity = 50, write
+    // size 27/32 (84% > 50%)
     TestMemCtrl::calculateDynamicThresholds(
-        true, 50, writeBufferSize, readBufferSize,
-        writeHighThreshold, writeLowThreshold,
-        minReadsPerSwitch, minWritesPerSwitch,
-        27, 4, effHigh, effMinReads, effMinWrites);
+        true, 50, writeBufferSize, readBufferSize, writeHighThreshold,
+        writeLowThreshold, minReadsPerSwitch, minWritesPerSwitch, 27, 4,
+        effHigh, effMinReads, effMinWrites);
 
     // High threshold should scale down under pressure
     EXPECT_LT(effHigh, writeHighThreshold);
@@ -173,7 +180,8 @@ TEST(MemCtrlAdaptiveTest, AdaptiveHighPressureMode)
     EXPECT_LT(effMinReads, minReadsPerSwitch);
     EXPECT_GE(effMinReads, 1U);
 
-    // Verify physical invariant: writeLowThreshold < effectiveWriteHighThreshold <= writeBufferSize
+    // Verify physical invariant: writeLowThreshold <
+    // effectiveWriteHighThreshold <= writeBufferSize
     EXPECT_GT(effHigh, writeLowThreshold);
     EXPECT_LE(effHigh, writeBufferSize);
 }
@@ -191,10 +199,9 @@ TEST(MemCtrlAdaptiveTest, ExtremePressureStallPrevention)
 
     // Test extreme write queue pressure (32/32 = 100%)
     TestMemCtrl::calculateDynamicThresholds(
-        true, 50, writeBufferSize, readBufferSize,
-        writeHighThreshold, writeLowThreshold,
-        minReadsPerSwitch, minWritesPerSwitch,
-        32, 2, effHigh, effMinReads, effMinWrites);
+        true, 50, writeBufferSize, readBufferSize, writeHighThreshold,
+        writeLowThreshold, minReadsPerSwitch, minWritesPerSwitch, 32, 2,
+        effHigh, effMinReads, effMinWrites);
 
     // Under extreme pressure, high threshold drops to writeLowThreshold + 1
     EXPECT_EQ(effHigh, writeLowThreshold + 1);
