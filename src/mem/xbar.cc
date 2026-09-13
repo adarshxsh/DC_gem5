@@ -64,6 +64,7 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
       responseLatency(p.response_latency),
       headerLatency(p.header_latency),
       width(p.width),
+      starvationThreshold(p.starvation_threshold),
       gotAddrRanges(p.port_default_connection_count +
                           p.port_mem_side_ports_connection_count, false),
       gotAllAddrRanges(false), defaultPortID(InvalidPortID),
@@ -147,7 +148,10 @@ BaseXBar::Layer<SrcType, DstType>::Layer(DstType& _port, BaseXBar& _xbar,
                                        const std::string& _name) :
     statistics::Group(&_xbar, _name.c_str()),
     port(_port), xbar(_xbar), _name(xbar.name() + "." + _name), state(IDLE),
+    currentIsWriteback(false), currentDecompLat(0), currentQoS(0),
+    currentIsRead(false), decompBusyUntil(0), starvationCounter(0),
     waitingForPeer(NULL), releaseEvent([this]{ releaseLayer(); }, name()),
+    decompFreeEvent([this]{ processDecompFree(); }, name() + ".decompFreeEvent"),
     ADD_STAT(occupancy, statistics::units::Tick::get(), "Layer occupancy (ticks)"),
     ADD_STAT(utilization, statistics::units::Ratio::get(), "Layer utilization")
 {
@@ -159,6 +163,15 @@ BaseXBar::Layer<SrcType, DstType>::Layer(DstType& _port, BaseXBar& _xbar,
         .flags(statistics::nozero);
 
     utilization = occupancy / simTicks;
+}
+
+template <typename SrcType, typename DstType>
+void
+BaseXBar::Layer<SrcType, DstType>::processDecompFree()
+{
+    if (state == IDLE && waitingForPeer == NULL && !waitingForLayer.empty()) {
+        retryWaiting();
+    }
 }
 
 template <typename SrcType, typename DstType>
@@ -183,31 +196,58 @@ void BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
 
 template <typename SrcType, typename DstType>
 bool
-BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
+BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
 {
-    // if we are in the retry state, we will not see anything but the
-    // retrying port (or in the case of the snoop ports the snoop
-    // response port that mirrors the actual CPU-side port) as we leave
-    // this state again in zero time if the peer does not immediately
-    // call the layer when receiving the retry
+    // Classify transaction attributes
+    bool is_read = pkt ? (pkt->isRead() || pkt->isRequest()) : false;
+    bool is_wb = pkt ? (pkt->isWriteback() || pkt->isEviction()) : false;
+    Tick decomp_lat = (pkt && is_wb) ? pkt->payloadDelay : 0;
+    uint8_t qos = pkt ? pkt->qosValue() : 0;
 
     // first we see if the layer is busy, next we check if the
     // destination port is already engaged in a transaction waiting
     // for a retry from the peer
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
-        assert(std::find(waitingForLayer.begin(), waitingForLayer.end(),
-                         src_port) == waitingForLayer.end());
+        assert(std::find_if(waitingForLayer.begin(), waitingForLayer.end(),
+                            [src_port](const WaitingPort& wp) {
+                                return wp.srcPort == src_port;
+                            }) == waitingForLayer.end());
 
-        // put the port at the end of the retry list waiting for the
-        // layer to be freed up (and in the case of a busy peer, for
-        // that transaction to go through, and then the layer to free
-        // up)
-        waitingForLayer.push_back(src_port);
+        WaitingPort wp(src_port, qos, is_read, is_wb, decomp_lat, curTick());
+
+        // Priority ordering insertion logic:
+        // 1. Uncompressed demand requests (!isWriteback || decompDelay == 0) before compressed writebacks
+        // 2. Higher QoS priority value
+        // 3. FIFO order for equal priority (earlier arrivalTick)
+        auto it = waitingForLayer.begin();
+        while (it != waitingForLayer.end()) {
+            bool new_is_demand = !wp.isWriteback || (wp.decompDelay == 0);
+            bool curr_is_demand = !it->isWriteback || (it->decompDelay == 0);
+
+            if (new_is_demand && !curr_is_demand) {
+                break;
+            } else if (new_is_demand == curr_is_demand) {
+                if (wp.qos > it->qos) {
+                    break;
+                } else if (wp.qos < it->qos) {
+                    ++it;
+                } else {
+                    ++it;
+                }
+            } else {
+                ++it;
+            }
+        }
+        waitingForLayer.insert(it, wp);
         return false;
     }
 
     state = BUSY;
+    currentIsWriteback = is_wb;
+    currentDecompLat = decomp_lat;
+    currentQoS = qos;
+    currentIsRead = is_read;
 
     return true;
 }
@@ -219,6 +259,10 @@ BaseXBar::Layer<SrcType, DstType>::succeededTiming(Tick busy_time)
     // we should have gone from idle or retry to busy in the tryTiming
     // test
     assert(state == BUSY);
+
+    if (currentIsWriteback && currentDecompLat > 0) {
+        decompBusyUntil = std::max(decompBusyUntil, curTick() + currentDecompLat);
+    }
 
     // occupy the layer accordingly
     occupyLayer(busy_time);
@@ -237,6 +281,8 @@ BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType* src_port,
     // failed in forwarding and should track that we are now waiting
     // for the peer to send a retry
     waitingForPeer = src_port;
+    waitingForPeerEntry = WaitingPort(src_port, currentQoS, currentIsRead,
+                                      currentIsWriteback, currentDecompLat, curTick());
 
     // we should have gone from idle or retry to busy in the tryTiming
     // test
@@ -280,17 +326,69 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     // we always go to retrying from idle
     assert(state == IDLE);
 
+    bool decomp_busy = (curTick() < decompBusyUntil);
+
+    // Find highest-priority ready candidate port
+    auto candidate_it = waitingForLayer.end();
+
+    bool force_writeback = (starvationCounter >= xbar.starvationThreshold);
+    if (force_writeback) {
+        for (auto it = waitingForLayer.begin(); it != waitingForLayer.end(); ++it) {
+            if (it->isWriteback && (!decomp_busy || it->decompDelay == 0)) {
+                candidate_it = it;
+                break;
+            }
+        }
+    }
+
+    if (candidate_it == waitingForLayer.end()) {
+        for (auto it = waitingForLayer.begin(); it != waitingForLayer.end(); ++it) {
+            bool is_decomp_blocked = it->isWriteback && (it->decompDelay > 0) && decomp_busy;
+            if (!is_decomp_blocked) {
+                candidate_it = it;
+                break;
+            }
+        }
+    }
+
+    if (candidate_it == waitingForLayer.end()) {
+        // All waiting writebacks are blocked by endpoint decompression
+        if (!decompFreeEvent.scheduled()) {
+            xbar.schedule(decompFreeEvent, decompBusyUntil);
+        }
+        return;
+    }
+
+    WaitingPort selected = *candidate_it;
+    waitingForLayer.erase(candidate_it);
+
+    if (selected.isWriteback) {
+        starvationCounter = 0;
+    } else {
+        bool wb_waiting = false;
+        for (const auto& wp : waitingForLayer) {
+            if (wp.isWriteback) {
+                wb_waiting = true;
+                break;
+            }
+        }
+        if (wb_waiting) {
+            starvationCounter++;
+        } else {
+            starvationCounter = 0;
+        }
+    }
+
     // update the state
     state = RETRY;
-
-    // set the retrying port to the front of the retry list and pop it
-    // off the list
-    SrcType* retryingPort = waitingForLayer.front();
-    waitingForLayer.pop_front();
+    currentIsWriteback = selected.isWriteback;
+    currentDecompLat = selected.decompDelay;
+    currentQoS = selected.qos;
+    currentIsRead = selected.isRead;
 
     // tell the port to retry, which in some cases ends up calling the
     // layer again
-    sendRetry(retryingPort);
+    sendRetry(selected.srcPort);
 
     // If the layer is still in the retry state, sendTiming wasn't
     // called in zero time (e.g. the cache does this when a writeback
@@ -316,7 +414,7 @@ BaseXBar::Layer<SrcType, DstType>::recvRetry()
     // add the port where the failed packet originated to the front of
     // the waiting ports for the layer, this allows us to call retry
     // on the port immediately if the crossbar layer is idle
-    waitingForLayer.push_front(waitingForPeer);
+    waitingForLayer.push_front(waitingForPeerEntry);
 
     // we are no longer waiting for the peer
     waitingForPeer = NULL;
