@@ -406,7 +406,8 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         cmd_at = ctrl->verifySingleCmd(cmd_at, maxCommandsPerWindow, false);
 
     Tick effective_tBURST = tBURST;
-    if (enableCompressedTransport && mem_pkt->pkt && mem_pkt->pkt->isCompressed()) {
+    if (enableCompressedTransport && mem_pkt->pkt &&
+        mem_pkt->pkt->isCompressed()) {
         unsigned comp_bytes = mem_pkt->pkt->getCompressedSize();
         unsigned uncomp_bytes = bytesPerBurst();
         if (uncomp_bytes > 0) {
@@ -426,9 +427,9 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
             burst_gap = effective_tBURST;
         } else if (cmd_at < (rank_ref.lastBurstTick + effective_tBURST)) {
             // not at an interleave boundary after bandwidth check
-            // Shift command to effective_tBURST boundary to avoid data contention
-            // Command will remain in the same burst window given that
-            // tBURST is less than tBURST_MAX
+            // Shift command to effective_tBURST boundary to avoid data
+            // contention Command will remain in the same burst window given
+            // that tBURST is less than tBURST_MAX
             cmd_at = rank_ref.lastBurstTick + effective_tBURST;
         }
     } else {
@@ -652,13 +653,25 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       bankGroupArch(_p.bank_groups_per_rank > 0),
       tRL(_p.tCL),
       tWL(_p.tCWL),
-      tBURST_MIN(_p.tBURST_MIN), tBURST_MAX(_p.tBURST_MAX),
-      tCCD_L_WR(_p.tCCD_L_WR), tCCD_L(_p.tCCD_L),
-      tRCD_RD(_p.tRCD), tRCD_WR(_p.tRCD_WR),
-      tRP(_p.tRP), tRAS(_p.tRAS), tWR(_p.tWR), tRTP(_p.tRTP),
-      tRFC(_p.tRFC), tREFI(_p.tREFI), tRRD(_p.tRRD), tRRD_L(_p.tRRD_L),
-      tPPD(_p.tPPD), tAAD(_p.tAAD),
-      tXAW(_p.tXAW), tXP(_p.tXP), tXS(_p.tXS),
+      tBURST_MIN(_p.tBURST_MIN),
+      tBURST_MAX(_p.tBURST_MAX),
+      tCCD_L_WR(_p.tCCD_L_WR),
+      tCCD_L(_p.tCCD_L),
+      tRCD_RD(_p.tRCD),
+      tRCD_WR(_p.tRCD_WR),
+      tRP(_p.tRP),
+      tRAS(_p.tRAS),
+      tWR(_p.tWR),
+      tRTP(_p.tRTP),
+      tRFC(_p.tRFC),
+      tREFI(_p.tREFI),
+      tRRD(_p.tRRD),
+      tRRD_L(_p.tRRD_L),
+      tPPD(_p.tPPD),
+      tAAD(_p.tAAD),
+      tXAW(_p.tXAW),
+      tXP(_p.tXP),
+      tXS(_p.tXS),
       clkResyncDelay(_p.tBURST_MAX),
       dataClockSync(_p.data_clock_sync),
       burstInterleave(tBURST != tBURST_MIN),
@@ -668,7 +681,8 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       rdToWrDlySameBG(_p.tRTW + _p.tBURST_MAX),
       pageMgmt(_p.page_policy),
       maxAccessesPerRow(_p.max_accesses_per_row),
-      timeStampOffset(0), activeRank(0),
+      timeStampOffset(0),
+      activeRank(0),
       enableDRAMPowerdown(_p.enable_dram_powerdown),
       enableCompressedTransport(_p.enable_compressed_transport),
       lastStatsResetTick(0),
