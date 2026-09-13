@@ -45,6 +45,9 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <algorithm>
+#include <limits>
+
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -164,9 +167,26 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             return nullptr;
         }
 
+        // Find minimum valid sub-block count among candidate superblocks
+        uint8_t min_valid = std::numeric_limits<uint8_t>::max();
+        for (const auto &entry : superblock_entries) {
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+            min_valid = std::min(min_valid, superblock->getNumValid());
+        }
+
+        // Isolate candidates with minimum valid sub-block count
+        std::vector<ReplaceableEntry *> candidate_entries;
+        candidate_entries.reserve(superblock_entries.size());
+        for (const auto &entry : superblock_entries) {
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+            if (superblock->getNumValid() == min_valid) {
+                candidate_entries.push_back(entry);
+            }
+        }
+
         // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
-            replacementPolicy->getVictim(superblock_entries));
+        victim_superblock = static_cast<SuperBlk *>(
+            replacementPolicy->getVictim(candidate_entries));
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){
