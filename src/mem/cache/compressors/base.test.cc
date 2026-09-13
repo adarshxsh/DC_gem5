@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <memory>
 #include <vector>
 
@@ -87,7 +88,7 @@ using namespace gem5::compression;
 TEST(BaseCompressorTest, HysteresisBypassEvaluation)
 {
     BaseCacheCompressorParams params;
-    std::memset(&params, 0, sizeof(params));
+    params.eventq_index = 0;
     params.block_size = 64;
     params.chunk_size_bits = 64;
     params.size_threshold_percentage = 100;

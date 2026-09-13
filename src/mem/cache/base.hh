@@ -359,13 +359,7 @@ class BaseCache : public ClockedObject
 
   public:
     /** Check if this cache is generating compression backpressure */
-    bool
-    hasCompressionBackpressure() const
-    {
-        bool comp_bypass = compressor && compressor->isBypassing();
-        bool queue_press = writeBuffer.getOccupancyRatio() > 0.70;
-        return comp_bypass || queue_press;
-    }
+    bool hasCompressionBackpressure() const;
 
     /** Miss status registers */
     MSHRQueue mshrQueue;
