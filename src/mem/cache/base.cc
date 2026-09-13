@@ -1789,11 +1789,15 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     if (!victim)
         return nullptr;
 
-    // Suppress prefetch fills that would cause collateral eviction of valid demand sub-blocks
+    // Suppress prefetch fills that would cause collateral eviction of valid
+    // demand sub-blocks
     if (is_prefetch) {
-        for (const auto& evict_blk : evict_blks) {
-            if (evict_blk && evict_blk->isValid() && !evict_blk->wasPrefetched()) {
-                DPRINTF(CacheRepl, "Suppressing prefetch fill for %#llx: would evict valid demand sub-block %#llx\n",
+        for (const auto &evict_blk : evict_blks) {
+            if (evict_blk && evict_blk->isValid() &&
+                !evict_blk->wasPrefetched()) {
+                DPRINTF(CacheRepl,
+                        "Suppressing prefetch fill for %#llx: would evict "
+                        "valid demand sub-block %#llx\n",
                         addr, evict_blk->getAddr());
                 return nullptr;
             }

@@ -168,7 +168,8 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuard)
 
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
-    // Demand request with size 128 bits (CF=4 < 8) should be allowed to co-allocate
+    // Demand request with size 128 bits (CF=4 < 8) should be allowed to
+    // co-allocate
     ASSERT_TRUE(superBlk.canCoAllocate(128, false));
 
     // Prefetch request with size 128 bits (CF=4 < 8) must be rejected

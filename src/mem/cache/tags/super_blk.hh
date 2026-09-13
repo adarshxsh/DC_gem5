@@ -198,7 +198,8 @@ class SuperBlk : public SectorBlk
     /**
      * Checks if this superblock contains any valid demand sub-blocks.
      *
-     * @return True if at least one valid sub-block is not an unaccessed prefetch.
+     * @return True if at least one valid sub-block is not an unaccessed
+     * prefetch.
      */
     bool hasValidDemand() const;
 
