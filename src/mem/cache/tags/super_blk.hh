@@ -253,9 +253,9 @@ class SuperBlk : public SectorBlk
      * @param target_cf The target compression factor limit after expansion.
      * @param evict_blks Vector to append victim sub-blocks to.
      */
-    void getVictimsOnExpansion(const CacheBlk* expanding_blk,
+    void getVictimsOnExpansion(const CacheBlk *expanding_blk,
                                uint8_t target_cf,
-                               std::vector<CacheBlk*>& evict_blks) const;
+                               std::vector<CacheBlk *> &evict_blks) const;
 
     void invalidate() override;
 

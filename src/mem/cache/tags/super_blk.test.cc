@@ -92,7 +92,7 @@ TEST(SuperBlkTest, GetVictimsOnExpansionTargeted)
     // Currently num_valid = 4.
     // Case 1: Expanding sub_blks[3] to target_cf = 2.
     // num_valid (4) > target_cf (2), so num_to_evict = 2.
-    std::vector<CacheBlk*> evict_blks;
+    std::vector<CacheBlk *> evict_blks;
     super_blk.getVictimsOnExpansion(&sub_blks[3], 2, evict_blks);
 
     EXPECT_EQ(evict_blks.size(), 2);
@@ -100,7 +100,8 @@ TEST(SuperBlkTest, GetVictimsOnExpansionTargeted)
     for (auto blk : evict_blks) {
         EXPECT_NE(blk, &sub_blks[3]);
     }
-    // Oldest sub-blocks (inserted first: sub_blks[0] and sub_blks[1]) should be victims
+    // Oldest sub-blocks (inserted first: sub_blks[0] and sub_blks[1]) should
+    // be victims
     EXPECT_EQ(evict_blks[0], &sub_blks[0]);
     EXPECT_EQ(evict_blks[1], &sub_blks[1]);
 
