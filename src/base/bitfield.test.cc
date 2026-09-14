@@ -416,6 +416,41 @@ TEST(BitfieldTest, AlignToPowerOfTwo31)
 }
 
 /*
+ * The following tests the "powerOf2Floor(x)" function which rounds
+ * uint64_t x down to the nearest power of two. If x is already a power
+ * of two, that power is returned.
+ */
+TEST(BitfieldTest, PowerOf2Floor0)
+{
+    EXPECT_EQ(0, powerOf2Floor(0));
+}
+
+TEST(BitfieldTest, PowerOf2Floor3)
+{
+    EXPECT_EQ(2, powerOf2Floor(3));
+}
+
+TEST(BitfieldTest, PowerOf2Floor5)
+{
+    EXPECT_EQ(4, powerOf2Floor(5));
+}
+
+TEST(BitfieldTest, PowerOf2Floor10)
+{
+    EXPECT_EQ(8, powerOf2Floor(10));
+}
+
+TEST(BitfieldTest, PowerOf2Floor16)
+{
+    EXPECT_EQ(16, powerOf2Floor(16));
+}
+
+TEST(BitfieldTest, PowerOf2Floor31)
+{
+    EXPECT_EQ(16, powerOf2Floor(31));
+}
+
+/*
  * The following tests test ctz32/64. The value returned in all cases should
  * be equal to the number of trailing zeros (i.e., the number before the first
  * bit set to one).

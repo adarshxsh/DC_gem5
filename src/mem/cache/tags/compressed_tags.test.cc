@@ -109,8 +109,11 @@ TEST_F(SuperBlkTestFixture, CalculateCompressionFactor)
     // 64 bytes = 512 bits
     ASSERT_EQ(superBlk.calculateCompressionFactor(0), 8);
     ASSERT_EQ(superBlk.calculateCompressionFactor(64), 8);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(70), 4);
     ASSERT_EQ(superBlk.calculateCompressionFactor(128), 4);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(170), 2);
     ASSERT_EQ(superBlk.calculateCompressionFactor(256), 2);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(300), 1);
     ASSERT_EQ(superBlk.calculateCompressionFactor(512), 1);
     ASSERT_EQ(superBlk.calculateCompressionFactor(1024), 1);
 }
@@ -130,6 +133,8 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_TRUE(superBlk.canCoAllocate(64));
     ASSERT_TRUE(superBlk.canCoAllocate(
         128)); // target_cf = min(8, 4) = 4, 1 < 4, 128 <= 128
+    ASSERT_TRUE(superBlk.canCoAllocate(
+        170)); // target_cf = min(8, 2) = 2, 1 < 2, 170 <= 256
     ASSERT_FALSE(superBlk.canCoAllocate(512)); // target_cf = 1 -> uncompressed
 
     // Co-allocate block 1 at offset 1 (size 128 bits -> CF=4)
@@ -243,13 +248,13 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         sblks[i].registerTagExtractor([](Addr addr) { return addr; });
     }
 
-    const std::size_t sizes[] = {32, 64, 128, 256};
+    const std::size_t sizes[] = {32, 64, 70, 128, 170, 256, 300};
     uint64_t tag_base = 0x10000;
 
     for (int iter = 0; iter < 500; ++iter) {
         int sb_idx = iter % NumSuperBlks;
         int sub_idx = (iter * 3) % NumSubBlks;
-        std::size_t sz = sizes[(iter * 7) % 4];
+        std::size_t sz = sizes[(iter * 7) % 7];
 
         if (!cblks[sb_idx][sub_idx].isValid()) {
             Addr tag = tag_base + (sb_idx * 0x1000);
