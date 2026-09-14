@@ -606,7 +606,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
-        blk = handleFill(pkt, blk, writebacks, allocate);
+        blk = handleFill(pkt, blk, writebacks, allocate, mshr);
         assert(blk != nullptr);
         ppFill->notify(CacheAccessProbeArg(pkt, accessor));
     }
@@ -1655,7 +1655,7 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
 
 CacheBlk*
 BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                      bool allocate)
+                      bool allocate, MSHR *mshr)
 {
     assert(pkt->isResponse());
     Addr addr = pkt->getAddr();
@@ -1673,7 +1673,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
         // need to do a replacement if allocating, otherwise we stick
         // with the temporary storage
-        blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
+        blk = allocate ? allocateBlock(pkt, writebacks, mshr) : nullptr;
 
         if (!blk) {
             // No replaceable block or a mostly exclusive
@@ -1750,7 +1750,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 }
 
 CacheBlk*
-BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
+BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks, MSHR *mshr)
 {
     // Get address
     const Addr addr = pkt->getAddr();
@@ -1774,6 +1774,50 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         const auto comp_data = compressor->compress(
             pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
         blk_size_bits = comp_data->getSizeBits();
+    }
+
+    if (mshr && mshr->getReservedSubBlk()) {
+        CacheBlk* res_sub = mshr->getReservedSubBlk();
+        SuperBlk* res_super = mshr->getReservedSuperBlk();
+        CompressionBlk* res_cblk = static_cast<CompressionBlk*>(res_sub);
+
+        if (res_cblk->isReserved()) {
+            bool fits = true;
+            if (res_super) {
+                uint8_t target_cf =
+                    res_super->calculateCompressionFactor(blk_size_bits);
+                if (target_cf <= 1 && res_super->getNumValidAndReserved() > 1) {
+                    fits = false;
+                }
+            }
+
+            if (fits) {
+                res_cblk->setReserved(false);
+                mshr->setReservedSubBlk(nullptr);
+                mshr->setReservedSuperBlk(nullptr);
+
+                CacheBlk* victim = res_sub;
+                tags->insertBlock(pkt, victim);
+
+                if (compressor) {
+                    compressor->setSizeBits(victim, blk_size_bits);
+                    compressor->setDecompressionLatency(
+                        victim, decompression_lat);
+                }
+
+                DPRINTF(CacheComp,
+                        "Co-allocated fill using pre-reserved slot for addr %#llx\n",
+                        addr);
+                return victim;
+            } else {
+                DPRINTF(CacheComp,
+                        "Mispredicted slot size for addr %#llx, releasing slot\n",
+                        addr);
+                tags->releaseSuperblockSlot(res_super, res_sub);
+                mshr->setReservedSubBlk(nullptr);
+                mshr->setReservedSuperBlk(nullptr);
+            }
+        }
     }
 
     // get partitionId from Packet

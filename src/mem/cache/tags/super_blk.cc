@@ -43,7 +43,8 @@ namespace gem5
 {
 
 CompressionBlk::CompressionBlk()
-    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false)
+    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false),
+      _reserved(false)
 {
 }
 
@@ -98,6 +99,22 @@ CompressionBlk::setUncompressed()
     _compressed = false;
 }
 
+bool
+CompressionBlk::isReserved() const
+{
+    return _reserved;
+}
+
+void
+CompressionBlk::setReserved(bool reserved)
+{
+    _reserved = reserved;
+    SuperBlk* superblock = static_cast<SuperBlk*>(getSectorBlock());
+    if (superblock) {
+        superblock->updateCompressionFactor();
+    }
+}
+
 std::size_t
 CompressionBlk::getSizeBits() const
 {
@@ -149,6 +166,7 @@ CompressionBlk::invalidate()
 {
     SectorSubBlk::invalidate();
     setUncompressed();
+    _reserved = false;
     _size = 0;
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
@@ -196,15 +214,29 @@ bool
 SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
 {
     for (const auto& blk : blks) {
-        if (blk->isValid() && (blk != ignored_blk)) {
-            if (!static_cast<CompressionBlk *>(blk)->isCompressed()) {
+        const CompressionBlk *cblk = static_cast<const CompressionBlk *>(blk);
+        if ((blk->isValid() || cblk->isReserved()) && (cblk != ignored_blk)) {
+            if (!cblk->isCompressed()) {
                 return false;
             }
         }
     }
 
-    // An invalid block is seen as compressed
+    // An invalid and unreserved block is seen as compressed
     return true;
+}
+
+uint8_t
+SuperBlk::getNumValidAndReserved() const
+{
+    uint8_t count = 0;
+    for (const auto &blk : blks) {
+        const CompressionBlk *cblk = static_cast<const CompressionBlk *>(blk);
+        if (blk->isValid() || cblk->isReserved()) {
+            count++;
+        }
+    }
+    return count;
 }
 
 bool
@@ -233,9 +265,9 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
     std::size_t bit_sum = 0;
     std::size_t count = 0;
     for (const auto &blk : blks) {
-        if (blk->isValid()) {
-            const CompressionBlk *cblk =
-                static_cast<const CompressionBlk *>(blk);
+        const CompressionBlk *cblk =
+            static_cast<const CompressionBlk *>(blk);
+        if (blk->isValid() || cblk->isReserved()) {
             bit_sum += cblk->getSizeBits();
             if (++count >= 4) {
                 break;
@@ -282,18 +314,18 @@ void
 SuperBlk::updateCompressionFactor()
 {
     uint8_t min_cf = blks.size();
-    bool has_valid = false;
+    bool has_valid_or_reserved = false;
     for (const auto &blk : blks) {
-        if (blk->isValid()) {
-            has_valid = true;
-            CompressionBlk *cblk = static_cast<CompressionBlk *>(blk);
+        CompressionBlk *cblk = static_cast<CompressionBlk *>(blk);
+        if (blk->isValid() || cblk->isReserved()) {
+            has_valid_or_reserved = true;
             uint8_t cf = calculateCompressionFactor(cblk->getSizeBits());
             if (cf < min_cf) {
                 min_cf = cf;
             }
         }
     }
-    setCompressionFactor(has_valid ? min_cf : 1);
+    setCompressionFactor(has_valid_or_reserved ? min_cf : 1);
 }
 
 std::string

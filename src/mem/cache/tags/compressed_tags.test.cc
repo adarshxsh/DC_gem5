@@ -559,3 +559,84 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, ProactiveSlotReservation)
+{
+    // Reserve sub-block 0 with predicted size 64 bits (CF=8)
+    subBlks[0].setSizeBits(64);
+    subBlks[0].setReserved(true);
+
+    ASSERT_TRUE(subBlks[0].isReserved());
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_EQ(superBlk.getNumValidAndReserved(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Verify co-allocation checks account for reserved slot
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+    ASSERT_TRUE(superBlk.canCoAllocate(128));
+
+    // Reserve sub-block 1 with predicted size 128 bits (CF=4)
+    subBlks[1].setSizeBits(128);
+    subBlks[1].setReserved(true);
+
+    ASSERT_TRUE(subBlks[1].isReserved());
+    ASSERT_EQ(superBlk.getNumValidAndReserved(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+
+    // Commit reservation for sub-block 0
+    subBlks[0].setReserved(false);
+    subBlks[0].insert({0x1000, false});
+
+    ASSERT_FALSE(subBlks[0].isReserved());
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_EQ(superBlk.getNumValidAndReserved(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+
+    // Release reservation for sub-block 1 without committing
+    subBlks[1].setReserved(false);
+    subBlks[1].setSizeBits(0);
+
+    ASSERT_FALSE(subBlks[1].isReserved());
+    ASSERT_FALSE(subBlks[1].isValid());
+    ASSERT_EQ(superBlk.getNumValidAndReserved(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, ConcurrentFillCoAllocationWithReservation)
+{
+    // Simulate 4 concurrent misses reserving sub-block slots with 64 bits each (CF=8)
+    for (unsigned k = 0; k < 4; ++k) {
+        subBlks[k].setSizeBits(64);
+        subBlks[k].setReserved(true);
+    }
+
+    ASSERT_EQ(superBlk.getNumValidAndReserved(), 4);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Verify co-allocation is still possible for up to 8 sub-blocks with 64 bits
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+
+    // Reserve 4 more sub-blocks to reach max capacity for CF=8
+    for (unsigned k = 4; k < 8; ++k) {
+        subBlks[k].setSizeBits(64);
+        subBlks[k].setReserved(true);
+    }
+
+    ASSERT_EQ(superBlk.getNumValidAndReserved(), 8);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    // Capacity full: canCoAllocate should return false
+    ASSERT_FALSE(superBlk.canCoAllocate(64));
+
+    // Complete fills for all 8 reserved sub-blocks
+    for (unsigned k = 0; k < 8; ++k) {
+        subBlks[k].setReserved(false);
+        subBlks[k].insert({0x5000, false});
+    }
+
+    ASSERT_EQ(superBlk.getNumValid(), 8);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+}
+}
