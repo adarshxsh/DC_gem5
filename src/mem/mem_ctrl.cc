@@ -407,8 +407,11 @@ bool
 MemCtrl::recvTimingReq(PacketPtr pkt)
 {
     // This is where we enter from the outside world
-    DPRINTF(MemCtrl, "recvTimingReq: request %s addr %#x size %d\n",
-            pkt->cmdString(), pkt->getAddr(), pkt->getSize());
+    DPRINTF(MemCtrl,
+            "recvTimingReq: request %s addr %#x size %d (write queue size: "
+            "%d, low thresh: %d, high thresh: %d)\n",
+            pkt->cmdString(), pkt->getAddr(), pkt->getSize(),
+            totalWriteQueueSize, writeLowThreshold, writeHighThreshold);
 
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
@@ -619,6 +622,27 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
 }
 
 void
+MemCtrl::schedTimingResp(PacketPtr pkt, Tick when)
+{
+    if (totalWriteQueueSize >= writeHighThreshold) {
+        pkt->setMemHighPressure();
+        pkt->setMemCongested();
+        DPRINTF(MemCtrl,
+                "Setting MEM_HIGH_PRESSURE and MEM_CONGESTED on response pkt "
+                "%s (write queue size: %d, thresh: %d)\n",
+                pkt->print(), totalWriteQueueSize, writeHighThreshold);
+    } else if (totalWriteQueueSize >= writeLowThreshold) {
+        pkt->setMemCongested();
+        DPRINTF(MemCtrl,
+                "Setting MEM_CONGESTED on response pkt %s (write queue size: "
+                "%d, thresh: %d)\n",
+                pkt->print(), totalWriteQueueSize, writeLowThreshold);
+    }
+
+    port.schedTimingResp(pkt, when);
+}
+
+void
 MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
                                                 MemInterface* mem_intr)
 {
@@ -646,7 +670,7 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
 
         // queue the packet in the response queue to be sent out after
         // the static latency has passed
-        port.schedTimingResp(pkt, response_time);
+        schedTimingResp(pkt, response_time);
     } else {
         // @todo the packet is going to be deleted, and the MemPacket
         // is still having a pointer to it
