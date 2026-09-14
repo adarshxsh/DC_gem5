@@ -34,6 +34,7 @@
 
 #include "mem/cache/tags/super_blk.hh"
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 
@@ -208,7 +209,19 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size) const
+SuperBlk::hasValidDemand() const
+{
+    for (const auto &blk : blks) {
+        if (blk->isValid() && !blk->wasPrefetched()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        bool is_prefetch) const
 {
     if (!isCompressed()) {
         return false;
@@ -216,6 +229,11 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
 
     const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
     if (new_blk_cf <= 1) {
+        return false;
+    }
+
+    if (is_prefetch && getNumValid() > 0 &&
+        new_blk_cf < getCompressionFactor()) {
         return false;
     }
 
