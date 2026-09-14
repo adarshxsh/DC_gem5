@@ -155,7 +155,7 @@ NoncoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
 
         // occupy until the header is sent
         reqLayers[mem_side_port_id]->failedTiming(src_port,
-                                                clockEdge(Cycles(1)), pkt);
+                                                  clockEdge(Cycles(1)), pkt);
 
         return false;
     }

@@ -210,8 +210,8 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
                         src_port->name(), pkt->print());
 
                 // update the layer state and schedule an idle event
-                reqLayers[mem_side_port_id]->failedTiming(src_port,
-                                                        clockEdge(Cycles(1)), pkt);
+                reqLayers[mem_side_port_id]->failedTiming(
+                    src_port, clockEdge(Cycles(1)), pkt);
                 return false;
             }
         }

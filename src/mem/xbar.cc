@@ -143,15 +143,22 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
 }
 
 template <typename SrcType, typename DstType>
-BaseXBar::Layer<SrcType, DstType>::Layer(DstType& _port, BaseXBar& _xbar,
-                                       const std::string& _name) :
-    statistics::Group(&_xbar, _name.c_str()),
-    port(_port), xbar(_xbar), _name(xbar.name() + "." + _name), state(IDLE),
-    lowPriorityAgingCounter(0), waitingForPeer(NULL),
-    waitingForPeerPriority(true), waitingForPeerPayloadDelay(0),
-    releaseEvent([this]{ releaseLayer(); }, name()),
-    ADD_STAT(occupancy, statistics::units::Tick::get(), "Layer occupancy (ticks)"),
-    ADD_STAT(utilization, statistics::units::Ratio::get(), "Layer utilization")
+BaseXBar::Layer<SrcType, DstType>::Layer(DstType &_port, BaseXBar &_xbar,
+                                         const std::string &_name)
+    : statistics::Group(&_xbar, _name.c_str()),
+      port(_port),
+      xbar(_xbar),
+      _name(xbar.name() + "." + _name),
+      state(IDLE),
+      lowPriorityAgingCounter(0),
+      waitingForPeer(NULL),
+      waitingForPeerPriority(true),
+      waitingForPeerPayloadDelay(0),
+      releaseEvent([this] { releaseLayer(); }, name()),
+      ADD_STAT(occupancy, statistics::units::Tick::get(),
+               "Layer occupancy (ticks)"),
+      ADD_STAT(utilization, statistics::units::Ratio::get(),
+               "Layer utilization")
 {
     occupancy
         .flags(statistics::nozero);
@@ -185,7 +192,7 @@ void BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
 
 template <typename SrcType, typename DstType>
 bool
-BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
+BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType *src_port, PacketPtr pkt)
 {
     // if we are in the retry state, we will not see anything but the
     // retrying port (or in the case of the snoop ports the snoop
@@ -198,18 +205,14 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
     // for a retry from the peer
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
-        auto in_high = std::find_if(highPriorityWaiting.begin(),
-                                    highPriorityWaiting.end(),
-                                    [src_port](const WaitingPort& w) {
-                                        return w.port == src_port;
-                                    });
-        auto in_low = std::find_if(lowPriorityWaiting.begin(),
-                                   lowPriorityWaiting.end(),
-                                   [src_port](const WaitingPort& w) {
-                                       return w.port == src_port;
-                                   });
-        auto in_old = std::find(waitingForLayer.begin(),
-                                waitingForLayer.end(), src_port);
+        auto in_high = std::find_if(
+            highPriorityWaiting.begin(), highPriorityWaiting.end(),
+            [src_port](const WaitingPort &w) { return w.port == src_port; });
+        auto in_low = std::find_if(
+            lowPriorityWaiting.begin(), lowPriorityWaiting.end(),
+            [src_port](const WaitingPort &w) { return w.port == src_port; });
+        auto in_old = std::find(waitingForLayer.begin(), waitingForLayer.end(),
+                                src_port);
 
         assert(in_high == highPriorityWaiting.end() &&
                in_low == lowPriorityWaiting.end() &&
@@ -218,8 +221,8 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
         bool is_high_priority = true;
         if (pkt != nullptr) {
             if (pkt->isWriteback() || pkt->isEviction() ||
-                (pkt->isWrite() && (pkt->isEviction() ||
-                                   pkt->cmd == MemCmd::WriteClean))) {
+                (pkt->isWrite() &&
+                 (pkt->isEviction() || pkt->cmd == MemCmd::WriteClean))) {
                 is_high_priority = false;
             } else if (pkt->isRead() || pkt->isDemand()) {
                 is_high_priority = true;
@@ -229,9 +232,11 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
         Tick payload_delay = pkt ? pkt->payloadDelay : 0;
 
         if (is_high_priority) {
-            highPriorityWaiting.emplace_back(src_port, true, payload_delay, curTick());
+            highPriorityWaiting.emplace_back(src_port, true, payload_delay,
+                                             curTick());
         } else {
-            lowPriorityWaiting.emplace_back(src_port, false, payload_delay, curTick());
+            lowPriorityWaiting.emplace_back(src_port, false, payload_delay,
+                                            curTick());
         }
 
         return false;
@@ -256,9 +261,8 @@ BaseXBar::Layer<SrcType, DstType>::succeededTiming(Tick busy_time)
 
 template <typename SrcType, typename DstType>
 void
-BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType* src_port,
-                                              Tick busy_time,
-                                              PacketPtr pkt)
+BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType *src_port,
+                                                Tick busy_time, PacketPtr pkt)
 {
     // ensure no one got in between and tried to send something to
     // this port
@@ -272,8 +276,8 @@ BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType* src_port,
     waitingForPeerPriority = true;
     if (pkt != nullptr) {
         if (pkt->isWriteback() || pkt->isEviction() ||
-            (pkt->isWrite() && (pkt->isEviction() ||
-                               pkt->cmd == MemCmd::WriteClean))) {
+            (pkt->isWrite() &&
+             (pkt->isEviction() || pkt->cmd == MemCmd::WriteClean))) {
             waitingForPeerPriority = false;
         } else if (pkt->isRead() || pkt->isDemand()) {
             waitingForPeerPriority = true;
@@ -306,7 +310,8 @@ BaseXBar::Layer<SrcType, DstType>::releaseLayer()
         // waiting for the peer
         if (waitingForPeer == NULL)
             retryWaiting();
-    } else if (waitingForPeer == NULL && drainState() == DrainState::Draining) {
+    } else if (waitingForPeer == NULL &&
+               drainState() == DrainState::Draining) {
         DPRINTF(Drain, "Crossbar done draining, signaling drain manager\n");
         //If we weren't able to drain before, do it now.
         signalDrainDone();
@@ -326,7 +331,7 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     // update the state
     state = RETRY;
 
-    SrcType* retryingPort = nullptr;
+    SrcType *retryingPort = nullptr;
 
     if (!waitingForLayer.empty()) {
         retryingPort = waitingForLayer.front();
@@ -399,11 +404,11 @@ BaseXBar::Layer<SrcType, DstType>::recvRetry()
     // the waiting ports for the layer, this allows us to call retry
     // on the port immediately if the crossbar layer is idle
     if (waitingForPeerPriority) {
-        highPriorityWaiting.emplace_front(waitingForPeer, true,
-                                         waitingForPeerPayloadDelay, curTick());
+        highPriorityWaiting.emplace_front(
+            waitingForPeer, true, waitingForPeerPayloadDelay, curTick());
     } else {
-        lowPriorityWaiting.emplace_front(waitingForPeer, false,
-                                        waitingForPeerPayloadDelay, curTick());
+        lowPriorityWaiting.emplace_front(
+            waitingForPeer, false, waitingForPeerPayloadDelay, curTick());
     }
 
     // we are no longer waiting for the peer

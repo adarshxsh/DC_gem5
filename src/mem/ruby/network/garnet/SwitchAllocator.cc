@@ -59,10 +59,11 @@ SwitchAllocator::SwitchAllocator(Router *router)
 }
 
 int
-SwitchAllocator::get_flit_priority(flit* t_flit)
+SwitchAllocator::get_flit_priority(flit *t_flit)
 {
-    if (!t_flit)
+    if (!t_flit) {
         return 0;
+    }
 
     int priority = 0;
     MsgPtr msg = t_flit->get_msg_ptr();
@@ -73,7 +74,8 @@ SwitchAllocator::get_flit_priority(flit* t_flit)
         }
     }
 
-    // Lower vnet index (e.g. VNET 0 for requests) has higher priority over writeback/unblock vnets
+    // Lower vnet index (e.g. VNET 0 for requests) has higher priority over
+    // writeback/unblock vnets
     priority += (10 - t_flit->get_vnet());
 
     return priority;
@@ -183,7 +185,8 @@ SwitchAllocator::arbitrate_inports()
 /*
  * SA-II (or SA-o) loops through all output ports,
  * and selects one input VC (that placed a request during SA-I)
- * as the winner for this output port evaluating packet priority with round robin.
+ * as the winner for this output port evaluating packet priority with round
+ * robin.
  *      - For HEAD/HEAD_TAIL flits, performs simplified outvc allocation.
  *        (i.e., select a free VC from the output port).
  *      - For BODY/TAIL flits, decrement a credit in the output vc.
@@ -223,8 +226,9 @@ SwitchAllocator::arbitrate_outports()
             }
 
             inport++;
-            if (inport >= m_num_inports)
+            if (inport >= m_num_inports) {
                 inport = 0;
+            }
         }
 
         if (best_inport != -1) {
@@ -244,19 +248,17 @@ SwitchAllocator::arbitrate_outports()
             // remove flit from Input VC
             flit *t_flit = input_unit->getTopFlit(invc);
 
-            DPRINTF(RubyNetwork, "SwitchAllocator at Router %d "
-                                 "granted outvc %d at outport %d "
-                                 "to invc %d at inport %d to flit %s at "
-                                 "cycle: %lld\n",
-                    m_router->get_id(), outvc,
-                    m_router->getPortDirectionName(
-                        output_unit->get_direction()),
-                    invc,
-                    m_router->getPortDirectionName(
-                        input_unit->get_direction()),
-                        *t_flit,
-                    m_router->curCycle());
-
+            DPRINTF(
+                RubyNetwork,
+                "SwitchAllocator at Router %d "
+                "granted outvc %d at outport %d "
+                "to invc %d at inport %d to flit %s at "
+                "cycle: %lld\n",
+                m_router->get_id(), outvc,
+                m_router->getPortDirectionName(output_unit->get_direction()),
+                invc,
+                m_router->getPortDirectionName(input_unit->get_direction()),
+                *t_flit, m_router->curCycle());
 
             // Update outport field in the flit since this is
             // used by CrossbarSwitch code to send it out of
@@ -300,16 +302,18 @@ SwitchAllocator::arbitrate_outports()
 
             // Update Round Robin pointer
             m_round_robin_inport[outport] = inport + 1;
-            if (m_round_robin_inport[outport] >= m_num_inports)
+            if (m_round_robin_inport[outport] >= m_num_inports) {
                 m_round_robin_inport[outport] = 0;
+            }
 
             // Update Round Robin pointer to the next VC
             // We do it here to keep it fair.
             // Only the VC which got switch traversal
             // is updated.
             m_round_robin_invc[inport] = invc + 1;
-            if (m_round_robin_invc[inport] >= m_num_vcs)
+            if (m_round_robin_invc[inport] >= m_num_vcs) {
                 m_round_robin_invc[inport] = 0;
+            }
         }
     }
 }
