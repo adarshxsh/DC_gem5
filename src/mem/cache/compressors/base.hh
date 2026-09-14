@@ -50,6 +50,11 @@ class BaseCache;
 class CacheBlk;
 struct BaseCacheCompressorParams;
 
+namespace memory
+{
+class MemCtrl;
+}
+
 namespace compression
 {
 
@@ -134,6 +139,18 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
+    /** Whether memory queue pressure-aware compression bypass is enabled. */
+    const bool enableMemAwareBypass;
+
+    /** Pointer to downstream memory controller for cross-layer feedback. */
+    memory::MemCtrl* memCtrl;
+
+    /** List of downstream memory controllers for cross-layer feedback. */
+    std::vector<memory::MemCtrl*> memCtrls;
+
+    /** Check if downstream memory queues are congested. */
+    virtual bool isMemoryCongested() const;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -177,6 +194,12 @@ class Base : public SimObject
 
         /** Number of decompressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedDecompressions;
+
+        /** Number of compressions bypassed due to memory queue pressure. */
+        statistics::Scalar memPressureBypassedCompressions;
+
+        /** Number of decompressions bypassed due to memory queue pressure. */
+        statistics::Scalar memPressureBypassedDecompressions;
 
         /** Number of compression attempts sampled. */
         statistics::Scalar sampledCompressions;

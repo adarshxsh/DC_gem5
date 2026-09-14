@@ -43,6 +43,7 @@
 #include "debug/CacheComp.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/mem_ctrl.hh"
 #include "params/BaseCacheCompressor.hh"
 
 namespace gem5
@@ -93,6 +94,9 @@ Base::Base(const Params &p)
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
+      enableMemAwareBypass(p.enable_mem_aware_bypass || p.enable_queue_pressure_throttling),
+      memCtrl(p.mem_ctrl),
+      memCtrls(p.mem_ctrls),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -110,6 +114,20 @@ Base::Base(const Params &p)
         "chunks in the input");
 
     fatal_if(blkSize < sizeThreshold, "Compressed data must fit in a block");
+}
+
+bool
+Base::isMemoryCongested() const
+{
+    if (memCtrl && memCtrl->isCongested()) {
+        return true;
+    }
+    for (auto* ctrl : memCtrls) {
+        if (ctrl && ctrl->isCongested()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void
@@ -158,6 +176,20 @@ Base::fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const
 std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
+    if (enableMemAwareBypass && isMemoryCongested()) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.bypassedCompressions++;
+        stats.memPressureBypassedCompressions++;
+        DPRINTF(CacheComp,
+                "Memory queue pressure active. Bypassing compression.\n");
+        return comp_data;
+    }
+
     totalCompressionRequests++;
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
@@ -259,6 +291,14 @@ Base::getDecompressionLatency(const CacheBlk* blk)
 {
     const CompressionBlk* comp_blk = static_cast<const CompressionBlk*>(blk);
 
+    if (enableMemAwareBypass && isMemoryCongested()) {
+        stats.bypassedDecompressions++;
+        stats.memPressureBypassedDecompressions++;
+        DPRINTF(CacheComp, "Memory queue pressure active. "
+                           "Bypassing decompression latency.\n");
+        return Cycles(0);
+    }
+
     // If block is compressed and has a size strictly less than an uncompressed
     // line, return its decompression latency
     if (comp_blk && comp_blk->isCompressed() &&
@@ -326,6 +366,10 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of bypassed compressions"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
+      ADD_STAT(memPressureBypassedCompressions, statistics::units::Count::get(),
+               "Total number of compressions bypassed due to memory queue pressure"),
+      ADD_STAT(memPressureBypassedDecompressions, statistics::units::Count::get(),
+               "Total number of decompressions bypassed due to memory queue pressure"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),
                "Total number of sampled compressions"),
       ADD_STAT(sampledUncompressedBits, statistics::units::Bit::get(),

@@ -329,6 +329,31 @@ class MemCtrl : public qos::MemCtrl
     bool writeQueueFull(unsigned int pkt_count) const;
 
     /**
+     * Get current read queue fill ratio (occupancy / capacity).
+     */
+    double getReadQueueFillRatio() const;
+
+    /**
+     * Get current write queue fill ratio (occupancy / capacity).
+     */
+    double getWriteQueueFillRatio() const;
+
+    /**
+     * Check if read queue occupancy exceeds high pressure threshold.
+     */
+    bool isReadQueueCongested() const;
+
+    /**
+     * Check if write queue occupancy exceeds high pressure threshold.
+     */
+    bool isWriteQueueCongested() const;
+
+    /**
+     * Check if memory controller queues are congested (read or write queue high).
+     */
+    bool isCongested() const;
+
+    /**
      * When a new read comes in, first check if the write q has a
      * pending request to the same address.\ If not, decode the
      * address to populate rank/bank/row, create one or mutliple
@@ -515,6 +540,10 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    uint32_t readQueueHighThreshold;
+    uint32_t writeQueueHighThreshold;
+    double readQueueHighThreshPerc;
+    double writeQueueHighThreshPerc;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 

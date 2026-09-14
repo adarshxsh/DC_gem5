@@ -77,6 +77,23 @@ class BaseCacheCompressor(SimObject):
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
 
+    enable_mem_aware_bypass = Param.Bool(
+        False,
+        "Enable memory queue pressure-aware compression bypass",
+    )
+    enable_queue_pressure_throttling = Param.Bool(
+        False,
+        "Enable memory queue pressure-aware compression bypass",
+    )
+    mem_ctrl = Param.MemCtrl(
+        NULL,
+        "Memory controller for cross-layer queue pressure feedback",
+    )
+    mem_ctrls = VectorParam.MemCtrl(
+        [],
+        "List of memory controllers for cross-layer queue pressure feedback",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"
