@@ -216,6 +216,13 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
 
     const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
     if (new_blk_cf <= 1) {
+        // Fall back to superblock's current compression factor if packet
+        // lacks payload data (uncompressed size) and superblock already has
+        // active valid compressed sub-blocks.
+        if (getNumValid() > 0) {
+            const uint8_t target_cf = getCompressionFactor();
+            return (target_cf > 1) && (getNumValid() < target_cf);
+        }
         return false;
     }
 
