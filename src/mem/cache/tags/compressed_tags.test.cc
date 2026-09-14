@@ -222,6 +222,23 @@ TEST_F(SuperBlkTestFixture, ExpansionContractionCheck)
               CompressionBlk::DATA_CONTRACTION);
 }
 
+TEST_F(SuperBlkTestFixture, ExpansionContractionCheckWithCoAllocation)
+{
+    // Co-allocate two sub-blocks: subBlks[0] with size 64 (CF=8) and subBlks[1] with size 256 (CF=2)
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(256);
+
+    // Superblock global CF is 2 (min of 8 and 2)
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+
+    // checkExpansionContraction on subBlks[0] for 128 bits (CF=4)
+    // Individual prev CF is 8, new CF is 4 -> DATA_EXPANSION (not contraction)
+    ASSERT_EQ(subBlks[0].checkExpansionContraction(128),
+              CompressionBlk::DATA_EXPANSION);
+}
+
 TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
 {
     // Stress test: 500 iterations of random allocation, co-allocation,
