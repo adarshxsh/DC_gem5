@@ -345,6 +345,9 @@ class BaseCache : public ClockedObject
         bool coalesce() const override
         { return cache.coalesce(); }
 
+        bool canCoAllocatePrefetch(Addr addr, bool is_secure) const override
+        { return cache.canCoAllocatePrefetch(addr, is_secure); }
+
     } accessor;
 
     /** Miss status registers */
@@ -1267,6 +1270,8 @@ class BaseCache : public ClockedObject
     bool inMissQueue(Addr addr, bool is_secure) const {
         return mshrQueue.findMatch(addr, is_secure);
     }
+
+    bool canCoAllocatePrefetch(Addr addr, bool is_secure) const;
 
     void incMissCount(PacketPtr pkt)
     {

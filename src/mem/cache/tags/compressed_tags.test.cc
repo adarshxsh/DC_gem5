@@ -282,3 +282,22 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFilterChecks)
+{
+    // Initially superBlk is unallocated/invalid.
+    // If compressed size is 64 bits, calculated CF = 8.
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+    // 512 bits (64 bytes) is uncompressed, target_cf = 1 -> canCoAllocate returns false.
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
+
+    // Allocate subBlock 0 with 64 bits (CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Active superblock is now compressed with CF=8.
+    // An uncompressed prefetch fill (512 bits) cannot co-allocate into this active compressed superblock.
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
+}
+
