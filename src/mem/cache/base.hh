@@ -345,8 +345,11 @@ class BaseCache : public ClockedObject
         bool coalesce() const override
         { return cache.coalesce(); }
 
-        bool canCoAllocatePrefetch(Addr addr, bool is_secure) const override
-        { return cache.canCoAllocatePrefetch(addr, is_secure); }
+        bool
+        canCoAllocatePrefetch(Addr addr, bool is_secure) const override
+        {
+            return cache.canCoAllocatePrefetch(addr, is_secure);
+        }
 
     } accessor;
 

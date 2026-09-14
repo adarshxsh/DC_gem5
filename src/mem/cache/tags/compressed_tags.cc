@@ -239,7 +239,7 @@ CompressedTags::canCoAllocatePrefetch(Addr addr, bool is_secure) const
 {
     CacheBlk::KeyType key(addr, is_secure);
 
-    std::vector<ReplaceableEntry*> superblock_entries =
+    std::vector<ReplaceableEntry *> superblock_entries =
         indexingPolicy->getPossibleEntries(key);
 
     if (partitionManager) {
@@ -252,9 +252,9 @@ CompressedTags::canCoAllocatePrefetch(Addr addr, bool is_secure) const
 
     const uint64_t offset = extractSectorOffset(addr);
 
-    const SuperBlk* active_superblock = nullptr;
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    const SuperBlk *active_superblock = nullptr;
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         if (superblock->match(key)) {
             active_superblock = superblock;
             break;
@@ -280,8 +280,8 @@ CompressedTags::canCoAllocatePrefetch(Addr addr, bool is_secure) const
 
         return true;
     } else {
-        for (const auto& entry : superblock_entries) {
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        for (const auto &entry : superblock_entries) {
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
             if (!superblock->isValid()) {
                 return true;
             }

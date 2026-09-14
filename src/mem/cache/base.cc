@@ -1877,7 +1877,7 @@ bool
 BaseCache::canCoAllocatePrefetch(Addr addr, bool is_secure) const
 {
     if (tags) {
-        CompressedTags *ctags = dynamic_cast<CompressedTags*>(tags);
+        CompressedTags *ctags = dynamic_cast<CompressedTags *>(tags);
         if (ctags) {
             return ctags->canCoAllocatePrefetch(addr, is_secure);
         }

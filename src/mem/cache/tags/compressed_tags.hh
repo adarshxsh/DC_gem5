@@ -142,8 +142,8 @@ class CompressedTags : public SectorTags
 
     /**
      * Check if a prefetch request can co-allocate into the target superblock
-     * without downgrading the superblock compression factor or forcing eviction of
-     * active demand lines.
+     * without downgrading the superblock compression factor or forcing
+     * eviction of active demand lines.
      *
      * @param addr Target address to check.
      * @param is_secure True if secure memory space.
