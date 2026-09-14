@@ -57,6 +57,7 @@
 #include "base/compiler.hh"
 #include "base/extensible.hh"
 #include "base/flags.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/printable.hh"
 #include "base/types.hh"
@@ -301,7 +302,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +361,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Flag indicating that this packet contains compressed data
+        IS_COMPRESSED          = 0x00020000
     };
 
     Flags flags;
@@ -395,6 +399,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     /// The size of the request or transfer.
     unsigned size;
+
+    /// The compressed size of the payload in bytes (if compressed).
+    std::size_t _compressedSize = 0;
 
     /**
      * Track the bytes found that satisfy a functional read.
@@ -815,6 +822,32 @@ class Packet : public Printable, public Extensible<Packet>
     void setAddr(Addr _addr) { assert(flags.isSet(VALID_ADDR)); addr = _addr; }
 
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
+
+    bool isCompressed() const { return flags.isSet(IS_COMPRESSED); }
+
+    std::size_t getCompressedSize() const
+    {
+        if (isCompressed() && _compressedSize > 0) {
+            return _compressedSize;
+        }
+        return getSize();
+    }
+
+    void setCompressedSize(std::size_t size)
+    {
+        flags.set(IS_COMPRESSED);
+        _compressedSize = size;
+    }
+
+    void setCompressedSizeBits(std::size_t size_bits)
+    {
+        setCompressedSize(divCeil(size_bits, 8));
+    }
+
+    std::size_t getCompressedSizeBits() const
+    {
+        return getCompressedSize() * 8;
+    }
 
     /**
      * Get address range to which this packet belongs.
