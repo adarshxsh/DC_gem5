@@ -1,6 +1,4 @@
-# -*- mode:python -*-
-
-# Copyright (c) 2018 Inria
+# Copyright (c) 2026 gem5 Project
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,36 +24,26 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+import unittest
 
-SimObject('Compressors.py', sim_objects=[
-    'BaseCacheCompressor', 'BaseDictionaryCompressor',
-    'Base64Delta8', 'Base64Delta16', 'Base64Delta32',
-    'Base32Delta8', 'Base32Delta16', 'Base16Delta8',
-    'CPack', 'FPC', 'FPCD', 'FrequentValuesCompressor', 'MultiCompressor',
-    'PerfectCompressor', 'RepeatedQwordsCompressor', 'ZeroCompressor'])
+from m5.objects import (
+    DDR3_1600_8x8,
+    MemCtrl,
+)
 
-Source('base.cc')
-Source('base_dictionary_compressor.cc')
-Source('base_delta.cc')
-Source('cpack.cc')
-Source('fpc.cc')
-Source('fpcd.cc')
-Source('frequent_values.cc')
-Source('multi.cc')
-Source('perfect.cc')
-Source('repeated_qwords.cc')
-Source('zero.cc')
 
-GTest('dictionary_compressor.test', 'dictionary_compressor.test.cc',
-      'base.cc', 'base_dictionary_compressor.cc', 'cpack.cc', 'fpc.cc',
-      with_tag('gem5 lib'))
-SourceLib('z')
+class MemCtrlAdaptiveParamTest(unittest.TestCase):
+    def test_default_parameters(self):
+        ctrl = MemCtrl()
+        self.assertFalse(ctrl.enable_adaptive_turnaround)
 
-GTest('multi.test', 'multi.test.cc', 'multi.cc', 'base.cc', 'zero.cc',
-      'repeated_qwords.cc', 'base_delta.cc', 'base_dictionary_compressor.cc',
-      '#src/mem/cache/tags/super_blk.cc', '#src/mem/cache/tags/sector_blk.cc',
-      '#src/base/statistics.cc', '#src/base/stats/info.cc',
-      '#src/base/stats/storage.cc', '#src/base/stats/text.cc',
-      '#src/base/types.cc', '#src/base/output.cc', '#src/cpu/reg_class.cc',
-      '#src/sim/bufval.cc', with_tag('gem5 simobject'))
+    def test_custom_parameters(self):
+        ctrl = MemCtrl(
+            enable_adaptive_turnaround=True,
+            dram=DDR3_1600_8x8(),
+        )
+        self.assertTrue(ctrl.enable_adaptive_turnaround)
+
+
+if __name__ == "__main__":
+    unittest.main()
