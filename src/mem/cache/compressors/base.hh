@@ -146,10 +146,10 @@ class Base : public SimObject
     const bool enableMemAwareBypass;
 
     /** Pointer to downstream memory controller for cross-layer feedback. */
-    memory::MemCtrl* memCtrl;
+    memory::MemCtrl *memCtrl;
 
     /** List of downstream memory controllers for cross-layer feedback. */
-    std::vector<memory::MemCtrl*> memCtrls;
+    std::vector<memory::MemCtrl *> memCtrls;
 
     /** Check if downstream memory queues are congested. */
     virtual bool isMemoryCongested() const;
