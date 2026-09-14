@@ -83,6 +83,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         l2_size: str = "512KiB",
         l2_assoc: int = 16,
         compressor: str = "none",
+        enable_queue_pressure_throttling: bool = False,
+        queue_pressure_high_threshold: int = 85,
+        queue_pressure_low_threshold: int = 50,
         membus: Optional[SystemXBar] = None,
     ) -> None:
         AbstractClassicCacheHierarchy.__init__(self)
@@ -101,6 +104,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._l2_size = l2_size
         self._l2_assoc = l2_assoc
         self._compressor_choice = compressor.lower()
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
+        self._queue_pressure_high_threshold = queue_pressure_high_threshold
+        self._queue_pressure_low_threshold = queue_pressure_low_threshold
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -135,10 +143,21 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             else:
                 l2.compressor = BDI()
 
+            l2.compressor.enable_queue_pressure_throttling = (
+                self._enable_queue_pressure_throttling
+            )
+            l2.compressor.queue_pressure_high_threshold = (
+                self._queue_pressure_high_threshold
+            )
+            l2.compressor.queue_pressure_low_threshold = (
+                self._queue_pressure_low_threshold
+            )
+
             l2.tags = CompressedTags()
             print(
                 f"[CompressionEval] L2 cache configured with {l2.compressor.type} compressor "
-                "and CompressedTags"
+                f"and CompressedTags (pressure_throttling={self._enable_queue_pressure_throttling}, "
+                f"high={self._queue_pressure_high_threshold}%, low={self._queue_pressure_low_threshold}%)"
             )
         else:
             print(
@@ -358,6 +377,35 @@ parser.add_argument(
     help="Number of instructions for measured ROI (default: 10M).",
 )
 
+parser.add_argument(
+    "--write-high-thresh",
+    "--mem-write-high-thresh",
+    type=int,
+    required=False,
+    default=85,
+    dest="write_high_thresh",
+    help="Memory write queue high threshold percentage (default: 85).",
+)
+
+parser.add_argument(
+    "--write-low-thresh",
+    type=int,
+    required=False,
+    default=50,
+    dest="write_low_thresh",
+    help="Memory write queue low threshold percentage (default: 50).",
+)
+
+parser.add_argument(
+    "--enable-pressure-throttling",
+    "--enable-queue-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    dest="enable_pressure_throttling",
+    help="Enable memory write queue pressure throttling for cache compression.",
+)
+
 args = parser.parse_args()
 
 # Normalize compressor choice
@@ -428,9 +476,20 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     l2_size=args.l2_size,
     l2_assoc=16,
     compressor=chosen_compressor,
+    enable_queue_pressure_throttling=args.enable_pressure_throttling,
+    queue_pressure_high_threshold=args.write_high_thresh,
+    queue_pressure_low_threshold=args.write_low_thresh,
 )
 
 memory = DualChannelDDR4_2400(size="3GiB")
+mem_ctrls = (
+    memory.get_memory_controllers()
+    if hasattr(memory, "get_memory_controllers")
+    else ([memory.mem_ctrl] if hasattr(memory, "mem_ctrl") else [])
+)
+for ctrl in mem_ctrls:
+    ctrl.write_high_thresh_perc = args.write_high_thresh
+    ctrl.write_low_thresh_perc = args.write_low_thresh
 
 processor = SimpleSwitchableProcessor(
     starting_core_type=starting_cpu,
