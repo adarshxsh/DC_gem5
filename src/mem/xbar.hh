@@ -116,18 +116,19 @@ class BaseXBar : public ClockedObject
 
         const std::string name() const { return _name; }
 
-
         struct WaitingPort
         {
-            SrcType* port;
+            SrcType *port;
             bool isHighPriority;
             Tick payloadDelay;
             Tick entryTick;
 
-            WaitingPort(SrcType* _port, bool _isHighPriority,
+            WaitingPort(SrcType *_port, bool _isHighPriority,
                         Tick _payloadDelay, Tick _entryTick)
-                : port(_port), isHighPriority(_isHighPriority),
-                  payloadDelay(_payloadDelay), entryTick(_entryTick)
+                : port(_port),
+                  isHighPriority(_isHighPriority),
+                  payloadDelay(_payloadDelay),
+                  entryTick(_entryTick)
             {}
         };
 
@@ -142,7 +143,7 @@ class BaseXBar : public ClockedObject
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port, PacketPtr pkt = nullptr);
+        bool tryTiming(SrcType *src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -163,15 +164,16 @@ class BaseXBar : public ClockedObject
          * @param busy_time Time to spend as a result of a failed send
          * @param pkt Optional packet pointer for priority classification
          */
-        void failedTiming(SrcType* src_port, Tick busy_time,
+        void failedTiming(SrcType *src_port, Tick busy_time,
                           PacketPtr pkt = nullptr);
 
         void occupyLayer(Tick until);
 
-        bool hasWaiting() const
+        bool
+        hasWaiting() const
         {
-            return !highPriorityWaiting.empty() || !lowPriorityWaiting.empty() ||
-                   !waitingForLayer.empty();
+            return !highPriorityWaiting.empty() ||
+                   !lowPriorityWaiting.empty() || !waitingForLayer.empty();
         }
 
         /**
@@ -234,8 +236,8 @@ class BaseXBar : public ClockedObject
         std::deque<SrcType*> waitingForLayer;
 
         /**
-         * Priority queues for waiting ports: high-priority (demand reads/fetches)
-         * and low-priority (writebacks and evictions).
+         * Priority queues for waiting ports: high-priority (demand
+         * reads/fetches) and low-priority (writebacks and evictions).
          */
         std::deque<WaitingPort> highPriorityWaiting;
         std::deque<WaitingPort> lowPriorityWaiting;
