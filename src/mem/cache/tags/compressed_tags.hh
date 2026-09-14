@@ -107,6 +107,23 @@ class CompressedTags : public SectorTags
     void tagsInit() override;
 
     /**
+     * Finds the given address in the cache, searching all sub-block slots
+     * within matching superblocks for the corresponding sector offset.
+     *
+     * @param key The key (address, secure bit) to find.
+     * @return Pointer to the cache block if found.
+     */
+    CacheBlk* findBlock(const CacheBlk::KeyType &key) const override;
+
+    /**
+     * Insert the new block into the cache and set its sector offset.
+     *
+     * @param pkt Packet holding the address to update
+     * @param blk The block to update.
+     */
+    void insertBlock(const PacketPtr pkt, CacheBlk *blk) override;
+
+    /**
      * Find replacement victim based on address. Checks if data can be co-
      * allocated before choosing blocks to be evicted.
      *
