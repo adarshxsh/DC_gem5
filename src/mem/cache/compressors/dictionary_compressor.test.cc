@@ -145,7 +145,11 @@ class TestMemAwareCPack : public CPack
     using CPack::CPack;
 
     bool mockCongested = false;
-    bool isMemoryCongested() const override { return mockCongested; }
+    bool
+    isMemoryCongested() const override
+    {
+        return mockCongested;
+    }
 };
 
 TEST(DictionaryCompressorTest, MemoryQueuePressureAwareBypass)
