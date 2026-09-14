@@ -72,6 +72,7 @@ structure(RequestMsg, desc="...", interface="Message") {
   MessageSizeType MessageSize,  desc="size category of the message";
   DataBlock DataBlk,            desc="Data for the cache line (if PUTX)";
   int Len;
+  int PayloadSize, default="-1", desc="Payload size in bytes";
   bool Dirty, default="false",  desc="Dirty bit";
   PrefetchBit Prefetch,         desc="Is this a prefetch request";
 
@@ -101,6 +102,7 @@ structure(ResponseMsg, desc="...", interface="Message") {
   bool Dirty, default="false",  desc="Dirty bit";
   int AckCount, default="0",  desc="number of acks in this message";
   MessageSizeType MessageSize,  desc="size category of the message";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
 
   bool functionalRead(Packet *pkt) {
     // Valid data block is only present in message with following types

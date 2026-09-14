@@ -109,6 +109,7 @@ structure(CPURequestMsg, desc="...", interface="Message") {
   NetDest Destination,             desc="Multicast destination mask";
   bool Shared,                  desc="For CPU_WrVicBlk, vic is O not M.  For CPU_ClVicBlk, vic is S";
   MessageSizeType MessageSize, desc="size category of the message";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
   Cycles InitialRequestTime, default="0", desc="time the initial requests was sent from the L1Cache";
   Cycles ForwardRequestTime, default="0", desc="time the dir forwarded the request";
   Cycles ProbeRequestStartTime, default="0", desc="the time the dir started the probe request";
@@ -211,6 +212,7 @@ structure(ResponseMsg, desc="...", interface="Message") {
   bool NbReqShared,             desc="modification of Shared field from initial request, e.g. hit by shared probe";
 
   MessageSizeType MessageSize, desc="size category of the message";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
   Cycles InitialRequestTime, default="0", desc="time the initial requests was sent from the L1Cache";
   Cycles ForwardRequestTime, default="0", desc="time the dir forwarded the request";
   Cycles ProbeRequestStartTime, default="0", desc="the time the dir started the probe request";
