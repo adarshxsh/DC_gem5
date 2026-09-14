@@ -116,6 +116,21 @@ class BaseXBar : public ClockedObject
 
         const std::string name() const { return _name; }
 
+        struct WaitingPort
+        {
+            SrcType *port;
+            bool isHighPriority;
+            Tick payloadDelay;
+            Tick entryTick;
+
+            WaitingPort(SrcType *_port, bool _isHighPriority,
+                        Tick _payloadDelay, Tick _entryTick)
+                : port(_port),
+                  isHighPriority(_isHighPriority),
+                  payloadDelay(_payloadDelay),
+                  entryTick(_entryTick)
+            {}
+        };
 
         /**
          * Determine if the layer accepts a packet from a specific
@@ -124,10 +139,11 @@ class BaseXBar : public ClockedObject
          * updated accordingly.
          *
          * @param port Source port presenting the packet
+         * @param pkt Optional packet pointer for priority classification
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port);
+        bool tryTiming(SrcType *src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -146,10 +162,19 @@ class BaseXBar : public ClockedObject
          *
          * @param src_port Source port
          * @param busy_time Time to spend as a result of a failed send
+         * @param pkt Optional packet pointer for priority classification
          */
-        void failedTiming(SrcType* src_port, Tick busy_time);
+        void failedTiming(SrcType *src_port, Tick busy_time,
+                          PacketPtr pkt = nullptr);
 
         void occupyLayer(Tick until);
+
+        bool
+        hasWaiting() const
+        {
+            return !highPriorityWaiting.empty() ||
+                   !lowPriorityWaiting.empty() || !waitingForLayer.empty();
+        }
 
         /**
          * Send a retry to the port at the head of waitingForLayer. The
@@ -211,10 +236,26 @@ class BaseXBar : public ClockedObject
         std::deque<SrcType*> waitingForLayer;
 
         /**
+         * Priority queues for waiting ports: high-priority (demand
+         * reads/fetches) and low-priority (writebacks and evictions).
+         */
+        std::deque<WaitingPort> highPriorityWaiting;
+        std::deque<WaitingPort> lowPriorityWaiting;
+
+        /**
+         * Anti-starvation aging counter to prevent low-priority writebacks
+         * from being starved under continuous demand traffic.
+         */
+        uint32_t lowPriorityAgingCounter;
+        static constexpr uint32_t AGING_THRESHOLD = 16;
+
+        /**
          * Track who is waiting for the retry when receiving it from a
          * peer. If no port is waiting NULL is stored.
          */
         SrcType* waitingForPeer;
+        bool waitingForPeerPriority;
+        Tick waitingForPeerPayloadDelay;
 
         /**
          * Release the layer after being occupied and return to an
