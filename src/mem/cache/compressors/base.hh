@@ -70,7 +70,15 @@ class Base : public SimObject
      */
     class CompressionData;
 
+  public:
+    enum CongestionLevel {
+        NORMAL = 0,
+        CONGESTED = 1,
+        HIGH_PRESSURE = 2
+    };
+
   protected:
+    CongestionLevel congestionLevel;
     /**
      * A chunk is a basic lexical unit. The data being compressed is received
      * by the compressor as a raw pointer. In order to parse this data, the
@@ -240,6 +248,10 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Update operational mode based on downstream memory queue pressure. */
+    virtual void setCongestionLevel(CongestionLevel level);
+    CongestionLevel getCongestionLevel() const { return congestionLevel; }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

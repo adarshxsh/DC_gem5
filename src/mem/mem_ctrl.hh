@@ -787,6 +787,7 @@ class MemCtrl : public qos::MemCtrl
     virtual void recvMemBackdoorReq(const MemBackdoorReq &req,
             MemBackdoorPtr &backdoor);
     virtual bool recvTimingReq(PacketPtr pkt);
+    virtual void schedTimingResp(PacketPtr pkt, Tick when);
 
     bool recvFunctionalLogic(PacketPtr pkt, MemInterface* mem_intr);
     Tick recvAtomicLogic(PacketPtr pkt, MemInterface* mem_intr);

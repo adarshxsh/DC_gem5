@@ -297,11 +297,10 @@ class Packet : public Printable, public Extensible<Packet>
     typedef uint32_t FlagsType;
     typedef gem5::Flags<FlagsType> Flags;
 
-  private:
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000600FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +359,11 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Memory controller queue pressure feedback flags
+        MEM_CONGESTED         = 0x00020000,
+        MEM_HIGH_PRESSURE     = 0x00040000
     };
 
     Flags flags;
@@ -759,6 +762,14 @@ class Packet : public Printable, public Extensible<Packet>
     void setBlockCached()          { flags.set(BLOCK_CACHED); }
     bool isBlockCached() const     { return flags.isSet(BLOCK_CACHED); }
     void clearBlockCached()        { flags.clear(BLOCK_CACHED); }
+
+    void setMemCongested()          { flags.set(MEM_CONGESTED); }
+    bool isMemCongested() const     { return flags.isSet(MEM_CONGESTED); }
+    void clearMemCongested()        { flags.clear(MEM_CONGESTED); }
+
+    void setMemHighPressure()       { flags.set(MEM_HIGH_PRESSURE); }
+    bool isMemHighPressure() const  { return flags.isSet(MEM_HIGH_PRESSURE); }
+    void clearMemHighPressure()     { flags.clear(MEM_HIGH_PRESSURE); }
 
     /**
      * QoS Value getter
