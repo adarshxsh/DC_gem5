@@ -134,6 +134,15 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
+    /** Memory queue pressure high threshold percentage. */
+    const uint8_t queuePressureHighThreshold;
+
+    /** Memory queue pressure low threshold percentage. */
+    const uint8_t queuePressureLowThreshold;
+
+    /** Whether memory write queue pressure throttling is enabled. */
+    const bool enableQueuePressureThrottling;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
