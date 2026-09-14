@@ -30,6 +30,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -280,5 +281,148 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         for (int i = 0; i < NumSuperBlks; ++i) {
             verifyInvariants(sblks[i]);
         }
+    }
+}
+
+TEST_F(SuperBlkTestFixture, TwoStageCandidateFiltering)
+{
+    constexpr int NumCandidates = 4;
+    SuperBlk candidates[NumCandidates];
+    std::unique_ptr<CompressionBlk[]> sub_blocks[NumCandidates];
+
+    for (int i = 0; i < NumCandidates; ++i) {
+        candidates[i].setBlkSize(BlkSize);
+        sub_blocks[i].reset(new CompressionBlk[NumSubBlks]);
+        candidates[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            candidates[i].blks[k] = &sub_blocks[i][k];
+            sub_blocks[i][k].setSectorBlock(&candidates[i]);
+            sub_blocks[i][k].setSectorOffset(k);
+            sub_blocks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr; });
+        }
+        candidates[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // Candidate 0: 3 valid sub-blocks
+    sub_blocks[0][0].insert({0x1000, false});
+    sub_blocks[0][0].setSizeBits(64);
+    sub_blocks[0][1].insert({0x1000, false});
+    sub_blocks[0][1].setSizeBits(64);
+    sub_blocks[0][2].insert({0x1000, false});
+    sub_blocks[0][2].setSizeBits(64);
+    ASSERT_EQ(candidates[0].getNumValid(), 3);
+
+    // Candidate 1: 1 valid sub-block
+    sub_blocks[1][0].insert({0x2000, false});
+    sub_blocks[1][0].setSizeBits(64);
+    ASSERT_EQ(candidates[1].getNumValid(), 1);
+
+    // Candidate 2: 4 valid sub-blocks
+    sub_blocks[2][0].insert({0x3000, false});
+    sub_blocks[2][0].setSizeBits(64);
+    sub_blocks[2][1].insert({0x3000, false});
+    sub_blocks[2][1].setSizeBits(64);
+    sub_blocks[2][2].insert({0x3000, false});
+    sub_blocks[2][2].setSizeBits(64);
+    sub_blocks[2][3].insert({0x3000, false});
+    sub_blocks[2][3].setSizeBits(64);
+    ASSERT_EQ(candidates[2].getNumValid(), 4);
+
+    // Candidate 3: 1 valid sub-block
+    sub_blocks[3][0].insert({0x4000, false});
+    sub_blocks[3][0].setSizeBits(64);
+    ASSERT_EQ(candidates[3].getNumValid(), 1);
+
+    std::vector<ReplaceableEntry *> superblock_entries;
+    for (int i = 0; i < NumCandidates; ++i) {
+        superblock_entries.push_back(&candidates[i]);
+    }
+
+    // Replicate candidate filtering logic from CompressedTags::findVictim()
+    uint8_t min_valid = std::numeric_limits<uint8_t>::max();
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        uint8_t num_valid = superblock->getNumValid();
+        if (num_valid < min_valid) {
+            min_valid = num_valid;
+        }
+    }
+    ASSERT_EQ(min_valid, 1);
+
+    std::vector<ReplaceableEntry *> filtered_entries;
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        if (superblock->getNumValid() == min_valid) {
+            filtered_entries.push_back(entry);
+        }
+    }
+
+    // Filtered entries should only contain candidates 1 and 3 (the ones with
+    // min_valid = 1)
+    ASSERT_EQ(filtered_entries.size(), 2);
+    ASSERT_EQ(filtered_entries[0], &candidates[1]);
+    ASSERT_EQ(filtered_entries[1], &candidates[3]);
+
+    for (int i = 0; i < NumCandidates; ++i) {
+        verifyInvariants(candidates[i]);
+    }
+}
+
+TEST_F(SuperBlkTestFixture, TwoStageCandidateFilteringEqualValid)
+{
+    constexpr int NumCandidates = 3;
+    SuperBlk candidates[NumCandidates];
+    std::unique_ptr<CompressionBlk[]> sub_blocks[NumCandidates];
+
+    for (int i = 0; i < NumCandidates; ++i) {
+        candidates[i].setBlkSize(BlkSize);
+        sub_blocks[i].reset(new CompressionBlk[NumSubBlks]);
+        candidates[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            candidates[i].blks[k] = &sub_blocks[i][k];
+            sub_blocks[i][k].setSectorBlock(&candidates[i]);
+            sub_blocks[i][k].setSectorOffset(k);
+            sub_blocks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr; });
+        }
+        candidates[i].registerTagExtractor([](Addr addr) { return addr; });
+
+        // Each candidate has 2 valid sub-blocks
+        sub_blocks[i][0].insert({Addr(0x1000 * (i + 1)), false});
+        sub_blocks[i][0].setSizeBits(64);
+        sub_blocks[i][1].insert({Addr(0x1000 * (i + 1)), false});
+        sub_blocks[i][1].setSizeBits(64);
+        ASSERT_EQ(candidates[i].getNumValid(), 2);
+    }
+
+    std::vector<ReplaceableEntry *> superblock_entries;
+    for (int i = 0; i < NumCandidates; ++i) {
+        superblock_entries.push_back(&candidates[i]);
+    }
+
+    uint8_t min_valid = std::numeric_limits<uint8_t>::max();
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        uint8_t num_valid = superblock->getNumValid();
+        if (num_valid < min_valid) {
+            min_valid = num_valid;
+        }
+    }
+    ASSERT_EQ(min_valid, 2);
+
+    std::vector<ReplaceableEntry *> filtered_entries;
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        if (superblock->getNumValid() == min_valid) {
+            filtered_entries.push_back(entry);
+        }
+    }
+
+    // All candidates preserved when valid counts are equal
+    ASSERT_EQ(filtered_entries.size(), NumCandidates);
+    for (int i = 0; i < NumCandidates; ++i) {
+        ASSERT_EQ(filtered_entries[i], &candidates[i]);
+        verifyInvariants(candidates[i]);
     }
 }
