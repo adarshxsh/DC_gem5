@@ -291,13 +291,14 @@ class BaseTags : public ClockedObject
                                  bool is_prefetch = false) = 0;
 
     /**
-     * Proactively reserve a superblock sub-block slot during miss buffer allocation.
-     * Overridden by compressed tag stores.
+     * Proactively reserve a superblock sub-block slot during miss buffer
+     * allocation. Overridden by compressed tag stores.
      */
-    virtual bool reserveSuperblockSlot(const CacheBlk::KeyType &key,
-                                       std::size_t predicted_size_bits,
-                                       SuperBlk* &reserved_super_blk,
-                                       CacheBlk* &reserved_sub_blk)
+    virtual bool
+    reserveSuperblockSlot(const CacheBlk::KeyType &key,
+                          std::size_t predicted_size_bits,
+                          SuperBlk *&reserved_super_blk,
+                          CacheBlk *&reserved_sub_blk)
     {
         reserved_super_blk = nullptr;
         reserved_sub_blk = nullptr;
@@ -305,13 +306,13 @@ class BaseTags : public ClockedObject
     }
 
     /**
-     * Release a pre-reserved superblock sub-block slot if the miss is cancelled or deallocated.
-     * Overridden by compressed tag stores.
+     * Release a pre-reserved superblock sub-block slot if the miss is
+     * cancelled or deallocated. Overridden by compressed tag stores.
      */
-    virtual void releaseSuperblockSlot(SuperBlk *reserved_super_blk,
-                                       CacheBlk *reserved_sub_blk)
-    {
-    }
+    virtual void
+    releaseSuperblockSlot(SuperBlk *reserved_super_blk,
+                          CacheBlk *reserved_sub_blk)
+    {}
 
     /**
      * Access block and update replacement data. May not succeed, in which case

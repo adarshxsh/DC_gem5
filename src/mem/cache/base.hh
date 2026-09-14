@@ -801,9 +801,8 @@ class BaseCache : public ClockedObject
      * @param allocate Whether to allocate a block or use the temp block
      * @return Pointer to the new cache block.
      */
-    CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
-                         PacketList &writebacks, bool allocate,
-                         MSHR *mshr = nullptr);
+    CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                         bool allocate, MSHR *mshr = nullptr);
 
     /**
      * Allocate a new block and perform any necessary writebacks
@@ -1206,21 +1205,18 @@ class BaseCache : public ClockedObject
             predicted_size_bits = (blkSize * 8) / 2;
         }
 
-        SuperBlk* reserved_super_blk = nullptr;
-        CacheBlk* reserved_sub_blk = nullptr;
+        SuperBlk *reserved_super_blk = nullptr;
+        CacheBlk *reserved_sub_blk = nullptr;
         if (tags) {
-            tags->reserveSuperblockSlot({pkt->getBlockAddr(blkSize), pkt->isSecure()},
-                                       predicted_size_bits,
-                                       reserved_super_blk,
-                                       reserved_sub_blk);
+            tags->reserveSuperblockSlot(
+                {pkt->getBlockAddr(blkSize), pkt->isSecure()},
+                predicted_size_bits, reserved_super_blk, reserved_sub_blk);
         }
 
-        MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
-                                        pkt, time, order++,
-                                        allocOnFill(pkt->cmd),
-                                        predicted_size_bits,
-                                        reserved_super_blk,
-                                        reserved_sub_blk);
+        MSHR *mshr = mshrQueue.allocate(
+            pkt->getBlockAddr(blkSize), blkSize, pkt, time, order++,
+            allocOnFill(pkt->cmd), predicted_size_bits, reserved_super_blk,
+            reserved_sub_blk);
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);

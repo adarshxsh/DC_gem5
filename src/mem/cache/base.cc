@@ -1653,7 +1653,7 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
     }
 }
 
-CacheBlk*
+CacheBlk *
 BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool allocate, MSHR *mshr)
 {
@@ -1749,8 +1749,9 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     return blk;
 }
 
-CacheBlk*
-BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks, MSHR *mshr)
+CacheBlk *
+BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks,
+                         MSHR *mshr)
 {
     // Get address
     const Addr addr = pkt->getAddr();
@@ -1777,16 +1778,17 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks, MSHR *mshr
     }
 
     if (mshr && mshr->getReservedSubBlk()) {
-        CacheBlk* res_sub = mshr->getReservedSubBlk();
-        SuperBlk* res_super = mshr->getReservedSuperBlk();
-        CompressionBlk* res_cblk = static_cast<CompressionBlk*>(res_sub);
+        CacheBlk *res_sub = mshr->getReservedSubBlk();
+        SuperBlk *res_super = mshr->getReservedSuperBlk();
+        CompressionBlk *res_cblk = static_cast<CompressionBlk *>(res_sub);
 
         if (res_cblk->isReserved()) {
             bool fits = true;
             if (res_super) {
                 uint8_t target_cf =
                     res_super->calculateCompressionFactor(blk_size_bits);
-                if (target_cf <= 1 && res_super->getNumValidAndReserved() > 1) {
+                if (target_cf <= 1 &&
+                    res_super->getNumValidAndReserved() > 1) {
                     fits = false;
                 }
             }
@@ -1796,23 +1798,25 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks, MSHR *mshr
                 mshr->setReservedSubBlk(nullptr);
                 mshr->setReservedSuperBlk(nullptr);
 
-                CacheBlk* victim = res_sub;
+                CacheBlk *victim = res_sub;
                 tags->insertBlock(pkt, victim);
 
                 if (compressor) {
                     compressor->setSizeBits(victim, blk_size_bits);
-                    compressor->setDecompressionLatency(
-                        victim, decompression_lat);
+                    compressor->setDecompressionLatency(victim,
+                                                        decompression_lat);
                 }
 
                 DPRINTF(CacheComp,
-                        "Co-allocated fill using pre-reserved slot for addr %#llx\n",
+                        "Co-allocated fill using pre-reserved slot for addr "
+                        "%#llx\n",
                         addr);
                 return victim;
             } else {
-                DPRINTF(CacheComp,
-                        "Mispredicted slot size for addr %#llx, releasing slot\n",
-                        addr);
+                DPRINTF(
+                    CacheComp,
+                    "Mispredicted slot size for addr %#llx, releasing slot\n",
+                    addr);
                 tags->releaseSuperblockSlot(res_super, res_sub);
                 mshr->setReservedSubBlk(nullptr);
                 mshr->setReservedSuperBlk(nullptr);

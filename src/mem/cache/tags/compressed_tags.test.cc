@@ -606,7 +606,8 @@ TEST_F(SuperBlkTestFixture, ProactiveSlotReservation)
 
 TEST_F(SuperBlkTestFixture, ConcurrentFillCoAllocationWithReservation)
 {
-    // Simulate 4 concurrent misses reserving sub-block slots with 64 bits each (CF=8)
+    // Simulate 4 concurrent misses reserving sub-block slots with 64 bits each
+    // (CF=8)
     for (unsigned k = 0; k < 4; ++k) {
         subBlks[k].setSizeBits(64);
         subBlks[k].setReserved(true);
@@ -615,7 +616,8 @@ TEST_F(SuperBlkTestFixture, ConcurrentFillCoAllocationWithReservation)
     ASSERT_EQ(superBlk.getNumValidAndReserved(), 4);
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
-    // Verify co-allocation is still possible for up to 8 sub-blocks with 64 bits
+    // Verify co-allocation is still possible for up to 8 sub-blocks with 64
+    // bits
     ASSERT_TRUE(superBlk.canCoAllocate(64));
 
     // Reserve 4 more sub-blocks to reach max capacity for CF=8
