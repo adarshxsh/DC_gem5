@@ -43,16 +43,16 @@ run_simulation() {
     local bench="$1"
     local csize="$2"
     local comp="$3"
-    
+
     local outdir="$OUTPUT_BASE/${bench}_${csize}_${comp}"
     mkdir -p "$outdir"
-    
+
     echo ""
     echo "--------------------------------------------------------------------------------"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: Benchmark=$bench | L2=$csize | Compressor=$comp"
     echo "OutDir: $outdir"
     echo "--------------------------------------------------------------------------------"
-    
+
     "$GEM5_BIN" \
         --outdir="$outdir" \
         "$CONFIG_SCRIPT" \

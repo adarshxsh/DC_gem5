@@ -1074,7 +1074,6 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // must be evicted to make room for the expanded/contracted block
     std::vector<CacheBlk*> evict_blks;
     if (is_data_expansion || is_data_contraction) {
-        std::vector<CacheBlk*> evict_blks;
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
@@ -1094,20 +1093,61 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                 victim_itself = true;
                 auto it = std::find_if(evict_blks.begin(), evict_blks.end(),
                     [&blk](CacheBlk* evict_blk){ return evict_blk == blk; });
-                evict_blks.erase(it);
+                if (it != evict_blks.end()) {
+                    evict_blks.erase(it);
+                }
             }
 
             // Print victim block's information
             DPRINTF(CacheRepl, "Data %s replacement victim: %s\n",
                 op_name, victim->print());
         } else {
-            // If we do not move the expanded block, we must make room for
-            // the expansion to happen, so evict every co-allocated block
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(
-                compression_blk->getSectorBlock());
-            for (auto& sub_blk : superblock->blks) {
-                if (sub_blk->isValid() && (blk != sub_blk)) {
-                    evict_blks.push_back(sub_blk);
+            // If we do not move the expanded block, evaluate prospective
+            // superblock capacity to determine if partial or zero evictions
+            // are needed.
+            SuperBlk *superblock =
+                static_cast<SuperBlk *>(compression_blk->getSectorBlock());
+            if (superblock) {
+                uint8_t new_blk_cf =
+                    superblock->calculateCompressionFactor(compression_size);
+                uint8_t target_cf = new_blk_cf;
+                for (auto &sub_blk : superblock->blks) {
+                    if (sub_blk->isValid() && (blk != sub_blk)) {
+                        CompressionBlk *cblk =
+                            static_cast<CompressionBlk *>(sub_blk);
+                        uint8_t sub_cf =
+                            superblock->calculateCompressionFactor(
+                                cblk->getSizeBits());
+                        if (sub_cf < target_cf) {
+                            target_cf = sub_cf;
+                        }
+                    }
+                }
+
+                uint8_t num_valid = superblock->getNumValid();
+                if (num_valid > target_cf) {
+                    std::size_t excess = num_valid - target_cf;
+                    std::vector<SectorSubBlk *> candidates;
+                    for (auto &sub_blk : superblock->blks) {
+                        if (sub_blk->isValid() && (blk != sub_blk)) {
+                            candidates.push_back(sub_blk);
+                        }
+                    }
+
+                    // Sort candidates in replacement / LRU order
+                    std::sort(
+                        candidates.begin(), candidates.end(),
+                        [](const SectorSubBlk *a, const SectorSubBlk *b) {
+                            if (a->getWhenReady() != b->getWhenReady()) {
+                                return a->getWhenReady() < b->getWhenReady();
+                            }
+                            return a->getSectorOffset() < b->getSectorOffset();
+                        });
+
+                    for (std::size_t i = 0;
+                         i < excess && i < candidates.size(); ++i) {
+                        evict_blks.push_back(candidates[i]);
+                    }
                 }
             }
         }
