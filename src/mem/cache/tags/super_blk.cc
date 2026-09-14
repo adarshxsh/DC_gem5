@@ -43,7 +43,10 @@ namespace gem5
 {
 
 CompressionBlk::CompressionBlk()
-    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false),
+    : SectorSubBlk(),
+      _size(0),
+      _decompressionLatency(0),
+      _compressed(false),
       _reserved(false)
 {
 }
@@ -109,7 +112,7 @@ void
 CompressionBlk::setReserved(bool reserved)
 {
     _reserved = reserved;
-    SuperBlk* superblock = static_cast<SuperBlk*>(getSectorBlock());
+    SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
         superblock->updateCompressionFactor();
     }

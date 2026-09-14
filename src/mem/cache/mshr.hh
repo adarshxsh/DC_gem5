@@ -180,10 +180,11 @@ class MSHR : public QueueEntry, public Printable
          */
         bool hasFromCache;
 
-        /** In-flight compression metadata and superblock reservation handles */
+        /** In-flight compression metadata and superblock reservation handles
+         */
         std::size_t predictedSizeBits;
-        SuperBlk* reservedSuperBlk;
-        CacheBlk* reservedSubBlk;
+        SuperBlk *reservedSuperBlk;
+        CacheBlk *reservedSubBlk;
 
         TargetList(const std::string &name = ".unnamedTargetList");
 
@@ -431,17 +432,41 @@ class MSHR : public QueueEntry, public Printable
     void allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
                   Tick when_ready, Counter _order, bool alloc_on_fill,
                   std::size_t predicted_size_bits = 0,
-                  SuperBlk* reserved_super_blk = nullptr,
-                  CacheBlk* reserved_sub_blk = nullptr);
+                  SuperBlk *reserved_super_blk = nullptr,
+                  CacheBlk *reserved_sub_blk = nullptr);
 
-    std::size_t getPredictedSizeBits() const { return targets.predictedSizeBits; }
-    void setPredictedSizeBits(std::size_t size_bits) { targets.predictedSizeBits = size_bits; }
+    std::size_t
+    getPredictedSizeBits() const
+    {
+        return targets.predictedSizeBits;
+    }
+    void
+    setPredictedSizeBits(std::size_t size_bits)
+    {
+        targets.predictedSizeBits = size_bits;
+    }
 
-    SuperBlk* getReservedSuperBlk() const { return targets.reservedSuperBlk; }
-    void setReservedSuperBlk(SuperBlk* sblk) { targets.reservedSuperBlk = sblk; }
+    SuperBlk *
+    getReservedSuperBlk() const
+    {
+        return targets.reservedSuperBlk;
+    }
+    void
+    setReservedSuperBlk(SuperBlk *sblk)
+    {
+        targets.reservedSuperBlk = sblk;
+    }
 
-    CacheBlk* getReservedSubBlk() const { return targets.reservedSubBlk; }
-    void setReservedSubBlk(CacheBlk* blk) { targets.reservedSubBlk = blk; }
+    CacheBlk *
+    getReservedSubBlk() const
+    {
+        return targets.reservedSubBlk;
+    }
+    void
+    setReservedSubBlk(CacheBlk *blk)
+    {
+        targets.reservedSubBlk = blk;
+    }
 
     void markInService(bool pending_modified_resp);
 

@@ -295,13 +295,11 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
     }
 }
 
-
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
                Tick when_ready, Counter _order, bool alloc_on_fill,
-               std::size_t predicted_size_bits,
-               SuperBlk* reserved_super_blk,
-               CacheBlk* reserved_sub_blk)
+               std::size_t predicted_size_bits, SuperBlk *reserved_super_blk,
+               CacheBlk *reserved_sub_blk)
 {
     blkAddr = blk_addr;
     blkSize = blk_size;
