@@ -120,18 +120,18 @@ CompressedTags::tagsInit()
     }
 }
 
-CacheBlk*
+CacheBlk *
 CompressedTags::findBlock(const CacheBlk::KeyType &key) const
 {
     const Addr offset = extractSectorOffset(key.address);
 
-    const std::vector<ReplaceableEntry*> entries =
+    const std::vector<ReplaceableEntry *> entries =
         indexingPolicy->getPossibleEntries(key);
 
-    for (const auto& entry : entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    for (const auto &entry : entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         if (superblock->match(key)) {
-            for (const auto& blk : superblock->blks) {
+            for (const auto &blk : superblock->blks) {
                 if (blk->isValid() && blk->getSectorOffset() == offset) {
                     return blk;
                 }
@@ -145,7 +145,7 @@ CompressedTags::findBlock(const CacheBlk::KeyType &key) const
 void
 CompressedTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {
-    SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
+    SectorSubBlk *sub_blk = static_cast<SectorSubBlk *>(blk);
     sub_blk->setSectorOffset(extractSectorOffset(pkt->getAddr()));
     SectorTags::insertBlock(pkt, blk);
 }
@@ -169,22 +169,22 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     // Check if the superblock this address belongs to has been allocated. If
     // so, try co-allocating
     SuperBlk* victim_superblock = nullptr;
-    SectorSubBlk* victim = nullptr;
+    SectorSubBlk *victim = nullptr;
     bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+        if (superblock->match(key) && superblock->isCompressed() &&
+            superblock->canCoAllocate(compressed_size)) {
             // Find an available invalid sub-block slot in this superblock.
-            // Check offset position first if invalid, otherwise pick first invalid slot.
-            SectorSubBlk* avail_slot = nullptr;
-            if (offset < superblock->blks.size() && !superblock->blks[offset]->isValid()) {
+            // Check offset position first if invalid, otherwise pick first
+            // invalid slot.
+            SectorSubBlk *avail_slot = nullptr;
+            if (offset < superblock->blks.size() &&
+                !superblock->blks[offset]->isValid()) {
                 avail_slot = superblock->blks[offset];
             } else {
-                for (const auto& blk : superblock->blks) {
+                for (const auto &blk : superblock->blks) {
                     if (!blk->isValid()) {
                         avail_slot = blk;
                         break;
