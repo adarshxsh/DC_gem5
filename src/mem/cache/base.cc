@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -96,7 +96,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1373,7 +1373,8 @@ BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
         }
 
         if (compressor) {
-            const bool is_congested = enableQueueAwareDecompression && isQueueCongested();
+            const bool is_congested =
+                enableQueueAwareDecompression && isQueueCongested();
             if (!is_congested) {
                 lat += compressor->getDecompressionLatency(blk);
             }

@@ -157,7 +157,8 @@ class Queue : public Drainable, public Named
         return _numInService;
     }
 
-    int occupancy() const
+    int
+    occupancy() const
     {
         return allocated;
     }

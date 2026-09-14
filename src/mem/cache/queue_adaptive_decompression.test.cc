@@ -67,17 +67,19 @@ TEST(QueueAdaptiveDecompressionTest, CongestionThresholdEvaluation)
     unsigned mshr_occ = 5;
     unsigned wq_occ = 4;
     bool is_congested = (mshr_occ >= threshold) || (wq_occ >= threshold) ||
-                         (mshr_occ + wq_occ >= threshold);
+                        (mshr_occ + wq_occ >= threshold);
     EXPECT_FALSE(is_congested);
 
-    // Congested scenario via total queue occupancy: MSHR = 8, WriteBuffer = 5 (Total = 13 >= 12)
+    // Congested scenario via total queue occupancy: MSHR = 8, WriteBuffer = 5
+    // (Total = 13 >= 12)
     mshr_occ = 8;
     wq_occ = 5;
     is_congested = (mshr_occ >= threshold) || (wq_occ >= threshold) ||
                    (mshr_occ + wq_occ >= threshold);
     EXPECT_TRUE(is_congested);
 
-    // Congested scenario via individual MSHR queue occupancy: MSHR = 12, WriteBuffer = 0
+    // Congested scenario via individual MSHR queue occupancy: MSHR = 12,
+    // WriteBuffer = 0
     mshr_occ = 12;
     wq_occ = 0;
     is_congested = (mshr_occ >= threshold) || (wq_occ >= threshold) ||
