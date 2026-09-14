@@ -541,6 +541,16 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
 
+    if (compressor) {
+        if (pkt->isMemHighPressure()) {
+            compressor->setCongestionLevel(compression::Base::HIGH_PRESSURE);
+        } else if (pkt->isMemCongested()) {
+            compressor->setCongestionLevel(compression::Base::CONGESTED);
+        } else {
+            compressor->setCongestionLevel(compression::Base::NORMAL);
+        }
+    }
+
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above
     panic_if(pkt->headerDelay != 0 && pkt->cmd != MemCmd::HardPFResp,
