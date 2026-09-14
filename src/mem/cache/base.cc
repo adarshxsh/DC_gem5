@@ -1215,6 +1215,13 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     assert(pkt->isRequest());
 
     assert(blk && blk->isValid());
+
+    if (compressor) {
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && !cblk->isCompressed()) {
+            cblk->setDecompressionLatency(Cycles(0));
+        }
+    }
     // Occasionally this is not true... if we are a lower-level cache
     // satisfying a string of Read and ReadEx requests from
     // upper-level caches, a Read will mark the block as shared but we
@@ -1886,6 +1893,10 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            pkt->setCompressedSizeBits(cblk->getSizeBits());
+        }
     }
 
     return pkt;
@@ -1931,6 +1942,10 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            pkt->setCompressedSizeBits(cblk->getSizeBits());
+        }
     }
 
     return pkt;

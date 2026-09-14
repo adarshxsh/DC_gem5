@@ -46,6 +46,7 @@
 #include "mem/cache/tags/compressed_tags.hh"
 
 #include <climits>
+#include <limits>
 
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
@@ -60,7 +61,8 @@ namespace gem5
 {
 
 CompressedTags::CompressedTags(const Params &p)
-    : SectorTags(p)
+    : SectorTags(p),
+      enableDensityAwareReplacement(p.enable_density_aware_replacement)
 {
 }
 
@@ -193,9 +195,42 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
             return nullptr;
         }
 
-        // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk *>(
-            replacementPolicy->getVictim(replacement_candidates));
+        if (enableDensityAwareReplacement) {
+            SuperBlk* best_victim = nullptr;
+
+            // Check if any candidate is completely invalid (density 0)
+            for (const auto& entry : replacement_candidates) {
+                SuperBlk* sb = static_cast<SuperBlk*>(entry);
+                if (!sb->isValid()) {
+                    best_victim = sb;
+                    break;
+                }
+            }
+
+            if (!best_victim) {
+                // Find candidates with the lowest density score
+                double min_density = std::numeric_limits<double>::max();
+                std::vector<ReplaceableEntry*> lowest_density_candidates;
+                for (const auto& entry : replacement_candidates) {
+                    SuperBlk* sb = static_cast<SuperBlk*>(entry);
+                    double d = sb->getDensity();
+                    if (d < min_density) {
+                        min_density = d;
+                        lowest_density_candidates.clear();
+                        lowest_density_candidates.push_back(entry);
+                    } else if (d == min_density) {
+                        lowest_density_candidates.push_back(entry);
+                    }
+                }
+                best_victim = static_cast<SuperBlk*>(
+                    replacementPolicy->getVictim(lowest_density_candidates));
+            }
+            victim_superblock = best_victim;
+        } else {
+            // Choose replacement victim from replacement candidates
+            victim_superblock = static_cast<SuperBlk*>(
+                replacementPolicy->getVictim(replacement_candidates));
+        }
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){
