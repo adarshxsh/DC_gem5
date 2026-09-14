@@ -46,16 +46,16 @@ run_simulation() {
     local write_high="${4:-${WRITE_HIGH_THRESH:-85}}"
     local write_low="${5:-${WRITE_LOW_THRESH:-50}}"
     local enable_throttling="${6:-${ENABLE_PRESSURE_THROTTLING:-false}}"
-    
+
     local outdir="$OUTPUT_BASE/${bench}_${csize}_${comp}_wh${write_high}_wl${write_low}"
     mkdir -p "$outdir"
-    
+
     echo ""
     echo "--------------------------------------------------------------------------------"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: Benchmark=$bench | L2=$csize | Compressor=$comp | WriteHigh=$write_high% | WriteLow=$write_low% | PressureThrottling=$enable_throttling"
     echo "OutDir: $outdir"
     echo "--------------------------------------------------------------------------------"
-    
+
     local cmd_args=(
         --benchmark="$bench"
         --size="$SIZE"
