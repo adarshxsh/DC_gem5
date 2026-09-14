@@ -79,4 +79,3 @@ GTest('queue_adaptive_decompression.test',
       Dir('#src').File('sim/bufval.cc'),
       Dir('#src').File('base/bitfield.cc'),
       with_tag('gem5 simobject'))
-
