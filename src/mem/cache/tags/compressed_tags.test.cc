@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -281,4 +282,31 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             verifyInvariants(sblks[i]);
         }
     }
+}
+
+TEST_F(SuperBlkTestFixture, SuperBlkDensity)
+{
+    ASSERT_EQ(superBlk.getDensity(), 0.0);
+
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);            // CF = 8
+    ASSERT_EQ(superBlk.getDensity(), 8.0); // 1 valid * CF 8
+
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(128);           // CF = 4
+    ASSERT_EQ(superBlk.getDensity(), 8.0); // 2 valid * CF 4
+}
+
+TEST(PacketTest, PacketCompressedSize)
+{
+    RequestPtr req = std::make_shared<Request>(0x1000, 64, 0, 0);
+    Packet pkt(req, MemCmd::ReadReq);
+
+    EXPECT_FALSE(pkt.isCompressed());
+    EXPECT_EQ(pkt.getCompressedSize(), 64);
+
+    pkt.setCompressedSizeBits(128); // 128 bits = 16 bytes
+    EXPECT_TRUE(pkt.isCompressed());
+    EXPECT_EQ(pkt.getCompressedSize(), 16);
+    EXPECT_EQ(pkt.getCompressedSizeBits(), 128);
 }

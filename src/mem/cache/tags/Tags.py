@@ -154,6 +154,10 @@ class CompressedTags(SectorTags):
         2, "Maximum number of compressed blocks per tag."
     )
 
+    enable_density_aware_replacement = Param.Bool(
+        True, "Enable density-weighted replacement scoring for superblocks."
+    )
+
     # We simulate superblock as sector blocks
     num_blocks_per_sector = Self.max_compression_ratio
 

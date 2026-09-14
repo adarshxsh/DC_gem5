@@ -130,10 +130,10 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
         // the payloadDelay takes into account the relative time to
         // deliver the payload of the packet, after the header delay,
         // we take the maximum since the payload delay could already
-        // be longer than what this parcitular crossbar enforces.
-        pkt->payloadDelay = std::max<Tick>(pkt->payloadDelay,
-                                           divCeil(pkt->getSize(), width) *
-                                           clockPeriod());
+        // be longer than what this particular crossbar enforces.
+        pkt->payloadDelay = std::max<Tick>(
+            pkt->payloadDelay,
+            divCeil(pkt->getCompressedSize(), width) * clockPeriod());
     }
 
     // the payload delay is not paying for the clock offset as that is
