@@ -219,7 +219,8 @@ SuperBlk::hasValidDemand() const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size) const
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        bool is_prefetch) const
 {
     if (!isCompressed()) {
         return false;
@@ -230,20 +231,26 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    std::size_t bit_sum = 0;
-    std::size_t count = 0;
+    if (is_prefetch && hasValidDemand() &&
+        new_blk_cf < getCompressionFactor()) {
+        return false;
+    }
+
+    const uint8_t target_cf =
+        (getNumValid() == 0) ? new_blk_cf
+                             : std::min(getCompressionFactor(), new_blk_cf);
+
+    std::size_t total_bits = compressed_size;
     for (const auto &blk : blks) {
         if (blk->isValid()) {
-            const CompressionBlk *cblk =
-                static_cast<const CompressionBlk *>(blk);
-            bit_sum += cblk->getSizeBits();
-            if (++count >= 4) {
-                break;
-            }
+            const auto *cblk = static_cast<const CompressionBlk *>(blk);
+            const std::size_t uncompressed_bits =
+                cblk->getUncompressedSizeBits();
+            total_bits += (uncompressed_bits + target_cf - 1) / target_cf;
         }
     }
 
-    return (bit_sum + compressed_size) <= (blkSize * CHAR_BIT);
+    return total_bits <= blkSize * CHAR_BIT;
 }
 
 void

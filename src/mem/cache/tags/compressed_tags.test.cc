@@ -559,3 +559,26 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuardDowngrade)
+{
+    // Insert warm demand block 0 at offset 0 with high compression (64 bits ->
+    // CF=8)
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+
+    // High compression prefetch fill (CF=8) -> non-downgrading, should be
+    // allowed
+    ASSERT_TRUE(superBlk.canCoAllocate(64, /*is_prefetch=*/true));
+
+    // Low compression prefetch fill (128 bits -> CF=4 < 8) -> downgrading,
+    // MUST be blocked
+    ASSERT_FALSE(superBlk.canCoAllocate(128, /*is_prefetch=*/true));
+
+    // Demand fill with lower compression (CF=4) -> allowed to downgrade shared
+    // CF
+    ASSERT_TRUE(superBlk.canCoAllocate(128, /*is_prefetch=*/false));
+}
