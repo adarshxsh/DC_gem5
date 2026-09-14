@@ -64,8 +64,7 @@ MSHR *
 MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
                     Tick when_ready, Counter order, bool alloc_on_fill,
                     std::size_t predicted_size_bits,
-                    SuperBlk* reserved_super_blk,
-                    CacheBlk* reserved_sub_blk)
+                    SuperBlk *reserved_super_blk, CacheBlk *reserved_sub_blk)
 {
     assert(!freeList.empty());
     MSHR *mshr = freeList.front();
@@ -88,8 +87,8 @@ void
 MSHRQueue::deallocate(MSHR* mshr)
 {
     if (mshr && mshr->getReservedSubBlk()) {
-        CompressionBlk* cblk =
-            static_cast<CompressionBlk*>(mshr->getReservedSubBlk());
+        CompressionBlk *cblk =
+            static_cast<CompressionBlk *>(mshr->getReservedSubBlk());
         if (cblk->isReserved()) {
             cblk->setReserved(false);
             cblk->setSizeBits(0);

@@ -143,14 +143,11 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        CompressionBlk* cblk =
-            static_cast<CompressionBlk*>(superblock->blks[offset]);
-        if (superblock->match(key) &&
-            !cblk->isValid() &&
-            !cblk->isReserved() &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+        CompressionBlk *cblk =
+            static_cast<CompressionBlk *>(superblock->blks[offset]);
+        if (superblock->match(key) && !cblk->isValid() &&
+            !cblk->isReserved() && superblock->isCompressed() &&
+            superblock->canCoAllocate(compressed_size)) {
             victim_superblock = superblock;
             is_co_allocation = true;
             break;
@@ -201,10 +198,10 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
 bool
 CompressedTags::reserveSuperblockSlot(const CacheBlk::KeyType &key,
                                       std::size_t predicted_size_bits,
-                                      SuperBlk* &reserved_super_blk,
-                                      CacheBlk* &reserved_sub_blk)
+                                      SuperBlk *&reserved_super_blk,
+                                      CacheBlk *&reserved_sub_blk)
 {
-    std::vector<ReplaceableEntry*> superblock_entries =
+    std::vector<ReplaceableEntry *> superblock_entries =
         indexingPolicy->getPossibleEntries(key);
 
     if (partitionManager) {
@@ -217,37 +214,34 @@ CompressedTags::reserveSuperblockSlot(const CacheBlk::KeyType &key,
         return false;
     }
 
-    SuperBlk* victim_superblock = nullptr;
+    SuperBlk *victim_superblock = nullptr;
     const uint64_t offset = extractSectorOffset(key.address);
 
-    // 1. Check if the superblock this address belongs to is present and can co-allocate
-    for (const auto& entry : superblock_entries) {
-        SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        CompressionBlk* cblk =
-            static_cast<CompressionBlk*>(superblock->blks[offset]);
-        if (superblock->match(key) &&
-            !cblk->isValid() &&
-            !cblk->isReserved() &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(predicted_size_bits))
-        {
+    // 1. Check if the superblock this address belongs to is present and can
+    // co-allocate
+    for (const auto &entry : superblock_entries) {
+        SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+        CompressionBlk *cblk =
+            static_cast<CompressionBlk *>(superblock->blks[offset]);
+        if (superblock->match(key) && !cblk->isValid() &&
+            !cblk->isReserved() && superblock->isCompressed() &&
+            superblock->canCoAllocate(predicted_size_bits)) {
             victim_superblock = superblock;
             break;
         }
     }
 
-    // 2. If no matching superblock exists, search for an unallocated/invalid superblock
+    // 2. If no matching superblock exists, search for an unallocated/invalid
+    // superblock
     if (victim_superblock == nullptr) {
-        for (const auto& entry : superblock_entries) {
-            SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-            CompressionBlk* cblk =
-                static_cast<CompressionBlk*>(superblock->blks[offset]);
+        for (const auto &entry : superblock_entries) {
+            SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+            CompressionBlk *cblk =
+                static_cast<CompressionBlk *>(superblock->blks[offset]);
             if (!superblock->isValid() &&
                 superblock->getNumValidAndReserved() == 0 &&
-                !cblk->isValid() &&
-                !cblk->isReserved() &&
-                superblock->canCoAllocate(predicted_size_bits))
-            {
+                !cblk->isValid() && !cblk->isReserved() &&
+                superblock->canCoAllocate(predicted_size_bits)) {
                 victim_superblock = superblock;
                 victim_superblock->insert(key);
                 break;
@@ -257,14 +251,13 @@ CompressedTags::reserveSuperblockSlot(const CacheBlk::KeyType &key,
 
     // 3. Fallback: pick replacement victim candidate if available and valid
     if (victim_superblock == nullptr) {
-        SuperBlk* candidate = static_cast<SuperBlk*>(
+        SuperBlk *candidate = static_cast<SuperBlk *>(
             replacementPolicy->getVictim(superblock_entries));
         if (candidate) {
-            CompressionBlk* cblk =
-                static_cast<CompressionBlk*>(candidate->blks[offset]);
+            CompressionBlk *cblk =
+                static_cast<CompressionBlk *>(candidate->blks[offset]);
             if (!cblk->isValid() && !cblk->isReserved() &&
-                candidate->canCoAllocate(predicted_size_bits))
-            {
+                candidate->canCoAllocate(predicted_size_bits)) {
                 victim_superblock = candidate;
                 if (!victim_superblock->isValid()) {
                     victim_superblock->insert(key);
@@ -274,8 +267,8 @@ CompressedTags::reserveSuperblockSlot(const CacheBlk::KeyType &key,
     }
 
     if (victim_superblock != nullptr) {
-        CompressionBlk* reserved_cblk =
-            static_cast<CompressionBlk*>(victim_superblock->blks[offset]);
+        CompressionBlk *reserved_cblk =
+            static_cast<CompressionBlk *>(victim_superblock->blks[offset]);
         reserved_cblk->setSizeBits(predicted_size_bits);
         reserved_cblk->setReserved(true);
         reserved_super_blk = victim_superblock;
@@ -295,13 +288,12 @@ CompressedTags::releaseSuperblockSlot(SuperBlk *reserved_super_blk,
                                       CacheBlk *reserved_sub_blk)
 {
     if (reserved_sub_blk) {
-        CompressionBlk* cblk = static_cast<CompressionBlk*>(reserved_sub_blk);
+        CompressionBlk *cblk = static_cast<CompressionBlk *>(reserved_sub_blk);
         if (cblk->isReserved()) {
             cblk->setReserved(false);
             cblk->setSizeBits(0);
             if (reserved_super_blk &&
-                reserved_super_blk->getNumValidAndReserved() == 0)
-            {
+                reserved_super_blk->getNumValidAndReserved() == 0) {
                 reserved_super_blk->invalidate();
             }
         }

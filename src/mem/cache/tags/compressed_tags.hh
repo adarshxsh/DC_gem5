@@ -123,12 +123,13 @@ class CompressedTags : public SectorTags
                          const uint64_t partition_id) override;
 
     /**
-     * Proactively reserve a superblock sub-block slot during miss buffer allocation.
+     * Proactively reserve a superblock sub-block slot during miss buffer
+     * allocation.
      */
     bool reserveSuperblockSlot(const CacheBlk::KeyType &key,
                                std::size_t predicted_size_bits,
-                               SuperBlk* &reserved_super_blk,
-                               CacheBlk* &reserved_sub_blk) override;
+                               SuperBlk *&reserved_super_blk,
+                               CacheBlk *&reserved_sub_blk) override;
 
     /**
      * Release a pre-reserved superblock sub-block slot.
