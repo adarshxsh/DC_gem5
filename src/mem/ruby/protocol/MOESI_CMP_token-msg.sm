@@ -86,6 +86,7 @@ structure(RequestMsg, desc="...", interface="Message") {
   bool isLocal,                    desc="Is this request from a local L1";
   int RetryNum,                    desc="retry sequence number";
   MessageSizeType MessageSize, desc="size category of the message";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
   RubyAccessMode AccessMode,    desc="user/supervisor access type";
   PrefetchBit Prefetch,         desc="Is this a prefetch request";
 
@@ -110,6 +111,7 @@ structure(ResponseMsg, desc="...", interface="Message") {
   DataBlock DataBlk,           desc="data for the cache line";
   bool Dirty,                  desc="Is the data dirty (different than memory)?";
   MessageSizeType MessageSize, desc="size category of the message";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
 
   bool functionalRead(Packet *pkt) {
     // No check being carried out on the message type. Would be added later.

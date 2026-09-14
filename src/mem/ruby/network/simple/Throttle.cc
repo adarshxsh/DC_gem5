@@ -209,12 +209,17 @@ Throttle::operateVnet(int vnet, int channel, int &total_bw_remaining,
             (*(throttleStats.
                 msg_counts[net_msg_ptr->getMessageSize()]))[vnet]++;
             throttleStats.total_msg_count += 1;
-            uint32_t total_size =
-                Network::MessageSizeType_to_int(net_msg_ptr->getMessageSize());
+            int payload_bytes = net_msg_ptr->getPayloadSizeInBytes();
+            uint32_t total_size;
+            if (payload_bytes >= 0) {
+                total_size = Network::MessageSizeType_to_int(MessageSizeType_Control) + payload_bytes;
+            } else {
+                total_size = Network::MessageSizeType_to_int(net_msg_ptr->getMessageSize());
+            }
             throttleStats.total_msg_bytes += total_size;
-            total_size -=
-                Network::MessageSizeType_to_int(MessageSizeType_Control);
-            throttleStats.total_data_msg_bytes += total_size;
+            uint32_t data_bytes = (payload_bytes >= 0) ? payload_bytes :
+                (total_size - Network::MessageSizeType_to_int(MessageSizeType_Control));
+            throttleStats.total_data_msg_bytes += data_bytes;
             throttleStats.total_msg_wait_time +=
                 current_time - msg_enqueue_time;
             DPRINTF(RubyNetwork, "%s\n", *out);
@@ -323,7 +328,13 @@ network_message_to_size(Message *net_msg_ptr)
 {
     assert(net_msg_ptr != NULL);
 
-    int size = Network::MessageSizeType_to_int(net_msg_ptr->getMessageSize());
+    int size;
+    int payload_bytes = net_msg_ptr->getPayloadSizeInBytes();
+    if (payload_bytes >= 0) {
+        size = Network::MessageSizeType_to_int(MessageSizeType_Control) + payload_bytes;
+    } else {
+        size = Network::MessageSizeType_to_int(net_msg_ptr->getMessageSize());
+    }
     size *=  MESSAGE_SIZE_MULTIPLIER;
 
     // Artificially increase the size of broadcast messages

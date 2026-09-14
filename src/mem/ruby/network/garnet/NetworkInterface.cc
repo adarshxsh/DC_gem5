@@ -383,12 +383,20 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
     // This is expressed in terms of bytes/cycle or the flit size
     OutputPort *oPort = getOutportForVnet(vnet);
     assert(oPort);
-    int num_flits = (int)divCeil((float) m_net_ptr->MessageSizeType_to_int(
-        net_msg_ptr->getMessageSize()), (float)oPort->bitWidth());
+    int msg_size_bytes;
+    int payload_bytes = net_msg_ptr->getPayloadSizeInBytes();
+    if (payload_bytes >= 0) {
+        int control_bytes = m_net_ptr->MessageSizeType_to_int(
+            MessageSizeType_Control);
+        msg_size_bytes = control_bytes + payload_bytes;
+    } else {
+        msg_size_bytes = m_net_ptr->MessageSizeType_to_int(
+            net_msg_ptr->getMessageSize());
+    }
+    int num_flits = (int)divCeil((float)msg_size_bytes, (float)oPort->bitWidth());
 
     DPRINTF(RubyNetwork, "Message Size:%d vnet:%d bitWidth:%d\n",
-        m_net_ptr->MessageSizeType_to_int(net_msg_ptr->getMessageSize()),
-        vnet, oPort->bitWidth());
+        msg_size_bytes, vnet, oPort->bitWidth());
 
     // loop to convert all multicast messages into unicast messages
     for (int ctr = 0; ctr < dest_nodes.size(); ctr++) {
@@ -450,8 +458,7 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
             m_net_ptr->increment_injected_flits(vnet);
             flit *fl = new flit(packet_id,
                 i, vc, vnet, route, num_flits, new_msg_ptr,
-                m_net_ptr->MessageSizeType_to_int(
-                net_msg_ptr->getMessageSize()),
+                msg_size_bytes,
                 oPort->bitWidth(), curTick());
 
             fl->set_src_delay(curTick() - msg_ptr->getTime());
