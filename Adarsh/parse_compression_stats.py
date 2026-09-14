@@ -229,8 +229,16 @@ def print_comparison(
     bdi_dram_read = get_metric(bdi_stats, [".*dramBytesRead$"])
     base_dram_write = get_metric(baseline_stats, [".*dramBytesWritten$"])
     bdi_dram_write = get_metric(bdi_stats, [".*dramBytesWritten$"])
-    format_row("DRAM Physical Bytes Read", base_dram_read, bdi_dram_read, False, False)
-    format_row("DRAM Physical Bytes Written", base_dram_write, bdi_dram_write, False, False)
+    format_row(
+        "DRAM Physical Bytes Read", base_dram_read, bdi_dram_read, False, False
+    )
+    format_row(
+        "DRAM Physical Bytes Written",
+        base_dram_write,
+        bdi_dram_write,
+        False,
+        False,
+    )
     print("=" * 80)
 
 
