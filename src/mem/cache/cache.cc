@@ -58,9 +58,9 @@
 #include "enums/Clusivity.hh"
 #include "mem/cache/cache_blk.hh"
 #include "mem/cache/compressors/base.hh"
-#include "mem/cache/tags/super_blk.hh"
 #include "mem/cache/mshr.hh"
 #include "mem/cache/tags/base.hh"
+#include "mem/cache/tags/super_blk.hh"
 #include "mem/cache/write_queue_entry.hh"
 #include "mem/request.hh"
 #include "params/Cache.hh"
@@ -989,7 +989,7 @@ Cache::cleanEvictBlk(CacheBlk *blk)
     PacketPtr pkt = new Packet(req, MemCmd::CleanEvict);
     pkt->allocate();
     if (compressor) {
-        CompressionBlk* cblk = dynamic_cast<CompressionBlk*>(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
         if (cblk && cblk->isCompressed()) {
             pkt->setCompressedSize((cblk->getSizeBits() + 7) / 8);
         } else {

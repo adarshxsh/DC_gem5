@@ -404,60 +404,97 @@ MemCtrl::printQs() const
 }
 
 static unsigned
-calculateBDISize(const uint8_t* data, unsigned blk_size)
+calculateBDISize(const uint8_t *data, unsigned blk_size)
 {
-    if (blk_size != 64 || !data) return blk_size;
+    if (blk_size != 64 || !data) {
+        return blk_size;
+    }
 
     bool all_zero = true;
     for (unsigned i = 0; i < 64; ++i) {
-        if (data[i] != 0) { all_zero = false; break; }
+        if (data[i] != 0) {
+            all_zero = false;
+            break;
+        }
     }
-    if (all_zero) return 8;
+    if (all_zero) {
+        return 8;
+    }
 
-    const uint64_t* qwords = reinterpret_cast<const uint64_t*>(data);
+    const uint64_t *qwords = reinterpret_cast<const uint64_t *>(data);
     bool rep_qword = true;
     for (int i = 1; i < 8; ++i) {
-        if (qwords[i] != qwords[0]) { rep_qword = false; break; }
+        if (qwords[i] != qwords[0]) {
+            rep_qword = false;
+            break;
+        }
     }
-    if (rep_qword) return 16;
+    if (rep_qword) {
+        return 16;
+    }
 
     int64_t b8 = static_cast<int64_t>(qwords[0]);
     bool b8d1 = true;
     for (int i = 0; i < 8; ++i) {
         int64_t diff = static_cast<int64_t>(qwords[i]) - b8;
-        if (diff < -128 || diff > 127) { b8d1 = false; break; }
+        if (diff < -128 || diff > 127) {
+            b8d1 = false;
+            break;
+        }
     }
-    if (b8d1) return 16;
+    if (b8d1) {
+        return 16;
+    }
 
     bool b8d2 = true;
     for (int i = 0; i < 8; ++i) {
         int64_t diff = static_cast<int64_t>(qwords[i]) - b8;
-        if (diff < -32768 || diff > 32767) { b8d2 = false; break; }
+        if (diff < -32768 || diff > 32767) {
+            b8d2 = false;
+            break;
+        }
     }
-    if (b8d2) return 24;
+    if (b8d2) {
+        return 24;
+    }
 
     bool b8d4 = true;
     for (int i = 0; i < 8; ++i) {
         int64_t diff = static_cast<int64_t>(qwords[i]) - b8;
-        if (diff < -2147483648LL || diff > 2147483647LL) { b8d4 = false; break; }
+        if (diff < -2147483648LL || diff > 2147483647LL) {
+            b8d4 = false;
+            break;
+        }
     }
-    if (b8d4) return 32;
+    if (b8d4) {
+        return 32;
+    }
 
-    const uint32_t* dwords = reinterpret_cast<const uint32_t*>(data);
+    const uint32_t *dwords = reinterpret_cast<const uint32_t *>(data);
     int32_t b4 = static_cast<int32_t>(dwords[0]);
     bool b4d1 = true;
     for (int i = 0; i < 16; ++i) {
         int32_t diff = static_cast<int32_t>(dwords[i]) - b4;
-        if (diff < -128 || diff > 127) { b4d1 = false; break; }
+        if (diff < -128 || diff > 127) {
+            b4d1 = false;
+            break;
+        }
     }
-    if (b4d1) return 24;
+    if (b4d1) {
+        return 24;
+    }
 
     bool b4d2 = true;
     for (int i = 0; i < 16; ++i) {
         int32_t diff = static_cast<int32_t>(dwords[i]) - b4;
-        if (diff < -32768 || diff > 32767) { b4d2 = false; break; }
+        if (diff < -32768 || diff > 32767) {
+            b4d2 = false;
+            break;
+        }
     }
-    if (b4d2) return 36;
+    if (b4d2) {
+        return 36;
+    }
 
     return 64;
 }
@@ -492,7 +529,8 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
             uint8_t line_data[64];
             std::memset(line_data, 0, sizeof(line_data));
             Addr align_addr = pkt->getBlockAddr(dram->bytesPerBurst());
-            RequestPtr func_req = std::make_shared<Request>(align_addr, 64, 0, Request::funcRequestorId);
+            RequestPtr func_req = std::make_shared<Request>(
+                align_addr, 64, 0, Request::funcRequestorId);
             Packet func_pkt(func_req, MemCmd::FunctionalReadReq);
             func_pkt.dataStatic(line_data);
             dram->functionalAccess(&func_pkt);
