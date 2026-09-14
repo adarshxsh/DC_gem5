@@ -102,6 +102,14 @@ class MemCtrl(QoSMemCtrl):
     command_window = Param.Latency("10ns", "Static backend latency")
     disable_sanity_check = Param.Bool(False, "Disable port resp Q size check")
 
+    def getCCParams(self):
+        if int(self.write_high_thresh_perc) < int(self.write_low_thresh_perc):
+            raise ValueError(
+                f"write_high_thresh_perc ({self.write_high_thresh_perc}) "
+                f"must be >= write_low_thresh_perc ({self.write_low_thresh_perc})"
+            )
+        return super().getCCParams()
+
 
 add_citation(
     MemCtrl,
