@@ -104,6 +104,7 @@ structure(RequestMsg, desc="...", interface="Message") {
   DataBlock DataBlk,           desc="data for the cache line (DMA WRITE request)";
   int Acks,                    desc="How many acks to expect";
   MessageSizeType MessageSize, desc="size category of the message";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
   RubyAccessMode AccessMode,    desc="user/supervisor access type";
   PrefetchBit Prefetch,         desc="Is this a prefetch request";
 
@@ -133,6 +134,7 @@ structure(ResponseMsg, desc="...", interface="Message") {
   bool Dirty,                  desc="Is the data dirty (different than memory)?";
   int Acks,                    desc="How many acks to expect";
   MessageSizeType MessageSize, desc="size category of the message";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
 
   bool functionalRead(Packet *pkt) {
     // Read only those messages that contain the data
