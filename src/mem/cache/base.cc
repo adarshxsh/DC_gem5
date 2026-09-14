@@ -1105,18 +1105,19 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             // If we do not move the expanded block, evaluate prospective
             // superblock capacity to determine if partial or zero evictions
             // are needed.
-            SuperBlk* superblock = static_cast<SuperBlk*>(
-                compression_blk->getSectorBlock());
+            SuperBlk *superblock =
+                static_cast<SuperBlk *>(compression_blk->getSectorBlock());
             if (superblock) {
                 uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compression_size);
                 uint8_t target_cf = new_blk_cf;
-                for (auto& sub_blk : superblock->blks) {
+                for (auto &sub_blk : superblock->blks) {
                     if (sub_blk->isValid() && (blk != sub_blk)) {
-                        CompressionBlk* cblk =
-                            static_cast<CompressionBlk*>(sub_blk);
-                        uint8_t sub_cf = superblock->calculateCompressionFactor(
-                            cblk->getSizeBits());
+                        CompressionBlk *cblk =
+                            static_cast<CompressionBlk *>(sub_blk);
+                        uint8_t sub_cf =
+                            superblock->calculateCompressionFactor(
+                                cblk->getSizeBits());
                         if (sub_cf < target_cf) {
                             target_cf = sub_cf;
                         }
@@ -1126,24 +1127,25 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                 uint8_t num_valid = superblock->getNumValid();
                 if (num_valid > target_cf) {
                     std::size_t excess = num_valid - target_cf;
-                    std::vector<SectorSubBlk*> candidates;
-                    for (auto& sub_blk : superblock->blks) {
+                    std::vector<SectorSubBlk *> candidates;
+                    for (auto &sub_blk : superblock->blks) {
                         if (sub_blk->isValid() && (blk != sub_blk)) {
                             candidates.push_back(sub_blk);
                         }
                     }
 
                     // Sort candidates in replacement / LRU order
-                    std::sort(candidates.begin(), candidates.end(),
-                        [](const SectorSubBlk* a, const SectorSubBlk* b) {
+                    std::sort(
+                        candidates.begin(), candidates.end(),
+                        [](const SectorSubBlk *a, const SectorSubBlk *b) {
                             if (a->getWhenReady() != b->getWhenReady()) {
                                 return a->getWhenReady() < b->getWhenReady();
                             }
                             return a->getSectorOffset() < b->getSectorOffset();
                         });
 
-                    for (std::size_t i = 0; i < excess && i < candidates.size();
-                         ++i) {
+                    for (std::size_t i = 0;
+                         i < excess && i < candidates.size(); ++i) {
                         evict_blks.push_back(candidates[i]);
                     }
                 }

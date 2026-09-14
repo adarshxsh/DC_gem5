@@ -224,7 +224,8 @@ TEST_F(SuperBlkTestFixture, ExpansionContractionCheck)
 
 TEST_F(SuperBlkTestFixture, ExpansionContractionCheckWithCoAllocation)
 {
-    // Co-allocate two sub-blocks: subBlks[0] with size 64 (CF=8) and subBlks[1] with size 256 (CF=2)
+    // Co-allocate two sub-blocks: subBlks[0] with size 64 (CF=8) and
+    // subBlks[1] with size 256 (CF=2)
     subBlks[0].insert({0x4000, false});
     subBlks[0].setSizeBits(64);
     subBlks[1].insert({0x4000, false});
