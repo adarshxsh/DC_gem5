@@ -77,6 +77,29 @@ class BaseCacheCompressor(SimObject):
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
 
+    queue_pressure_high_threshold = Param.Percent(
+        85,
+        "High memory queue pressure threshold percentage for compression throttling",
+    )
+    queue_pressure_low_threshold = Param.Percent(
+        50,
+        "Low memory queue pressure threshold percentage for compression throttling",
+    )
+    enable_queue_pressure_throttling = Param.Bool(
+        False,
+        "Enable memory queue pressure throttling for cache compression",
+    )
+
+    def getCCParams(self):
+        if int(self.queue_pressure_high_threshold) < int(
+            self.queue_pressure_low_threshold
+        ):
+            raise ValueError(
+                f"queue_pressure_high_threshold ({self.queue_pressure_high_threshold}) "
+                f"must be >= queue_pressure_low_threshold ({self.queue_pressure_low_threshold})"
+            )
+        return super().getCCParams()
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"

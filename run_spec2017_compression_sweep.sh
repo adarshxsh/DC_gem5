@@ -14,7 +14,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GEM5_ROOT="$SCRIPT_DIR"
-GEM5_BIN="$GEM5_ROOT/build/X86/gem5.opt"
+GEM5_BIN="${GEM5_BIN:-$GEM5_ROOT/build/X86/gem5.opt}"
 CONFIG_SCRIPT="$GEM5_ROOT/configs/spec2017_compression_kvm.py"
 OUTPUT_BASE="$GEM5_ROOT/m5out_eval_sweep"
 
@@ -43,40 +43,53 @@ run_simulation() {
     local bench="$1"
     local csize="$2"
     local comp="$3"
+    local write_high="${4:-${WRITE_HIGH_THRESH:-85}}"
+    local write_low="${5:-${WRITE_LOW_THRESH:-50}}"
+    local enable_throttling="${6:-${ENABLE_PRESSURE_THROTTLING:-false}}"
     
-    local outdir="$OUTPUT_BASE/${bench}_${csize}_${comp}"
+    local outdir="$OUTPUT_BASE/${bench}_${csize}_${comp}_wh${write_high}_wl${write_low}"
     mkdir -p "$outdir"
     
     echo ""
     echo "--------------------------------------------------------------------------------"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: Benchmark=$bench | L2=$csize | Compressor=$comp"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: Benchmark=$bench | L2=$csize | Compressor=$comp | WriteHigh=$write_high% | WriteLow=$write_low% | PressureThrottling=$enable_throttling"
     echo "OutDir: $outdir"
     echo "--------------------------------------------------------------------------------"
     
+    local cmd_args=(
+        --benchmark="$bench"
+        --size="$SIZE"
+        --l2-size="$csize"
+        --compressor="$comp"
+        --use-kvm
+        --fast-forward-insts="$FAST_FORWARD_INSTS"
+        --warmup-insts="$WARMUP_INSTS"
+        --max-insts="$MAX_INSTS"
+        --write-high-thresh="$write_high"
+        --write-low-thresh="$write_low"
+    )
+
+    if [ "$enable_throttling" = "true" ] || [ "$enable_throttling" = "1" ]; then
+        cmd_args+=(--enable-pressure-throttling)
+    fi
+
     "$GEM5_BIN" \
         --outdir="$outdir" \
         "$CONFIG_SCRIPT" \
-        --benchmark="$bench" \
-        --size="$SIZE" \
-        --l2-size="$csize" \
-        --compressor="$comp" \
-        --use-kvm \
-        --fast-forward-insts="$FAST_FORWARD_INSTS" \
-        --warmup-insts="$WARMUP_INSTS" \
-        --max-insts="$MAX_INSTS" \
+        "${cmd_args[@]}" \
         2>&1 | tee "$outdir/sim_run.log"
 }
 
 # If arguments passed, allow running a single target, e.g.:
-# ./run_spec2017_compression_sweep.sh 541.leela_r 256KiB cpack
+# ./run_spec2017_compression_sweep.sh 541.leela_r 256KiB cpack 85 50 true
 if [ "$#" -ge 3 ]; then
-    run_simulation "$1" "$2" "$3"
+    run_simulation "$1" "$2" "$3" "$4" "$5" "$6"
     exit 0
 fi
 
 echo "Usage:"
-echo "  $0 <benchmark> <l2_size> <compressor>"
-echo "  Example: $0 541.leela_r 256KiB cpack"
+echo "  $0 <benchmark> <l2_size> <compressor> [write_high_thresh] [write_low_thresh] [enable_pressure_throttling]"
+echo "  Example: $0 541.leela_r 256KiB cpack 85 50 true"
 echo ""
 echo "Available Benchmarks: ${BENCHMARKS[*]}"
 echo "Available Cache Sizes: ${CACHE_SIZES[*]}"

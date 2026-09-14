@@ -138,6 +138,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         enable_adaptive_bypass: bool = False,
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
+        enable_queue_pressure_throttling: bool = False,
+        queue_pressure_high_threshold: int = 85,
+        queue_pressure_low_threshold: int = 50,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -150,6 +153,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
         :param latency_breakeven_threshold: Compression ratio threshold for bypass.
         :param sampling_interval: Sampling interval for compression effectiveness.
+        :param enable_queue_pressure_throttling: If True, enable queue pressure throttling.
+        :param queue_pressure_high_threshold: High queue pressure threshold percentage.
+        :param queue_pressure_low_threshold: Low queue pressure threshold percentage.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -167,6 +173,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._enable_adaptive_bypass = enable_adaptive_bypass
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
+        self._queue_pressure_high_threshold = queue_pressure_high_threshold
+        self._queue_pressure_low_threshold = queue_pressure_low_threshold
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -195,11 +206,23 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                     self._latency_breakeven_threshold
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
+
+            l2.compressor.enable_queue_pressure_throttling = (
+                self._enable_queue_pressure_throttling
+            )
+            l2.compressor.queue_pressure_high_threshold = (
+                self._queue_pressure_high_threshold
+            )
+            l2.compressor.queue_pressure_low_threshold = (
+                self._queue_pressure_low_threshold
+            )
+
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
                 "and CompressedTags (max_compression_ratio=2, "
-                f"adaptive_bypass={self._enable_adaptive_bypass})"
+                f"adaptive_bypass={self._enable_adaptive_bypass}, "
+                f"pressure_throttling={self._enable_queue_pressure_throttling})"
             )
         else:
             print(
@@ -422,6 +445,35 @@ parser.add_argument(
     help="Sampling interval in number of compressions for tracking ratio (default: 100).",
 )
 
+parser.add_argument(
+    "--write-high-thresh",
+    "--mem-write-high-thresh",
+    type=int,
+    required=False,
+    default=85,
+    dest="write_high_thresh",
+    help="Memory write queue high threshold percentage (default: 85).",
+)
+
+parser.add_argument(
+    "--write-low-thresh",
+    type=int,
+    required=False,
+    default=50,
+    dest="write_low_thresh",
+    help="Memory write queue low threshold percentage (default: 50).",
+)
+
+parser.add_argument(
+    "--enable-pressure-throttling",
+    "--enable-queue-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    dest="enable_pressure_throttling",
+    help="Enable memory write queue pressure throttling for cache compression.",
+)
+
 args = parser.parse_args()
 
 
@@ -480,10 +532,21 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     enable_adaptive_bypass=args.enable_adaptive_bypass,
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
+    enable_queue_pressure_throttling=args.enable_pressure_throttling,
+    queue_pressure_high_threshold=args.write_high_thresh,
+    queue_pressure_low_threshold=args.write_low_thresh,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
 memory = DualChannelDDR4_2400(size="3GiB")
+mem_ctrls = (
+    memory.get_memory_controllers()
+    if hasattr(memory, "get_memory_controllers")
+    else ([memory.mem_ctrl] if hasattr(memory, "mem_ctrl") else [])
+)
+for ctrl in mem_ctrls:
+    ctrl.write_high_thresh_perc = args.write_high_thresh
+    ctrl.write_low_thresh_perc = args.write_low_thresh
 
 # Processor: Atomic for boot → O3CPU for ROI measurement
 # (Original used KVM boot; Atomic is slower but works on Apple Silicon)
