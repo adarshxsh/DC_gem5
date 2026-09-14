@@ -1873,6 +1873,18 @@ BaseCache::coalesce() const
     return writeAllocator && writeAllocator->coalesce();
 }
 
+bool
+BaseCache::canCoAllocatePrefetch(Addr addr, bool is_secure) const
+{
+    if (tags) {
+        CompressedTags *ctags = dynamic_cast<CompressedTags *>(tags);
+        if (ctags) {
+            return ctags->canCoAllocatePrefetch(addr, is_secure);
+        }
+    }
+    return true;
+}
+
 void
 BaseCache::writebackVisitor(CacheBlk &blk)
 {

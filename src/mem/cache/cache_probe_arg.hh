@@ -70,6 +70,14 @@ struct CacheAccessor
 
     /** Determine if cache is coalescing writes */
     virtual bool coalesce() const = 0;
+
+    /** Determine if prefetch candidate can co-allocate into superblock without
+     * downgrading compression factor */
+    virtual bool
+    canCoAllocatePrefetch(Addr addr, bool is_secure) const
+    {
+        return true;
+    }
 };
 
 /**

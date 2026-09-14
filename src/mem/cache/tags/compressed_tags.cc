@@ -234,4 +234,61 @@ CompressedTags::checkInvariants() const
     return true;
 }
 
+bool
+CompressedTags::canCoAllocatePrefetch(Addr addr, bool is_secure) const
+{
+    CacheBlk::KeyType key{addr, is_secure};
+
+    std::vector<ReplaceableEntry *> superblock_entries =
+        indexingPolicy->getPossibleEntries(key);
+
+    if (partitionManager) {
+        partitionManager->filterByPartition(superblock_entries, 0);
+    }
+
+    if (superblock_entries.empty()) {
+        return true;
+    }
+
+    const uint64_t offset = extractSectorOffset(addr);
+
+    const SuperBlk *active_superblock = nullptr;
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        if (superblock->match(key)) {
+            active_superblock = superblock;
+            break;
+        }
+    }
+
+    if (active_superblock != nullptr) {
+        if (active_superblock->blks[offset]->isValid()) {
+            return true;
+        }
+
+        if (!active_superblock->isCompressed()) {
+            return false;
+        }
+
+        uint8_t current_cf = active_superblock->getCompressionFactor();
+        uint8_t num_valid = active_superblock->getNumValid();
+
+        if (current_cf > 1 || num_valid >= current_cf ||
+            !active_superblock->canCoAllocate(64 * 8)) {
+            return false;
+        }
+
+        return true;
+    } else {
+        for (const auto &entry : superblock_entries) {
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+            if (!superblock->isValid()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 } // namespace gem5
