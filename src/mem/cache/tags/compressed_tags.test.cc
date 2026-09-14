@@ -282,3 +282,97 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, DynamicOffsetRemappingCoAllocationAndLookup)
+{
+    // Assign sector offset 5 to physical sub-block slot 0
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSectorOffset(5);
+    subBlks[0].setSizeBits(64);
+
+    // Assign sector offset 2 to physical sub-block slot 1
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSectorOffset(2);
+    subBlks[1].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    verifyInvariants(superBlk);
+
+    // Verify sub-block slot indices do not match sector offsets
+    ASSERT_EQ(subBlks[0].getSectorOffset(), 5);
+    ASSERT_EQ(subBlks[1].getSectorOffset(), 2);
+
+    // Lambda representing dynamic sub-block offset lookup in SuperBlk
+    auto findSubBlk = [this](int target_offset) -> SectorSubBlk* {
+        for (const auto& blk : superBlk.blks) {
+            if (blk->isValid() && blk->getSectorOffset() == target_offset) {
+                return blk;
+            }
+        }
+        return nullptr;
+    };
+
+    ASSERT_EQ(findSubBlk(5), &subBlks[0]);
+    ASSERT_EQ(findSubBlk(2), &subBlks[1]);
+    ASSERT_EQ(findSubBlk(0), nullptr);
+}
+
+TEST_F(SuperBlkTestFixture, DynamicOffsetRemappingInvalidationAndSlotReuse)
+{
+    // Slot 0 assigned to sector offset 3
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSectorOffset(3);
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_EQ(subBlks[0].getSectorOffset(), 3);
+
+    // Invalidate slot 0
+    subBlks[0].invalidate();
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 0);
+    verifyInvariants(superBlk);
+
+    // Reuse slot 0 for a different sector offset 6
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSectorOffset(6);
+    subBlks[0].setSizeBits(128);
+
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_EQ(subBlks[0].getSectorOffset(), 6);
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, DynamicOffsetRemappingMigrationPreservesOffset)
+{
+    // Setup superBlkB
+    SuperBlk superBlkB;
+    superBlkB.setBlkSize(BlkSize);
+    std::unique_ptr<CompressionBlk[]> subBlksB(new CompressionBlk[NumSubBlks]);
+    superBlkB.blks.resize(NumSubBlks);
+    for (unsigned k = 0; k < NumSubBlks; ++k) {
+        superBlkB.blks[k] = &subBlksB[k];
+        subBlksB[k].setSectorBlock(&superBlkB);
+        subBlksB[k].setSectorOffset(k);
+        subBlksB[k].registerTagExtractor([](Addr addr) { return addr; });
+    }
+    superBlkB.registerTagExtractor([](Addr addr) { return addr; });
+
+    // Slot 1 in superBlk holds sector offset 7
+    subBlks[1].insert({0x6000, false});
+    subBlks[1].setSectorOffset(7);
+    subBlks[1].setSizeBits(64);
+
+    // Move slot 1 in superBlk to slot 4 in superBlkB
+    subBlksB[4] = std::move(subBlks[1]);
+
+    ASSERT_FALSE(subBlks[1].isValid());
+    ASSERT_TRUE(subBlksB[4].isValid());
+    // Verify slot 4 in superBlkB retained sector offset 7 from the moved sub-block
+    ASSERT_EQ(subBlksB[4].getSectorOffset(), 7);
+
+    verifyInvariants(superBlk);
+    verifyInvariants(superBlkB);
+}
+
