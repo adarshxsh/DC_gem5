@@ -83,6 +83,7 @@ Base::CompressionData::getSize() const
 
 Base::Base(const Params &p)
     : SimObject(p),
+      congestionLevel(NORMAL),
       blkSize(p.block_size),
       chunkSizeBits(p.chunk_size_bits),
       sizeThreshold((blkSize * p.size_threshold_percentage) / 100),
@@ -118,6 +119,16 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+void
+Base::setCongestionLevel(CongestionLevel level)
+{
+    if (congestionLevel != level) {
+        DPRINTF(CacheComp, "Updating congestion level from %d to %d\n",
+                congestionLevel, level);
+        congestionLevel = level;
+    }
 }
 
 std::vector<Base::Chunk>
@@ -170,7 +181,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             : (latencyBreakevenThreshold + 1.0);
 
     bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+        (enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold)) ||
+        (congestionLevel == HIGH_PRESSURE);
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
