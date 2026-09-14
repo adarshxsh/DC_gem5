@@ -374,7 +374,8 @@ class BaseCache : public ClockedObject
     /** Enable queue pressure adaptive decompression latency throttling. */
     const bool enableQueueAwareDecompression;
 
-    /** Queue occupancy high-watermark threshold for decompression throttling. */
+    /** Queue occupancy high-watermark threshold for decompression throttling.
+     */
     const unsigned mshrQueueThrottlingThreshold;
 
     /**
