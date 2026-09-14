@@ -298,7 +298,10 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
 
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
-               Tick when_ready, Counter _order, bool alloc_on_fill)
+               Tick when_ready, Counter _order, bool alloc_on_fill,
+               std::size_t predicted_size_bits,
+               SuperBlk* reserved_super_blk,
+               CacheBlk* reserved_sub_blk)
 {
     blkAddr = blk_addr;
     blkSize = blk_size;
@@ -314,6 +317,10 @@ MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
 
     targets.init(blkAddr, blkSize);
     deferredTargets.init(blkAddr, blkSize);
+
+    targets.predictedSizeBits = predicted_size_bits;
+    targets.reservedSuperBlk = reserved_super_blk;
+    targets.reservedSubBlk = reserved_sub_blk;
 
     // Don't know of a case where we would allocate a new MSHR for a
     // snoop (mem-side request), so set source according to request here

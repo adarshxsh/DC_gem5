@@ -787,7 +787,8 @@ class BaseCache : public ClockedObject
      * @return Pointer to the new cache block.
      */
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
-                         PacketList &writebacks, bool allocate);
+                         PacketList &writebacks, bool allocate,
+                         MSHR *mshr = nullptr);
 
     /**
      * Allocate a new block and perform any necessary writebacks
@@ -799,9 +800,11 @@ class BaseCache : public ClockedObject
      *
      * @param pkt Packet holding the address to update
      * @param writebacks A list of writeback packets for the evicted blocks
+     * @param mshr Optional MSHR pointer carrying pre-reserved slot metadata
      * @return the allocated block
      */
-    CacheBlk *allocateBlock(const PacketPtr pkt, PacketList &writebacks);
+    CacheBlk *allocateBlock(const PacketPtr pkt, PacketList &writebacks,
+                            MSHR *mshr = nullptr);
     /**
      * Evict a cache block.
      *
@@ -1174,9 +1177,31 @@ class BaseCache : public ClockedObject
 
     MSHR *allocateMissBuffer(PacketPtr pkt, Tick time, bool sched_send = true)
     {
+        std::size_t predicted_size_bits = blkSize * 8;
+        Cycles comp_lat(0), decomp_lat(0);
+        if (compressor && pkt->hasData()) {
+            const auto comp_data = compressor->compress(
+                pkt->getConstPtr<uint64_t>(), comp_lat, decomp_lat);
+            predicted_size_bits = comp_data->getSizeBits();
+        } else if (compressor) {
+            predicted_size_bits = (blkSize * 8) / 2;
+        }
+
+        SuperBlk* reserved_super_blk = nullptr;
+        CacheBlk* reserved_sub_blk = nullptr;
+        if (tags) {
+            tags->reserveSuperblockSlot({pkt->getBlockAddr(blkSize), pkt->isSecure()},
+                                       predicted_size_bits,
+                                       reserved_super_blk,
+                                       reserved_sub_blk);
+        }
+
         MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
                                         pkt, time, order++,
-                                        allocOnFill(pkt->cmd));
+                                        allocOnFill(pkt->cmd),
+                                        predicted_size_bits,
+                                        reserved_super_blk,
+                                        reserved_sub_blk);
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);

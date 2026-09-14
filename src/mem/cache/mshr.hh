@@ -180,6 +180,11 @@ class MSHR : public QueueEntry, public Printable
          */
         bool hasFromCache;
 
+        /** In-flight compression metadata and superblock reservation handles */
+        std::size_t predictedSizeBits;
+        SuperBlk* reservedSuperBlk;
+        CacheBlk* reservedSubBlk;
+
         TargetList(const std::string &name = ".unnamedTargetList");
 
         /**
@@ -215,6 +220,10 @@ class MSHR : public QueueEntry, public Printable
             hasUpgrade = false;
             allocOnFill = false;
             hasFromCache = false;
+
+            predictedSizeBits = 0;
+            reservedSuperBlk = nullptr;
+            reservedSubBlk = nullptr;
         }
 
         /**
@@ -415,9 +424,24 @@ class MSHR : public QueueEntry, public Printable
      * @param when_ready When should the MSHR be ready to act upon.
      * @param _order The logical order of this MSHR
      * @param alloc_on_fill Should the cache allocate a block on fill
+     * @param predicted_size_bits Predicted compressed size in bits
+     * @param reserved_super_blk Reserved superblock pointer
+     * @param reserved_sub_blk Reserved sub-block pointer
      */
     void allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                  Tick when_ready, Counter _order, bool alloc_on_fill);
+                  Tick when_ready, Counter _order, bool alloc_on_fill,
+                  std::size_t predicted_size_bits = 0,
+                  SuperBlk* reserved_super_blk = nullptr,
+                  CacheBlk* reserved_sub_blk = nullptr);
+
+    std::size_t getPredictedSizeBits() const { return targets.predictedSizeBits; }
+    void setPredictedSizeBits(std::size_t size_bits) { targets.predictedSizeBits = size_bits; }
+
+    SuperBlk* getReservedSuperBlk() const { return targets.reservedSuperBlk; }
+    void setReservedSuperBlk(SuperBlk* sblk) { targets.reservedSuperBlk = sblk; }
+
+    CacheBlk* getReservedSubBlk() const { return targets.reservedSubBlk; }
+    void setReservedSubBlk(CacheBlk* blk) { targets.reservedSubBlk = blk; }
 
     void markInService(bool pending_modified_resp);
 
