@@ -349,7 +349,8 @@ class MemCtrl : public qos::MemCtrl
     bool isWriteQueueCongested() const;
 
     /**
-     * Check if memory controller queues are congested (read or write queue high).
+     * Check if memory controller queues are congested (read or write queue
+     * high).
      */
     bool isCongested() const;
 

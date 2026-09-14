@@ -94,7 +94,8 @@ Base::Base(const Params &p)
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
-      enableMemAwareBypass(p.enable_mem_aware_bypass || p.enable_queue_pressure_throttling),
+      enableMemAwareBypass(p.enable_mem_aware_bypass ||
+                           p.enable_queue_pressure_throttling),
       memCtrl(p.mem_ctrl),
       memCtrls(p.mem_ctrls),
       totalCompressionRequests(0),
@@ -122,7 +123,7 @@ Base::isMemoryCongested() const
     if (memCtrl && memCtrl->isCongested()) {
         return true;
     }
-    for (auto* ctrl : memCtrls) {
+    for (auto *ctrl : memCtrls) {
         if (ctrl && ctrl->isCongested()) {
             return true;
         }
@@ -366,10 +367,14 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of bypassed compressions"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
-      ADD_STAT(memPressureBypassedCompressions, statistics::units::Count::get(),
-               "Total number of compressions bypassed due to memory queue pressure"),
-      ADD_STAT(memPressureBypassedDecompressions, statistics::units::Count::get(),
-               "Total number of decompressions bypassed due to memory queue pressure"),
+      ADD_STAT(memPressureBypassedCompressions,
+               statistics::units::Count::get(),
+               "Total number of compressions bypassed due to memory queue "
+               "pressure"),
+      ADD_STAT(memPressureBypassedDecompressions,
+               statistics::units::Count::get(),
+               "Total number of decompressions bypassed due to memory queue "
+               "pressure"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),
                "Total number of sampled compressions"),
       ADD_STAT(sampledUncompressedBits, statistics::units::Bit::get(),
