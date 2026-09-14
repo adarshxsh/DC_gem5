@@ -237,7 +237,7 @@ CompressedTags::checkInvariants() const
 bool
 CompressedTags::canCoAllocatePrefetch(Addr addr, bool is_secure) const
 {
-    CacheBlk::KeyType key(addr, is_secure);
+    CacheBlk::KeyType key{addr, is_secure};
 
     std::vector<ReplaceableEntry *> superblock_entries =
         indexingPolicy->getPossibleEntries(key);
