@@ -82,6 +82,12 @@ class Message
     { panic("MessageSizeType() called on wrong message!"); }
 
     /**
+     * Get actual compressed payload size in bytes.
+     * Returns -1 if message is uncompressed or default.
+     */
+    virtual int getPayloadSizeInBytes() const { return -1; }
+
+    /**
      * The two functions below are used for reading / writing the message
      * functionally. The methods return true if the address in the packet
      * matches the address / address range in the message. Each message

@@ -36,3 +36,5 @@ SimObject('Controller.py', sim_objects=['RubyController'])
 Source('AbstractController.cc')
 Source('AbstractCacheEntry.cc')
 Source('RubyRequest.cc')
+
+GTest('message.test', 'Message.test.cc', '../network/garnet/flit.cc')
