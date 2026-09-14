@@ -616,6 +616,8 @@ class DRAMInterface : public MemInterface
         // Number of bytes transferred to/from DRAM
         statistics::Scalar dramBytesRead;
         statistics::Scalar dramBytesWritten;
+        statistics::Scalar dramBytesReadLogical;
+        statistics::Scalar dramBytesWrittenLogical;
 
         // Average bandwidth
         statistics::Formula avgRdBW;
