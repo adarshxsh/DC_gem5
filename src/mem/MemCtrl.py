@@ -89,6 +89,17 @@ class MemCtrl(QoSMemCtrl):
         16, "Minimum read bursts before switching to writes"
     )
 
+    # enable adaptive threshold scaling based on real-time queue pressure
+    enable_adaptive_thresholds = Param.Bool(
+        False, "Enable dynamic adaptive threshold scaling"
+    )
+
+    # queue pressure threshold for burst length adaptation
+    pressure_threshold = Param.Float(
+        0.7,
+        "Queue pressure threshold above which burst lengths are adaptively scaled",
+    )
+
     # scheduler, address map and page policy
     mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
