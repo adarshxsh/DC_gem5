@@ -1188,6 +1188,25 @@ DRAMInterface::Rank::isQueueEmpty() const
     return no_queued_cmds;
 }
 
+bool
+DRAMInterface::Rank::hasWriteToOpenRow() const
+{
+    if (numBanksActive == 0 || writeEntries == 0)
+        return false;
+
+    for (const auto& queue : dram.ctrl->selQueue(false)) {
+        for (const auto& pkt : queue) {
+            if (pkt->isDram() && pkt->rank == rank &&
+                pkt->pseudoChannel == dram.pseudoChannel) {
+                if (banks[pkt->bank].openRow == pkt->row) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void
 DRAMInterface::Rank::checkDrainDone()
 {
@@ -1200,6 +1219,9 @@ DRAMInterface::Rank::checkDrainDone()
 
         // hand control back to the refresh event loop
         schedule(refreshEvent, curTick());
+    } else if (refreshState == REF_PRE && !refreshEvent.scheduled()) {
+        Tick pre_at = dram.regStats.dramTime.val() ? curTick() : dram.clockEdge();
+        schedule(refreshEvent, pre_at);
     }
 }
 
@@ -1336,6 +1358,11 @@ DRAMInterface::Rank::processRefreshEvent()
     if (refreshState == REF_PRE) {
         // precharge any active bank
         if (numBanksActive != 0) {
+            if (dram.ctrl->inWriteBusState(true, &dram) && hasWriteToOpenRow()) {
+                DPRINTF(DRAM, "Refresh deferring precharge due to write queue drain\n");
+                return;
+            }
+
             // at the moment, we use a precharge all even if there is
             // only a single bank open
             DPRINTF(DRAM, "Precharging all\n");
@@ -1460,7 +1487,8 @@ DRAMInterface::Rank::processRefreshEvent()
 
             // Force PRE power-down if there are no outstanding commands
             // in Q after refresh.
-            } else if (isQueueEmpty() && dram.enableDRAMPowerdown) {
+            } else if (isQueueEmpty() && dram.enableDRAMPowerdown &&
+                       !dram.ctrl->inWriteBusState(true, &dram)) {
                 // still have refresh event outstanding but there should
                 // be no other events outstanding
                 assert(outstandingEvents == 1);
