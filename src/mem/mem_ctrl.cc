@@ -57,30 +57,39 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    queueEmaAlpha(p.queue_ema_alpha),
-    currentRdQueueEMA(0.0),
-    currentWrQueueEMA(0.0),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      queueEmaAlpha(p.queue_ema_alpha),
+      currentRdQueueEMA(0.0),
+      currentWrQueueEMA(0.0),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -1547,14 +1556,16 @@ MemCtrl::MemoryPort::disableSanityCheck()
 void
 MemCtrl::updateRdQueueEMA(uint32_t len)
 {
-    currentRdQueueEMA = queueEmaAlpha * len + (1.0 - queueEmaAlpha) * currentRdQueueEMA;
+    currentRdQueueEMA =
+        queueEmaAlpha * len + (1.0 - queueEmaAlpha) * currentRdQueueEMA;
     stats.avgRdQLen = currentRdQueueEMA;
 }
 
 void
 MemCtrl::updateWrQueueEMA(uint32_t len)
 {
-    currentWrQueueEMA = queueEmaAlpha * len + (1.0 - queueEmaAlpha) * currentWrQueueEMA;
+    currentWrQueueEMA =
+        queueEmaAlpha * len + (1.0 - queueEmaAlpha) * currentWrQueueEMA;
     stats.avgWrQLen = currentWrQueueEMA;
 }
 
