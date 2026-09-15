@@ -93,7 +93,9 @@ Base::Base(const Params &p)
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
-      decayShift(p.decay_shift),
+      adaptiveWindowSize(p.adaptive_window_size),
+      windowUncompressedBits(0),
+      windowCompressedBits(0),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -156,6 +158,19 @@ Base::fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const
     }
 }
 
+double
+Base::getObservedRatio() const
+{
+    if (adaptiveWindowSize > 0 && !sampleQueue.empty()) {
+        return (windowCompressedBits > 0)
+                   ? ((double)windowUncompressedBits / (double)windowCompressedBits)
+                   : (latencyBreakevenThreshold + 1.0);
+    }
+    return (sampledCompressedBits > 0)
+               ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
+               : (latencyBreakevenThreshold + 1.0);
+}
+
 std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
@@ -164,10 +179,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
 
-    double observedRatio =
-        (sampledCompressedBits > 0)
-            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+    double observedRatio = getObservedRatio();
 
     bool shouldBypass =
         enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
@@ -220,16 +232,25 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     }
 
     if (isSampled) {
-        if (enableAdaptiveBypass && (decayShift > 0)) {
-            sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
-            sampledCompressedBits -= (sampledCompressedBits >> decayShift);
-        }
         uint64_t uncomp_bits = blkSize * CHAR_BIT;
         sampledUncompressedBits += uncomp_bits;
         sampledCompressedBits += comp_size_bits;
         stats.sampledCompressions++;
         stats.sampledUncompressedBits += uncomp_bits;
         stats.sampledCompressedBits += comp_size_bits;
+
+        if (adaptiveWindowSize > 0) {
+            sampleQueue.push_back({uncomp_bits, comp_size_bits});
+            windowUncompressedBits += uncomp_bits;
+            windowCompressedBits += comp_size_bits;
+
+            while (sampleQueue.size() > adaptiveWindowSize) {
+                const auto old_sample = sampleQueue.front();
+                windowUncompressedBits -= old_sample.first;
+                windowCompressedBits -= old_sample.second;
+                sampleQueue.pop_front();
+            }
+        }
     }
 
     if (shouldBypass) {
@@ -276,10 +297,7 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0)
-                                   ? ((double)sampledUncompressedBits /
-                                      (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
+        double observedRatio = getObservedRatio();
         if (observedRatio < latencyBreakevenThreshold) {
             stats.bypassedDecompressions += 1;
         }
