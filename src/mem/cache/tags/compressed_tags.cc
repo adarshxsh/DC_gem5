@@ -46,6 +46,7 @@
 #include "mem/cache/tags/compressed_tags.hh"
 
 #include <climits>
+#include <limits>
 
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
@@ -60,7 +61,8 @@ namespace gem5
 {
 
 CompressedTags::CompressedTags(const Params &p)
-    : SectorTags(p)
+    : SectorTags(p),
+      enableDensityAwareReplacement(p.enable_density_aware_replacement)
 {
 }
 
@@ -193,9 +195,29 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
             return nullptr;
         }
 
+        std::vector<ReplaceableEntry *> victim_candidates;
+        if (enableDensityAwareReplacement) {
+            double min_density = std::numeric_limits<double>::max();
+            for (const auto &entry : replacement_candidates) {
+                SuperBlk *sb = static_cast<SuperBlk *>(entry);
+                double density = sb->getDensity();
+                if (density < min_density) {
+                    min_density = density;
+                }
+            }
+            for (const auto &entry : replacement_candidates) {
+                SuperBlk *sb = static_cast<SuperBlk *>(entry);
+                if (sb->getDensity() <= min_density) {
+                    victim_candidates.push_back(entry);
+                }
+            }
+        } else {
+            victim_candidates = replacement_candidates;
+        }
+
         // Choose replacement victim from replacement candidates
         victim_superblock = static_cast<SuperBlk *>(
-            replacementPolicy->getVictim(replacement_candidates));
+            replacementPolicy->getVictim(victim_candidates));
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){

@@ -247,6 +247,14 @@ class SuperBlk : public SectorBlk
     void setCompressionFactor(const uint8_t compression_factor);
 
     /**
+     * Get the density of this superblock, calculated as the product of
+     * the number of valid sub-blocks and the compression factor.
+     *
+     * @return Superblock density.
+     */
+    double getDensity() const;
+
+    /**
      * Recalculate and update the compression factor of this superblock
      * based on all currently valid sub-blocks.
      */
