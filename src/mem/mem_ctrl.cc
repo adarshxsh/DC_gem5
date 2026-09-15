@@ -57,27 +57,38 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      maxWriteDrainBurst(std::max(p.min_writes_per_switch * 4, 64U)),
+      maxReadWaitTime(100000),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -877,6 +888,23 @@ MemCtrl::nonDetermReads(MemInterface* mem_intr) {
     }
 }
 
+Tick
+MemCtrl::getOldestReadWaitTime() const
+{
+    Tick oldest_entry = UINT64_MAX;
+    for (const auto &queue : readQueue) {
+        if (!queue.empty()) {
+            if (queue.front()->entryTime < oldest_entry) {
+                oldest_entry = queue.front()->entryTime;
+            }
+        }
+    }
+    if (oldest_entry == UINT64_MAX) {
+        return 0;
+    }
+    return (curTick() > oldest_entry) ? (curTick() - oldest_entry) : 0;
+}
+
 void
 MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                         MemPacketQueue& resp_queue,
@@ -1114,18 +1142,25 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         delete mem_pkt;
 
-        // If we emptied the write queue, or got sufficiently below the
-        // threshold (using the minWritesPerSwitch as the hysteresis) and
-        // are not draining, or we have reads waiting and have done enough
-        // writes, then switch to reads.
-        // If we are interfacing to NVM and have filled the writeRespQueue,
-        // with only NVM writes in Q, then switch to reads
-        bool below_threshold =
-            mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
+        // Maintain WRITE mode continuously until writeQueueSize falls below
+        // writeLowThreshold (unless write queue is empty, or anti-starvation
+        // threshold is triggered, or NVM is write blocked).
+        bool below_low_threshold =
+            mem_intr->writeQueueSize < writeLowThreshold;
+
+        bool read_starved = false;
+        if (mem_intr->readQueueSize > 0) {
+            if (mem_intr->writesThisTime >= maxWriteDrainBurst) {
+                read_starved = true;
+            } else if (maxReadWaitTime > 0 &&
+                       getOldestReadWaitTime() >= maxReadWaitTime) {
+                read_starved = true;
+            }
+        }
 
         if (mem_intr->writeQueueSize == 0 ||
-            (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
+            (below_low_threshold && drainState() != DrainState::Draining) ||
+            read_starved ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again
