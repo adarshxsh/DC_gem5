@@ -94,6 +94,10 @@ class BaseXBar(ClockedObject):
         False, "Perform address mapping for the default port"
     )
 
+    point_to_point_compression = Param.Bool(
+        True, "Enable point-to-point interconnect payload compression"
+    )
+
 
 class NoncoherentXBar(BaseXBar):
     type = "NoncoherentXBar"
