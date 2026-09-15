@@ -208,32 +208,51 @@ class MemPacket
      */
     unsigned int compressedSize;
 
-    inline bool isCompressed() const
+    inline bool
+    isCompressed() const
     {
         return compressedSize > 0 || (pkt && pkt->isCompressed());
     }
 
-    inline unsigned int getCompressedSize() const
+    inline unsigned int
+    getCompressedSize() const
     {
-        if (compressedSize > 0)
+        if (compressedSize > 0) {
             return compressedSize;
-        if (pkt && pkt->isCompressed())
+        }
+        if (pkt && pkt->isCompressed()) {
             return pkt->getCompressedSize();
-        if (pkt && pkt->req && pkt->req->extraDataValid())
+        }
+        if (pkt && pkt->req && pkt->req->extraDataValid()) {
             return pkt->req->getExtraData();
+        }
         return 0;
     }
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _channel,
-               uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
-               Addr _addr, unsigned int _size)
-        : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
+              uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
+              Addr _addr, unsigned int _size)
+        : entryTime(curTick()),
+          readyTime(curTick()),
+          pkt(_pkt),
           _requestorId(pkt->requestorId()),
-          read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
-          bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
-          burstHelper(NULL), _qosValue(_pkt->qosValue()),
-          compressedSize(_pkt && _pkt->isCompressed() ? _pkt->getCompressedSize() :
-                         (_pkt && _pkt->req && _pkt->req->extraDataValid() ? _pkt->req->getExtraData() : 0))
+          read(is_read),
+          dram(is_dram),
+          pseudoChannel(_channel),
+          rank(_rank),
+          bank(_bank),
+          row(_row),
+          bankId(bank_id),
+          addr(_addr),
+          size(_size),
+          burstHelper(NULL),
+          _qosValue(_pkt->qosValue()),
+          compressedSize(
+              _pkt && _pkt->isCompressed()
+                  ? _pkt->getCompressedSize()
+                  : (_pkt && _pkt->req && _pkt->req->extraDataValid()
+                         ? _pkt->req->getExtraData()
+                         : 0))
     { }
 
 };

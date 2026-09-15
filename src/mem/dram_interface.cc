@@ -407,10 +407,12 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
 
     Tick effective_tBURST = tBURST;
     if (enableCompressedTransfers && mem_pkt->isCompressed() &&
-        mem_pkt->getCompressedSize() > 0 && mem_pkt->getCompressedSize() < burstSize) {
+        mem_pkt->getCompressedSize() > 0 &&
+        mem_pkt->getCompressedSize() < burstSize) {
         unsigned comp_bytes = mem_pkt->getCompressedSize();
         effective_tBURST = divCeil(comp_bytes * tBURST, burstSize);
-        effective_tBURST = std::max(tBURST_MIN, std::min(tBURST, effective_tBURST));
+        effective_tBURST =
+            std::max(tBURST_MIN, std::min(tBURST, effective_tBURST));
     }
 
     // if we are interleaving bursts, ensure that
@@ -494,8 +496,11 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                                  mem_pkt->readyTime + tWR);
 
     // increment the bytes accessed and the accesses per row
-    unsigned bytes_transferred = (enableCompressedTransfers && mem_pkt->isCompressed() &&
-                                  mem_pkt->getCompressedSize() > 0) ? mem_pkt->getCompressedSize() : burstSize;
+    unsigned bytes_transferred =
+        (enableCompressedTransfers && mem_pkt->isCompressed() &&
+         mem_pkt->getCompressedSize() > 0)
+            ? mem_pkt->getCompressedSize()
+            : burstSize;
     bank_ref.bytesAccessed += bytes_transferred;
     ++bank_ref.rowAccesses;
 
