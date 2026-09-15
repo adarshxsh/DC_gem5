@@ -71,7 +71,7 @@ namespace gem5
 class BaseXBar : public ClockedObject
 {
 
-  protected:
+  public:
 
     /**
      * A layer is an internal crossbar arbitration point with its own
@@ -124,10 +124,11 @@ class BaseXBar : public ClockedObject
          * updated accordingly.
          *
          * @param port Source port presenting the packet
+         * @param pkt Packet presenting the request
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port);
+        bool tryTiming(SrcType* src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -204,17 +205,41 @@ class BaseXBar : public ClockedObject
 
         State state;
 
+        struct WaitingPort
+        {
+            SrcType* srcPort;
+            bool isDemand;
+            Tick payloadDelay;
+            Tick arrivalTick;
+            unsigned int ageCounter;
+
+            WaitingPort(SrcType* _port = nullptr, bool _is_demand = false,
+                        Tick _payload_delay = 0, Tick _arrival_tick = 0,
+                        unsigned int _age = 0)
+                : srcPort(_port), isDemand(_is_demand),
+                  payloadDelay(_payload_delay), arrivalTick(_arrival_tick),
+                  ageCounter(_age)
+            {}
+        };
+
         /**
          * A deque of ports that retry should be called on because
          * the original send was delayed due to a busy layer.
          */
-        std::deque<SrcType*> waitingForLayer;
+        std::deque<WaitingPort> waitingForLayer;
 
         /**
          * Track who is waiting for the retry when receiving it from a
          * peer. If no port is waiting NULL is stored.
          */
         SrcType* waitingForPeer;
+        WaitingPort waitingForPeerEntry;
+
+        /**
+         * Track current active packet transaction metadata.
+         */
+        bool activeValid;
+        WaitingPort activeEntry;
 
         /**
          * Release the layer after being occupied and return to an
@@ -394,6 +419,15 @@ class BaseXBar : public ClockedObject
        range will cause a fatal error.  If false, just send all
        addresses not handled by another port to default device. */
     const bool useDefaultRange;
+
+    /** Starvation threshold for crossbar layer arbitration aging counter */
+    const unsigned starvationThreshold;
+
+  public:
+
+    unsigned getStarvationThreshold() const { return starvationThreshold; }
+
+  protected:
 
     BaseXBar(const BaseXBarParams &p);
 
