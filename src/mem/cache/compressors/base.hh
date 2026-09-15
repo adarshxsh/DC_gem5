@@ -134,6 +134,21 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
+    /** EMA smoothing factor alpha for compression ratio tracking. */
+    const float ewmaAlpha;
+
+    /** Hysteresis margin percentage. */
+    const float hysteresisMarginPerc;
+
+    /** Compression ratio threshold below which adaptive bypass is enabled. */
+    const float bypassEnableThreshold;
+
+    /** Compression ratio threshold above which adaptive bypass is disabled. */
+    const float bypassDisableThreshold;
+
+    /** Current adaptive bypass state (true if bypassing compression). */
+    bool bypassActive;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -142,6 +157,12 @@ class Base : public SimObject
 
     /** Total compressed bits of sampled blocks. */
     uint64_t sampledCompressedBits;
+
+    /** EMA-decayed uncompressed bits of sampled blocks. */
+    double decayedUncompressedBits;
+
+    /** EMA-decayed compressed bits of sampled blocks. */
+    double decayedCompressedBits;
 
     /** Pointer to the parent cache. */
     BaseCache* cache;

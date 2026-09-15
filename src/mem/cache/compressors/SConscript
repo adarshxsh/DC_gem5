@@ -50,6 +50,9 @@ Source('zero.cc')
 GTest('dictionary_compressor.test', 'dictionary_compressor.test.cc',
       'base.cc', 'base_dictionary_compressor.cc', 'cpack.cc', 'fpc.cc',
       with_tag('gem5 lib'))
+GTest('base.test', 'base.test.cc',
+      'base.cc', 'base_dictionary_compressor.cc', 'cpack.cc',
+      with_tag('gem5 lib'))
 SourceLib('z')
 
 GTest('multi.test', 'multi.test.cc', 'multi.cc', 'base.cc', 'zero.cc',
@@ -59,4 +62,3 @@ GTest('multi.test', 'multi.test.cc', 'multi.cc', 'base.cc', 'zero.cc',
       '#src/base/stats/storage.cc', '#src/base/stats/text.cc',
       '#src/base/types.cc', '#src/base/output.cc', '#src/cpu/reg_class.cc',
       '#src/sim/bufval.cc', with_tag('gem5 simobject'))
-
