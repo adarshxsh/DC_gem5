@@ -162,13 +162,13 @@ double
 Base::getObservedRatio() const
 {
     if (adaptiveWindowSize > 0 && !sampleQueue.empty()) {
-        return (windowCompressedBits > 0)
-                   ? ((double)windowUncompressedBits / (double)windowCompressedBits)
-                   : (latencyBreakevenThreshold + 1.0);
+        return (windowCompressedBits > 0) ? ((double)windowUncompressedBits /
+                                             (double)windowCompressedBits)
+                                          : (latencyBreakevenThreshold + 1.0);
     }
-    return (sampledCompressedBits > 0)
-               ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-               : (latencyBreakevenThreshold + 1.0);
+    return (sampledCompressedBits > 0) ? ((double)sampledUncompressedBits /
+                                          (double)sampledCompressedBits)
+                                       : (latencyBreakevenThreshold + 1.0);
 }
 
 std::unique_ptr<Base::CompressionData>

@@ -136,10 +136,12 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
-    /** Size of the window (in sampling intervals) to track compression efficiency. */
+    /** Size of the window (in sampling intervals) to track compression
+     * efficiency. */
     const unsigned adaptiveWindowSize;
 
-    /** Queue storing history of sampled (uncompressed, compressed) bits in active window. */
+    /** Queue storing history of sampled (uncompressed, compressed) bits in
+     * active window. */
     std::deque<std::pair<uint64_t, uint64_t>> sampleQueue;
 
     /** Total uncompressed bits of samples in active window. */
@@ -268,8 +270,8 @@ class Base : public SimObject
     compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat);
 
     /**
-     * Get the current observed compression ratio based on active window samples,
-     * or historical totals if no active window samples exist.
+     * Get the current observed compression ratio based on active window
+     * samples, or historical totals if no active window samples exist.
      */
     double getObservedRatio() const;
 
