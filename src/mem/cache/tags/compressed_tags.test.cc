@@ -100,6 +100,7 @@ TEST_F(SuperBlkTestFixture, InitialState)
     ASSERT_FALSE(superBlk.isValid());
     ASSERT_EQ(superBlk.getNumValid(), 0);
     ASSERT_EQ(superBlk.getCompressionFactor(), 1);
+    ASSERT_EQ(superBlk.getDensity(), 0.0);
     ASSERT_TRUE(superBlk.isCompressed());
     verifyInvariants(superBlk);
 }

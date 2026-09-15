@@ -301,7 +301,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        /// Is the packet payload compressed?
+        IS_COMPRESSED         = 0x00020000
     };
 
     Flags flags;
@@ -395,6 +398,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     /// The size of the request or transfer.
     unsigned size;
+
+    /// The compressed size of the payload (in bytes).
+    std::size_t _compressedSize = 0;
 
     /**
      * Track the bytes found that satisfy a functional read.
@@ -622,6 +628,27 @@ class Packet : public Printable, public Extensible<Packet>
     bool isError() const             { return cmd.isError(); }
     bool isPrint() const             { return cmd.isPrint(); }
     bool isFlush() const             { return cmd.isFlush(); }
+
+    bool isCompressed() const        { return flags.isSet(IS_COMPRESSED); }
+    void setCompressedSize(std::size_t size_bytes)
+    {
+        _compressedSize = size_bytes;
+        if (size_bytes > 0 && size_bytes < getSize()) {
+            flags.set(IS_COMPRESSED);
+        } else {
+            flags.clear(IS_COMPRESSED);
+        }
+    }
+    void setCompressedSizeBits(std::size_t size_bits)
+    {
+        setCompressedSize((size_bits + 7) / 8);
+    }
+    std::size_t getCompressedSize() const     { return _compressedSize; }
+    std::size_t getCompressedSizeBits() const { return _compressedSize * 8; }
+    std::size_t getTransferSize() const
+    {
+        return (isCompressed() && _compressedSize > 0) ? _compressedSize : getSize();
+    }
 
     bool isWholeLineWrite(unsigned blk_size)
     {
@@ -946,6 +973,7 @@ class Packet : public Printable, public Extensible<Packet>
            cmd(pkt->cmd), id(pkt->id), req(pkt->req),
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
+           _compressedSize(pkt->_compressedSize),
            bytesValid(pkt->bytesValid),
            _qosValue(pkt->qosValue()),
            htmReturnReason(HtmCacheFailure::NO_FAIL),

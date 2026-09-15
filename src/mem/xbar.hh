@@ -315,6 +315,7 @@ class BaseXBar : public ClockedObject
     const Cycles headerLatency;
     /** the width of the xbar in bytes */
     const uint32_t width;
+    const bool pointToPointCompression;
 
     AddrRangeMap<PortID, 3> portMap;
 
