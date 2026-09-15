@@ -1191,11 +1191,12 @@ DRAMInterface::Rank::isQueueEmpty() const
 bool
 DRAMInterface::Rank::hasWriteToOpenRow() const
 {
-    if (numBanksActive == 0 || writeEntries == 0)
+    if (numBanksActive == 0 || writeEntries == 0) {
         return false;
+    }
 
-    for (const auto& queue : dram.ctrl->selQueue(false)) {
-        for (const auto& pkt : queue) {
+    for (const auto &queue : dram.ctrl->selQueue(false)) {
+        for (const auto &pkt : queue) {
             if (pkt->isDram() && pkt->rank == rank &&
                 pkt->pseudoChannel == dram.pseudoChannel) {
                 if (banks[pkt->bank].openRow == pkt->row) {
@@ -1220,7 +1221,8 @@ DRAMInterface::Rank::checkDrainDone()
         // hand control back to the refresh event loop
         schedule(refreshEvent, curTick());
     } else if (refreshState == REF_PRE && !refreshEvent.scheduled()) {
-        Tick pre_at = dram.regStats.dramTime.val() ? curTick() : dram.clockEdge();
+        Tick pre_at =
+            dram.regStats.dramTime.val() ? curTick() : dram.clockEdge();
         schedule(refreshEvent, pre_at);
     }
 }
@@ -1358,8 +1360,11 @@ DRAMInterface::Rank::processRefreshEvent()
     if (refreshState == REF_PRE) {
         // precharge any active bank
         if (numBanksActive != 0) {
-            if (dram.ctrl->inWriteBusState(true, &dram) && hasWriteToOpenRow()) {
-                DPRINTF(DRAM, "Refresh deferring precharge due to write queue drain\n");
+            if (dram.ctrl->inWriteBusState(true, &dram) &&
+                hasWriteToOpenRow()) {
+                DPRINTF(
+                    DRAM,
+                    "Refresh deferring precharge due to write queue drain\n");
                 return;
             }
 

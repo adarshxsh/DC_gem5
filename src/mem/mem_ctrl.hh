@@ -778,7 +778,8 @@ class MemCtrl : public qos::MemCtrl
      * @param is_read The current burst is a read, select read queue
      * @return a reference to the appropriate queue
      */
-    const std::vector<MemPacketQueue>& selQueue(bool is_read) const
+    const std::vector<MemPacketQueue> &
+    selQueue(bool is_read) const
     {
         return (is_read ? readQueue : writeQueue);
     }
