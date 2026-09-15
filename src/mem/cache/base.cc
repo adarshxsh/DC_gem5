@@ -1789,6 +1789,16 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     if (!victim)
         return nullptr;
 
+    // Suppress prefetch fills that would cause collateral eviction of valid
+    // demand sub-blocks
+    if (pkt->isPrefetch()) {
+        for (const auto &blk : evict_blks) {
+            if (blk && blk->isValid() && !blk->wasPrefetched()) {
+                return nullptr;
+            }
+        }
+    }
+
     // Print victim block's information
     DPRINTF(CacheRepl, "Replacement victim: %s\n", victim->print());
 

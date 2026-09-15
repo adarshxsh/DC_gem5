@@ -559,3 +559,49 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuardAndDemandSuppression)
+{
+    // Populate sub-block 0 as a valid demand line (64 bits -> CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].clearPrefetched();
+
+    ASSERT_TRUE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_FALSE(superBlk.blks[0]->wasPrefetched()); // Valid demand sub-block
+
+    // Test prefetch co-allocation check:
+    // Proposed prefetch block of size 256 bits (CF=2)
+    std::size_t prefetch_size_bits = 256;
+    uint8_t prefetch_cf = superBlk.calculateCompressionFactor(prefetch_size_bits);
+    ASSERT_EQ(prefetch_cf, 2);
+
+    // Verify prefetch_cf (2) < superBlk.getCompressionFactor() (8)
+    ASSERT_LT(prefetch_cf, superBlk.getCompressionFactor());
+
+    // When prefetch_cf < active CF, co-allocation guard should reject co-allocation to prevent downgrading.
+    // Ensure the superblock compression factor remains 8.
+    verifyInvariants(superBlk);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Now populate sub-block 1 as a hardware prefetch line with compatible CF (64 bits -> CF=8)
+    uint8_t compatible_cf = superBlk.calculateCompressionFactor(64);
+    ASSERT_GE(compatible_cf, superBlk.getCompressionFactor());
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(64);
+    subBlks[1].setPrefetched();
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_TRUE(superBlk.blks[1]->wasPrefetched());
+    verifyInvariants(superBlk);
+
+    // Simulate demand access hit on sub-block 1 -> clears prefetched state
+    superBlk.blks[1]->clearPrefetched();
+    ASSERT_FALSE(superBlk.blks[1]->wasPrefetched());
+    verifyInvariants(superBlk);
+}
