@@ -298,18 +298,21 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuardAndDemandSuppression)
     // Test prefetch co-allocation check:
     // Proposed prefetch block of size 256 bits (CF=2)
     std::size_t prefetch_size_bits = 256;
-    uint8_t prefetch_cf = superBlk.calculateCompressionFactor(prefetch_size_bits);
+    uint8_t prefetch_cf =
+        superBlk.calculateCompressionFactor(prefetch_size_bits);
     ASSERT_EQ(prefetch_cf, 2);
 
     // Verify prefetch_cf (2) < superBlk.getCompressionFactor() (8)
     ASSERT_LT(prefetch_cf, superBlk.getCompressionFactor());
 
-    // When prefetch_cf < active CF, co-allocation guard should reject co-allocation to prevent downgrading.
-    // Ensure the superblock compression factor remains 8.
+    // When prefetch_cf < active CF, co-allocation guard should reject
+    // co-allocation to prevent downgrading. Ensure the superblock compression
+    // factor remains 8.
     verifyInvariants(superBlk);
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
-    // Now populate sub-block 1 as a hardware prefetch line with compatible CF (64 bits -> CF=8)
+    // Now populate sub-block 1 as a hardware prefetch line with compatible CF
+    // (64 bits -> CF=8)
     uint8_t compatible_cf = superBlk.calculateCompressionFactor(64);
     ASSERT_GE(compatible_cf, superBlk.getCompressionFactor());
     ASSERT_TRUE(superBlk.canCoAllocate(64));
@@ -328,4 +331,3 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuardAndDemandSuppression)
     ASSERT_FALSE(superBlk.blks[1]->wasPrefetched());
     verifyInvariants(superBlk);
 }
-
