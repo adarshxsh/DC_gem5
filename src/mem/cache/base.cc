@@ -1134,47 +1134,51 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             DPRINTF(CacheRepl, "Data %s replacement victim: %s\n",
                 op_name, victim->print());
         } else {
-            // Evaluate post-expansion superblock capacity before evicting
-            // co-allocated sub-blocks. Evict only as many sub-blocks as
-            // necessary to fit the expanded block within capacity limits.
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(
+            // If we do not move the expanded block, calculate the exact number
+            // of sub-blocks requiring eviction based on LRU order.
+            SuperBlk* superblock = static_cast<SuperBlk*>(
                 compression_blk->getSectorBlock());
+            const uint8_t new_blk_cf =
+                superblock->calculateCompressionFactor(compression_size);
 
-            std::vector<CompressionBlk *> co_blks;
-            for (auto& sub_blk : superblock->blks) {
+            uint8_t min_other_cf = superblock->blks.size();
+            for (const auto& sub_blk : superblock->blks) {
                 if (sub_blk->isValid() && (blk != sub_blk)) {
-                    co_blks.push_back(static_cast<CompressionBlk *>(sub_blk));
+                    CompressionBlk* cblk =
+                        static_cast<CompressionBlk*>(sub_blk);
+                    uint8_t cf = superblock->calculateCompressionFactor(
+                        cblk->getSizeBits());
+                    if (cf < min_other_cf) {
+                        min_other_cf = cf;
+                    }
                 }
             }
 
-            // Order candidate sub-blocks by age (oldest/LRU first)
-            std::sort(co_blks.begin(), co_blks.end(),
-                      [](const CompressionBlk *a, const CompressionBlk *b) {
-                          return a->getAge() > b->getAge();
-                      });
+            const uint8_t target_cf = std::min(min_other_cf, new_blk_cf);
+            const uint8_t num_valid = superblock->getNumValid();
+            const std::size_t num_evict =
+                (num_valid > target_cf) ? (num_valid - target_cf) : 0;
 
-            const uint8_t new_blk_cf =
-                superblock->calculateCompressionFactor(compression_size);
-            const std::size_t max_bits = blkSize * CHAR_BIT;
-
-            auto fits_capacity =
-                [&](const std::vector<CompressionBlk *> &sub_list) {
-                    uint8_t target_cf = new_blk_cf;
-                    std::size_t total_bits = compression_size;
-                    for (const auto *sblk : sub_list) {
-                        uint8_t scf = superblock->calculateCompressionFactor(
-                            sblk->getSizeBits());
-                        target_cf = std::min(target_cf, scf);
-                        total_bits += sblk->getSizeBits();
+            if (num_evict > 0) {
+                std::vector<SectorSubBlk*> candidates;
+                for (auto& sub_blk : superblock->blks) {
+                    if (sub_blk->isValid() && (blk != sub_blk)) {
+                        candidates.push_back(sub_blk);
                     }
-                    std::size_t total_count = 1 + sub_list.size();
-                    return (target_cf > 1) && (total_count <= target_cf) &&
-                           (total_bits <= max_bits);
-                };
+                }
 
-            while (!co_blks.empty() && !fits_capacity(co_blks)) {
-                evict_blks.push_back(co_blks.front());
-                co_blks.erase(co_blks.begin());
+                // Sort candidates by LRU order (oldest insertion/access tick first)
+                std::sort(candidates.begin(), candidates.end(),
+                    [](const SectorSubBlk* a, const SectorSubBlk* b) {
+                        if (a->getTickInserted() != b->getTickInserted()) {
+                            return a->getTickInserted() < b->getTickInserted();
+                        }
+                        return a->getSectorOffset() < b->getSectorOffset();
+                    });
+
+                for (size_t i = 0; i < num_evict && i < candidates.size(); ++i) {
+                    evict_blks.push_back(candidates[i]);
+                }
             }
         }
 

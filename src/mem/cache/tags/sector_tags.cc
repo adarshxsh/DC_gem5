@@ -187,6 +187,9 @@ SectorTags::accessBlock(const PacketPtr pkt, Cycles &lat)
         // Update replacement data of accessed block, which is shared with
         // the whole sector it belongs to
         replacementPolicy->touch(sector_blk->replacementData, pkt);
+
+        // Update last access tick for the sub-block
+        sub_blk->setTickInserted();
     }
 
     // The tag lookup latency is the same for a hit or a miss
