@@ -515,8 +515,22 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
-    const uint32_t minWritesPerSwitch;
-    const uint32_t minReadsPerSwitch;
+    uint32_t minWritesPerSwitch;
+    uint32_t minReadsPerSwitch;
+
+    /** Dynamic adaptive threshold scaling configuration and baseline values */
+    const bool enableAdaptiveThresholds;
+    const double pressureThreshold;
+
+    const uint32_t staticWriteHighThreshold;
+    const uint32_t staticWriteLowThreshold;
+    const uint32_t staticMinWritesPerSwitch;
+    const uint32_t staticMinReadsPerSwitch;
+
+    /** State variables for tracking queue pressure gradients and fill rates */
+    double prevWritePressure;
+    double prevReadPressure;
+    Tick lastPressureTick;
 
     /**
      * Memory controller configuration initialized based on parameter
