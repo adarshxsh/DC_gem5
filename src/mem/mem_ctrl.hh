@@ -772,6 +772,17 @@ class MemCtrl : public qos::MemCtrl
      */
     bool inWriteBusState(bool next_state, const MemInterface* mem_intr) const;
 
+    /**
+     * Select either the read or write queue
+     *
+     * @param is_read The current burst is a read, select read queue
+     * @return a reference to the appropriate queue
+     */
+    const std::vector<MemPacketQueue>& selQueue(bool is_read) const
+    {
+        return (is_read ? readQueue : writeQueue);
+    }
+
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
