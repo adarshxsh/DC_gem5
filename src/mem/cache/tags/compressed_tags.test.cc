@@ -282,3 +282,92 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, SelectiveLRUNeighborEviction)
+{
+    // Insert 4 sub-blocks at different ticks
+    mockTick = 100;
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64); // CF=8
+    subBlks[0].setTickInserted();
+
+    mockTick = 200;
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(64); // CF=8
+    subBlks[1].setTickInserted();
+
+    mockTick = 300;
+    subBlks[2].insert({0x4000, false});
+    subBlks[2].setSizeBits(64); // CF=8
+    subBlks[2].setTickInserted();
+
+    mockTick = 400;
+    subBlks[3].insert({0x4000, false});
+    subBlks[3].setSizeBits(64); // CF=8
+    subBlks[3].setTickInserted();
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+
+    // Simulate expansion of subBlks[3] to 256 bits (CF=2)
+    const std::size_t new_size = 256;
+    const uint8_t new_blk_cf = superBlk.calculateCompressionFactor(new_size);
+    ASSERT_EQ(new_blk_cf, 2);
+
+    // Calculate minimum required evictions
+    uint8_t min_other_cf = superBlk.blks.size();
+    for (const auto& sub_blk : superBlk.blks) {
+        if (sub_blk->isValid() && (&subBlks[3] != sub_blk)) {
+            CompressionBlk* cblk = static_cast<CompressionBlk*>(sub_blk);
+            uint8_t cf = superBlk.calculateCompressionFactor(cblk->getSizeBits());
+            if (cf < min_other_cf) {
+                min_other_cf = cf;
+            }
+        }
+    }
+    const uint8_t target_cf = std::min(min_other_cf, new_blk_cf);
+    const uint8_t num_valid = superBlk.getNumValid();
+    const std::size_t num_evict =
+        (num_valid > target_cf) ? (num_valid - target_cf) : 0;
+    ASSERT_EQ(num_evict, 2);
+
+    std::vector<SectorSubBlk*> candidates;
+    for (auto& sub_blk : superBlk.blks) {
+        if (sub_blk->isValid() && (&subBlks[3] != sub_blk)) {
+            candidates.push_back(sub_blk);
+        }
+    }
+
+    std::sort(candidates.begin(), candidates.end(),
+        [](const SectorSubBlk* a, const SectorSubBlk* b) {
+            if (a->getTickInserted() != b->getTickInserted()) {
+                return a->getTickInserted() < b->getTickInserted();
+            }
+            return a->getSectorOffset() < b->getSectorOffset();
+        });
+
+    // Verify LRU ordering: subBlks[0] (tick 100), subBlks[1] (tick 200)
+    ASSERT_EQ(candidates[0], &subBlks[0]);
+    ASSERT_EQ(candidates[1], &subBlks[1]);
+    ASSERT_EQ(candidates[2], &subBlks[2]);
+
+    // Perform selective eviction of the 2 LRU candidates
+    for (size_t i = 0; i < num_evict; ++i) {
+        candidates[i]->invalidate();
+    }
+
+    // Now update expanding block's size
+    subBlks[3].setSizeBits(new_size);
+
+    // Verify only subBlks[0] and subBlks[1] were evicted, while subBlks[2] remained!
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_FALSE(subBlks[1].isValid());
+    ASSERT_TRUE(subBlks[2].isValid());
+    ASSERT_TRUE(subBlks[3].isValid());
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+}
+

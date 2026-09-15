@@ -312,6 +312,12 @@ class CacheBlk : public TaggedEntry
         return curTick() - _tickInserted;
     }
 
+    /** Get the tick on which the block was inserted or last touched. */
+    Tick getTickInserted() const { return _tickInserted; }
+
+    /** Set the current tick as this block's insertion tick. */
+    void setTickInserted() { _tickInserted = curTick(); }
+
     /**
      * Set member variables when a block insertion occurs. Resets reference
      * count to 1 (the insertion counts as a reference), and touch block if
@@ -481,9 +487,6 @@ class CacheBlk : public TaggedEntry
 
     /** Set the number of references to this block since insertion. */
     void setRefCount(const unsigned count) { _refCount = count; }
-
-    /** Set the current tick as this block's insertion tick. */
-    void setTickInserted() { _tickInserted = curTick(); }
 
   private:
     /** Task Id associated with this block */
