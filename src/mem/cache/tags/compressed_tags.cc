@@ -45,6 +45,8 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <climits>
+
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -141,16 +143,24 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     SuperBlk* victim_superblock = nullptr;
     bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
+    const std::size_t uncompressed_size = blkSize * CHAR_BIT;
+    const bool is_uncompressed_default =
+        (compressed_size == uncompressed_size);
+
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) &&
             !superblock->blks[offset]->isValid() &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
+            superblock->isCompressed())
         {
-            victim_superblock = superblock;
-            is_co_allocation = true;
-            break;
+            if (superblock->canCoAllocate(compressed_size) ||
+                (is_uncompressed_default &&
+                 superblock->getNumValid() < superblock->getCompressionFactor()))
+            {
+                victim_superblock = superblock;
+                is_co_allocation = true;
+                break;
+            }
         }
     }
 
