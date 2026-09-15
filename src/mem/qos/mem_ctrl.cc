@@ -52,17 +52,25 @@ namespace qos
 {
 
 MemCtrl::MemCtrl(const QoSMemCtrlParams &p)
-  : ClockedObject(p),
-    policy(p.qos_policy),
-    turnPolicy(p.qos_turnaround_policy),
-    queuePolicy(QueuePolicy::create(p)),
-    _numPriorities(p.qos_priorities),
-    qosPriorityEscalation(p.qos_priority_escalation),
-    qosSyncroScheduler(p.qos_syncro_scheduler),
-    totalReadQueueSize(0), totalWriteQueueSize(0),
-    busState(READ), busStateNext(READ),
-    stats(*this),
-    _system(p.system)
+    : ClockedObject(p),
+      policy(p.qos_policy),
+      turnPolicy(p.qos_turnaround_policy),
+      queuePolicy(QueuePolicy::create(p)),
+      _numPriorities(p.qos_priorities),
+      qosPriorityEscalation(p.qos_priority_escalation),
+      qosSyncroScheduler(p.qos_syncro_scheduler),
+      totalReadQueueSize(0),
+      totalWriteQueueSize(0),
+      maxReadQueueSize(32),
+      maxWriteQueueSize(64),
+      prevReadQueueFillRatio(0.0),
+      prevWriteQueueFillRatio(0.0),
+      readQueuePressureGradient(0.0),
+      writeQueuePressureGradient(0.0),
+      busState(READ),
+      busStateNext(READ),
+      stats(*this),
+      _system(p.system)
 {
     // Set the priority policy
     if (policy) {
@@ -142,6 +150,7 @@ MemCtrl::logRequest(BusState dir, RequestorID id, uint8_t _qos,
             requestors[id], id, _qos, packetPriorities[id][_qos],
             (dir == READ) ? readQueueSizes[_qos]: writeQueueSizes[_qos]);
 
+    updateQueuePressure();
 }
 
 void
@@ -211,6 +220,8 @@ MemCtrl::logResponse(BusState dir, RequestorID id, uint8_t _qos,
             "this requestor q packets %d - new queue size %d\n",
             requestors[id], id, _qos, packetPriorities[id][_qos],
             (dir == READ) ? readQueueSizes[_qos]: writeQueueSizes[_qos]);
+
+    updateQueuePressure();
 }
 
 uint8_t

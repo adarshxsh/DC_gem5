@@ -132,6 +132,18 @@ class MemCtrl : public ClockedObject
     /** Total write request packets queue length in #packets */
     uint64_t totalWriteQueueSize;
 
+    /** Maximum capacity/buffer depth of read and write queues */
+    uint64_t maxReadQueueSize;
+    uint64_t maxWriteQueueSize;
+
+    /** Previous queue fill ratios for tracking occupancy gradients */
+    double prevReadQueueFillRatio;
+    double prevWriteQueueFillRatio;
+
+    /** Current occupancy pressure gradients */
+    double readQueuePressureGradient;
+    double writeQueuePressureGradient;
+
     /**
      * Bus state used to control the read/write switching and drive
      * the scheduling of the next request.
@@ -348,6 +360,71 @@ class MemCtrl : public ClockedObject
      * @return total queues size in packets
      */
     uint64_t getTotalWriteQueueSize() const { return totalWriteQueueSize; }
+
+    void
+    setMaxReadQueueSize(uint64_t size)
+    {
+        maxReadQueueSize = (size > 0) ? size : 1;
+    }
+    void
+    setMaxWriteQueueSize(uint64_t size)
+    {
+        maxWriteQueueSize = (size > 0) ? size : 1;
+    }
+    uint64_t
+    getMaxReadQueueSize() const
+    {
+        return maxReadQueueSize;
+    }
+    uint64_t
+    getMaxWriteQueueSize() const
+    {
+        return maxWriteQueueSize;
+    }
+
+    virtual double
+    getReadQueueFillRatio() const
+    {
+        if (maxReadQueueSize == 0) {
+            return 0.0;
+        }
+        return std::min(1.0, static_cast<double>(totalReadQueueSize) /
+                                 static_cast<double>(maxReadQueueSize));
+    }
+
+    virtual double
+    getWriteQueueFillRatio() const
+    {
+        if (maxWriteQueueSize == 0) {
+            return 0.0;
+        }
+        return std::min(1.0, static_cast<double>(totalWriteQueueSize) /
+                                 static_cast<double>(maxWriteQueueSize));
+    }
+
+    virtual double
+    getReadQueuePressureGradient() const
+    {
+        return readQueuePressureGradient;
+    }
+
+    virtual double
+    getWriteQueuePressureGradient() const
+    {
+        return writeQueuePressureGradient;
+    }
+
+    void
+    updateQueuePressure()
+    {
+        double curr_rd_ratio = getReadQueueFillRatio();
+        readQueuePressureGradient = curr_rd_ratio - prevReadQueueFillRatio;
+        prevReadQueueFillRatio = curr_rd_ratio;
+
+        double curr_wr_ratio = getWriteQueueFillRatio();
+        writeQueuePressureGradient = curr_wr_ratio - prevWriteQueueFillRatio;
+        prevWriteQueueFillRatio = curr_wr_ratio;
+    }
 
     /**
      * Gets the last service tick related to a QoS Priority
