@@ -1160,7 +1160,8 @@ class BaseCache : public ClockedObject
         statistics::Scalar dataContractions;
 
         /**
-         * Number of block fills where compression was bypassed due to high MSHR occupancy.
+         * Number of block fills where compression was bypassed due to high
+         * MSHR occupancy.
          */
         statistics::Scalar mshrCompressionBypasses;
 
