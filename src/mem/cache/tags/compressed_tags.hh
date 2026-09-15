@@ -87,6 +87,9 @@ class CompressedTags : public SectorTags
     /** The cache superblocks. */
     std::vector<SuperBlk> superBlks;
 
+    /** Enable density-aware replacement policy. */
+    const bool enableDensityAwareReplacement;
+
   public:
     /** Convenience typedef. */
      typedef CompressedTagsParams Params;
