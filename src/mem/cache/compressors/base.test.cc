@@ -34,6 +34,12 @@
 
 #include "mem/cache/compressors/base.hh"
 #include "params/BaseCacheCompressor.hh"
+#include "sim/root.hh"
+
+namespace gem5
+{
+Root *Root::_root = nullptr;
+}
 
 using namespace gem5;
 using namespace gem5::compression;
@@ -141,8 +147,13 @@ TEST_F(BaseCompressorHysteresisTest, HysteresisStateTransitions)
     EXPECT_EQ((uint64_t)comp_lat, 0); // Bypassed because 1.33x < 1.50x
 
     // Request 4: good line again. EMA updates comp = 0.5*256 + 0.5*384 = 320
-    // => observed ratio = 512/320 = 1.60x Since 1.60x > low threshold (1.50x),
-    // bypass is RE-DISABLED / compression active!
+    // => observed ratio for NEXT request will be 512/320 = 1.60x.
+    // At start of Request 4, observed ratio was 1.33x (< 1.50x), so bypass is still ACTIVE!
+    comp.compress(dummyLine, comp_lat, decomp_lat);
+    EXPECT_EQ((uint64_t)comp_lat, 0);
+
+    // Request 5: At start of Request 5, observed ratio is 1.60x (> 1.50x low threshold).
+    // Bypass is RE-DISABLED / compression active!
     comp.compress(dummyLine, comp_lat, decomp_lat);
     EXPECT_GT((uint64_t)comp_lat, 0); // Compression active!
 }
