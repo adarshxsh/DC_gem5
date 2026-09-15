@@ -125,3 +125,28 @@ class QoSPropFairPolicy(QoSPolicy):
                     )
 
     weight = Param.Float(0.5, "Pf score weight")
+
+
+class QoSAdaptiveCompressionQueuePressurePolicy(QoSPolicy):
+    type = "QoSAdaptiveCompressionQueuePressurePolicy"
+    cxx_header = "mem/qos/policy_adaptive_compression.hh"
+    cxx_class = "gem5::memory::qos::AdaptiveCompressionQueuePressurePolicy"
+
+    write_pressure_threshold = Param.Float(
+        0.5, "Threshold (0.0 - 1.0) for write queue pressure"
+    )
+    read_pressure_threshold = Param.Float(
+        0.5, "Threshold (0.0 - 1.0) for read queue pressure"
+    )
+    compression_ratio_threshold = Param.Float(
+        1.2, "Minimum compression ratio to trigger priority boost"
+    )
+    writeboost_max = Param.UInt8(
+        3, "Maximum priority boost for compressed writebacks"
+    )
+    readboost_max = Param.UInt8(
+        2, "Maximum priority boost for latency-critical reads"
+    )
+    default_prio = Param.UInt8(
+        0, "Default base priority for requests"
+    )

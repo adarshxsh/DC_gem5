@@ -39,14 +39,21 @@ SimObject('QoSMemCtrl.py', sim_objects=['QoSMemCtrl'], enums=['QoSQPolicy'])
 SimObject('QoSMemSinkCtrl.py', sim_objects=['QoSMemSinkCtrl'])
 SimObject('QoSMemSinkInterface.py', sim_objects=['QoSMemSinkInterface'])
 SimObject('QoSPolicy.py', sim_objects=[
-    'QoSPolicy', 'QoSFixedPriorityPolicy', 'QoSPropFairPolicy'])
+    'QoSPolicy', 'QoSFixedPriorityPolicy', 'QoSPropFairPolicy',
+    'QoSAdaptiveCompressionQueuePressurePolicy'])
 SimObject('QoSTurnaround.py', sim_objects=[
     'QoSTurnaroundPolicy', 'QoSTurnaroundPolicyIdeal'])
 
 Source('policy.cc')
 Source('policy_fixed_prio.cc')
 Source('policy_pf.cc')
+Source('policy_adaptive_compression.cc')
 Source('turnaround_policy_ideal.cc')
 Source('q_policy.cc')
 Source('mem_ctrl.cc')
 Source('mem_sink.cc')
+
+GTest('adaptive_qos.test', 'adaptive_qos.test.cc',
+      'policy.cc', 'policy_adaptive_compression.cc', 'q_policy.cc', 'mem_ctrl.cc',
+      '#src/mem/packet.cc',
+      with_tag('gem5 simobject'))

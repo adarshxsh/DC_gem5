@@ -110,13 +110,12 @@ class Policy : public SimObject
                               const uint64_t data) = 0;
 
     /**
-     * Schedules a packet. Non virtual interface for the scheduling
-     * method requiring a requestor id.
+     * Schedules a packet. Virtual interface for the scheduling method.
      *
      * @param pkt pointer to packet to schedule
      * @return QoS priority value
      */
-    uint8_t schedule(const PacketPtr pkt);
+    virtual uint8_t schedule(const PacketPtr pkt);
 
   protected:
     /** Pointer to parent memory controller implementing the policy */
