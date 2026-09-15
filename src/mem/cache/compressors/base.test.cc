@@ -41,10 +41,10 @@ using namespace compression;
 class TestCPackBypass : public CPack
 {
   public:
-    using Base::compress;
     using Base::bypassActive;
-    using Base::decayedUncompressedBits;
+    using Base::compress;
     using Base::decayedCompressedBits;
+    using Base::decayedUncompressedBits;
     using Base::sampledUncompressedBits;
     using Base::sampledCompressedBits;
     using CPack::CPack;
@@ -100,7 +100,8 @@ TEST(BaseCompressorTest, DualThresholdHysteresisAndEMADecay)
     p.sampling_interval = 1;
     p.decay_shift = 4;
     p.ewma_alpha = 0.5f;
-    p.hysteresis_margin_perc = 10; // enable threshold = 1.08, disable threshold = 1.32
+    p.hysteresis_margin_perc =
+        10; // enable threshold = 1.08, disable threshold = 1.32
     p.bypass_enable_threshold = 0.0f;
     p.bypass_disable_threshold = 0.0f;
 
@@ -118,7 +119,8 @@ TEST(BaseCompressorTest, DualThresholdHysteresisAndEMADecay)
     // High ratio -> bypass remains inactive
     EXPECT_FALSE(compressor.bypassActive);
 
-    // 2. Send uncompressible blocks (compressed size = 512 bits, ratio = 512 / 512 = 1.0 < 1.08)
+    // 2. Send uncompressible blocks (compressed size = 512 bits, ratio = 512 /
+    // 512 = 1.0 < 1.08)
     uint64_t uncomp_data[8] = {0x1234567891011121ULL, 0x1314151617181920ULL,
                                0x2122232425262728ULL, 0x2930313233343536ULL,
                                0x3738394041424344ULL, 0x4546474849505152ULL,

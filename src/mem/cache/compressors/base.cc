@@ -96,10 +96,14 @@ Base::Base(const Params &p)
       decayShift(p.decay_shift),
       ewmaAlpha(p.ewma_alpha),
       hysteresisMarginPerc(p.hysteresis_margin_perc),
-      bypassEnableThreshold(p.bypass_enable_threshold > 0.0 ? p.bypass_enable_threshold
-                            : (p.latency_breakeven_threshold * (1.0 - p.hysteresis_margin_perc / 100.0))),
-      bypassDisableThreshold(p.bypass_disable_threshold > 0.0 ? p.bypass_disable_threshold
-                            : (p.latency_breakeven_threshold * (1.0 + p.hysteresis_margin_perc / 100.0))),
+      bypassEnableThreshold(p.bypass_enable_threshold > 0.0
+                                ? p.bypass_enable_threshold
+                                : (p.latency_breakeven_threshold *
+                                   (1.0 - p.hysteresis_margin_perc / 100.0))),
+      bypassDisableThreshold(p.bypass_disable_threshold > 0.0
+                                 ? p.bypass_disable_threshold
+                                 : (p.latency_breakeven_threshold *
+                                    (1.0 + p.hysteresis_margin_perc / 100.0))),
       bypassActive(false),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
@@ -177,22 +181,23 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         (decayedCompressedBits > 0.0)
             ? (decayedUncompressedBits / decayedCompressedBits)
             : ((sampledCompressedBits > 0)
-                ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-                : (latencyBreakevenThreshold + 1.0));
+                   ? ((double)sampledUncompressedBits /
+                      (double)sampledCompressedBits)
+                   : (latencyBreakevenThreshold + 1.0));
 
     if (enableAdaptiveBypass) {
         if (!bypassActive && (observedRatio < bypassEnableThreshold)) {
             bypassActive = true;
-            DPRINTF(
-                CacheComp,
-                "Adaptive bypass ENABLED (observed ratio: %.4f < enable threshold: %.4f).\n",
-                observedRatio, bypassEnableThreshold);
+            DPRINTF(CacheComp,
+                    "Adaptive bypass ENABLED (observed ratio: %.4f < enable "
+                    "threshold: %.4f).\n",
+                    observedRatio, bypassEnableThreshold);
         } else if (bypassActive && (observedRatio > bypassDisableThreshold)) {
             bypassActive = false;
-            DPRINTF(
-                CacheComp,
-                "Adaptive bypass DISABLED (observed ratio: %.4f > disable threshold: %.4f).\n",
-                observedRatio, bypassDisableThreshold);
+            DPRINTF(CacheComp,
+                    "Adaptive bypass DISABLED (observed ratio: %.4f > disable "
+                    "threshold: %.4f).\n",
+                    observedRatio, bypassDisableThreshold);
         }
     }
 
@@ -206,11 +211,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio);
+        DPRINTF(CacheComp,
+                "Adaptive bypass active (observed ratio: %.4f). "
+                "Bypassing compression.\n",
+                observedRatio);
         return comp_data;
     }
 
@@ -258,8 +262,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             decayedUncompressedBits = uncomp_bits;
             decayedCompressedBits = comp_size_bits;
         } else {
-            decayedUncompressedBits = ewmaAlpha * uncomp_bits + (1.0 - ewmaAlpha) * decayedUncompressedBits;
-            decayedCompressedBits = ewmaAlpha * comp_size_bits + (1.0 - ewmaAlpha) * decayedCompressedBits;
+            decayedUncompressedBits =
+                ewmaAlpha * uncomp_bits +
+                (1.0 - ewmaAlpha) * decayedUncompressedBits;
+            decayedCompressedBits = ewmaAlpha * comp_size_bits +
+                                    (1.0 - ewmaAlpha) * decayedCompressedBits;
         }
 
         stats.sampledCompressions++;
