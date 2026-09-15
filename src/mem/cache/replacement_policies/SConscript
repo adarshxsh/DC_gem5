@@ -32,7 +32,7 @@ SimObject('ReplacementPolicies.py', sim_objects=[
     'BaseReplacementPolicy', 'DuelingRP', 'FIFORP', 'SecondChanceRP',
     'LFURP', 'LRURP', 'BIPRP', 'MRURP', 'RandomRP', 'BRRIPRP', 'SHiPRP',
     'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP', 'DWLRURP',
-    'DensityWeightedLRURP'])
+    'DensityWeightedLRURP', 'SuperblockDensityRP'])
 
 Source('bip_rp.cc')
 Source('brrip_rp.cc')
@@ -45,6 +45,7 @@ Source('mru_rp.cc')
 Source('random_rp.cc')
 Source('second_chance_rp.cc')
 Source('ship_rp.cc')
+Source('superblock_density_rp.cc')
 Source('tree_plru_rp.cc')
 Source('weighted_lru_rp.cc')
 
@@ -57,3 +58,7 @@ GTest('lfu_rp.test', 'lfu_rp.cc', 'lfu_rp.test.cc', with_tag('gem5 simobject'))
 GTest('mru_rp.test', 'mru_rp.cc', 'mru_rp.test.cc', with_tag('gem5 simobject'))
 GTest('dwlru_rp.test', 'dwlru_rp.cc', 'lru_rp.cc', '../tags/sector_blk.cc',
     'dwlru_rp.test.cc', with_tag('gem5 simobject'))
+GTest('superblock_density_rp.test', 'lru_rp.cc', 'superblock_density_rp.cc',
+    'superblock_density_rp.test.cc', '#src/mem/cache/tags/super_blk.cc',
+    '#src/mem/cache/tags/sector_blk.cc', '#src/base/types.cc',
+    with_tag('gem5 simobject'))
