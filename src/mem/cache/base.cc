@@ -88,6 +88,9 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      mshrCompressionBypassHighThreshold(p.mshr_compression_bypass_high_threshold),
+      mshrCompressionBypassLowThreshold(p.mshr_compression_bypass_low_threshold),
+      mshrCompressionBypassed(false),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
@@ -1567,12 +1570,48 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
     }
 }
 
+void
+BaseCache::updateMSHRCompressionBypass()
+{
+    if (!compressor)
+        return;
+
+    const int current_occupancy = mshrQueue.occupancy();
+    const int total_capacity = mshrQueue.capacity();
+
+    if (total_capacity <= 0)
+        return;
+
+    const double occupancy_pct = ((double)current_occupancy / total_capacity) * 100.0;
+
+    if (!mshrCompressionBypassed) {
+        if (occupancy_pct >= mshrCompressionBypassHighThreshold) {
+            mshrCompressionBypassed = true;
+            DPRINTF(CacheComp, "MSHR occupancy (%.1f%%, %d/%d) reached high threshold (%u%%). Bypassing compression.\n",
+                    occupancy_pct, current_occupancy, total_capacity, mshrCompressionBypassHighThreshold);
+        }
+    } else {
+        if (occupancy_pct < mshrCompressionBypassLowThreshold) {
+            mshrCompressionBypassed = false;
+            DPRINTF(CacheComp, "MSHR occupancy (%.1f%%, %d/%d) dropped below low threshold (%u%%). Resuming compression.\n",
+                    occupancy_pct, current_occupancy, total_capacity, mshrCompressionBypassLowThreshold);
+        }
+    }
+}
+
 CacheBlk*
 BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool allocate)
 {
     assert(pkt->isResponse());
     Addr addr = pkt->getAddr();
+
+    // Monitor MSHR queue occupancy and update compression bypass state
+    updateMSHRCompressionBypass();
+
+    if (mshrCompressionBypassed && pkt) {
+        pkt->payloadDelay = 0;
+    }
     bool is_secure = pkt->isSecure();
     const bool has_old_data = blk && blk->isValid();
     const std::string old_state = (debug::Cache && blk) ? blk->print() : "";
@@ -1685,9 +1724,19 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // calculate the amount of extra cycles needed to read or write compressed
     // blocks.
     if (compressor && pkt->hasData()) {
-        const auto comp_data = compressor->compress(
-            pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
-        blk_size_bits = comp_data->getSizeBits();
+        if (mshrCompressionBypassed) {
+            blk_size_bits = blkSize * 8;
+            compression_lat = Cycles(0);
+            decompression_lat = Cycles(0);
+            pkt->payloadDelay = 0;
+            stats.mshrCompressionBypasses++;
+            DPRINTF(CacheComp, "Bypassing compression on block fill for address %#llx due to high MSHR occupancy (%d/%d)\n",
+                    addr, mshrQueue.occupancy(), mshrQueue.capacity());
+        } else {
+            const auto comp_data = compressor->compress(
+                pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
+            blk_size_bits = comp_data->getSizeBits();
+        }
     }
 
     // get partitionId from Packet
@@ -2336,6 +2385,8 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
              "number of data expansions"),
     ADD_STAT(dataContractions, statistics::units::Count::get(),
              "number of data contractions"),
+    ADD_STAT(mshrCompressionBypasses, statistics::units::Count::get(),
+             "number of MSHR-induced compression bypass events"),
     cmd(MemCmd::NUM_MEM_CMDS)
 {
     for (int idx = 0; idx < MemCmd::NUM_MEM_CMDS; ++idx)
@@ -2568,6 +2619,7 @@ BaseCache::CacheStats::regStats()
 
     dataExpansions.flags(nozero | nonan);
     dataContractions.flags(nozero | nonan);
+    mshrCompressionBypasses.flags(nozero | nonan);
 }
 
 void
