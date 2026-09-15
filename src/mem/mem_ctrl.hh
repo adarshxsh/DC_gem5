@@ -518,6 +518,21 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
+    /** EMA smoothing weight for queue length statistics */
+    const double emaAlpha;
+
+    /** EMA filtered read queue length */
+    double emaRdQLen;
+
+    /** EMA filtered write queue length */
+    double emaWrQLen;
+
+    /** Update EMA read queue length statistic */
+    void updateRdQueueEMA();
+
+    /** Update EMA write queue length statistic */
+    void updateWrQueueEMA();
+
     /**
      * Memory controller configuration initialized based on parameter
      * values.
