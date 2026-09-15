@@ -68,6 +68,7 @@ namespace gem5
 {
 
 class BaseRemoteGDB;
+class ThermalModel;
 class KvmVM;
 class ThreadContext;
 

@@ -110,3 +110,8 @@ class MemInterface(AbstractMemory):
     # 1) RD-to-RD, 2) WR-to-WR, 3) RD-to-WR, and 4) WR-to-RD
     # different rank bus delay
     tCS = Param.Latency("Rank to rank switching time")
+
+    enable_compressed_transfers = Param.Bool(
+        False,
+        "Enable compressed memory transfers and dynamic burst truncation",
+    )
