@@ -72,6 +72,9 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
+    emaAlpha(p.ema_alpha),
+    emaRdQLen(0.0),
+    emaWrQLen(0.0),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
@@ -94,6 +97,22 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
+}
+
+void
+MemCtrl::updateRdQueueEMA()
+{
+    double current_len = totalReadQueueSize + respQueue.size();
+    emaRdQLen = emaAlpha * current_len + (1.0 - emaAlpha) * emaRdQLen;
+    stats.avgRdQLen = emaRdQLen;
+}
+
+void
+MemCtrl::updateWrQueueEMA()
+{
+    double current_len = totalWriteQueueSize;
+    emaWrQLen = emaAlpha * current_len + (1.0 - emaAlpha) * emaWrQLen;
+    stats.avgWrQLen = emaWrQLen;
 }
 
 void
@@ -279,7 +298,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
             mem_intr->readQueueSize++;
 
             // Update stats
-            stats.avgRdQLen = totalReadQueueSize + respQueue.size();
+            updateRdQueueEMA();
         }
 
         // Starting address of next memory pkt (aligned to burst boundary)
@@ -355,7 +374,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
             assert(totalWriteQueueSize == isInWriteQueue.size());
 
             // Update stats
-            stats.avgWrQLen = totalWriteQueueSize;
+            updateWrQueueEMA();
 
         } else {
             DPRINTF(MemCtrl,
@@ -521,6 +540,7 @@ MemCtrl::processRespondEvent(MemInterface* mem_intr,
     }
 
     queue.pop_front();
+    updateRdQueueEMA();
 
     if (!queue.empty()) {
         assert(queue.front()->readyTime >= curTick());
@@ -1046,6 +1066,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // remove the request from the queue
             // the iterator is no longer valid .
             readQueue[mem_pkt->qosValue()].erase(to_read);
+            updateRdQueueEMA();
         }
 
         // switching to writes, either because the read queue is empty
@@ -1111,6 +1132,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         // remove the request from the queue - the iterator is no longer valid
         writeQueue[mem_pkt->qosValue()].erase(to_write);
+        updateWrQueueEMA();
 
         delete mem_pkt;
 
