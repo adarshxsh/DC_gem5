@@ -40,23 +40,21 @@ namespace gem5
 namespace replacement_policy
 {
 
-SuperblockDensity::SuperblockDensity(const Params &p)
-    : LRU(p)
-{
-}
+SuperblockDensity::SuperblockDensity(const Params &p) : LRU(p)
+{}
 
-ReplaceableEntry*
-SuperblockDensity::getVictim(const ReplacementCandidates& candidates) const
+ReplaceableEntry *
+SuperblockDensity::getVictim(const ReplacementCandidates &candidates) const
 {
     // There must be at least one replacement candidate
     assert(candidates.size() > 0);
 
     // Visit all candidates to find victim with lowest sub-block density,
     // using last touch timestamp as a secondary tie-breaker.
-    ReplaceableEntry* victim = candidates[0];
-    for (const auto& candidate : candidates) {
-        const SuperBlk* cand_sb = dynamic_cast<const SuperBlk*>(candidate);
-        const SuperBlk* vict_sb = dynamic_cast<const SuperBlk*>(victim);
+    ReplaceableEntry *victim = candidates[0];
+    for (const auto &candidate : candidates) {
+        const SuperBlk *cand_sb = dynamic_cast<const SuperBlk *>(candidate);
+        const SuperBlk *vict_sb = dynamic_cast<const SuperBlk *>(victim);
 
         if (cand_sb && vict_sb) {
             uint8_t cand_valid = cand_sb->getNumValid();
@@ -66,9 +64,11 @@ SuperblockDensity::getVictim(const ReplacementCandidates& candidates) const
                 victim = candidate;
             } else if (cand_valid == vict_valid) {
                 if (std::static_pointer_cast<LRUReplData>(
-                            candidate->replacementData)->lastTouchTick <
+                        candidate->replacementData)
+                        ->lastTouchTick <
                     std::static_pointer_cast<LRUReplData>(
-                            victim->replacementData)->lastTouchTick) {
+                        victim->replacementData)
+                        ->lastTouchTick) {
                     victim = candidate;
                 }
             }
@@ -76,9 +76,10 @@ SuperblockDensity::getVictim(const ReplacementCandidates& candidates) const
             // Fallback to standard recency evaluation if candidate entries
             // are not SuperBlk instances.
             if (std::static_pointer_cast<LRUReplData>(
-                        candidate->replacementData)->lastTouchTick <
-                std::static_pointer_cast<LRUReplData>(
-                        victim->replacementData)->lastTouchTick) {
+                    candidate->replacementData)
+                    ->lastTouchTick <
+                std::static_pointer_cast<LRUReplData>(victim->replacementData)
+                    ->lastTouchTick) {
                 victim = candidate;
             }
         }

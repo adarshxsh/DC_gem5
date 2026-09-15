@@ -58,7 +58,8 @@ class SuperblockDensityRPTestF : public ::testing::Test
     }
 };
 
-/// Helper structure representing a SuperBlk with attached sub-blocks for testing
+/// Helper structure representing a SuperBlk with attached sub-blocks for
+/// testing
 struct TestSuperBlock
 {
     SuperBlk sb;
@@ -77,7 +78,8 @@ struct TestSuperBlock
         sb.registerTagExtractor([](Addr addr) { return addr; });
     }
 
-    void setValidCount(unsigned count)
+    void
+    setValidCount(unsigned count)
     {
         for (unsigned k = 0; k < subBlks.size(); ++k) {
             if (k < count) {
@@ -114,8 +116,9 @@ TEST_F(SuperblockDensityRPTestF, GetVictim1Candidate)
     ASSERT_EQ(rp->getVictim(candidates), &tsb.sb);
 }
 
-/// Test that candidates with lower valid sub-block counts are prioritized for eviction
-/// over candidates with higher valid sub-block counts regardless of recency differences
+/// Test that candidates with lower valid sub-block counts are prioritized for
+/// eviction over candidates with higher valid sub-block counts regardless of
+/// recency differences
 TEST_F(SuperblockDensityRPTestF, GetVictimDensityAware)
 {
     constexpr unsigned num_candidates = 4;
@@ -156,7 +159,8 @@ TEST_F(SuperblockDensityRPTestF, GetVictimDensityAware)
     ASSERT_EQ(superblocks[3]->sb.getNumValid(), 2);
 
     // Candidate 2 has only 1 valid sub-block (lowest density)
-    // It must be chosen as victim despite being touched most recently (tick 400).
+    // It must be chosen as victim despite being touched most recently (tick
+    // 400).
     ASSERT_EQ(rp->getVictim(candidates), &superblocks[2]->sb);
 }
 
@@ -189,10 +193,10 @@ TEST_F(SuperblockDensityRPTestF, GetVictimRecencyTieBreaker)
     mockTick = 200;
     rp->touch(superblocks[2]->sb.replacementData);
 
-    // All candidates have 1 valid sub-block, so candidate 0 (tick 100) should be victim
+    // All candidates have 1 valid sub-block, so candidate 0 (tick 100) should
+    // be victim
     ASSERT_EQ(rp->getVictim(candidates), &superblocks[0]->sb);
 }
-
 
 /// Test fallback to standard LRU recency evaluation when candidate entries
 /// are not SuperBlk instances

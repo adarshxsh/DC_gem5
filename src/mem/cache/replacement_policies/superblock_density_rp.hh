@@ -60,8 +60,8 @@ class SuperblockDensity : public LRU
      * @param candidates Replacement candidates, selected by indexing policy.
      * @return Replacement entry to be replaced.
      */
-    ReplaceableEntry* getVictim(
-        const ReplacementCandidates& candidates) const override;
+    ReplaceableEntry *
+    getVictim(const ReplacementCandidates &candidates) const override;
 };
 
 } // namespace replacement_policy
