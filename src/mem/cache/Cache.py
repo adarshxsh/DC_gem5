@@ -128,6 +128,19 @@ class BaseCache(ClockedObject):
         True, "Try to co-allocate blocks that contract"
     )
 
+    write_buffer_high_watermark = Param.Float(
+        0.7,
+        "High-watermark occupancy threshold (fraction of capacity) for write buffer congestion backpressure",
+    )
+    writeback_throttle_interval = Param.Cycles(
+        10,
+        "Minimum cycle interval between non-critical dirty writeback drains when downstream backpressure is active",
+    )
+    writeback_watchdog_threshold = Param.Cycles(
+        100,
+        "Maximum delay cycles for paused writebacks under backpressure before watchdog forces transmission",
+    )
+
     sequential_access = Param.Bool(
         False, "Whether to access tags and data sequentially"
     )
