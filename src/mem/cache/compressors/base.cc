@@ -170,10 +170,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
 
-    double observedRatio =
-        (emaCompressedBits > 0.0)
-            ? (emaUncompressedBits / emaCompressedBits)
-            : (hysteresisHighThreshold + 1.0);
+    double observedRatio = (emaCompressedBits > 0.0)
+                               ? (emaUncompressedBits / emaCompressedBits)
+                               : (hysteresisHighThreshold + 1.0);
 
     if (enableAdaptiveBypass) {
         if (!isBypassed) {
@@ -199,11 +198,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < high threshold: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, hysteresisHighThreshold);
+        DPRINTF(CacheComp,
+                "Adaptive bypass active (observed ratio: %.4f < high "
+                "threshold: %.4f). "
+                "Bypassing compression.\n",
+                observedRatio, hysteresisHighThreshold);
         return comp_data;
     }
 
@@ -244,12 +243,15 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             sampledCompressedBits -= (sampledCompressedBits >> decayShift);
         }
         uint64_t uncomp_bits = blkSize * CHAR_BIT;
-        if (stats.sampledCompressions.value() == 0 && emaCompressedBits == 0.0) {
+        if (stats.sampledCompressions.value() == 0 &&
+            emaCompressedBits == 0.0) {
             emaUncompressedBits = uncomp_bits;
             emaCompressedBits = comp_size_bits;
         } else {
-            emaUncompressedBits = emaAlpha * uncomp_bits + (1.0 - emaAlpha) * emaUncompressedBits;
-            emaCompressedBits = emaAlpha * comp_size_bits + (1.0 - emaAlpha) * emaCompressedBits;
+            emaUncompressedBits = emaAlpha * uncomp_bits +
+                                  (1.0 - emaAlpha) * emaUncompressedBits;
+            emaCompressedBits = emaAlpha * comp_size_bits +
+                                (1.0 - emaAlpha) * emaCompressedBits;
         }
         sampledUncompressedBits += uncomp_bits;
         sampledCompressedBits += comp_size_bits;

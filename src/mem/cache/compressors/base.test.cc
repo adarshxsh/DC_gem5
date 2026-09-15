@@ -58,8 +58,8 @@ class TestCompressor : public Base
     {}
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
-             Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         auto comp_data = std::make_unique<TestCompressorData>();
         comp_data->setSizeBits(targetCompressedSizeBits);
@@ -69,7 +69,7 @@ class TestCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* cache_line) override
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
     {
         std::memset(cache_line, 0, blkSize);
     }
@@ -82,7 +82,8 @@ class BaseCompressorHysteresisTest : public ::testing::Test
   protected:
     uint64_t dummyLine[8];
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         std::memset(dummyLine, 0, sizeof(dummyLine));
     }
@@ -113,31 +114,35 @@ class BaseCompressorHysteresisTest : public ::testing::Test
 
 TEST_F(BaseCompressorHysteresisTest, HysteresisStateTransitions)
 {
-    // high threshold = 1.25, low threshold = 1.50, alpha = 0.5, sampling_interval = 1
+    // high threshold = 1.25, low threshold = 1.50, alpha = 0.5,
+    // sampling_interval = 1
     auto p = createParams(true, 1.25, 1.50, 0.5, 1);
     TestCompressor comp(p);
     comp.regStats();
 
     Cycles comp_lat(0), decomp_lat(0);
 
-    // Initial compress with poor ratio (target size 512 bits -> 512/512 = 1.0x ratio)
+    // Initial compress with poor ratio (target size 512 bits -> 512/512 = 1.0x
+    // ratio)
     comp.targetCompressedSizeBits = 512;
     comp.compress(dummyLine, comp_lat, decomp_lat);
 
-    // After 1st sample, observed ratio = 1.0 < high threshold (1.25) => bypass activated
-    // Second request with ratio still 1.0x -> should bypass
+    // After 1st sample, observed ratio = 1.0 < high threshold (1.25) => bypass
+    // activated Second request with ratio still 1.0x -> should bypass
     comp.compress(dummyLine, comp_lat, decomp_lat);
     EXPECT_EQ((uint64_t)comp_lat, 0);
 
     // Now present good compressed line (256 bits -> 512/256 = 2.0x ratio)
     comp.targetCompressedSizeBits = 256;
-    // Request 3: EMA updates uncomp=512, comp = 0.5*256 + 0.5*512 = 384 => observed ratio = 512/384 = 1.33x
-    // Since bypass was active, 1.33x < low threshold (1.50x) => bypass remains ACTIVE!
+    // Request 3: EMA updates uncomp=512, comp = 0.5*256 + 0.5*512 = 384 =>
+    // observed ratio = 512/384 = 1.33x Since bypass was active, 1.33x < low
+    // threshold (1.50x) => bypass remains ACTIVE!
     comp.compress(dummyLine, comp_lat, decomp_lat);
     EXPECT_EQ((uint64_t)comp_lat, 0); // Bypassed because 1.33x < 1.50x
 
-    // Request 4: good line again. EMA updates comp = 0.5*256 + 0.5*384 = 320 => observed ratio = 512/320 = 1.60x
-    // Since 1.60x > low threshold (1.50x), bypass is RE-DISABLED / compression active!
+    // Request 4: good line again. EMA updates comp = 0.5*256 + 0.5*384 = 320
+    // => observed ratio = 512/320 = 1.60x Since 1.60x > low threshold (1.50x),
+    // bypass is RE-DISABLED / compression active!
     comp.compress(dummyLine, comp_lat, decomp_lat);
     EXPECT_GT((uint64_t)comp_lat, 0); // Compression active!
 }
@@ -156,7 +161,8 @@ TEST_F(BaseCompressorHysteresisTest, BaselineBehaviorWhenThresholdsEqual)
     comp.compress(dummyLine, comp_lat, decomp_lat);
 
     // Next request: ratio 1.0x is not < 1.0x, so not bypassed
-    comp.targetCompressedSizeBits = 600; // > sizeThreshold => failed compression (512 bits)
+    comp.targetCompressedSizeBits =
+        600; // > sizeThreshold => failed compression (512 bits)
     comp.compress(dummyLine, comp_lat, decomp_lat);
 
     // Good ratio (256 bits -> 2.0x)
