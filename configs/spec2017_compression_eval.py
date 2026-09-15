@@ -138,6 +138,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         enable_adaptive_bypass: bool = False,
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
+        adaptive_window_size: int = 1000,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -150,6 +151,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
         :param latency_breakeven_threshold: Compression ratio threshold for bypass.
         :param sampling_interval: Sampling interval for compression effectiveness.
+        :param adaptive_window_size: Window size in sampling intervals for ratio calculation.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -167,6 +169,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._enable_adaptive_bypass = enable_adaptive_bypass
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
+        self._adaptive_window_size = adaptive_window_size
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -195,6 +198,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                     self._latency_breakeven_threshold
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
+                l2.compressor.adaptive_window_size = self._adaptive_window_size
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
@@ -422,6 +426,14 @@ parser.add_argument(
     help="Sampling interval in number of compressions for tracking ratio (default: 100).",
 )
 
+parser.add_argument(
+    "--adaptive-window-size",
+    type=int,
+    required=False,
+    default=1000,
+    help="Window size in sampling intervals for calculating windowed compression ratio (default: 1000).",
+)
+
 args = parser.parse_args()
 
 
@@ -480,6 +492,7 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     enable_adaptive_bypass=args.enable_adaptive_bypass,
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
+    adaptive_window_size=args.adaptive_window_size,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
