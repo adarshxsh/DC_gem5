@@ -45,6 +45,7 @@
 
 #include "mem/xbar.hh"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 
@@ -68,6 +69,7 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
                           p.port_mem_side_ports_connection_count, false),
       gotAllAddrRanges(false), defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
+      starvationThreshold(p.starvation_threshold),
 
       ADD_STAT(transDist, statistics::units::Count::get(),
                "Transaction distribution"),
@@ -147,7 +149,8 @@ BaseXBar::Layer<SrcType, DstType>::Layer(DstType& _port, BaseXBar& _xbar,
                                        const std::string& _name) :
     statistics::Group(&_xbar, _name.c_str()),
     port(_port), xbar(_xbar), _name(xbar.name() + "." + _name), state(IDLE),
-    waitingForPeer(NULL), releaseEvent([this]{ releaseLayer(); }, name()),
+    waitingForPeer(NULL), activeValid(false),
+    releaseEvent([this]{ releaseLayer(); }, name()),
     ADD_STAT(occupancy, statistics::units::Tick::get(), "Layer occupancy (ticks)"),
     ADD_STAT(utilization, statistics::units::Ratio::get(), "Layer utilization")
 {
@@ -183,7 +186,7 @@ void BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
 
 template <typename SrcType, typename DstType>
 bool
-BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
+BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
 {
     // if we are in the retry state, we will not see anything but the
     // retrying port (or in the case of the snoop ports the snoop
@@ -191,23 +194,27 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
     // this state again in zero time if the peer does not immediately
     // call the layer when receiving the retry
 
+    bool is_demand = pkt ? pkt->isDemand() : false;
+    Tick payload_delay = pkt ? pkt->payloadDelay : 0;
+
     // first we see if the layer is busy, next we check if the
     // destination port is already engaged in a transaction waiting
     // for a retry from the peer
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
-        assert(std::find(waitingForLayer.begin(), waitingForLayer.end(),
-                         src_port) == waitingForLayer.end());
+        assert(std::find_if(waitingForLayer.begin(), waitingForLayer.end(),
+                            [src_port](const WaitingPort& wp) {
+                                return wp.srcPort == src_port;
+                            }) == waitingForLayer.end());
 
-        // put the port at the end of the retry list waiting for the
-        // layer to be freed up (and in the case of a busy peer, for
-        // that transaction to go through, and then the layer to free
-        // up)
-        waitingForLayer.push_back(src_port);
+        // put the port in the retry list waiting for the layer to be freed up
+        waitingForLayer.emplace_back(src_port, is_demand, payload_delay, curTick());
         return false;
     }
 
     state = BUSY;
+    activeEntry = WaitingPort(src_port, is_demand, payload_delay, curTick());
+    activeValid = true;
 
     return true;
 }
@@ -237,6 +244,11 @@ BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType* src_port,
     // failed in forwarding and should track that we are now waiting
     // for the peer to send a retry
     waitingForPeer = src_port;
+    if (activeValid && activeEntry.srcPort == src_port) {
+        waitingForPeerEntry = activeEntry;
+    } else {
+        waitingForPeerEntry = WaitingPort(src_port, false, 0, curTick());
+    }
 
     // we should have gone from idle or retry to busy in the tryTiming
     // test
@@ -283,10 +295,50 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     // update the state
     state = RETRY;
 
-    // set the retrying port to the front of the retry list and pop it
-    // off the list
-    SrcType* retryingPort = waitingForLayer.front();
-    waitingForLayer.pop_front();
+    auto best_it = waitingForLayer.begin();
+
+    if (waitingForLayer.size() > 1) {
+        unsigned int starvationThreshold = xbar.getStarvationThreshold();
+
+        for (auto it = std::next(waitingForLayer.begin()); it != waitingForLayer.end(); ++it) {
+            bool best_starved = (best_it->ageCounter >= starvationThreshold);
+            bool it_starved = (it->ageCounter >= starvationThreshold);
+
+            if (it_starved && !best_starved) {
+                best_it = it;
+            } else if (it_starved && best_starved) {
+                if (it->ageCounter > best_it->ageCounter) {
+                    best_it = it;
+                } else if (it->ageCounter == best_it->ageCounter && it->arrivalTick < best_it->arrivalTick) {
+                    best_it = it;
+                }
+            } else if (!it_starved && !best_starved) {
+                if (it->isDemand && !best_it->isDemand) {
+                    best_it = it;
+                } else if (it->isDemand == best_it->isDemand) {
+                    if (it->payloadDelay < best_it->payloadDelay) {
+                        best_it = it;
+                    } else if (it->payloadDelay == best_it->payloadDelay) {
+                        if (it->arrivalTick < best_it->arrivalTick) {
+                            best_it = it;
+                        }
+                    }
+                }
+            }
+        }
+
+        for (auto it = waitingForLayer.begin(); it != waitingForLayer.end(); ++it) {
+            if (it != best_it) {
+                it->ageCounter++;
+            }
+        }
+    }
+
+    SrcType* retryingPort = best_it->srcPort;
+    activeEntry = *best_it;
+    activeValid = true;
+
+    waitingForLayer.erase(best_it);
 
     // tell the port to retry, which in some cases ends up calling the
     // layer again
@@ -316,7 +368,7 @@ BaseXBar::Layer<SrcType, DstType>::recvRetry()
     // add the port where the failed packet originated to the front of
     // the waiting ports for the layer, this allows us to call retry
     // on the port immediately if the crossbar layer is idle
-    waitingForLayer.push_front(waitingForPeer);
+    waitingForLayer.push_front(waitingForPeerEntry);
 
     // we are no longer waiting for the peer
     waitingForPeer = NULL;
