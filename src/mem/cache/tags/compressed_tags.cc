@@ -143,12 +143,21 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     SuperBlk* victim_superblock = nullptr;
     bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
+    const std::size_t uncompressed_size = blkSize * CHAR_BIT;
+    const bool is_uncompressed_default =
+        (compressed_size == uncompressed_size);
+
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
+        const bool can_coalloc =
+            superblock->canCoAllocate(compressed_size) ||
+            (is_uncompressed_default &&
+             superblock->getNumValid() < superblock->getCompressionFactor());
+
         if (superblock->match(key) &&
             !superblock->blks[offset]->isValid() &&
             superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
+            can_coalloc)
         {
             if (is_prefetch && superblock->hasValidDemand()) {
                 const uint8_t new_blk_cf =
