@@ -147,6 +147,4 @@ class QoSAdaptiveCompressionQueuePressurePolicy(QoSPolicy):
     readboost_max = Param.UInt8(
         2, "Maximum priority boost for latency-critical reads"
     )
-    default_prio = Param.UInt8(
-        0, "Default base priority for requests"
-    )
+    default_prio = Param.UInt8(0, "Default base priority for requests")

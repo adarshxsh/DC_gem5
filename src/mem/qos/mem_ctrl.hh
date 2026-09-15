@@ -361,30 +361,61 @@ class MemCtrl : public ClockedObject
      */
     uint64_t getTotalWriteQueueSize() const { return totalWriteQueueSize; }
 
-    void setMaxReadQueueSize(uint64_t size) { maxReadQueueSize = (size > 0) ? size : 1; }
-    void setMaxWriteQueueSize(uint64_t size) { maxWriteQueueSize = (size > 0) ? size : 1; }
-    uint64_t getMaxReadQueueSize() const { return maxReadQueueSize; }
-    uint64_t getMaxWriteQueueSize() const { return maxWriteQueueSize; }
-
-    virtual double getReadQueueFillRatio() const
+    void
+    setMaxReadQueueSize(uint64_t size)
     {
-        if (maxReadQueueSize == 0) return 0.0;
-        return std::min(1.0, static_cast<double>(totalReadQueueSize) / static_cast<double>(maxReadQueueSize));
+        maxReadQueueSize = (size > 0) ? size : 1;
+    }
+    void
+    setMaxWriteQueueSize(uint64_t size)
+    {
+        maxWriteQueueSize = (size > 0) ? size : 1;
+    }
+    uint64_t
+    getMaxReadQueueSize() const
+    {
+        return maxReadQueueSize;
+    }
+    uint64_t
+    getMaxWriteQueueSize() const
+    {
+        return maxWriteQueueSize;
     }
 
-    virtual double getWriteQueueFillRatio() const
+    virtual double
+    getReadQueueFillRatio() const
     {
-        if (maxWriteQueueSize == 0) return 0.0;
-        return std::min(1.0, static_cast<double>(totalWriteQueueSize) / static_cast<double>(maxWriteQueueSize));
+        if (maxReadQueueSize == 0) {
+            return 0.0;
+        }
+        return std::min(1.0, static_cast<double>(totalReadQueueSize) /
+                                 static_cast<double>(maxReadQueueSize));
     }
 
-    virtual double getReadQueuePressureGradient() const
-    { return readQueuePressureGradient; }
+    virtual double
+    getWriteQueueFillRatio() const
+    {
+        if (maxWriteQueueSize == 0) {
+            return 0.0;
+        }
+        return std::min(1.0, static_cast<double>(totalWriteQueueSize) /
+                                 static_cast<double>(maxWriteQueueSize));
+    }
 
-    virtual double getWriteQueuePressureGradient() const
-    { return writeQueuePressureGradient; }
+    virtual double
+    getReadQueuePressureGradient() const
+    {
+        return readQueuePressureGradient;
+    }
 
-    void updateQueuePressure()
+    virtual double
+    getWriteQueuePressureGradient() const
+    {
+        return writeQueuePressureGradient;
+    }
+
+    void
+    updateQueuePressure()
     {
         double curr_rd_ratio = getReadQueueFillRatio();
         readQueuePressureGradient = curr_rd_ratio - prevReadQueueFillRatio;

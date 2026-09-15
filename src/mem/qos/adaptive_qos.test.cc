@@ -38,16 +38,22 @@
 namespace gem5
 {
 
-void setUintX(unsigned long, void*, unsigned long, gem5::ByteOrder) {}
-uint64_t getUintX(void const*, unsigned long, gem5::ByteOrder) { return 0; }
+void
+setUintX(unsigned long, void *, unsigned long, gem5::ByteOrder)
+{}
+uint64_t
+getUintX(void const *, unsigned long, gem5::ByteOrder)
+{
+    return 0;
+}
 
 namespace sim_clock
 {
 namespace as_float
 {
-    double s = 1.0e-12;
+double s = 1.0e-12;
 }
-}
+} // namespace sim_clock
 
 namespace memory
 {
@@ -93,15 +99,47 @@ TEST(AdaptiveQoSPolicyTest, WritebackPriorityBoost)
     {
       public:
         MockMemCtrl(const QoSMemCtrlParams &p) : MemCtrl(p) {}
-        void setReadFill(double f) { custom_rd_fill = f; }
-        void setWriteFill(double f) { custom_wr_fill = f; }
-        void setReadGrad(double g) { custom_rd_grad = g; }
-        void setWriteGrad(double g) { custom_wr_grad = g; }
+        void
+        setReadFill(double f)
+        {
+            custom_rd_fill = f;
+        }
+        void
+        setWriteFill(double f)
+        {
+            custom_wr_fill = f;
+        }
+        void
+        setReadGrad(double g)
+        {
+            custom_rd_grad = g;
+        }
+        void
+        setWriteGrad(double g)
+        {
+            custom_wr_grad = g;
+        }
 
-        double getReadQueueFillRatio() const override { return custom_rd_fill; }
-        double getWriteQueueFillRatio() const override { return custom_wr_fill; }
-        double getReadQueuePressureGradient() const override { return custom_rd_grad; }
-        double getWriteQueuePressureGradient() const override { return custom_wr_grad; }
+        double
+        getReadQueueFillRatio() const override
+        {
+            return custom_rd_fill;
+        }
+        double
+        getWriteQueueFillRatio() const override
+        {
+            return custom_wr_fill;
+        }
+        double
+        getReadQueuePressureGradient() const override
+        {
+            return custom_rd_grad;
+        }
+        double
+        getWriteQueuePressureGradient() const override
+        {
+            return custom_wr_grad;
+        }
 
       private:
         double custom_rd_fill = 0.0;
@@ -154,9 +192,22 @@ TEST(AdaptiveQoSQueuePolicyTest, SelectCompressedPacketOnSpike)
     {
       public:
         MockMemCtrl(const QoSMemCtrlParams &p) : MemCtrl(p) {}
-        void setWriteFill(double f) { custom_wr_fill = f; }
-        double getWriteQueueFillRatio() const override { return custom_wr_fill; }
-        double getWriteQueuePressureGradient() const override { return 0.2; }
+        void
+        setWriteFill(double f)
+        {
+            custom_wr_fill = f;
+        }
+        double
+        getWriteQueueFillRatio() const override
+        {
+            return custom_wr_fill;
+        }
+        double
+        getWriteQueuePressureGradient() const override
+        {
+            return 0.2;
+        }
+
       private:
         double custom_wr_fill = 0.8;
     };
@@ -177,7 +228,8 @@ TEST(AdaptiveQoSQueuePolicyTest, SelectCompressedPacketOnSpike)
     queue.push_back(&pkt2);
 
     auto sel_it = q_pol->selectPacket(&queue);
-    EXPECT_EQ(*sel_it, &pkt2); // Compressed packet selected first during pressure spike
+    EXPECT_EQ(*sel_it,
+              &pkt2); // Compressed packet selected first during pressure spike
 }
 
 } // namespace qos
