@@ -359,6 +359,39 @@ class BaseCache : public ClockedObject
 
     } accessor;
 
+    /** Write buffer high-watermark threshold for congestion backpressure */
+    const float writeBufferHighWatermark;
+
+    /** Downstream cross-level compression backpressure signal state */
+    bool l2Backpressure;
+
+    /** Start tick of current downstream L2 backpressure period */
+    Tick l2BackpressureStartTick;
+
+    /** Cycle interval between non-critical dirty writebacks under backpressure */
+    const Cycles writebackThrottleInterval;
+
+    /** Maximum delay cycles for paused writebacks before watchdog forces drain */
+    const Cycles writebackWatchdogThreshold;
+
+    /** Tick of last issued dirty writeback */
+    Tick lastWritebackTick;
+
+  public:
+    /** Check if writeBuffer occupancy exceeds high-watermark threshold */
+    bool isWriteBufferCongested() const
+    {
+        return writeBuffer.getOccupancyRatio() >= writeBufferHighWatermark;
+    }
+
+    /** Check if this cache is generating compression backpressure */
+    bool hasCompressionBackpressure() const
+    {
+        bool comp_bypass = compressor && compressor->isBypassing();
+        return comp_bypass || isWriteBufferCongested();
+    }
+
+  protected:
     /** Miss status registers */
     MSHRQueue mshrQueue;
 

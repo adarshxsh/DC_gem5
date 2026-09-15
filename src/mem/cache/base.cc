@@ -85,6 +85,12 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
+      writeBufferHighWatermark(p.write_buffer_high_watermark),
+      l2Backpressure(false),
+      l2BackpressureStartTick(0),
+      writebackThrottleInterval(p.writeback_throttle_interval),
+      writebackWatchdogThreshold(p.writeback_watchdog_threshold),
+      lastWritebackTick(0),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
@@ -253,7 +259,7 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
 
     writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++);
 
-    if (writeBuffer.isFull()) {
+    if (writeBuffer.isFull() || isWriteBufferCongested()) {
         setBlocked((BlockedCause)MSHRQueue_WriteBuffer);
     }
 
@@ -264,10 +270,10 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
 void
 BaseCache::markInService(WriteQueueEntry *entry)
 {
-    bool wasFull = writeBuffer.isFull();
+    bool wasBlocked = isBlocked() && (blocked & (1 << Blocked_NoWBBuffers));
     writeBuffer.markInService(entry);
 
-    if (wasFull && !writeBuffer.isFull()) {
+    if (wasBlocked && !isWriteBufferCongested() && !writeBuffer.isFull()) {
         clearBlocked(Blocked_NoWBBuffers);
     }
 }
@@ -334,6 +340,9 @@ BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
         assert(pkt->payloadDelay == 0);
 
         pkt->makeTimingResponse();
+        if (hasCompressionBackpressure()) {
+            pkt->setCompressionBackpressure();
+        }
 
         // In this case we are considering request_time that takes
         // into account the delay of the xbar, if any, and just
@@ -533,6 +542,10 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
     // Reset the bus additional time as it is now accounted for
     pkt->headerDelay = pkt->payloadDelay = 0;
 
+    if (hasCompressionBackpressure()) {
+        pkt->setCompressionBackpressure();
+    }
+
     cpuSidePort.schedTimingResp(pkt, completion_time);
 }
 
@@ -540,6 +553,12 @@ void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
+
+    bool prev_bp = l2Backpressure;
+    l2Backpressure = pkt->isCompressionBackpressure();
+    if (l2Backpressure && !prev_bp) {
+        l2BackpressureStartTick = curTick();
+    }
 
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above
@@ -924,6 +943,35 @@ BaseCache::getNextQueueEntry()
             // @todo Note that we ignore the ready time of the conflict here
         }
 
+        // Check if writeback should be throttled due to downstream L2 backpressure
+        bool is_dirty_writeback = wq_entry->getTarget() &&
+                                  wq_entry->getTarget()->pkt &&
+                                  wq_entry->getTarget()->pkt->isWriteback();
+        bool is_critical = writeBuffer.isFull() ||
+                           writeBuffer.getOccupancyRatio() > 0.80 ||
+                           conflict_mshr != nullptr;
+
+        Tick watchdog_ticks = clockPeriod() * writebackWatchdogThreshold;
+        bool watchdog_expired = (curTick() - wq_entry->readyTime > watchdog_ticks) ||
+                                (l2BackpressureStartTick > 0 && curTick() - l2BackpressureStartTick > watchdog_ticks);
+
+        if (l2Backpressure && is_dirty_writeback && !is_critical && !watchdog_expired) {
+            Tick throttle_ticks = clockPeriod() * writebackThrottleInterval;
+            if (curTick() < lastWritebackTick + throttle_ticks) {
+                if (miss_mshr) {
+                    WriteQueueEntry *conflict_mshr_write = writeBuffer.findPending(miss_mshr);
+                    if (!conflict_mshr_write) {
+                        return miss_mshr;
+                    }
+                }
+                return nullptr;
+            }
+        }
+
+        if (is_dirty_writeback) {
+            lastWritebackTick = curTick();
+        }
+
         // No conflicts; issue write
         return wq_entry;
     } else if (miss_mshr) {
@@ -1181,6 +1229,10 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
         // Try to evict blocks; if it fails, give up on update
         if (!handleEvictions(evict_blks, writebacks)) {
             return false;
+        }
+
+        if (isWriteBufferCongested()) {
+            setBlocked((BlockedCause)Blocked_NoWBBuffers);
         }
 
         DPRINTF(CacheComp, "Data %s: [%s] from %d to %d bits\n",
