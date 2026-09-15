@@ -60,6 +60,9 @@ MemCtrl::MemCtrl(const QoSMemCtrlParams &p)
     qosPriorityEscalation(p.qos_priority_escalation),
     qosSyncroScheduler(p.qos_syncro_scheduler),
     totalReadQueueSize(0), totalWriteQueueSize(0),
+    maxReadQueueSize(32), maxWriteQueueSize(64),
+    prevReadQueueFillRatio(0.0), prevWriteQueueFillRatio(0.0),
+    readQueuePressureGradient(0.0), writeQueuePressureGradient(0.0),
     busState(READ), busStateNext(READ),
     stats(*this),
     _system(p.system)
@@ -142,6 +145,7 @@ MemCtrl::logRequest(BusState dir, RequestorID id, uint8_t _qos,
             requestors[id], id, _qos, packetPriorities[id][_qos],
             (dir == READ) ? readQueueSizes[_qos]: writeQueueSizes[_qos]);
 
+    updateQueuePressure();
 }
 
 void
@@ -211,6 +215,8 @@ MemCtrl::logResponse(BusState dir, RequestorID id, uint8_t _qos,
             "this requestor q packets %d - new queue size %d\n",
             requestors[id], id, _qos, packetPriorities[id][_qos],
             (dir == READ) ? readQueueSizes[_qos]: writeQueueSizes[_qos]);
+
+    updateQueuePressure();
 }
 
 uint8_t

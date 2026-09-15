@@ -185,6 +185,24 @@ class LrgQueuePolicy : public QueuePolicy
     std::list<RequestorID> toServe;
 };
 
+/** Compression-aware Queue Policy */
+class AdaptiveCompressionQueuePolicy : public QueuePolicy
+{
+  public:
+    AdaptiveCompressionQueuePolicy(const QoSMemCtrlParams &p)
+      : QueuePolicy(p)
+    {}
+
+    /**
+     * Implements compression-aware packet select policy during queue pressure spikes
+     *
+     * @param queue The non-empty queue from which to select a packet
+     * @return Iterator to the selected packet
+     */
+    PacketQueue::iterator
+    selectPacket(PacketQueue* queue) override;
+};
+
 } // namespace qos
 } // namespace memory
 } // namespace gem5

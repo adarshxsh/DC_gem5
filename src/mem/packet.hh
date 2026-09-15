@@ -301,7 +301,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Payload compression status flag
+        IS_COMPRESSED         = 0x00020000
     };
 
     Flags flags;
@@ -403,6 +406,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     // Quality of Service priority value
     uint8_t _qosValue;
+
+    // Payload compressed size in bytes (0 if uncompressed/default)
+    unsigned _compressedSize;
 
     // hardware transactional memory
 
@@ -777,6 +783,61 @@ class Packet : public Printable, public Extensible<Packet>
     inline void qosValue(const uint8_t qos_value)
     { _qosValue = qos_value; }
 
+    void setCompressedSize(unsigned comp_size)
+    {
+        _compressedSize = comp_size;
+        if (size > 0 && comp_size < size) {
+            flags.set(IS_COMPRESSED);
+        } else if (comp_size == 0) {
+            flags.clear(IS_COMPRESSED);
+        }
+    }
+
+    void setCompressedSizeBits(unsigned comp_bits)
+    {
+        setCompressedSize((comp_bits + 7) / 8);
+    }
+
+    unsigned getCompressedSize() const
+    {
+        if (_compressedSize > 0) {
+            return _compressedSize;
+        }
+        if (req && req->extraDataValid() && req->getExtraData() > 0) {
+            return static_cast<unsigned>(req->getExtraData());
+        }
+        return size;
+    }
+
+    unsigned getCompressedSizeBits() const
+    {
+        return getCompressedSize() * 8;
+    }
+
+    bool isCompressed() const
+    {
+        if (flags.isSet(IS_COMPRESSED)) {
+            return true;
+        }
+        if (_compressedSize > 0 && size > 0 && _compressedSize < size) {
+            return true;
+        }
+        if (req && req->extraDataValid() && req->getExtraData() > 0 &&
+            size > 0 && req->getExtraData() < size) {
+            return true;
+        }
+        return false;
+    }
+
+    double getCompressionRatio() const
+    {
+        unsigned comp = getCompressedSize();
+        if (comp == 0 || size == 0) {
+            return 1.0;
+        }
+        return static_cast<double>(size) / static_cast<double>(comp);
+    }
+
     inline RequestorID requestorId() const { return req->requestorId(); }
 
     // Network error conditions... encapsulate them as methods since
@@ -877,7 +938,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd)
         :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false), size(0),
-           _qosValue(0),
+           _qosValue(0), _compressedSize(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0), snoopDelay(0),
@@ -918,7 +979,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
         :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false),
-           _qosValue(0),
+           _qosValue(0), _compressedSize(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0),
@@ -947,7 +1008,7 @@ class Packet : public Printable, public Extensible<Packet>
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
            bytesValid(pkt->bytesValid),
-           _qosValue(pkt->qosValue()),
+           _qosValue(pkt->qosValue()), _compressedSize(pkt->_compressedSize),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(pkt->headerDelay),

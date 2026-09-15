@@ -63,6 +63,9 @@ QueuePolicy::create(const QoSMemCtrlParams &p)
         return new FifoQueuePolicy(p);
       case enums::QoSQPolicy::lrg:
         return new LrgQueuePolicy(p);
+      case enums::QoSQPolicy::compression_aware:
+      case enums::QoSQPolicy::adaptive_compression:
+        return new AdaptiveCompressionQueuePolicy(p);
       case enums::QoSQPolicy::lifo:
       default:
         return new LifoQueuePolicy(p);
@@ -167,6 +170,41 @@ LrgQueuePolicy::enqueuePacket(PacketPtr pkt)
         toServe.push_back(requestor_id);
     }
 };
+
+QueuePolicy::PacketQueue::iterator
+AdaptiveCompressionQueuePolicy::selectPacket(PacketQueue* queue)
+{
+    panic_if(queue->empty(),
+             "Provided packet queue is not usable by queue policy");
+
+    if (memCtrl) {
+        double wr_fill = memCtrl->getWriteQueueFillRatio();
+        double wr_grad = memCtrl->getWriteQueuePressureGradient();
+        double rd_fill = memCtrl->getReadQueueFillRatio();
+        double rd_grad = memCtrl->getReadQueuePressureGradient();
+
+        bool pressure_spike = (wr_fill >= 0.5 || wr_grad > 0.0 || rd_fill >= 0.5 || rd_grad > 0.0);
+
+        if (pressure_spike) {
+            auto best_it = queue->end();
+            double max_comp = 1.0;
+
+            for (auto it = queue->begin(); it != queue->end(); ++it) {
+                PacketPtr pkt = *it;
+                if (pkt && (pkt->isCompressed() || pkt->getCompressionRatio() > max_comp)) {
+                    max_comp = pkt->getCompressionRatio();
+                    best_it = it;
+                }
+            }
+
+            if (best_it != queue->end()) {
+                return best_it;
+            }
+        }
+    }
+
+    return queue->begin();
+}
 
 } // namespace qos
 } // namespace memory
