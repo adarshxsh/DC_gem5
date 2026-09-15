@@ -57,6 +57,7 @@
 #include "base/compiler.hh"
 #include "base/extensible.hh"
 #include "base/flags.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/printable.hh"
 #include "base/types.hh"
@@ -301,7 +302,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +361,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Indicates whether packet payload is compressed
+        IS_COMPRESSED          = 0x00020000
     };
 
     Flags flags;
@@ -395,6 +399,10 @@ class Packet : public Printable, public Extensible<Packet>
 
     /// The size of the request or transfer.
     unsigned size;
+
+    /// Compressed payload size metadata (in bits and bytes).
+    std::size_t _compressedSizeBits;
+    unsigned _compressedSize;
 
     /**
      * Track the bytes found that satisfy a functional read.
@@ -817,6 +825,52 @@ class Packet : public Printable, public Extensible<Packet>
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
 
     /**
+     * Check if packet carries a compressed payload.
+     */
+    bool isCompressed() const { return flags.isSet(IS_COMPRESSED); }
+
+    /**
+     * Set compressed payload size in bits.
+     */
+    void setCompressedSizeBits(std::size_t bits)
+    {
+        _compressedSizeBits = bits;
+        _compressedSize = divCeil(bits, 8);
+        flags.set(IS_COMPRESSED);
+    }
+
+    /**
+     * Set compressed payload size in bytes.
+     */
+    void setCompressedSize(unsigned size_bytes)
+    {
+        _compressedSize = size_bytes;
+        _compressedSizeBits = size_bytes * 8;
+        flags.set(IS_COMPRESSED);
+    }
+
+    /**
+     * Get compressed payload size in bits.
+     */
+    std::size_t getCompressedSizeBits() const { return _compressedSizeBits; }
+
+    /**
+     * Get compressed payload size in bytes (falls back to getSize if not compressed).
+     */
+    unsigned getCompressedSize() const
+    {
+        return isCompressed() ? _compressedSize : getSize();
+    }
+
+    /**
+     * Get physical transfer size in bytes for interconnect timing calculation.
+     */
+    unsigned getTransferSize() const
+    {
+        return isCompressed() ? _compressedSize : getSize();
+    }
+
+    /**
      * Get address range to which this packet belongs.
      *
      * @return Address range of this packet.
@@ -877,6 +931,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd)
         :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false), size(0),
+           _compressedSizeBits(0), _compressedSize(0),
            _qosValue(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
@@ -918,6 +973,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
         :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false),
+           _compressedSizeBits(0), _compressedSize(0),
            _qosValue(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
@@ -946,6 +1002,8 @@ class Packet : public Printable, public Extensible<Packet>
            cmd(pkt->cmd), id(pkt->id), req(pkt->req),
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
+           _compressedSizeBits(pkt->_compressedSizeBits),
+           _compressedSize(pkt->_compressedSize),
            bytesValid(pkt->bytesValid),
            _qosValue(pkt->qosValue()),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
