@@ -111,10 +111,75 @@ TEST_F(SuperBlkTestFixture, CalculateCompressionFactor)
     // 64 bytes = 512 bits
     ASSERT_EQ(superBlk.calculateCompressionFactor(0), 8);
     ASSERT_EQ(superBlk.calculateCompressionFactor(64), 8);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(73), 7);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(85), 6);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(100), 5);
     ASSERT_EQ(superBlk.calculateCompressionFactor(128), 4);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(170), 3);
     ASSERT_EQ(superBlk.calculateCompressionFactor(256), 2);
     ASSERT_EQ(superBlk.calculateCompressionFactor(512), 1);
     ASSERT_EQ(superBlk.calculateCompressionFactor(1024), 1);
+}
+
+TEST_F(SuperBlkTestFixture, IntermediateCompressionFactorCoAllocation)
+{
+    // Insert 170-bit compressed line (512 / 170 = 3x factor)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(170);
+
+    ASSERT_TRUE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Can co-allocate up to 3 sub-blocks for 3x factor
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(170);
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(170);
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // 4th sub-block cannot co-allocate as numValid (3) reaches target_cf (3)
+    ASSERT_FALSE(superBlk.canCoAllocate(170));
+}
+
+TEST_F(SuperBlkTestFixture, MixedCompressionFactorCoAllocation)
+{
+    // Insert block 0 at offset 0 (size 64 bits -> CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Insert block 1 at offset 1 (size 170 bits -> CF=3)
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(170);
+
+    // Superblock factor updates to min(8, 3) = 3
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // Capacity allows 3rd sub-block (numValid = 2 < 3)
+    ASSERT_TRUE(superBlk.canCoAllocate(170));
+
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(170);
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 3);
+    verifyInvariants(superBlk);
+
+    // No room for 4th sub-block
+    ASSERT_FALSE(superBlk.canCoAllocate(170));
 }
 
 TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
