@@ -80,6 +80,22 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    ewma_alpha = Param.Float(
+        0.05,
+        "EMA smoothing factor alpha for compression ratio tracking (0.0 to 1.0)",
+    )
+    hysteresis_margin_perc = Param.Percent(
+        5,
+        "Hysteresis margin percentage around latency breakeven threshold",
+    )
+    bypass_enable_threshold = Param.Float(
+        0.0,
+        "Upper boundary to enable compression bypass (0.0 to compute from breakeven and margin)",
+    )
+    bypass_disable_threshold = Param.Float(
+        0.0,
+        "Lower boundary to disable compression bypass (0.0 to compute from breakeven and margin)",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):

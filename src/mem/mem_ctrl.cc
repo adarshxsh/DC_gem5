@@ -72,6 +72,9 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
+    queueEmaAlpha(p.queue_ema_alpha),
+    currentRdQueueEMA(0.0),
+    currentWrQueueEMA(0.0),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
@@ -279,7 +282,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
             mem_intr->readQueueSize++;
 
             // Update stats
-            stats.avgRdQLen = totalReadQueueSize + respQueue.size();
+            updateRdQueueEMA(totalReadQueueSize + respQueue.size());
         }
 
         // Starting address of next memory pkt (aligned to burst boundary)
@@ -355,7 +358,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
             assert(totalWriteQueueSize == isInWriteQueue.size());
 
             // Update stats
-            stats.avgWrQLen = totalWriteQueueSize;
+            updateWrQueueEMA(totalWriteQueueSize);
 
         } else {
             DPRINTF(MemCtrl,
@@ -1018,6 +1021,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                         mem_pkt->readyTime - mem_pkt->entryTime);
 
             mem_intr->readQueueSize--;
+            updateRdQueueEMA(totalReadQueueSize + respQueue.size());
 
             // Insert into response queue. It will be sent back to the
             // requestor at its readyTime
@@ -1108,6 +1112,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                     mem_pkt->readyTime - mem_pkt->entryTime);
 
         mem_intr->writeQueueSize--;
+        updateWrQueueEMA(totalWriteQueueSize);
 
         // remove the request from the queue - the iterator is no longer valid
         writeQueue[mem_pkt->qosValue()].erase(to_write);
@@ -1537,6 +1542,20 @@ void
 MemCtrl::MemoryPort::disableSanityCheck()
 {
     queue.disableSanityCheck();
+}
+
+void
+MemCtrl::updateRdQueueEMA(uint32_t len)
+{
+    currentRdQueueEMA = queueEmaAlpha * len + (1.0 - queueEmaAlpha) * currentRdQueueEMA;
+    stats.avgRdQLen = currentRdQueueEMA;
+}
+
+void
+MemCtrl::updateWrQueueEMA(uint32_t len)
+{
+    currentWrQueueEMA = queueEmaAlpha * len + (1.0 - queueEmaAlpha) * currentWrQueueEMA;
+    stats.avgWrQLen = currentWrQueueEMA;
 }
 
 } // namespace memory
