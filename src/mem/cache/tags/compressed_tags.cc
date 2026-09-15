@@ -243,6 +243,9 @@ CompressedTags::checkInvariants() const
         if (super_blk.isValid()) {
             uint8_t num_valid = super_blk.getNumValid();
             uint8_t cf = super_blk.getCompressionFactor();
+            if (num_valid > 1) {
+                assert(super_blk.isCompressed());
+            }
             std::size_t total_bits = 0;
             for (const auto &blk : super_blk.blks) {
                 if (blk->isValid()) {
@@ -254,10 +257,7 @@ CompressedTags::checkInvariants() const
                     assert(blk_cf >= cf);
                 }
             }
-            assert(total_bits <= blkSize * CHAR_BIT);
-            if (num_valid > 1) {
-                assert(super_blk.isCompressed());
-            }
+            assert(total_bits <= super_blk.getBlkSize() * CHAR_BIT);
         } else {
             assert(super_blk.getCompressionFactor() == 1);
         }
