@@ -38,8 +38,7 @@ namespace gem5
 
 TEST(PacketTest, CompressionBackpressureFlags)
 {
-    RequestPtr req = std::make_shared<Request>(
-        0x1000, 64, 0, 0);
+    RequestPtr req = std::make_shared<Request>(0x1000, 64, 0, 0);
     Packet pkt(req, MemCmd::ReadReq);
 
     EXPECT_FALSE(pkt.isCompressionBackpressure());
@@ -55,10 +54,26 @@ class TestEntry : public QueueEntry
 {
   public:
     TestEntry() : QueueEntry() {}
-    bool matchBlockAddr(Addr b_addr, bool is_sec) const override { return false; }
-    bool matchBlockAddr(const PacketPtr p) const override { return false; }
-    bool trySatisfyFunctional(PacketPtr p) override { return false; }
-    bool sendPacket(BaseCache& c) override { return true; }
+    bool
+    matchBlockAddr(Addr b_addr, bool is_sec) const override
+    {
+        return false;
+    }
+    bool
+    matchBlockAddr(const PacketPtr p) const override
+    {
+        return false;
+    }
+    bool
+    trySatisfyFunctional(PacketPtr p) override
+    {
+        return false;
+    }
+    bool
+    sendPacket(BaseCache &c) override
+    {
+        return true;
+    }
 };
 
 TEST(QueueTest, OccupancyRatioAndCapacity)
