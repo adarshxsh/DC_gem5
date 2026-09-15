@@ -48,6 +48,7 @@
 
 #include "debug/MSHR.hh"
 #include "mem/cache/mshr.hh"
+#include "mem/cache/tags/super_blk.hh"
 
 namespace gem5
 {
@@ -61,7 +62,9 @@ MSHRQueue::MSHRQueue(const std::string &_label,
 
 MSHR *
 MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                    Tick when_ready, Counter order, bool alloc_on_fill)
+                    Tick when_ready, Counter order, bool alloc_on_fill,
+                    std::size_t predicted_size_bits,
+                    SuperBlk *reserved_super_blk, CacheBlk *reserved_sub_blk)
 {
     assert(!freeList.empty());
     MSHR *mshr = freeList.front();
@@ -71,7 +74,8 @@ MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
     DPRINTF(MSHR, "Allocating new MSHR. Number in use will be %lu/%lu\n",
             allocatedList.size() + 1, numEntries);
 
-    mshr->allocate(blk_addr, blk_size, pkt, when_ready, order, alloc_on_fill);
+    mshr->allocate(blk_addr, blk_size, pkt, when_ready, order, alloc_on_fill,
+                   predicted_size_bits, reserved_super_blk, reserved_sub_blk);
     mshr->allocIter = allocatedList.insert(allocatedList.end(), mshr);
     mshr->readyIter = addToReadyList(mshr);
 
@@ -82,6 +86,20 @@ MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
 void
 MSHRQueue::deallocate(MSHR* mshr)
 {
+    if (mshr && mshr->getReservedSubBlk()) {
+        CompressionBlk *cblk =
+            static_cast<CompressionBlk *>(mshr->getReservedSubBlk());
+        if (cblk->isReserved()) {
+            cblk->setReserved(false);
+            cblk->setSizeBits(0);
+            if (mshr->getReservedSuperBlk() &&
+                mshr->getReservedSuperBlk()->getNumValidAndReserved() == 0) {
+                mshr->getReservedSuperBlk()->invalidate();
+            }
+        }
+        mshr->setReservedSubBlk(nullptr);
+        mshr->setReservedSuperBlk(nullptr);
+    }
 
     DPRINTF(MSHR, "Deallocating all targets: %s", mshr->print());
     Queue<MSHR>::deallocate(mshr);
