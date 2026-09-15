@@ -38,7 +38,7 @@ using namespace gem5;
 class TestQueueEntry : public QueueEntry
 {
   public:
-    using List = std::list<TestQueueEntry*>;
+    using List = std::list<TestQueueEntry *>;
     using Iterator = List::iterator;
 
     Iterator allocIter;
@@ -46,12 +46,34 @@ class TestQueueEntry : public QueueEntry
 
     TestQueueEntry(const std::string &name = "test") : QueueEntry(name) {}
 
-    void deallocate() {}
-    bool matchBlockAddr(const Addr addr, const bool is_secure) const override { return false; }
-    bool matchBlockAddr(const PacketPtr pkt) const override { return false; }
-    bool conflictAddr(const QueueEntry* entry) const override { return false; }
-    bool sendPacket(BaseCache &cache) override { return false; }
-    Target* getTarget() override { return nullptr; }
+    void
+    deallocate()
+    {}
+    bool
+    matchBlockAddr(const Addr addr, const bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    matchBlockAddr(const PacketPtr pkt) const override
+    {
+        return false;
+    }
+    bool
+    conflictAddr(const QueueEntry *entry) const override
+    {
+        return false;
+    }
+    bool
+    sendPacket(BaseCache &cache) override
+    {
+        return false;
+    }
+    Target *
+    getTarget() override
+    {
+        return nullptr;
+    }
 };
 
 class TestQueue : public Queue<TestQueueEntry>
@@ -59,7 +81,8 @@ class TestQueue : public Queue<TestQueueEntry>
   public:
     TestQueue(const std::string &label, int num_entries, int reserve,
               const std::string &name)
-        : Queue<TestQueueEntry>(label, num_entries, reserve, name) {}
+        : Queue<TestQueueEntry>(label, num_entries, reserve, name)
+    {}
 };
 
 /**

@@ -498,7 +498,7 @@ class BaseCache : public ClockedObject
      * Calculate effective decompression latency for a block based on current
      * queue congestion state.
      */
-    virtual Cycles getEffectiveDecompressionLatency(const CacheBlk* blk) const;
+    virtual Cycles getEffectiveDecompressionLatency(const CacheBlk *blk) const;
 
     /**
      * Does all the processing necessary to perform the provided request.

@@ -81,7 +81,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -95,7 +95,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1302,11 +1302,13 @@ BaseCache::isQueueCongested() const
     if (mshrQueueThrottlingThreshold > 0) {
         if (mshrQueueThrottlingThreshold <= 100) {
             if (mshrQueue.capacity() > 0 &&
-                (mshrQueue.occupancy() * 100 / mshrQueue.capacity()) >= mshrQueueThrottlingThreshold) {
+                (mshrQueue.occupancy() * 100 / mshrQueue.capacity()) >=
+                    mshrQueueThrottlingThreshold) {
                 return true;
             }
             if (writeBuffer.capacity() > 0 &&
-                (writeBuffer.occupancy() * 100 / writeBuffer.capacity()) >= mshrQueueThrottlingThreshold) {
+                (writeBuffer.occupancy() * 100 / writeBuffer.capacity()) >=
+                    mshrQueueThrottlingThreshold) {
                 return true;
             }
         } else {
@@ -1321,7 +1323,7 @@ BaseCache::isQueueCongested() const
 }
 
 Cycles
-BaseCache::getEffectiveDecompressionLatency(const CacheBlk* blk) const
+BaseCache::getEffectiveDecompressionLatency(const CacheBlk *blk) const
 {
     if (!compressor || isQueueCongested()) {
         return Cycles(0);
