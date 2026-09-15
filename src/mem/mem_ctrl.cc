@@ -72,6 +72,15 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
+    enableAdaptiveThresholds(p.enable_adaptive_thresholds),
+    pressureThreshold(p.pressure_threshold),
+    staticWriteHighThreshold(writeHighThreshold),
+    staticWriteLowThreshold(writeLowThreshold),
+    staticMinWritesPerSwitch(minWritesPerSwitch),
+    staticMinReadsPerSwitch(minReadsPerSwitch),
+    prevWritePressure(0.0),
+    prevReadPressure(0.0),
+    lastPressureTick(0),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
@@ -883,6 +892,64 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                         EventFunctionWrapper& resp_event,
                         EventFunctionWrapper& next_req_event,
                         bool& retry_wr_req) {
+    // Real-time queue occupancy ratio and fill rate calculations
+    uint32_t rd_size = mem_intr->readQueueSize;
+    uint32_t wr_size = mem_intr->writeQueueSize;
+
+    double rd_pressure = readBufferSize > 0 ?
+                         static_cast<double>(rd_size) / readBufferSize : 0.0;
+    double wr_pressure = writeBufferSize > 0 ?
+                         static_cast<double>(wr_size) / writeBufferSize : 0.0;
+
+    double wr_fill_rate = 0.0;
+    if (lastPressureTick != 0 && curTick() > lastPressureTick) {
+        Tick tick_delta = curTick() - lastPressureTick;
+        wr_fill_rate = (wr_pressure - prevWritePressure) * 1000.0 / tick_delta;
+    }
+
+    prevWritePressure = wr_pressure;
+    prevReadPressure = rd_pressure;
+    lastPressureTick = curTick();
+
+    if (enableAdaptiveThresholds) {
+        double pressure_gradient = wr_pressure - rd_pressure;
+
+        // Dynamic write high/low threshold adjustments based on queue pressure gradient & fill rate acceleration
+        if (pressure_gradient > 0.0 || wr_fill_rate > 0.0) {
+            double boost = std::max(0.0, pressure_gradient) + std::max(0.0, wr_fill_rate);
+            double scale = std::max(0.5, 1.0 - 0.5 * boost);
+            writeHighThreshold = static_cast<uint32_t>(staticWriteHighThreshold * scale);
+
+            uint32_t min_low = static_cast<uint32_t>(writeBufferSize * 0.2);
+            writeLowThreshold = std::min(staticWriteLowThreshold,
+                                         std::max(min_low, writeHighThreshold / 2));
+        } else {
+            writeHighThreshold = staticWriteHighThreshold;
+            writeLowThreshold = staticWriteLowThreshold;
+        }
+
+        // Scale minWritesPerSwitch dynamically when opposing read queue pressure exceeds threshold
+        if (rd_pressure > pressureThreshold) {
+            double rd_factor = std::max(0.25, 1.0 - (rd_pressure - pressureThreshold) / (1.0 - pressureThreshold));
+            minWritesPerSwitch = std::max<uint32_t>(1, static_cast<uint32_t>(staticMinWritesPerSwitch * rd_factor));
+        } else {
+            minWritesPerSwitch = staticMinWritesPerSwitch;
+        }
+
+        // Scale minReadsPerSwitch dynamically when opposing write queue pressure exceeds threshold
+        if (wr_pressure > pressureThreshold) {
+            double wr_factor = std::max(0.25, 1.0 - (wr_pressure - pressureThreshold) / (1.0 - pressureThreshold));
+            minReadsPerSwitch = std::max<uint32_t>(1, static_cast<uint32_t>(staticMinReadsPerSwitch * wr_factor));
+        } else {
+            minReadsPerSwitch = staticMinReadsPerSwitch;
+        }
+    } else {
+        writeHighThreshold = staticWriteHighThreshold;
+        writeLowThreshold = staticWriteLowThreshold;
+        minWritesPerSwitch = staticMinWritesPerSwitch;
+        minReadsPerSwitch = staticMinReadsPerSwitch;
+    }
+
     // transition is handled by QoS algorithm if enabled
     if (turnPolicy) {
         // select bus state - only done if QoS algorithms are in use
