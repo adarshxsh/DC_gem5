@@ -61,3 +61,45 @@ TEST(SuperBlkTest, SetUncompressedClearsCompressed)
     blk.setUncompressed();
     EXPECT_FALSE(blk.isCompressed());
 }
+
+TEST(SuperBlkTest, AccumulativeBitCoAllocation)
+{
+    Tick mockTick = 0;
+    Gem5Internal::_curTickPtr = &mockTick;
+
+    SuperBlk superBlk;
+    superBlk.setBlkSize(64); // 64 bytes = 512 bits
+    constexpr unsigned numSubBlks = 8;
+    CompressionBlk subBlks[numSubBlks];
+    superBlk.blks.resize(numSubBlks);
+    for (unsigned k = 0; k < numSubBlks; ++k) {
+        superBlk.blks[k] = &subBlks[k];
+        subBlks[k].setSectorBlock(&superBlk);
+        subBlks[k].setSectorOffset(k);
+        subBlks[k].registerTagExtractor([](Addr addr) { return addr; });
+    }
+    superBlk.registerTagExtractor([](Addr addr) { return addr; });
+
+    // Empty superblock can co-allocate any compressed size < 512 bits
+    EXPECT_TRUE(superBlk.canCoAllocate(256));
+    EXPECT_TRUE(superBlk.canCoAllocate(64));
+    EXPECT_FALSE(superBlk.canCoAllocate(512)); // uncompressed size
+
+    // Insert 256-bit sub-block
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(256);
+
+    // Accumulated bits = 256.
+    // 256 + 256 = 512 bits <= 512 bits -> true
+    EXPECT_TRUE(superBlk.canCoAllocate(256));
+    // 256 + 257 = 513 bits > 512 bits -> false
+    EXPECT_FALSE(superBlk.canCoAllocate(257));
+
+    // Fill remaining 7 sub-block slots with 16-bit sub-blocks
+    for (unsigned k = 1; k < numSubBlks; ++k) {
+        subBlks[k].insert({0x1000, false});
+        subBlks[k].setSizeBits(16);
+    }
+    // All 8 slots occupied -> getNumValid() == blks.size()
+    EXPECT_FALSE(superBlk.canCoAllocate(16));
+}

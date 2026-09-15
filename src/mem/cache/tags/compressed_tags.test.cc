@@ -70,6 +70,7 @@ class SuperBlkTestFixture : public ::testing::Test
     {
         uint8_t count_valid = 0;
         uint8_t min_cf = sb.blks.size();
+        std::size_t total_bits = 0;
         for (const auto &blk : sb.blks) {
             if (blk->isValid()) {
                 count_valid++;
@@ -80,6 +81,7 @@ class SuperBlkTestFixture : public ::testing::Test
                 if (cf < min_cf) {
                     min_cf = cf;
                 }
+                total_bits += cblk->getSizeBits();
                 ASSERT_EQ(blk->getTag(), sb.getTag());
                 ASSERT_EQ(blk->isSecure(), sb.isSecure());
             }
@@ -88,7 +90,7 @@ class SuperBlkTestFixture : public ::testing::Test
         ASSERT_EQ(sb.isValid(), (count_valid > 0));
         if (count_valid > 0) {
             ASSERT_EQ(sb.getCompressionFactor(), min_cf);
-            ASSERT_LE(count_valid, sb.getCompressionFactor());
+            ASSERT_LE(total_bits, sb.getBlkSize() * CHAR_BIT);
         } else {
             ASSERT_EQ(sb.getCompressionFactor(), 1);
         }
@@ -281,4 +283,57 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             verifyInvariants(sblks[i]);
         }
     }
+}
+
+TEST_F(SuperBlkTestFixture, VariableRatioCoAllocationAccumulativeBits)
+{
+    // SuperBlk capacity: 64 bytes = 512 bits. NumSubBlks = 8.
+    // Insert block 0 at offset 0 (size 256 bits -> CF=2)
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(256);
+
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+
+    // 256 + 64 = 320 <= 512 bits: co-allocation should succeed
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+
+    // Co-allocate block 1 at offset 1 (size 64 bits)
+    subBlks[1].insert({0x5000, false});
+    subBlks[1].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+
+    // 256 + 64 + 64 = 384 <= 512 bits: co-allocation should succeed
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+
+    // Co-allocate block 2 at offset 2 (size 64 bits)
+    subBlks[2].insert({0x5000, false});
+    subBlks[2].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    // Notice count_valid (3) > compressionFactor (2)
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+
+    // Try co-allocating 128-bit block: 384 + 128 = 512 <= 512 bits -> true
+    ASSERT_TRUE(superBlk.canCoAllocate(128));
+
+    // Try co-allocating 256-bit block: 384 + 256 = 640 > 512 bits -> false
+    ASSERT_FALSE(superBlk.canCoAllocate(256));
+
+    // Co-allocate block 3 at offset 3 (size 128 bits) -> exact capacity
+    // boundary (512 bits)
+    subBlks[3].insert({0x5000, false});
+    subBlks[3].setSizeBits(128);
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    verifyInvariants(superBlk);
+
+    // Total bits is now 512. Any non-zero compressed payload exceeds physical
+    // capacity
+    ASSERT_FALSE(superBlk.canCoAllocate(64));
 }
