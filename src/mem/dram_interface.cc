@@ -1221,9 +1221,7 @@ DRAMInterface::Rank::checkDrainDone()
         // hand control back to the refresh event loop
         schedule(refreshEvent, curTick());
     } else if (refreshState == REF_PRE && !refreshEvent.scheduled()) {
-        Tick pre_at =
-            dram.regStats.dramTime.val() ? curTick() : dram.clockEdge();
-        schedule(refreshEvent, pre_at);
+        schedule(refreshEvent, curTick());
     }
 }
 
