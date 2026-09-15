@@ -241,6 +241,14 @@ class Base : public SimObject
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
 
+    /** Check if adaptive compression bypass is currently active. */
+    virtual bool isBypassing() const
+    {
+        if (!enableAdaptiveBypass || sampledCompressedBits == 0) return false;
+        double ratio = (double)sampledUncompressedBits / (double)sampledCompressedBits;
+        return ratio < latencyBreakevenThreshold;
+    }
+
     /**
      * Apply the compression process to the cache line. Ignores compression
      * cycles.
