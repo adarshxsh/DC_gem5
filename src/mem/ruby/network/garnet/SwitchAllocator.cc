@@ -229,14 +229,6 @@ SwitchAllocator::arbitrate_outports()
 
                     // Free this VC
                     input_unit->set_vc_idle(invc, curTick());
-
-                    // Send a credit back
-                    // along with the information that this VC is now idle
-                    input_unit->increment_credit(invc, true, curTick());
-                } else {
-                    // Send a credit back
-                    // but do not indicate that the VC is idle
-                    input_unit->increment_credit(invc, false, curTick());
                 }
 
                 // remove this request

@@ -64,8 +64,8 @@ class OutputUnit : public Consumer
     void wakeup();
     flitBuffer* getOutQueue();
     void print(std::ostream& out) const {};
-    void decrement_credit(int out_vc);
-    void increment_credit(int out_vc);
+    void decrement_credit(int out_vc, int count = 1);
+    void increment_credit(int out_vc, int count = 1);
     bool has_credit(int out_vc);
     bool has_free_vc(int vnet);
     int select_free_vc(int vnet);

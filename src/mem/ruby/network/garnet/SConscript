@@ -53,3 +53,5 @@ Source('flitBuffer.cc')
 Source('flit.cc')
 Source('Credit.cc')
 Source('NetworkBridge.cc')
+
+GTest('garnet_credit.test', 'garnet_credit.test.cc', 'Credit.cc', 'flit.cc', 'NetworkLink.cc', 'flitBuffer.cc')

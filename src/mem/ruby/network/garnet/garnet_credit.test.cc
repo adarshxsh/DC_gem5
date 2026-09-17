@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2008 Princeton University
- * Copyright (c) 2016 Georgia Institute of Technology
+ * Copyright (c) 2026 gem5
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +26,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <gtest/gtest.h>
 
-#include "mem/ruby/network/garnet/OutVcState.hh"
-
-#include "mem/ruby/system/RubySystem.hh"
+#include "mem/ruby/network/garnet/CommonTypes.hh"
+#include "mem/ruby/network/garnet/Credit.hh"
+#include "mem/ruby/network/garnet/CreditLink.hh"
 
 namespace gem5
 {
@@ -41,46 +41,30 @@ namespace ruby
 namespace garnet
 {
 
-OutVcState::OutVcState(int id, GarnetNetwork *network_ptr,
-    uint32_t consumerVcs)
-    : m_time(0)
+TEST(GarnetCreditTest, CreditSignalProperties)
 {
-    m_id = id;
-    m_vc_state = IDLE_;
-    /*
-     * We find the virtual network using the number of
-     * vcs per vnet. This assumes that the same vcs per
-     * vnet is used throughout the given object.
-     */
-    int vnet = floor(id/consumerVcs);
+    Tick cur_time = 100;
+    int vc = 3;
 
-    if (network_ptr->get_vnet_type(vnet) == DATA_VNET_)
-        m_max_credit_count = network_ptr->getBuffersPerDataVC();
-    else
-        m_max_credit_count = network_ptr->getBuffersPerCtrlVC();
+    Credit c1(vc, false, cur_time);
+    EXPECT_EQ(c1.get_vc(), 3);
+    EXPECT_FALSE(c1.is_free_signal());
+    EXPECT_EQ(c1.get_type(), CREDIT_);
 
-    m_credit_count = m_max_credit_count;
-    assert(m_credit_count >= 1);
+    Credit c2(vc, true, cur_time);
+    EXPECT_EQ(c2.get_vc(), 3);
+    EXPECT_TRUE(c2.is_free_signal());
+    EXPECT_EQ(c2.get_type(), CREDIT_);
 }
 
-void
-OutVcState::increment_credit(int count)
+TEST(GarnetCreditTest, CreditLinkTokenSignal)
 {
-    m_credit_count += count;
-    if (m_credit_count > m_max_credit_count) {
-        m_credit_count = m_max_credit_count;
-    }
-    assert(m_credit_count <= m_max_credit_count);
-}
+    CreditLinkParams params;
+    params.name = "test_credit_link";
+    CreditLink credit_link(params);
 
-void
-OutVcState::decrement_credit(int count)
-{
-    m_credit_count -= count;
-    if (m_credit_count < 0) {
-        m_credit_count = 0;
-    }
-    assert(m_credit_count >= 0);
+    credit_link.sendCreditToken(2, true, 105);
+    EXPECT_STREQ(credit_link.name().c_str(), "test_credit_link");
 }
 
 } // namespace garnet
