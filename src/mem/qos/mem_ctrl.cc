@@ -52,18 +52,20 @@ namespace qos
 {
 
 MemCtrl::MemCtrl(const QoSMemCtrlParams &p)
-  : ClockedObject(p),
-    policy(p.qos_policy),
-    turnPolicy(p.qos_turnaround_policy),
-    queuePolicy(QueuePolicy::create(p)),
-    _numPriorities(p.qos_priorities),
-    qosPriorityEscalation(p.qos_priority_escalation),
-    qosPressureGradient(p.qos_pressure_gradient),
-    qosSyncroScheduler(p.qos_syncro_scheduler),
-    totalReadQueueSize(0), totalWriteQueueSize(0),
-    busState(READ), busStateNext(READ),
-    stats(*this),
-    _system(p.system)
+    : ClockedObject(p),
+      policy(p.qos_policy),
+      turnPolicy(p.qos_turnaround_policy),
+      queuePolicy(QueuePolicy::create(p)),
+      _numPriorities(p.qos_priorities),
+      qosPriorityEscalation(p.qos_priority_escalation),
+      qosPressureGradient(p.qos_pressure_gradient),
+      qosSyncroScheduler(p.qos_syncro_scheduler),
+      totalReadQueueSize(0),
+      totalWriteQueueSize(0),
+      busState(READ),
+      busStateNext(READ),
+      stats(*this),
+      _system(p.system)
 {
     // Set the priority policy
     if (policy) {
@@ -380,7 +382,9 @@ MemCtrl::recordTurnaroundStats(BusState busState, BusState busStateNext)
 double
 MemCtrl::getReadQueuePressure(const uint8_t prio) const
 {
-    if (prio >= _numPriorities) return 0.0;
+    if (prio >= _numPriorities) {
+        return 0.0;
+    }
     return static_cast<double>(readQueueSizes[prio]) +
            0.5 * static_cast<double>(readArrivals[prio]);
 }
@@ -388,7 +392,9 @@ MemCtrl::getReadQueuePressure(const uint8_t prio) const
 double
 MemCtrl::getWriteQueuePressure(const uint8_t prio) const
 {
-    if (prio >= _numPriorities) return 0.0;
+    if (prio >= _numPriorities) {
+        return 0.0;
+    }
     return static_cast<double>(writeQueueSizes[prio]) +
            0.5 * static_cast<double>(writeArrivals[prio]);
 }

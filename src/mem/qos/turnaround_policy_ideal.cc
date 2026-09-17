@@ -86,12 +86,13 @@ TurnaroundPolicyIdeal::selectBusState()
             }
         }
 
-        DPRINTF(QOS, "QoSTurnaroundPolicyIdeal pressure gradient: "
-                     "g_read %.2f, g_write %.2f, hysteresis %.2f, "
-                     "bus_state %s -> %s\n",
-                     g_read, g_write, hysteresisThreshold,
-                     memCtrl->getBusState() == MemCtrl::READ ? "READ" : "WRITE",
-                     bus_state == MemCtrl::READ ? "READ" : "WRITE");
+        DPRINTF(QOS,
+                "QoSTurnaroundPolicyIdeal pressure gradient: "
+                "g_read %.2f, g_write %.2f, hysteresis %.2f, "
+                "bus_state %s -> %s\n",
+                g_read, g_write, hysteresisThreshold,
+                memCtrl->getBusState() == MemCtrl::READ ? "READ" : "WRITE",
+                bus_state == MemCtrl::READ ? "READ" : "WRITE");
 
         return bus_state;
     }
