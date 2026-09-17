@@ -68,6 +68,10 @@ class BaseCacheCompressor(SimObject):
         False,
         "Enable adaptive bypass of compression/decompression when observed compression ratio is below threshold",
     )
+    decay_factor = Param.Float(
+        0.90,
+        "Decay factor applied to historical compressed and uncompressed bit counters on each sampling interval",
+    )
     latency_breakeven_threshold = Param.Float(
         1.0,
         "Observed compression ratio threshold below which compression is bypassed",

@@ -128,6 +128,9 @@ class Base : public SimObject
     /** Whether adaptive compression bypass is enabled. */
     const bool enableAdaptiveBypass;
 
+    /** Decay factor for historical bit counter windowing. */
+    const float decayFactor;
+
     /** Compression ratio threshold below which compression is bypassed. */
     const float latencyBreakevenThreshold;
 
@@ -141,10 +144,10 @@ class Base : public SimObject
     uint64_t totalCompressionRequests;
 
     /** Total uncompressed bits of sampled blocks. */
-    uint64_t sampledUncompressedBits;
+    double sampledUncompressedBits;
 
     /** Total compressed bits of sampled blocks. */
-    uint64_t sampledCompressedBits;
+    double sampledCompressedBits;
 
     /** Pointer to the parent cache. */
     BaseCache* cache;
