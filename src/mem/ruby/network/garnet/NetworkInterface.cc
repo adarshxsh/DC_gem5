@@ -385,8 +385,8 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
     OutputPort *oPort = getOutportForVnet(vnet);
     assert(oPort);
 
-    int msg_bytes = m_net_ptr->MessageSizeType_to_int(
-        net_msg_ptr->getMessageSize());
+    int msg_bytes =
+        m_net_ptr->MessageSizeType_to_int(net_msg_ptr->getMessageSize());
 
     // Inspect packet compressed size / dynamic payload size
     int comp_size = net_msg_ptr->getPayloadSizeInBytes();
@@ -407,7 +407,7 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
     int num_flits = (int)divCeil((float)msg_bytes, (float)oPort->bitWidth());
 
     DPRINTF(RubyNetwork, "Message Size:%d vnet:%d bitWidth:%d num_flits:%d\n",
-        msg_bytes, vnet, oPort->bitWidth(), num_flits);
+            msg_bytes, vnet, oPort->bitWidth(), num_flits);
 
     // loop to convert all multicast messages into unicast messages
     for (int ctr = 0; ctr < dest_nodes.size(); ctr++) {
@@ -467,10 +467,9 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
         int packet_id = m_net_ptr->getNextPacketID();
         for (int i = 0; i < num_flits; i++) {
             m_net_ptr->increment_injected_flits(vnet);
-            flit *fl = new flit(packet_id,
-                i, vc, vnet, route, num_flits, new_msg_ptr,
-                msg_bytes,
-                oPort->bitWidth(), curTick());
+            flit *fl =
+                new flit(packet_id, i, vc, vnet, route, num_flits, new_msg_ptr,
+                         msg_bytes, oPort->bitWidth(), curTick());
 
             fl->set_src_delay(curTick() - msg_ptr->getTime());
             niOutVcs[vc].insert(fl);
