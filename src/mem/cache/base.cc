@@ -246,9 +246,12 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
     }
 
     WriteQueueEntry *wq_entry =
-        writeBuffer.findMatch(blk_addr, pkt->isSecure());
+        writeBuffer.findCoalesce(blk_addr, blkSize, pkt, pkt->isSecure());
     if (wq_entry && !wq_entry->inService) {
-        DPRINTF(Cache, "Potential to merge writeback %s", pkt->print());
+        DPRINTF(Cache, "Coalescing writeback %s into entry %#llx",
+                pkt->print(), wq_entry->blkAddr);
+        wq_entry->coalesceSubBlock(pkt, time, order++);
+        return;
     }
 
     writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++);

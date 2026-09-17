@@ -111,6 +111,12 @@ class WriteQueueEntry : public QueueEntry, public Printable
     /** List of all requests that match the address */
     TargetList targets;
 
+    /** Default size of a sub-block in bytes for sub-block compression tracking */
+    static constexpr unsigned DEFAULT_SUBBLOCK_SIZE = 16;
+
+    /** Track dirty status per sub-block */
+    std::vector<bool> subBlockDirty;
+
   public:
 
     /** A simple constructor. */
@@ -128,6 +134,36 @@ class WriteQueueEntry : public QueueEntry, public Printable
      */
     void allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
                   Tick when_ready, Counter _order);
+
+    /**
+     * Mark sub-block boundaries dirty given an offset and length within block.
+     */
+    void markSubBlocksDirty(Addr offset, unsigned size);
+
+    /**
+     * Check if a specific sub-block is dirty.
+     */
+    bool isSubBlockDirty(size_t index) const;
+
+    /**
+     * Get number of dirty sub-blocks.
+     */
+    unsigned getNumDirtySubBlocks() const;
+
+    /**
+     * Get total number of sub-blocks tracked.
+     */
+    unsigned getNumSubBlocks() const;
+
+    /**
+     * Get reference to sub-block dirty mask vector.
+     */
+    const std::vector<bool>& getSubBlockDirtyMask() const { return subBlockDirty; }
+
+    /**
+     * Coalesce a write into this entry while tracking sub-block boundaries.
+     */
+    void coalesceSubBlock(PacketPtr pkt, Tick when_ready, Counter _order);
 
 
     /**
