@@ -139,6 +139,10 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
         decay_shift: int = 4,
+        enable_queue_pressure_throttling: bool = False,
+        mem_queue_high_thresh: int = 80,
+        mem_queue_low_thresh: int = 50,
+        compressor_pressure_policy: str = "default",
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -169,6 +173,12 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._decay_shift = decay_shift
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
+        self._mem_queue_high_thresh = mem_queue_high_thresh
+        self._mem_queue_low_thresh = mem_queue_low_thresh
+        self._compressor_pressure_policy = compressor_pressure_policy
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -198,6 +208,16 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
                 l2.compressor.decay_shift = self._decay_shift
+            if hasattr(l2.compressor, "enable_queue_pressure_throttling"):
+                l2.compressor.enable_queue_pressure_throttling = (
+                    self._enable_queue_pressure_throttling
+                )
+                l2.compressor.high_queue_pressure_threshold = (
+                    self._mem_queue_high_thresh
+                )
+                l2.compressor.low_queue_pressure_threshold = (
+                    self._mem_queue_low_thresh
+                )
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
@@ -221,6 +241,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         from m5.objects import NULL
 
+        mem_ctrls = board.get_memory().get_memory_controllers()
+        for ctrl in mem_ctrls:
+            ctrl.queue_pressure_high_threshold = self._mem_queue_high_thresh
+            ctrl.queue_pressure_low_threshold = self._mem_queue_low_thresh
+
         l2buses = []
         for i in range(board.get_processor().get_num_cores()):
             l2_bus = L2XBar()
@@ -230,6 +255,8 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         for i, cpu in enumerate(board.get_processor().get_cores()):
             l2_cache = self._create_l2_cache()
+            if hasattr(l2_cache, "compressor") and l2_cache.compressor:
+                l2_cache.compressor.memory_controllers = mem_ctrls
             l2_node = self.add_root_child(f"l2-cache-{i}", l2_cache)
 
             l1i_node = l2_node.add_child(
@@ -433,6 +460,38 @@ parser.add_argument(
     help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
 )
 
+parser.add_argument(
+    "--enable-queue-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable queue pressure throttling on compressor and memory controller.",
+)
+
+parser.add_argument(
+    "--mem-queue-high-thresh",
+    type=int,
+    required=False,
+    default=80,
+    help="High memory queue pressure threshold percentage (default: 80).",
+)
+
+parser.add_argument(
+    "--mem-queue-low-thresh",
+    type=int,
+    required=False,
+    default=50,
+    help="Low memory queue pressure threshold percentage (default: 50).",
+)
+
+parser.add_argument(
+    "--compressor-pressure-policy",
+    type=str,
+    required=False,
+    default="default",
+    help="Compressor pressure policy string (default: default).",
+)
+
 args = parser.parse_args()
 
 
@@ -492,6 +551,10 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
     decay_shift=args.decay_shift,
+    enable_queue_pressure_throttling=args.enable_queue_pressure_throttling,
+    mem_queue_high_thresh=args.mem_queue_high_thresh,
+    mem_queue_low_thresh=args.mem_queue_low_thresh,
+    compressor_pressure_policy=args.compressor_pressure_policy,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
