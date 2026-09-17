@@ -41,7 +41,7 @@ from m5.proxy import *
 
 # QoS Queue Selection policy used to select packets among same-QoS queues
 class QoSQPolicy(Enum):
-    vals = ["fifo", "lifo", "lrg"]
+    vals = ["fifo", "lifo", "lrg", "cp"]
 
 
 class QoSMemCtrl(ClockedObject):
@@ -83,6 +83,11 @@ class QoSMemCtrl(ClockedObject):
     # flag to enable QoS priority escalation
     qos_priority_escalation = Param.Bool(
         False, "Enables QoS priority escalation"
+    )
+
+    # flag to enable multi-level dynamic queue pressure gradient analysis
+    qos_pressure_gradient = Param.Bool(
+        False, "Enables multi-level dynamic queue pressure gradient analysis"
     )
 
     # Requestor ID to be mapped to service parameters in QoS schedulers
