@@ -283,10 +283,10 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0.0)
-                                   ? (sampledUncompressedBits /
-                                      sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
+        double observedRatio =
+            (sampledCompressedBits > 0.0)
+                ? (sampledUncompressedBits / sampledCompressedBits)
+                : (latencyBreakevenThreshold + 1.0);
         if (observedRatio < latencyBreakevenThreshold) {
             stats.bypassedDecompressions += 1;
         }
