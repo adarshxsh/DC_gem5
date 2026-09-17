@@ -199,7 +199,8 @@ class SuperBlk : public SectorBlk
      * Checks whether a superblock can co-allocate given compressed data block.
      *
      * @param compressed_size Size, in bits, of new block to allocate.
-     * @param is_prefetch True if the block is being filled by a prefetch request.
+     * @param is_prefetch True if the block is being filled by a prefetch
+     * request.
      * @return True if block can be co-allocated in superblock.
      */
     bool canCoAllocate(const std::size_t compressed_size,

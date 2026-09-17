@@ -295,16 +295,20 @@ TEST_F(SuperBlkTestFixture, PreventPrefetchCompressionDowngrade)
     ASSERT_EQ(superBlk.getCompressionFactor(), 4);
 
     // 256 bits corresponds to CF=2.
-    // Low-compression prefetch (CF=2 < min_cf=4) must be blocked from co-allocating.
+    // Low-compression prefetch (CF=2 < min_cf=4) must be blocked from
+    // co-allocating.
     ASSERT_FALSE(superBlk.canCoAllocate(256, /*is_prefetch=*/true));
 
-    // Demand fill with lower compression factor (CF=2) is allowed to co-allocate.
+    // Demand fill with lower compression factor (CF=2) is allowed to
+    // co-allocate.
     ASSERT_TRUE(superBlk.canCoAllocate(256, /*is_prefetch=*/false));
 
-    // High/matching-compression prefetch (CF=4 >= min_cf=4) is allowed to co-allocate.
+    // High/matching-compression prefetch (CF=4 >= min_cf=4) is allowed to
+    // co-allocate.
     ASSERT_TRUE(superBlk.canCoAllocate(128, /*is_prefetch=*/true));
 
-    // Co-allocate block 1 at offset 1 with matching factor (CF=4) as prefetch line
+    // Co-allocate block 1 at offset 1 with matching factor (CF=4) as prefetch
+    // line
     subBlks[1].insert({0x1000, false});
     subBlks[1].setPrefetched();
     subBlks[1].setSizeBits(128);
