@@ -83,6 +83,10 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         l2_size: str = "512KiB",
         l2_assoc: int = 16,
         compressor: str = "none",
+        enable_queue_pressure_throttling: bool = False,
+        mem_queue_high_thresh: int = 80,
+        mem_queue_low_thresh: int = 50,
+        compressor_pressure_policy: str = "default",
         membus: Optional[SystemXBar] = None,
     ) -> None:
         AbstractClassicCacheHierarchy.__init__(self)
@@ -101,6 +105,12 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._l2_size = l2_size
         self._l2_assoc = l2_assoc
         self._compressor_choice = compressor.lower()
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
+        self._mem_queue_high_thresh = mem_queue_high_thresh
+        self._mem_queue_low_thresh = mem_queue_low_thresh
+        self._compressor_pressure_policy = compressor_pressure_policy
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -135,6 +145,17 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             else:
                 l2.compressor = BDI()
 
+            if hasattr(l2.compressor, "enable_queue_pressure_throttling"):
+                l2.compressor.enable_queue_pressure_throttling = (
+                    self._enable_queue_pressure_throttling
+                )
+                l2.compressor.high_queue_pressure_threshold = (
+                    self._mem_queue_high_thresh
+                )
+                l2.compressor.low_queue_pressure_threshold = (
+                    self._mem_queue_low_thresh
+                )
+
             l2.tags = CompressedTags()
             print(
                 f"[CompressionEval] L2 cache configured with {l2.compressor.type} compressor "
@@ -156,6 +177,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         from m5.objects import NULL
 
+        mem_ctrls = board.get_memory().get_memory_controllers()
+        for ctrl in mem_ctrls:
+            ctrl.queue_pressure_high_threshold = self._mem_queue_high_thresh
+            ctrl.queue_pressure_low_threshold = self._mem_queue_low_thresh
+
         l2buses = []
         for i in range(board.get_processor().get_num_cores()):
             l2_bus = L2XBar()
@@ -165,6 +191,8 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         for i, cpu in enumerate(board.get_processor().get_cores()):
             l2_cache = self._create_l2_cache()
+            if hasattr(l2_cache, "compressor") and l2_cache.compressor:
+                l2_cache.compressor.memory_controllers = mem_ctrls
             l2_node = self.add_root_child(f"l2-cache-{i}", l2_cache)
 
             l1i_node = l2_node.add_child(
@@ -358,6 +386,34 @@ parser.add_argument(
     help="Number of instructions for measured ROI (default: 10M).",
 )
 
+parser.add_argument(
+    "--enable-queue-pressure-throttling",
+    action="store_true",
+    default=False,
+    help="Enable queue pressure throttling on compressor and memory controller.",
+)
+
+parser.add_argument(
+    "--mem-queue-high-thresh",
+    type=int,
+    default=80,
+    help="High memory queue pressure threshold percentage (default: 80).",
+)
+
+parser.add_argument(
+    "--mem-queue-low-thresh",
+    type=int,
+    default=50,
+    help="Low memory queue pressure threshold percentage (default: 50).",
+)
+
+parser.add_argument(
+    "--compressor-pressure-policy",
+    type=str,
+    default="default",
+    help="Compressor pressure policy string (default: default).",
+)
+
 args = parser.parse_args()
 
 # Normalize compressor choice
@@ -428,6 +484,10 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     l2_size=args.l2_size,
     l2_assoc=16,
     compressor=chosen_compressor,
+    enable_queue_pressure_throttling=args.enable_queue_pressure_throttling,
+    mem_queue_high_thresh=args.mem_queue_high_thresh,
+    mem_queue_low_thresh=args.mem_queue_low_thresh,
+    compressor_pressure_policy=args.compressor_pressure_policy,
 )
 
 memory = DualChannelDDR4_2400(size="3GiB")
