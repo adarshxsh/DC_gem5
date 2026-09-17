@@ -62,6 +62,7 @@
 #include "mem/cache/cache_probe_arg.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/cache/tags/base.hh"
+#include "mem/cache/tags/compressed_tags.hh"
 #include "mem/cache/write_queue.hh"
 #include "mem/packet.hh"
 #include "mem/packet_queue.hh"
@@ -367,6 +368,9 @@ class BaseCache : public ClockedObject
 
     /** Tag and data Storage */
     BaseTags *tags;
+
+    /** Pointer to CompressedTags if cache tags derive from CompressedTags */
+    CompressedTags *compressedTags;
 
     /** Compression method being used. */
     compression::Base* compressor;
@@ -1186,9 +1190,22 @@ class BaseCache : public ClockedObject
 
     MSHR *allocateMissBuffer(PacketPtr pkt, Tick time, bool sched_send = true)
     {
+        uint16_t estimated_size = 0;
+        if (compressor) {
+            if (pkt->hasData()) {
+                Cycles c_lat, d_lat;
+                const auto comp_data = compressor->compress(
+                    pkt->getConstPtr<uint64_t>(), c_lat, d_lat);
+                estimated_size = comp_data->getSizeBits();
+            } else {
+                estimated_size = (blkSize * 8) / 2;
+            }
+        }
+
         MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
                                         pkt, time, order++,
-                                        allocOnFill(pkt->cmd));
+                                        allocOnFill(pkt->cmd),
+                                        estimated_size);
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);
@@ -1197,6 +1214,12 @@ class BaseCache : public ClockedObject
         if (sched_send) {
             // schedule the send
             schedMemSideSendEvent(time);
+        }
+
+        if (compressedTags) {
+            compressedTags->reserveSlot(
+                {pkt->getBlockAddr(blkSize), pkt->isSecure()},
+                estimated_size);
         }
 
         return mshr;

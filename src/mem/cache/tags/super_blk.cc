@@ -43,7 +43,8 @@ namespace gem5
 {
 
 CompressionBlk::CompressionBlk()
-    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false)
+    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false),
+      _reserved(false), _reservedSize(0)
 {
 }
 
@@ -149,6 +150,7 @@ CompressionBlk::invalidate()
 {
     SectorSubBlk::invalidate();
     setUncompressed();
+    clearReserved();
     _size = 0;
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
@@ -207,6 +209,22 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
     return true;
 }
 
+uint8_t
+SuperBlk::getNumReserved() const
+{
+    uint8_t count = 0;
+    for (const auto& blk : blks) {
+        if (blk && !blk->isValid()) {
+            const CompressionBlk* cblk =
+                static_cast<const CompressionBlk*>(blk);
+            if (cblk->isReserved()) {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
 bool
 SuperBlk::canCoAllocate(const std::size_t compressed_size) const
 {
@@ -219,12 +237,39 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    const uint8_t target_cf =
-        (getNumValid() == 0) ? new_blk_cf
-                             : std::min(getCompressionFactor(), new_blk_cf);
+    uint8_t current_cf = getCompressionFactor();
+    uint8_t min_reserved_cf = blks.size();
+    bool has_reserved = false;
+    std::size_t total_bits = compressed_size;
 
-    return (target_cf > 1) && (getNumValid() < target_cf) &&
-           (compressed_size <= (blkSize * CHAR_BIT) / target_cf);
+    for (const auto& blk : blks) {
+        if (blk->isValid()) {
+            const CompressionBlk* cblk =
+                static_cast<const CompressionBlk*>(blk);
+            total_bits += cblk->getSizeBits();
+        } else {
+            const CompressionBlk* cblk =
+                static_cast<const CompressionBlk*>(blk);
+            if (cblk->isReserved()) {
+                has_reserved = true;
+                std::size_t res_size = cblk->getReservedSize();
+                total_bits += res_size;
+                uint8_t r_cf = calculateCompressionFactor(res_size);
+                if (r_cf < min_reserved_cf) {
+                    min_reserved_cf = r_cf;
+                }
+            }
+        }
+    }
+
+    uint8_t num_allocated = getNumValid() + getNumReserved();
+
+    const uint8_t target_cf = (num_allocated == 0) ? new_blk_cf :
+        std::min({current_cf, new_blk_cf,
+                  has_reserved ? min_reserved_cf : new_blk_cf});
+
+    return (target_cf > 1) && (num_allocated < target_cf) &&
+           (total_bits <= blkSize * CHAR_BIT);
 }
 
 void

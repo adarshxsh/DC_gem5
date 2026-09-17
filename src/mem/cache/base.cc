@@ -134,10 +134,11 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
         prefetcher->setParentInfo(system, getProbeManager(), getBlockSize());
     }
 
-    fatal_if(compressor && !dynamic_cast<CompressedTags*>(tags),
+    compressedTags = dynamic_cast<CompressedTags*>(tags);
+    fatal_if(compressor && !compressedTags,
         "The tags of compressed cache %s must derive from CompressedTags",
         name());
-    warn_if(!compressor && dynamic_cast<CompressedTags*>(tags),
+    warn_if(!compressor && compressedTags,
         "Compressed cache %s does not have a compression algorithm", name());
     if (compressor)
         compressor->setCache(this);
@@ -651,6 +652,10 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             // check the isFull condition before and after as we might
             // have been using the reserved entries already
             const bool was_full = mshrQueue.isFull();
+            if (compressedTags) {
+                compressedTags->releaseReservedSlot(
+                    {mshr->getBlockAddr(blkSize), mshr->isSecure()});
+            }
             mshrQueue.deallocate(mshr);
             if (was_full && !mshrQueue.isFull()) {
                 clearBlocked(Blocked_NoMSHRs);

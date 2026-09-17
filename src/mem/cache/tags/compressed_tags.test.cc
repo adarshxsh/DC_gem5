@@ -33,6 +33,7 @@
 #include <memory>
 #include <vector>
 
+#include "mem/cache/mshr.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
 
@@ -281,4 +282,32 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             verifyInvariants(sblks[i]);
         }
     }
+}
+
+TEST_F(SuperBlkTestFixture, MSHRTargetEstimatedCompressSize)
+{
+    MSHR::Target target(nullptr, 100, 1, MSHR::Target::FromCPU, true, true, 256);
+    ASSERT_EQ(target.estimatedCompressSize, 256);
+}
+
+TEST_F(SuperBlkTestFixture, SlotReservationAndRelease)
+{
+    // Populate superblock with 1 valid sub-block at offset 0 (size 256 bits -> CF=2)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(256);
+
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getNumReserved(), 0);
+    ASSERT_TRUE(superBlk.canCoAllocate(256));
+
+    // Reserve slot at offset 1 for 256 bits
+    subBlks[1].setReserved(true, 256);
+    ASSERT_EQ(superBlk.getNumReserved(), 1);
+    // Capacity full: 1 valid + 1 reserved = 2 sub-blocks (CF=2)
+    ASSERT_FALSE(superBlk.canCoAllocate(256));
+
+    // Release reserved slot
+    subBlks[1].clearReserved();
+    ASSERT_EQ(superBlk.getNumReserved(), 0);
+    ASSERT_TRUE(superBlk.canCoAllocate(256));
 }

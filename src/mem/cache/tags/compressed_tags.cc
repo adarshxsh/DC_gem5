@@ -120,6 +120,57 @@ CompressedTags::tagsInit()
     }
 }
 
+bool
+CompressedTags::reserveSlot(const CacheBlk::KeyType& key,
+                            std::size_t estimated_compress_size)
+{
+    std::vector<ReplaceableEntry*> superblock_entries =
+        indexingPolicy->getPossibleEntries(key);
+
+    const uint64_t offset = extractSectorOffset(key.address);
+    for (const auto& entry : superblock_entries) {
+        SuperBlk* superblock = static_cast<SuperBlk*>(entry);
+        if (superblock->match(key) &&
+            !superblock->blks[offset]->isValid() &&
+            superblock->isCompressed())
+        {
+            CompressionBlk* cblk =
+                static_cast<CompressionBlk*>(superblock->blks[offset]);
+            if (!cblk->isReserved() &&
+                superblock->canCoAllocate(estimated_compress_size))
+            {
+                cblk->setReserved(true, estimated_compress_size);
+                DPRINTF(CacheComp, "Reserved slot offset %lu in %s for addr %#llx\n",
+                        offset, superblock->print(), key.address);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void
+CompressedTags::releaseReservedSlot(const CacheBlk::KeyType& key)
+{
+    std::vector<ReplaceableEntry*> superblock_entries =
+        indexingPolicy->getPossibleEntries(key);
+
+    const uint64_t offset = extractSectorOffset(key.address);
+    for (const auto& entry : superblock_entries) {
+        SuperBlk* superblock = static_cast<SuperBlk*>(entry);
+        if (superblock->match(key)) {
+            CompressionBlk* cblk =
+                static_cast<CompressionBlk*>(superblock->blks[offset]);
+            if (cblk->isReserved()) {
+                cblk->clearReserved();
+                DPRINTF(CacheComp, "Released reserved slot offset %lu in %s for addr %#llx\n",
+                        offset, superblock->print(), key.address);
+                return;
+            }
+        }
+    }
+}
+
 CacheBlk*
 CompressedTags::findVictim(const CacheBlk::KeyType& key,
                            const std::size_t compressed_size,
@@ -145,12 +196,28 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) &&
             !superblock->blks[offset]->isValid() &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
+            superblock->isCompressed())
         {
-            victim_superblock = superblock;
-            is_co_allocation = true;
-            break;
+            CompressionBlk* cblk =
+                static_cast<CompressionBlk*>(superblock->blks[offset]);
+            if (cblk->isReserved()) {
+                cblk->clearReserved();
+                if (superblock->canCoAllocate(compressed_size)) {
+                    victim_superblock = superblock;
+                    is_co_allocation = true;
+                    DPRINTF(CacheComp, "Utilizing reserved slot offset %lu in %s for addr %#llx\n",
+                            offset, superblock->print(), key.address);
+                    break;
+                } else {
+                    DPRINTF(CacheComp, "Releasing reserved slot offset %lu in %s for addr %#llx (size %llu exceeds prediction)\n",
+                            offset, superblock->print(), key.address,
+                            compressed_size);
+                }
+            } else if (superblock->canCoAllocate(compressed_size)) {
+                victim_superblock = superblock;
+                is_co_allocation = true;
+                break;
+            }
         }
     }
 

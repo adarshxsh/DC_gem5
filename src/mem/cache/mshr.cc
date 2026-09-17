@@ -159,7 +159,7 @@ MSHR::TargetList::updateWriteFlags(PacketPtr pkt)
 inline void
 MSHR::TargetList::add(PacketPtr pkt, Tick readyTime,
                       Counter order, Target::Source source, bool markPending,
-                      bool alloc_on_fill)
+                      bool alloc_on_fill, uint16_t estimated_compress_size)
 {
     updateFlags(pkt, source, alloc_on_fill);
     if (markPending) {
@@ -176,7 +176,8 @@ MSHR::TargetList::add(PacketPtr pkt, Tick readyTime,
         }
     }
 
-    emplace_back(pkt, readyTime, order, source, markPending, alloc_on_fill);
+    emplace_back(pkt, readyTime, order, source, markPending, alloc_on_fill,
+                 estimated_compress_size);
 
     DPRINTF(MSHR, "New target allocated: %s\n", pkt->print());
 }
@@ -298,7 +299,8 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
 
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
-               Tick when_ready, Counter _order, bool alloc_on_fill)
+               Tick when_ready, Counter _order, bool alloc_on_fill,
+               uint16_t estimated_compress_size)
 {
     blkAddr = blk_addr;
     blkSize = blk_size;
@@ -319,7 +321,8 @@ MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
     // snoop (mem-side request), so set source according to request here
     Target::Source source = (target->cmd == MemCmd::HardPFReq) ?
         Target::FromPrefetcher : Target::FromCPU;
-    targets.add(target, when_ready, _order, source, true, alloc_on_fill);
+    targets.add(target, when_ready, _order, source, true, alloc_on_fill,
+                estimated_compress_size);
 
     // All targets must refer to the same block
     assert(target->matchBlockAddr(targets.front().pkt, blkSize));
@@ -371,7 +374,7 @@ MSHR::deallocate()
  */
 void
 MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
-                     bool alloc_on_fill)
+                     bool alloc_on_fill, uint16_t estimated_compress_size)
 {
     // assume we'd never issue a prefetch when we've got an
     // outstanding miss
@@ -403,14 +406,14 @@ MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
         if (inService && hasPostInvalidate())
             replaceUpgrade(pkt);
         deferredTargets.add(pkt, whenReady, _order, Target::FromCPU, true,
-                            alloc_on_fill);
+                            alloc_on_fill, estimated_compress_size);
     } else {
         // No request outstanding, or still OK to append to
         // outstanding request: append to regular target list.  Only
         // mark pending if current request hasn't been issued yet
         // (isn't in service).
         targets.add(pkt, whenReady, _order, Target::FromCPU, !inService,
-                    alloc_on_fill);
+                    alloc_on_fill, estimated_compress_size);
     }
 
     DPRINTF(MSHR, "After target allocation: %s", print());
