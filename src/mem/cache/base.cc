@@ -1081,7 +1081,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             victim = tags->findVictim(
                 {regenerateBlkAddr(blk), blk->isSecure()},
                 compression_size, evict_blks,
-                blk->getPartitionId());
+                blk->getPartitionId(), blk->wasPrefetched());
 
             // It is valid to return nullptr if there is no victim
             if (!victim) {
@@ -1693,10 +1693,12 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // get partitionId from Packet
     const auto partition_id = partitionManager ?
         partitionManager->readPacketPartitionID(pkt) : 0;
+    const bool is_prefetch = pkt->cmd.isPrefetch() || pkt->isPrefetch() ||
+                             (pkt->req && pkt->req->isPrefetch());
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim = tags->findVictim({addr, is_secure}, blk_size_bits,
-                                        evict_blks, partition_id);
+                                        evict_blks, partition_id, is_prefetch);
 
     // It is valid to return nullptr if there is no victim
     if (!victim)
@@ -1712,6 +1714,10 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
     // Insert new block at victimized entry
     tags->insertBlock(pkt, victim);
+
+    if (is_prefetch) {
+        victim->setPrefetched();
+    }
 
     // If using a compressor, set compression data. This must be done after
     // insertion, as the compression bit may be set.
