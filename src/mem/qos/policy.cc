@@ -49,7 +49,8 @@ namespace qos
 {
 
 Policy::Policy(const Params &p)
-  : SimObject(p)
+  : SimObject(p),
+    enableCompressionAwareness(p.enable_compression_awareness)
 {}
 
 Policy::~Policy() {}
@@ -58,6 +59,27 @@ uint8_t
 Policy::schedule(const PacketPtr pkt)
 {
     assert(pkt->req);
+
+    if (enableCompressionAwareness && pkt->isCompressed()) {
+        double cr = pkt->getCompressionRatio();
+        uint64_t eff_len = pkt->getCompressedSize();
+        uint8_t base_prio = schedule(pkt->req->requestorId(), eff_len);
+        uint8_t num_prios = memCtrl ? memCtrl->numPriorities() : 16;
+
+        uint8_t bonus = static_cast<uint8_t>(
+            std::min<double>(num_prios - 1, cr - 1.0));
+        uint8_t final_prio = base_prio + bonus;
+        if (final_prio >= num_prios) {
+            final_prio = num_prios - 1;
+        }
+        DPRINTF(QOS, "QoSPolicy::schedule compression-aware: req %d, "
+                     "comp_size %d, orig_size %d, ratio %.2f, "
+                     "base_prio %d -> final_prio %d\n",
+                     pkt->req->requestorId(), eff_len, pkt->getSize(),
+                     cr, base_prio, final_prio);
+        return final_prio;
+    }
+
     return schedule(pkt->req->requestorId(), pkt->getSize());
 }
 

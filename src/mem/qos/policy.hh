@@ -121,6 +121,9 @@ class Policy : public SimObject
   protected:
     /** Pointer to parent memory controller implementing the policy */
     MemCtrl* memCtrl;
+
+    /** Enables compression-aware priority grading */
+    const bool enableCompressionAwareness;
 };
 
 template <typename Requestor, typename T>

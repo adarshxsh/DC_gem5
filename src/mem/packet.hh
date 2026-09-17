@@ -404,6 +404,9 @@ class Packet : public Printable, public Extensible<Packet>
     // Quality of Service priority value
     uint8_t _qosValue;
 
+    // Compressed transfer size in bytes (0 if uncompressed)
+    unsigned _compressedSize;
+
     // hardware transactional memory
 
     /**
@@ -777,6 +780,27 @@ class Packet : public Printable, public Extensible<Packet>
     inline void qosValue(const uint8_t qos_value)
     { _qosValue = qos_value; }
 
+    inline unsigned getCompressedSize() const
+    {
+        return (_compressedSize > 0) ? _compressedSize : size;
+    }
+
+    inline void setCompressedSize(const unsigned csize)
+    {
+        _compressedSize = csize;
+    }
+
+    inline bool isCompressed() const
+    {
+        return (_compressedSize > 0) && (_compressedSize < size);
+    }
+
+    inline double getCompressionRatio() const
+    {
+        const unsigned cs = getCompressedSize();
+        return (cs > 0) ? static_cast<double>(size) / cs : 1.0;
+    }
+
     inline RequestorID requestorId() const { return req->requestorId(); }
 
     // Network error conditions... encapsulate them as methods since
@@ -877,7 +901,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd)
         :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false), size(0),
-           _qosValue(0),
+           _qosValue(0), _compressedSize(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0), snoopDelay(0),
@@ -918,7 +942,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
         :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false),
-           _qosValue(0),
+           _qosValue(0), _compressedSize(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0),
@@ -947,7 +971,7 @@ class Packet : public Printable, public Extensible<Packet>
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
            bytesValid(pkt->bytesValid),
-           _qosValue(pkt->qosValue()),
+           _qosValue(pkt->qosValue()), _compressedSize(pkt->_compressedSize),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(pkt->headerDelay),

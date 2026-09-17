@@ -44,6 +44,10 @@ class QoSPolicy(SimObject):
     cxx_header = "mem/qos/policy.hh"
     cxx_class = "gem5::memory::qos::Policy"
 
+    enable_compression_awareness = Param.Bool(
+        False, "Enable compression-aware QoS priority grading"
+    )
+
 
 class QoSFixedPriorityPolicy(QoSPolicy):
     type = "QoSFixedPriorityPolicy"

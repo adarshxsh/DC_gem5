@@ -98,6 +98,15 @@ class MemCtrl : public ClockedObject
     /** Enables QoS priority escalation */
     const bool qosPriorityEscalation;
 
+    /** Enables multi-level dynamic queue pressure gradient analysis */
+    const bool qosPressureGradient;
+
+    /** Read request arrival counts per priority */
+    std::vector<uint64_t> readArrivals;
+
+    /** Write request arrival counts per priority */
+    std::vector<uint64_t> writeArrivals;
+
     /**
      * Enables QoS synchronized scheduling invokes the QoS scheduler
      * on all requestors, at every packet arrival.
@@ -364,6 +373,26 @@ class MemCtrl : public ClockedObject
      * @return total number of priority levels
      */
     uint8_t numPriorities() const { return _numPriorities; }
+
+    /**
+     * Gets queue pressure for a READ priority queue
+     */
+    double getReadQueuePressure(const uint8_t prio) const;
+
+    /**
+     * Gets queue pressure for a WRITE priority queue
+     */
+    double getWriteQueuePressure(const uint8_t prio) const;
+
+    /**
+     * Calculates the dynamic priority-weighted READ queue pressure gradient
+     */
+    double getReadQueuePressureGradient() const;
+
+    /**
+     * Calculates the dynamic priority-weighted WRITE queue pressure gradient
+     */
+    double getWriteQueuePressureGradient() const;
 
     /** read the system pointer
      * @return pointer to the system object */

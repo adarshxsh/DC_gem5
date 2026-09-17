@@ -64,6 +64,38 @@ TurnaroundPolicyIdeal::selectBusState()
     auto bus_state = memCtrl->getBusState();
     const auto num_priorities = memCtrl->numPriorities();
 
+    if (enablePressureGradient) {
+        double g_read = memCtrl->getReadQueuePressureGradient();
+        double g_write = memCtrl->getWriteQueuePressureGradient();
+
+        if (g_read == 0.0 && g_write == 0.0) {
+            return bus_state;
+        }
+
+        if (bus_state == MemCtrl::READ) {
+            if (g_write > g_read + hysteresisThreshold && g_write > 0.0) {
+                bus_state = MemCtrl::WRITE;
+            } else {
+                bus_state = MemCtrl::READ;
+            }
+        } else {
+            if (g_read > g_write + hysteresisThreshold && g_read > 0.0) {
+                bus_state = MemCtrl::READ;
+            } else {
+                bus_state = MemCtrl::WRITE;
+            }
+        }
+
+        DPRINTF(QOS, "QoSTurnaroundPolicyIdeal pressure gradient: "
+                     "g_read %.2f, g_write %.2f, hysteresis %.2f, "
+                     "bus_state %s -> %s\n",
+                     g_read, g_write, hysteresisThreshold,
+                     memCtrl->getBusState() == MemCtrl::READ ? "READ" : "WRITE",
+                     bus_state == MemCtrl::READ ? "READ" : "WRITE");
+
+        return bus_state;
+    }
+
     // QoS-aware turnaround policy
     // Loop for every queue in the memory controller.
     for (uint8_t i = 0; i < num_priorities; i++) {

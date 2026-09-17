@@ -70,6 +70,23 @@ gem5_verify_config(
     length=constants.long_tag,
 )
 
+qos_test_configs = [
+    ("baseline", []),
+    ("compression_aware", ["--compression-aware"]),
+    ("pressure_gradient", ["--pressure-gradient"]),
+    ("unified_qos", ["--compression-aware", "--pressure-gradient", "--q-policy=cp"]),
+]
+
+for qos_name, qos_args in qos_test_configs:
+    gem5_verify_config(
+        name="qos_ctrl_" + qos_name,
+        verifiers=(),
+        config=joinpath(getcwd(), "qos_compression_pressure_run.py"),
+        config_args=qos_args,
+        valid_isas=(constants.null_tag,),
+        length=constants.long_tag,
+    )
+
 null_tests = [
     ("garnet_synth_traffic", None, ["--sim-cycles", "5000000"]),
     ("memcheck", None, ["--maxtick", "2000000000", "--prefetchers"]),

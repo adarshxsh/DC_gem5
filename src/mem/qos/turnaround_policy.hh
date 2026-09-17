@@ -61,7 +61,11 @@ class TurnaroundPolicy : public SimObject
     using Params = QoSTurnaroundPolicyParams;
 
   public:
-    TurnaroundPolicy(const Params &p) : SimObject(p) {};
+    TurnaroundPolicy(const Params &p)
+      : SimObject(p),
+        enablePressureGradient(p.enable_pressure_gradient),
+        hysteresisThreshold(p.hysteresis_threshold)
+    {};
 
     virtual ~TurnaroundPolicy() {};
 
@@ -81,6 +85,12 @@ class TurnaroundPolicy : public SimObject
   protected:
     /** Pointer to container object */
     MemCtrl* memCtrl;
+
+    /** Enables pressure gradient turnaround policy */
+    const bool enablePressureGradient;
+
+    /** Hysteresis threshold to prevent turnaround oscillation */
+    const double hysteresisThreshold;
 };
 
 } // namespace qos
