@@ -34,6 +34,7 @@
 
 #include "mem/cache/tags/super_blk.hh"
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 
@@ -72,9 +73,11 @@ CompressionBlk::operator=(CompressionBlk&& other)
     SuperBlk *dest_super = static_cast<SuperBlk *>(getSectorBlock());
     if (src_super) {
         src_super->updateCompressionFactor();
+        src_super->compact();
     }
     if (dest_super && dest_super != src_super) {
         dest_super->updateCompressionFactor();
+        dest_super->compact();
     }
 
     return *this;
@@ -153,6 +156,7 @@ CompressionBlk::invalidate()
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
         superblock->updateCompressionFactor();
+        superblock->compact();
     }
 }
 
@@ -276,6 +280,13 @@ void
 SuperBlk::setCompressionFactor(const uint8_t compression_factor)
 {
     compressionFactor = compression_factor;
+}
+
+void
+SuperBlk::compact()
+{
+    std::stable_partition(blks.begin(), blks.end(),
+        [](const SectorSubBlk* blk) { return blk->isValid(); });
 }
 
 void

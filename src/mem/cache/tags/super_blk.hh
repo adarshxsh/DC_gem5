@@ -252,6 +252,12 @@ class SuperBlk : public SectorBlk
      */
     void updateCompressionFactor();
 
+    /**
+     * Compact remaining valid sub-blocks to contiguous low-index slots,
+     * consolidating open slots at high indices.
+     */
+    void compact();
+
     void invalidate() override;
 
     std::string print() const override;

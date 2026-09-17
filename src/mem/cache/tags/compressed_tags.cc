@@ -146,7 +146,6 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
             superblock->isCompressed() &&
             superblock->canCoAllocate(compressed_size))
         {
@@ -206,22 +205,46 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = victim_superblock->blks[offset];
-
-    // It would be a hit if victim was valid in a co-allocation, and upgrades
-    // do not call findVictim, so it cannot happen
-    if (is_co_allocation){
+    SectorSubBlk* victim = nullptr;
+    if (is_co_allocation) {
+        victim = victim_superblock->blks[victim_superblock->getNumValid()];
         assert(!victim->isValid());
+        victim->setSectorOffset(offset);
 
         // Print all co-allocated blocks
         DPRINTF(CacheComp, "Co-Allocation: offset %d of %s\n", offset,
                 victim_superblock->print());
+    } else {
+        victim = victim_superblock->blks[0];
+        victim->setSectorOffset(offset);
     }
 
     // Update number of sub-blocks evicted due to a replacement
     sectorStats.evictionsReplacement[evict_blks.size()]++;
 
     return victim;
+}
+
+CacheBlk*
+CompressedTags::findBlock(const CacheBlk::KeyType &key) const
+{
+    const Addr offset = extractSectorOffset(key.address);
+    const std::vector<ReplaceableEntry*> entries =
+        indexingPolicy->getPossibleEntries(key);
+
+    for (const auto& sector : entries) {
+        SuperBlk* superblock = static_cast<SuperBlk*>(sector);
+        if (superblock->match(key)) {
+            for (uint8_t k = 0; k < superblock->getNumValid(); ++k) {
+                SectorSubBlk* blk = superblock->blks[k];
+                if (blk->isValid() && blk->getSectorOffset() == offset) {
+                    return blk;
+                }
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 bool
@@ -240,9 +263,10 @@ CompressedTags::checkInvariants() const
 {
     SectorTags::checkInvariants();
     for (const auto &super_blk : superBlks) {
+        uint8_t num_valid = super_blk.getNumValid();
+        uint8_t cf = super_blk.getCompressionFactor();
         if (super_blk.isValid()) {
-            uint8_t num_valid = super_blk.getNumValid();
-            uint8_t cf = super_blk.getCompressionFactor();
+            assert(num_valid <= cf);
             std::size_t total_bits = 0;
             for (const auto &blk : super_blk.blks) {
                 if (blk->isValid()) {
@@ -259,7 +283,14 @@ CompressedTags::checkInvariants() const
                 assert(super_blk.isCompressed());
             }
         } else {
-            assert(super_blk.getCompressionFactor() == 1);
+            assert(cf == 1);
+        }
+        for (size_t i = 0; i < super_blk.blks.size(); ++i) {
+            if (i < num_valid) {
+                assert(super_blk.blks[i]->isValid());
+            } else {
+                assert(!super_blk.blks[i]->isValid());
+            }
         }
     }
     return true;

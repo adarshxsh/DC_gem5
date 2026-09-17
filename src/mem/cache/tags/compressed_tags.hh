@@ -125,6 +125,15 @@ class CompressedTags : public SectorTags
                          bool is_prefetch = false) override;
 
     /**
+     * Finds the given address in the cache, do not update replacement data.
+     * i.e. This is a no-side-effect find of a block.
+     *
+     * @param key The key (address, secure bit) to find.
+     * @return Pointer to the cache block if found.
+     */
+    CacheBlk* findBlock(const CacheBlk::KeyType &key) const override;
+
+    /**
      * Find if any of the sub-blocks satisfies a condition.
      *
      * The visitor should be a std::function that takes a cache block
