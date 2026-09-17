@@ -113,8 +113,8 @@ InputUnit::wakeup()
         // Return credit token immediately upon flit arrival.
         // On TAIL_ or HEAD_TAIL_ flit arrival, send free_signal = true
         // so upstream VC buffer is immediately freed for the next packet.
-        bool is_free_signal = (t_flit->get_type() == TAIL_ ||
-                               t_flit->get_type() == HEAD_TAIL_);
+        bool is_free_signal =
+            (t_flit->get_type() == TAIL_ || t_flit->get_type() == HEAD_TAIL_);
         increment_credit(vc, is_free_signal, curTick());
 
         int vnet = vc/m_vc_per_vnet;
