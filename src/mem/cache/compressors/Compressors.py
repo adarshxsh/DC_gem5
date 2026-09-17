@@ -81,6 +81,31 @@ class BaseCacheCompressor(SimObject):
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
 
+    ema_alpha = Param.Float(
+        0.125,
+        "EMA smoothing factor for compression feedback controller",
+    )
+    high_watermark_ratio = Param.Float(
+        1.2,
+        "Upper compression ratio watermark threshold to activate compression",
+    )
+    low_watermark_ratio = Param.Float(
+        1.0,
+        "Lower compression ratio watermark threshold to bypass compression",
+    )
+    min_residency_ticks = Param.Unsigned(
+        0,
+        "Minimum residency dwell time in ticks before feedback state transition",
+    )
+    enable_ema = Param.Bool(
+        True,
+        "Enable EMA signal smoothing in feedback controller",
+    )
+    enable_hysteresis = Param.Bool(
+        True,
+        "Enable dual-threshold hysteresis windowing in feedback controller",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"
