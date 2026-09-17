@@ -200,6 +200,39 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
     verifyInvariants(superBlkB);
 }
 
+TEST_F(SuperBlkTestFixture, ReadMissOptimisticSizeCoAllocation)
+{
+    // Insert block 0 at offset 0 (size 64 bits -> CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_TRUE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Uncompressed size (512 bits) fails co-allocation
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
+
+    // Estimate compressed size based on matching superblock's compression factor (CF=8)
+    std::size_t estimated_size = (BlkSize * 8) / superBlk.getCompressionFactor();
+    ASSERT_EQ(estimated_size, 64);
+
+    // Estimated compressed size succeeds co-allocation
+    ASSERT_TRUE(superBlk.canCoAllocate(estimated_size));
+
+    // Co-allocate block 1 at offset 1 with estimated size
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(estimated_size);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+
+    // When fill payload data arrives with actual size 128 bits (CF=4)
+    subBlks[1].setSizeBits(128);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    verifyInvariants(superBlk);
+}
+
 TEST_F(SuperBlkTestFixture, ExpansionContractionCheck)
 {
     subBlks[0].insert({0x3000, false});
