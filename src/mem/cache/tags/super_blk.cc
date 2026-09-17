@@ -43,7 +43,8 @@ namespace gem5
 {
 
 CompressionBlk::CompressionBlk()
-    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false)
+    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false),
+      _reserved(false), _reservedSize(0)
 {
 }
 
@@ -149,6 +150,7 @@ CompressionBlk::invalidate()
 {
     SectorSubBlk::invalidate();
     setUncompressed();
+    clearReserved();
     _size = 0;
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
@@ -207,6 +209,22 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
     return true;
 }
 
+uint8_t
+SuperBlk::getNumReserved() const
+{
+    uint8_t count = 0;
+    for (const auto& blk : blks) {
+        if (blk && !blk->isValid()) {
+            const CompressionBlk* cblk =
+                static_cast<const CompressionBlk*>(blk);
+            if (cblk->isReserved()) {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
 bool
 SuperBlk::hasValidDemand() const
 {
@@ -230,20 +248,23 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    std::size_t bit_sum = 0;
-    std::size_t count = 0;
+    std::size_t total_bits = compressed_size;
+
     for (const auto &blk : blks) {
         if (blk->isValid()) {
             const CompressionBlk *cblk =
                 static_cast<const CompressionBlk *>(blk);
-            bit_sum += cblk->getSizeBits();
-            if (++count >= 4) {
-                break;
+            total_bits += cblk->getSizeBits();
+        } else {
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
+            if (cblk->isReserved()) {
+                total_bits += cblk->getReservedSize();
             }
         }
     }
 
-    return (bit_sum + compressed_size) <= (blkSize * CHAR_BIT);
+    return total_bits <= (blkSize * CHAR_BIT);
 }
 
 void
