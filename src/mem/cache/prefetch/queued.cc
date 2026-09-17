@@ -148,7 +148,7 @@ Queued::printQueue(const std::list<DeferredPacket> &queue) const
 }
 
 size_t
-Queued::getMaxPermittedPrefetches(size_t total) const
+Queued::getMaxPermittedPrefetches(size_t total, double congestion_score) const
 {
     /**
      * Throttle generated prefetches based in the accuracy of the prefetcher.
@@ -173,6 +173,11 @@ Queued::getMaxPermittedPrefetches(size_t total) const
             1 : (total - throttle_pfs);
         max_pfs = min_pfs + (total - min_pfs) *
             usefulPrefetches / issuedPrefetches;
+    }
+
+    if (congestion_score > 0.0) {
+        double congestion_multiplier = std::max(0.0, 1.0 - congestion_score);
+        max_pfs = static_cast<size_t>(std::round(max_pfs * congestion_multiplier));
     }
     return max_pfs;
 }
@@ -208,8 +213,8 @@ Queued::notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi)
     std::vector<AddrPriority> addresses;
     calculatePrefetch(pfi, addresses, cache);
 
-    // Get the maximu number of prefetches that we are allowed to generate
-    size_t max_pfs = getMaxPermittedPrefetches(addresses.size());
+    // Get the maximum number of prefetches that we are allowed to generate
+    size_t max_pfs = getMaxPermittedPrefetches(addresses.size(), cache.getCongestionScore());
 
     // Queue up generated prefetches
     size_t num_pfs = 0;
