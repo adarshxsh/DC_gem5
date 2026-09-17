@@ -678,6 +678,14 @@ class MemCtrl : public qos::MemCtrl
     MemCtrl(const MemCtrlParams &p);
 
     /**
+     * Get the memory controller queue pressure as a percentage occupancy
+     * (maximum of read and write queue utilization percentage).
+     *
+     * @return percentage occupancy of read and write queues (0.0 to 100.0)
+     */
+    virtual double getQueuePressure() const;
+
+    /**
      * Ensure that all interfaced have drained commands
      *
      * @return bool flag, set once drain complete
