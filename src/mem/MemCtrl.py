@@ -118,7 +118,8 @@ class MemCtrl(QoSMemCtrl):
         True, "Enable EMA signal smoothing in feedback controller"
     )
     enable_hysteresis = Param.Bool(
-        True, "Enable dual-threshold hysteresis windowing in feedback controller"
+        True,
+        "Enable dual-threshold hysteresis windowing in feedback controller",
     )
 
 
