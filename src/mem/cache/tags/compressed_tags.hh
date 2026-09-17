@@ -117,9 +117,9 @@ class CompressedTags : public SectorTags
      * @param partition_id Partition ID for resource management.
      * @return Cache block to be replaced.
      */
-    CacheBlk* findVictim(const CacheBlk::KeyType& key,
+    CacheBlk *findVictim(const CacheBlk::KeyType &key,
                          const std::size_t compressed_size,
-                         std::vector<CacheBlk*>& evict_blks,
+                         std::vector<CacheBlk *> &evict_blks,
                          const uint64_t partition_id,
                          bool is_prefetch = false) override;
 

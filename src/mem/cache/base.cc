@@ -1079,9 +1079,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
             victim = tags->findVictim(
-                {regenerateBlkAddr(blk), blk->isSecure()},
-                compression_size, evict_blks,
-                blk->getPartitionId(), blk->wasPrefetched());
+                {regenerateBlkAddr(blk), blk->isSecure()}, compression_size,
+                evict_blks, blk->getPartitionId(), blk->wasPrefetched());
 
             // It is valid to return nullptr if there is no victim
             if (!victim) {

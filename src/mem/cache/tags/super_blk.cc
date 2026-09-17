@@ -208,7 +208,8 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size, bool is_prefetch) const
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        bool is_prefetch) const
 {
     if (!isCompressed()) {
         return false;
