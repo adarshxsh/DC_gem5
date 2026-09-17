@@ -53,3 +53,6 @@ Source('flitBuffer.cc')
 Source('flit.cc')
 Source('Credit.cc')
 Source('NetworkBridge.cc')
+
+GTest('flit_truncation.test', 'flit_truncation.test.cc', 'flit.cc',
+      '../../common/NetDest.cc', with_tag('gem5 simobject'))
