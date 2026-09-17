@@ -65,15 +65,18 @@ TEST(FilteredFeedbackControllerTest, DualThresholdHysteresis)
     ctrl.update(1.1, 100);
     EXPECT_FALSE(ctrl.getState());
 
-    // Input ratio 1.5 -> smoothed = 0.5 * 1.5 + 0.5 * 1.1 = 1.3 > 1.2 -> transitions to true (HIGH)
+    // Input ratio 1.5 -> smoothed = 0.5 * 1.5 + 0.5 * 1.1 = 1.3 > 1.2 ->
+    // transitions to true (HIGH)
     ctrl.update(1.5, 200);
     EXPECT_TRUE(ctrl.getState());
 
-    // Input ratio 1.05 -> smoothed = 0.5 * 1.05 + 0.5 * 1.3 = 1.175 (in deadband between 1.0 and 1.2) -> stays true
+    // Input ratio 1.05 -> smoothed = 0.5 * 1.05 + 0.5 * 1.3 = 1.175 (in
+    // deadband between 1.0 and 1.2) -> stays true
     ctrl.update(1.05, 300);
     EXPECT_TRUE(ctrl.getState());
 
-    // Input ratio 0.5 -> smoothed = 0.5 * 0.5 + 0.5 * 1.175 = 0.8375 < 1.0 -> transitions to false (LOW)
+    // Input ratio 0.5 -> smoothed = 0.5 * 0.5 + 0.5 * 1.175 = 0.8375 < 1.0 ->
+    // transitions to false (LOW)
     ctrl.update(0.5, 400);
     EXPECT_FALSE(ctrl.getState());
 }
@@ -84,7 +87,8 @@ TEST(FilteredFeedbackControllerTest, MinimumResidencyTicks)
     FilteredFeedbackController ctrl(1.0, 10.0, 5.0, 1000, false, true, false);
 
     // Initial state false at tick 0
-    ctrl.update(20.0, 100); // Exceeds high_wm (10.0), but tick 100 < last(0) + 1000 -> remains false
+    ctrl.update(20.0, 100); // Exceeds high_wm (10.0), but tick 100 < last(0) +
+                            // 1000 -> remains false
     EXPECT_FALSE(ctrl.getState());
 
     // At tick 1000: residency met -> transitions to true
@@ -92,7 +96,8 @@ TEST(FilteredFeedbackControllerTest, MinimumResidencyTicks)
     EXPECT_TRUE(ctrl.getState());
     EXPECT_EQ(ctrl.getLastStateChangeTick(), 1000);
 
-    // Signal drops below low_wm (5.0) at tick 1500, but tick 1500 < 1000 + 1000 -> remains true
+    // Signal drops below low_wm (5.0) at tick 1500, but tick 1500 < 1000 +
+    // 1000 -> remains true
     ctrl.update(1.0, 1500);
     EXPECT_TRUE(ctrl.getState());
 
@@ -105,19 +110,23 @@ TEST(FilteredFeedbackControllerTest, MinimumResidencyTicks)
 TEST(FilteredFeedbackControllerTest, FallbackModes)
 {
     // Disabling EMA: raw value passed directly
-    FilteredFeedbackController ctrlNoEMA(0.1, 10.0, 5.0, 0, false, true, false);
+    FilteredFeedbackController ctrlNoEMA(0.1, 10.0, 5.0, 0, false, true,
+                                         false);
     ctrlNoEMA.update(15.0, 100);
     EXPECT_TRUE(ctrlNoEMA.getState());
     EXPECT_DOUBLE_EQ(ctrlNoEMA.getSmoothedValue(), 15.0);
 
     // Disabling Hysteresis: single threshold comparison (>= high_wm)
-    FilteredFeedbackController ctrlNoHyst(0.5, 10.0, 5.0, 0, true, false, false);
+    FilteredFeedbackController ctrlNoHyst(0.5, 10.0, 5.0, 0, true, false,
+                                          false);
     ctrlNoHyst.update(8.0, 100); // 8.0 < 10.0 -> false
     EXPECT_FALSE(ctrlNoHyst.getState());
 
-    ctrlNoHyst.update(12.0, 200); // smoothed = 0.5*12 + 0.5*8 = 10.0 >= 10.0 -> true
+    ctrlNoHyst.update(12.0,
+                      200); // smoothed = 0.5*12 + 0.5*8 = 10.0 >= 10.0 -> true
     EXPECT_TRUE(ctrlNoHyst.getState());
 
-    ctrlNoHyst.update(8.0, 300); // smoothed = 0.5*8 + 0.5*10 = 9.0 < 10.0 -> false
+    ctrlNoHyst.update(8.0,
+                      300); // smoothed = 0.5*8 + 0.5*10 = 9.0 < 10.0 -> false
     EXPECT_FALSE(ctrlNoHyst.getState());
 }

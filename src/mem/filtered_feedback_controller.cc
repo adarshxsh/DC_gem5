@@ -37,13 +37,9 @@
 namespace gem5
 {
 
-FilteredFeedbackController::FilteredFeedbackController(double _alpha,
-                                                       double _high_wm,
-                                                       double _low_wm,
-                                                       Tick _min_residency_ticks,
-                                                       bool _enable_ema,
-                                                       bool _enable_hysteresis,
-                                                       bool _initial_state)
+FilteredFeedbackController::FilteredFeedbackController(
+    double _alpha, double _high_wm, double _low_wm, Tick _min_residency_ticks,
+    bool _enable_ema, bool _enable_hysteresis, bool _initial_state)
     : alpha(_alpha),
       highWatermark(_high_wm),
       lowWatermark(_low_wm),
@@ -54,15 +50,14 @@ FilteredFeedbackController::FilteredFeedbackController(double _alpha,
       currentState(_initial_state),
       lastStateChangeTick(0),
       initialized(false)
-{
-}
+{}
 
 void
 FilteredFeedbackController::setParams(double _alpha, double _high_wm,
-                                       double _low_wm,
-                                       Tick _min_residency_ticks,
-                                       bool _enable_ema,
-                                       bool _enable_hysteresis)
+                                      double _low_wm,
+                                      Tick _min_residency_ticks,
+                                      bool _enable_ema,
+                                      bool _enable_hysteresis)
 {
     alpha = _alpha;
     highWatermark = _high_wm;
@@ -91,17 +86,21 @@ FilteredFeedbackController::update(double raw_val, Tick cur_tick)
     // Signal used for evaluating thresholds
     double eval_signal = enableEMA ? smoothedValue : raw_val;
 
-    // 2. Evaluate state transitions using dual-threshold hysteresis and residency dwell time
+    // 2. Evaluate state transitions using dual-threshold hysteresis and
+    // residency dwell time
     if (enableHysteresis) {
-        bool residency_met = (cur_tick >= lastStateChangeTick + minResidencyTicks);
+        bool residency_met =
+            (cur_tick >= lastStateChangeTick + minResidencyTicks);
         if (!currentState) {
-            // Currently in LOW state: transition to HIGH if signal exceeds high watermark and dwell time met
+            // Currently in LOW state: transition to HIGH if signal exceeds
+            // high watermark and dwell time met
             if ((eval_signal > highWatermark) && residency_met) {
                 currentState = true;
                 lastStateChangeTick = cur_tick;
             }
         } else {
-            // Currently in HIGH state: transition to LOW if signal drops below low watermark and dwell time met
+            // Currently in HIGH state: transition to LOW if signal drops below
+            // low watermark and dwell time met
             if ((eval_signal < lowWatermark) && residency_met) {
                 currentState = false;
                 lastStateChangeTick = cur_tick;
@@ -133,7 +132,7 @@ FilteredFeedbackController::reset()
 
 void
 FilteredFeedbackController::serialize(CheckpointOut &cp,
-                                       const std::string &section) const
+                                      const std::string &section) const
 {
     paramOut(cp, section + ".alpha", alpha);
     paramOut(cp, section + ".highWatermark", highWatermark);
@@ -149,7 +148,7 @@ FilteredFeedbackController::serialize(CheckpointOut &cp,
 
 void
 FilteredFeedbackController::unserialize(CheckpointIn &cp,
-                                         const std::string &section)
+                                        const std::string &section)
 {
     paramIn(cp, section + ".alpha", alpha);
     paramIn(cp, section + ".highWatermark", highWatermark);

@@ -150,7 +150,8 @@ class Base : public SimObject
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
-    /** Feedback controller combining EMA smoothing and hysteresis windowing. */
+    /** Feedback controller combining EMA smoothing and hysteresis windowing.
+     */
     FilteredFeedbackController feedbackController;
 
     struct BaseStats : public statistics::Group
