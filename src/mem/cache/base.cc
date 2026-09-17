@@ -1021,7 +1021,36 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
         // Evict valid blocks associated to this victim block
         for (auto& blk : evict_blks) {
             if (blk->isValid()) {
-                evictBlock(blk, writebacks);
+                // Requirement 3: Dirty sub-blocks must continue to be written back safely.
+                if (blk->isSet(CacheBlk::DirtyBit)) {
+                    evictBlock(blk, writebacks);
+                } else {
+                    // Requirement 1: BaseCache::handleEvictions must check L1 clean state before issuing snoop invalidation.
+                    RequestPtr req = std::make_shared<Request>(
+                        regenerateBlkAddr(blk), blkSize, 0, Request::wbRequestorId);
+                    if (blk->isSecure()) {
+                        req->setFlags(Request::SECURE);
+                    }
+                    req->taskId(blk->getTaskId());
+                    PacketPtr probe_pkt = new Packet(req, MemCmd::CleanEvict);
+                    probe_pkt->allocate();
+
+                    bool is_cached_in_l1 = isCachedAbove(probe_pkt);
+                    delete probe_pkt;
+
+                    if (is_cached_in_l1) {
+                        // Clean L1 line preserved! Do NOT issue snoop invalidation.
+                        // Requirement 2: Non-inclusive tag state must track detached L1 clean sub-blocks.
+                        Addr blk_addr = regenerateBlkAddr(blk);
+                        trackDetachedL1CleanBlock(blk_addr, blk->isSecure());
+                        blk->setDetachedL1Clean();
+                        stats.detachedL1CleanPreserved++;
+
+                        invalidateBlock(blk);
+                    } else {
+                        evictBlock(blk, writebacks);
+                    }
+                }
             }
         }
     }
@@ -1712,6 +1741,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
     // Insert new block at victimized entry
     tags->insertBlock(pkt, victim);
+    clearDetachedL1CleanBlock(addr, is_secure);
 
     // If using a compressor, set compression data. This must be done after
     // insertion, as the compression bit may be set.
@@ -1737,6 +1767,7 @@ BaseCache::invalidateBlock(CacheBlk *blk)
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {
+        clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
         tags->invalidate(blk);
     } else {
         tempBlock->invalidate();
@@ -2332,6 +2363,8 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
              "average overall mshr uncacheable latency"),
     ADD_STAT(replacements, statistics::units::Count::get(),
              "number of replacements"),
+    ADD_STAT(detachedL1CleanPreserved, statistics::units::Count::get(),
+             "number of detached clean L1 lines preserved during L2 superblock eviction"),
     ADD_STAT(dataExpansions, statistics::units::Count::get(),
              "number of data expansions"),
     ADD_STAT(dataContractions, statistics::units::Count::get(),
@@ -2566,6 +2599,7 @@ BaseCache::CacheStats::regStats()
             system->getRequestorName(i));
     }
 
+    detachedL1CleanPreserved.flags(nozero | nonan);
     dataExpansions.flags(nozero | nonan);
     dataContractions.flags(nozero | nonan);
 }

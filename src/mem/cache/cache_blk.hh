@@ -86,12 +86,14 @@ class CacheBlk : public TaggedEntry
         ReadableBit =       0x04,
         /** dirty (modified) */
         DirtyBit =          0x08,
+        /** detached L1 clean sub-block */
+        DetachedL1CleanBit = 0x10,
 
         /**
          * Helper enum value that includes all other bits. Whenever a new
          * bits is added, this should be updated.
          */
-        AllBits  =          0x0E,
+        AllBits  =          0x1E,
     };
 
     /**
@@ -244,6 +246,10 @@ class CacheBlk : public TaggedEntry
     {
         return isValid() && (coherence & bits);
     }
+
+    bool isDetachedL1Clean() const { return isSet(DetachedL1CleanBit); }
+    void setDetachedL1Clean() { setCoherenceBits(DetachedL1CleanBit); }
+    void clearDetachedL1Clean() { clearCoherenceBits(DetachedL1CleanBit); }
 
     /**
      * Check if this block was the result of a hardware prefetch, yet to
