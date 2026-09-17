@@ -61,3 +61,17 @@ TEST(SuperBlkTest, SetUncompressedClearsCompressed)
     blk.setUncompressed();
     EXPECT_FALSE(blk.isCompressed());
 }
+
+TEST(SuperBlkTest, FractionalCompressionFactor)
+{
+    SuperBlk sb;
+    sb.setBlkSize(64); // 512 bits
+    sb.blks.resize(8);
+
+    // Exact continuous factors
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(512), 1.0);
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(256), 2.0);
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(200), 2.56);
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(100), 5.12);
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(64), 8.0);
+}
