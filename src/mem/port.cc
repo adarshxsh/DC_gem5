@@ -258,6 +258,12 @@ ResponsePort::responderBind(RequestPort& request_port)
     Port::bind(request_port);
 }
 
+void
+ResponsePort::sendCompressionBackpressure(bool active) const
+{
+    _requestPort->recvCompressionBackpressure(active);
+}
+
 Tick
 ResponsePort::recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor)
 {

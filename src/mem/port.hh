@@ -297,6 +297,11 @@ class RequestPort: public Port, public AtomicRequestProtocol,
     virtual void recvRangeChange() { }
 
     /**
+     * Called to receive a compression backpressure signal from the peer response port.
+     */
+    virtual void recvCompressionBackpressure(bool active) { }
+
+    /**
      * Default implementations.
      */
     Tick
@@ -378,6 +383,11 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      * Called by the owner to send a range change
      */
     void sendRangeChange() const { _requestPort->recvRangeChange(); }
+
+    /**
+     * Called by the owner to send compression backpressure signal to the peer request port.
+     */
+    void sendCompressionBackpressure(bool active) const;
 
     /**
      * Get a list of the non-overlapping address ranges the owner is
