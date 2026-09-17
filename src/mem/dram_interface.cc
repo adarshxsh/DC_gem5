@@ -405,29 +405,36 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     else
         cmd_at = ctrl->verifySingleCmd(cmd_at, maxCommandsPerWindow, false);
 
+    // Calculate effective burst length based on compressed payload size
+    unsigned comp_bytes = mem_pkt->pkt ? mem_pkt->pkt->getCompressedSize() : mem_pkt->size;
+    if (comp_bytes == 0 || comp_bytes > burstSize) {
+        comp_bytes = burstSize;
+    }
+
+    Tick min_burst = (tBURST_MIN < tBURST) ? tBURST_MIN : 1;
+    Tick eff_tBURST = std::max(min_burst, (Tick)divCeil((uint64_t)comp_bytes * tBURST, (uint64_t)burstSize));
+
     // if we are interleaving bursts, ensure that
     // 1) we don't double interleave on next burst issue
     // 2) we are at an interleave boundary; if not, shift to next boundary
-    Tick burst_gap = tBURST_MIN;
+    Tick burst_gap = eff_tBURST;
     if (burstInterleave) {
         if (cmd_at == (rank_ref.lastBurstTick + tBURST_MIN)) {
-            // already interleaving, push next command to end of full burst
-            burst_gap = tBURST;
-        } else if (cmd_at < (rank_ref.lastBurstTick + tBURST)) {
+            // already interleaving, push next command to end of burst
+            burst_gap = eff_tBURST;
+        } else if (cmd_at < (rank_ref.lastBurstTick + eff_tBURST)) {
             // not at an interleave boundary after bandwidth check
-            // Shift command to tBURST boundary to avoid data contention
-            // Command will remain in the same burst window given that
-            // tBURST is less than tBURST_MAX
-            cmd_at = rank_ref.lastBurstTick + tBURST;
+            // Shift command to eff_tBURST boundary to avoid data contention
+            cmd_at = rank_ref.lastBurstTick + eff_tBURST;
         }
     }
-    DPRINTF(DRAM, "Schedule RD/WR burst at tick %d\n", cmd_at);
+    DPRINTF(DRAM, "Schedule RD/WR burst at tick %d (eff_tBURST=%d)\n", cmd_at, eff_tBURST);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {
-        mem_pkt->readyTime = cmd_at + tRL + tBURST;
+        mem_pkt->readyTime = cmd_at + tRL + eff_tBURST;
     } else {
-        mem_pkt->readyTime = cmd_at + tWL + tBURST;
+        mem_pkt->readyTime = cmd_at + tWL + eff_tBURST;
     }
 
     rank_ref.lastBurstTick = cmd_at;
@@ -452,19 +459,19 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                                     std::max(tCCD_L, rdToWrDlySameBG) :
                                     tCCD_L_WR;
                 } else {
-                    // tBURST is default requirement for diff BG timing
+                    // eff_tBURST is default requirement for diff BG timing
                     // Need to also take bus turnaround delays into account
                     dly_to_rd_cmd = mem_pkt->isRead() ? burst_gap :
-                                                       writeToReadDelay();
-                    dly_to_wr_cmd = mem_pkt->isRead() ? readToWriteDelay() :
+                                                       writeToReadDelay(eff_tBURST);
+                    dly_to_wr_cmd = mem_pkt->isRead() ? readToWriteDelay(eff_tBURST) :
                                                        burst_gap;
                 }
             } else {
                 // different rank is by default in a different bank group and
                 // doesn't require longer tCCD or additional RTW, WTR delays
                 // Need to account for rank-to-rank switching
-                dly_to_wr_cmd = rankToRankDelay();
-                dly_to_rd_cmd = rankToRankDelay();
+                dly_to_wr_cmd = rankToRankDelay(eff_tBURST);
+                dly_to_rd_cmd = rankToRankDelay(eff_tBURST);
             }
             ranks[j]->banks[i].rdAllowedAt = std::max(cmd_at + dly_to_rd_cmd,
                                              ranks[j]->banks[i].rdAllowedAt);
@@ -484,7 +491,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                                  mem_pkt->readyTime + tWR);
 
     // increment the bytes accessed and the accesses per row
-    bank_ref.bytesAccessed += burstSize;
+    bank_ref.bytesAccessed += comp_bytes;
     ++bank_ref.rowAccesses;
 
     // if we reached the max, then issue with an auto-precharge
@@ -579,13 +586,13 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.readBursts++;
         if (row_hit)
             stats.readRowHits++;
-        stats.dramBytesRead += burstSize;
+        stats.dramBytesRead += comp_bytes;
         stats.perBankRdBursts[mem_pkt->bankId]++;
 
         // Update latency stats
         stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
         stats.totQLat += cmd_at - mem_pkt->entryTime;
-        stats.totBusLat += tBURST;
+        stats.totBusLat += eff_tBURST;
     } else {
         // Schedule write done event to decrement event count
         // after the readyTime has been reached
@@ -608,10 +615,11 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.writeBursts++;
         if (row_hit)
             stats.writeRowHits++;
-        stats.dramBytesWritten += burstSize;
+        stats.dramBytesWritten += comp_bytes;
         stats.perBankWrBursts[mem_pkt->bankId]++;
 
     }
+
     // Update bus state to reflect when previous command was issued
     return std::make_pair(cmd_at, cmd_at + burst_gap);
 }

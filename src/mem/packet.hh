@@ -396,6 +396,9 @@ class Packet : public Printable, public Extensible<Packet>
     /// The size of the request or transfer.
     unsigned size;
 
+    /// Compressed payload size in bytes (0 if uncompressed or not set).
+    unsigned _compressedSize;
+
     /**
      * Track the bytes found that satisfy a functional read.
      */
@@ -816,6 +819,13 @@ class Packet : public Printable, public Extensible<Packet>
 
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
 
+    void setCompressedSize(unsigned _size) { _compressedSize = _size; }
+    unsigned getCompressedSize() const
+    {
+        return (_compressedSize != 0 && _compressedSize < size) ? _compressedSize : size;
+    }
+    bool isCompressed() const { return _compressedSize != 0 && _compressedSize < size; }
+
     /**
      * Get address range to which this packet belongs.
      *
@@ -877,6 +887,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd)
         :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false), size(0),
+           _compressedSize(0),
            _qosValue(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
@@ -918,6 +929,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
         :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false),
+           _compressedSize(0),
            _qosValue(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
@@ -946,6 +958,7 @@ class Packet : public Printable, public Extensible<Packet>
            cmd(pkt->cmd), id(pkt->id), req(pkt->req),
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
+           _compressedSize(pkt->_compressedSize),
            bytesValid(pkt->bytesValid),
            _qosValue(pkt->qosValue()),
            htmReturnReason(HtmCacheFailure::NO_FAIL),

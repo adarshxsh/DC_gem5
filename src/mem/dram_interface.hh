@@ -638,7 +638,8 @@ class DRAMInterface : public MemInterface
     /*
      * @return delay between write and read commands
      */
-    Tick writeToReadDelay() const override { return tBURST + tWTR + tWL; }
+    Tick writeToReadDelay(Tick burst_len) const override { return burst_len + tWTR + tWL; }
+    Tick writeToReadDelay() const override { return writeToReadDelay(tBURST); }
 
     /**
      * Find which are the earliest banks ready to issue an activate
