@@ -61,3 +61,7 @@ GTest('multi.test', 'multi.test.cc', 'multi.cc', 'base.cc', 'zero.cc',
       '#src/sim/bufval.cc', with_tag('gem5 simobject'))
 
 GTest('compressor_base.test', 'base.test.cc', 'base.cc')
+
+GTest('queue_pressure.test', 'queue_pressure.test.cc',
+      'base.cc', 'base_dictionary_compressor.cc', 'cpack.cc',
+      with_tag('gem5 lib'))
