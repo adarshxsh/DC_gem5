@@ -518,6 +518,16 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
+    const bool enableAdaptiveWatermarks;
+    const uint32_t writeHighThreshMinPerc;
+    const uint32_t writeHighThreshMaxPerc;
+    const uint32_t writeLowThreshMinPerc;
+    const uint32_t writeLowThreshMaxPerc;
+    const uint32_t minWritesPerSwitchMin;
+    const uint32_t minWritesPerSwitchMax;
+    const uint32_t minReadsPerSwitchMin;
+    const uint32_t minReadsPerSwitchMax;
+
     /**
      * Memory controller configuration initialized based on parameter
      * values.
