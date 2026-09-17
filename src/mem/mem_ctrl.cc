@@ -72,6 +72,15 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
+    enableAdaptiveWatermarks(p.enable_adaptive_watermarks),
+    writeHighThreshMinPerc(p.write_high_thresh_min_perc),
+    writeHighThreshMaxPerc(p.write_high_thresh_max_perc),
+    writeLowThreshMinPerc(p.write_low_thresh_min_perc),
+    writeLowThreshMaxPerc(p.write_low_thresh_max_perc),
+    minWritesPerSwitchMin(p.min_writes_per_switch_min),
+    minWritesPerSwitchMax(p.min_writes_per_switch_max),
+    minReadsPerSwitchMin(p.min_reads_per_switch_min),
+    minReadsPerSwitchMax(p.min_reads_per_switch_max),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
@@ -883,6 +892,41 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                         EventFunctionWrapper& resp_event,
                         EventFunctionWrapper& next_req_event,
                         bool& retry_wr_req) {
+    uint32_t eff_write_high_thresh = writeHighThreshold;
+    uint32_t eff_write_low_thresh = writeLowThreshold;
+    uint32_t eff_min_writes_per_switch = minWritesPerSwitch;
+    uint32_t eff_min_reads_per_switch = minReadsPerSwitch;
+
+    if (enableAdaptiveWatermarks) {
+        double rd_occ = mem_intr->readBufferSize > 0 ?
+            (double)mem_intr->readQueueSize / mem_intr->readBufferSize : 0.0;
+        double wr_occ = mem_intr->writeBufferSize > 0 ?
+            (double)mem_intr->writeQueueSize / mem_intr->writeBufferSize : 0.0;
+
+        double total_occ = rd_occ + wr_occ;
+        double prel = total_occ > 0.0 ? wr_occ / total_occ : 0.5;
+
+        double high_min = mem_intr->writeBufferSize * (writeHighThreshMinPerc / 100.0);
+        double high_max = mem_intr->writeBufferSize * (writeHighThreshMaxPerc / 100.0);
+        eff_write_high_thresh = (uint32_t)(high_min + prel * (high_max - high_min));
+
+        double low_min = mem_intr->writeBufferSize * (writeLowThreshMinPerc / 100.0);
+        double low_max = mem_intr->writeBufferSize * (writeLowThreshMaxPerc / 100.0);
+        eff_write_low_thresh = (uint32_t)(low_min + prel * (low_max - low_min));
+
+        if (eff_write_low_thresh >= eff_write_high_thresh) {
+            eff_write_low_thresh = eff_write_high_thresh > 0 ? eff_write_high_thresh - 1 : 0;
+        }
+
+        eff_min_writes_per_switch = (uint32_t)std::round(
+            minWritesPerSwitchMin + prel * (minWritesPerSwitchMax - minWritesPerSwitchMin)
+        );
+
+        eff_min_reads_per_switch = (uint32_t)std::round(
+            minReadsPerSwitchMin + (1.0 - prel) * (minReadsPerSwitchMax - minReadsPerSwitchMin)
+        );
+    }
+
     // transition is handled by QoS algorithm if enabled
     if (turnPolicy) {
         // select bus state - only done if QoS algorithms are in use
@@ -942,7 +986,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // if we are draining)
             if (!(mem_intr->writeQueueSize == 0) &&
                 (drainState() == DrainState::Draining ||
-                 mem_intr->writeQueueSize > writeLowThreshold)) {
+                 mem_intr->writeQueueSize > eff_write_low_thresh)) {
 
                 DPRINTF(MemCtrl,
                         "Switching to writes due to read queue empty\n");
@@ -1036,8 +1080,8 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // there are no other writes that can issue
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
+            if ((mem_intr->writeQueueSize > eff_write_high_thresh) &&
+               (mem_intr->readsThisTime >= eff_min_reads_per_switch ||
                mem_intr->readQueueSize == 0)
                && !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
@@ -1121,11 +1165,11 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // If we are interfacing to NVM and have filled the writeRespQueue,
         // with only NVM writes in Q, then switch to reads
         bool below_threshold =
-            mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
+            mem_intr->writeQueueSize + eff_min_writes_per_switch < eff_write_low_thresh;
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
+            (mem_intr->readQueueSize && mem_intr->writesThisTime >= eff_min_writes_per_switch) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again
