@@ -55,6 +55,7 @@
 #include "base/callback.hh"
 #include "base/statistics.hh"
 #include "enums/MemSched.hh"
+#include "mem/filtered_feedback_controller.hh"
 #include "mem/qos/mem_ctrl.hh"
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
@@ -557,7 +558,12 @@ class MemCtrl : public qos::MemCtrl
      * nextBurstAt. Assuming you need to precharge, open a new row,
      * and access, it is tRP + tRCD + tCL.
      */
-    Tick nextReqTime;
+    /** Feedback controllers for write and read queue pressure. */
+    FilteredFeedbackController writeQueueController;
+    FilteredFeedbackController readQueueController;
+
+    void serialize(CheckpointOut &cp) const override;
+    void unserialize(CheckpointIn &cp) override;
 
     struct CtrlStats : public statistics::Group
     {

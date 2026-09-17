@@ -41,6 +41,7 @@
 #include "base/compiler.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "mem/filtered_feedback_controller.hh"
 #include "sim/sim_object.hh"
 
 namespace gem5
@@ -149,6 +150,9 @@ class Base : public SimObject
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
+    /** Feedback controller combining EMA smoothing and hysteresis windowing. */
+    FilteredFeedbackController feedbackController;
+
     struct BaseStats : public statistics::Group
     {
         const Base& compressor;
@@ -240,6 +244,9 @@ class Base : public SimObject
     typedef BaseCacheCompressorParams Params;
     Base(const Params &p);
     virtual ~Base() = default;
+
+    void serialize(CheckpointOut &cp) const override;
+    void unserialize(CheckpointIn &cp) override;
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);

@@ -68,8 +68,8 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     dram(p.dram),
     readBufferSize(dram->readBufferSize),
     writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+    writeHighThreshold(writeBufferSize * p.high_watermark_ratio),
+    writeLowThreshold(writeBufferSize * p.low_watermark_ratio),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),
@@ -77,6 +77,13 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     backendLatency(p.static_backend_latency),
     commandWindow(p.command_window),
     prevArrival(0),
+    writeQueueController(p.ema_alpha, writeBufferSize * p.high_watermark_ratio,
+                         writeBufferSize * p.low_watermark_ratio,
+                         p.min_residency_ticks, p.enable_ema,
+                         p.enable_hysteresis, false),
+    readQueueController(p.ema_alpha, readBufferSize * 0.85,
+                        readBufferSize * 0.50, p.min_residency_ticks,
+                        p.enable_ema, p.enable_hysteresis, false),
     stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
@@ -185,6 +192,22 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
     return  wrsize_new > writeBufferSize;
 }
 
+void
+MemCtrl::updateRdQueueEMA()
+{
+    double current_len = totalReadQueueSize + respQueue.size();
+    readQueueController.update(current_len, curTick());
+    stats.avgRdQLen = readQueueController.getSmoothedValue();
+}
+
+void
+MemCtrl::updateWrQueueEMA()
+{
+    double current_len = totalWriteQueueSize;
+    writeQueueController.update(current_len, curTick());
+    stats.avgWrQLen = writeQueueController.getSmoothedValue();
+}
+
 bool
 MemCtrl::addToReadQueue(PacketPtr pkt,
                 unsigned int pkt_count, MemInterface* mem_intr)
@@ -279,7 +302,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
             mem_intr->readQueueSize++;
 
             // Update stats
-            stats.avgRdQLen = totalReadQueueSize + respQueue.size();
+            updateRdQueueEMA();
         }
 
         // Starting address of next memory pkt (aligned to burst boundary)
@@ -355,7 +378,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
             assert(totalWriteQueueSize == isInWriteQueue.size());
 
             // Update stats
-            stats.avgWrQLen = totalWriteQueueSize;
+            updateWrQueueEMA();
 
         } else {
             DPRINTF(MemCtrl,
@@ -1036,7 +1059,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // there are no other writes that can issue
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
+            if ((mem_intr->writeQueueSize > writeHighThreshold || writeQueueController.getState()) &&
                (mem_intr->readsThisTime >= minReadsPerSwitch ||
                mem_intr->readQueueSize == 0)
                && !(nvmWriteBlock(mem_intr))) {
@@ -1121,7 +1144,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // If we are interfacing to NVM and have filled the writeRespQueue,
         // with only NVM writes in Q, then switch to reads
         bool below_threshold =
-            mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
+            !writeQueueController.getState() || (mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold);
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||
@@ -1537,6 +1560,22 @@ void
 MemCtrl::MemoryPort::disableSanityCheck()
 {
     queue.disableSanityCheck();
+}
+
+void
+MemCtrl::serialize(CheckpointOut &cp) const
+{
+    qos::MemCtrl::serialize(cp);
+    writeQueueController.serialize(cp, "writeQueueController");
+    readQueueController.serialize(cp, "readQueueController");
+}
+
+void
+MemCtrl::unserialize(CheckpointIn &cp)
+{
+    qos::MemCtrl::unserialize(cp);
+    writeQueueController.unserialize(cp, "writeQueueController");
+    readQueueController.unserialize(cp, "readQueueController");
 }
 
 } // namespace memory

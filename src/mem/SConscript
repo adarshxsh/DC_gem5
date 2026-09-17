@@ -78,6 +78,7 @@ Source('cfi_mem.cc')
 Source('drampower.cc')
 Source('external_master.cc')
 Source('external_slave.cc')
+Source('filtered_feedback_controller.cc')
 Source('mem_ctrl.cc')
 Source('hetero_mem_ctrl.cc')
 Source('hbm_ctrl.cc')
@@ -109,6 +110,8 @@ Source('port_terminator.cc')
 GTest('backdoor_manager.test', 'backdoor_manager.test.cc',
       'backdoor_manager.cc', with_tag('gem5_trace'))
 GTest('translation_gen.test', 'translation_gen.test.cc')
+GTest('filtered_feedback_controller.test', 'filtered_feedback_controller.test.cc',
+      'filtered_feedback_controller.cc', with_tag('gem5 serialize'))
 
 Source('translating_port_proxy.cc')
 Source('se_translating_port_proxy.cc')

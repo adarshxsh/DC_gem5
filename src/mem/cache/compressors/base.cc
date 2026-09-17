@@ -98,6 +98,9 @@ Base::Base(const Params &p)
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
       cache(nullptr),
+      feedbackController(p.ema_alpha, p.high_watermark_ratio,
+                         p.low_watermark_ratio, p.min_residency_ticks,
+                         p.enable_ema, p.enable_hysteresis, true),
       stats(*this)
 {
     fatal_if(64 % chunkSizeBits,
@@ -111,6 +114,8 @@ Base::Base(const Params &p)
         "chunks in the input");
 
     fatal_if(blkSize < sizeThreshold, "Compressed data must fit in a block");
+    fatal_if(p.low_watermark_ratio > p.high_watermark_ratio,
+        "low_watermark_ratio cannot be greater than high_watermark_ratio");
 }
 
 void
@@ -167,10 +172,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     double observedRatio =
         (sampledCompressedBits > 0)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+            : (feedbackController.getHighWatermark() + 1.0);
 
-    bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+    bool isActive = feedbackController.update(observedRatio, curTick());
+    bool shouldBypass = enableAdaptiveBypass && !isActive;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -182,9 +187,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.bypassedCompressions++;
         DPRINTF(
             CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
+            "Adaptive bypass active (observed ratio: %.4f < low watermark: %.4f). "
             "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+            observedRatio, feedbackController.getLowWatermark());
         return comp_data;
     }
 
@@ -230,6 +235,13 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.sampledCompressions++;
         stats.sampledUncompressedBits += uncomp_bits;
         stats.sampledCompressedBits += comp_size_bits;
+
+        // Re-evaluate observed ratio with new sample
+        if (sampledCompressedBits > 0) {
+            observedRatio = (double)sampledUncompressedBits / (double)sampledCompressedBits;
+            isActive = feedbackController.update(observedRatio, curTick());
+            shouldBypass = enableAdaptiveBypass && !isActive;
+        }
     }
 
     if (shouldBypass) {
@@ -276,17 +288,33 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0)
-                                   ? ((double)sampledUncompressedBits /
-                                      (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
-        if (observedRatio < latencyBreakevenThreshold) {
+        if (!feedbackController.getState()) {
             stats.bypassedDecompressions += 1;
         }
     }
 
     // Block is not compressed, so there is no decompression latency
     return Cycles(0);
+}
+
+void
+Base::serialize(CheckpointOut &cp) const
+{
+    SimObject::serialize(cp);
+    SERIALIZE_SCALAR(totalCompressionRequests);
+    SERIALIZE_SCALAR(sampledUncompressedBits);
+    SERIALIZE_SCALAR(sampledCompressedBits);
+    feedbackController.serialize(cp, "feedbackController");
+}
+
+void
+Base::unserialize(CheckpointIn &cp)
+{
+    SimObject::unserialize(cp);
+    UNSERIALIZE_SCALAR(totalCompressionRequests);
+    UNSERIALIZE_SCALAR(sampledUncompressedBits);
+    UNSERIALIZE_SCALAR(sampledCompressedBits);
+    feedbackController.unserialize(cp, "feedbackController");
 }
 
 void
