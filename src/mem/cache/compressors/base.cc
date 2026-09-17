@@ -114,7 +114,8 @@ Base::Base(const Params &p)
         "chunks in the input");
 
     fatal_if(blkSize < sizeThreshold, "Compressed data must fit in a block");
-    fatal_if(p.low_watermark_ratio > p.high_watermark_ratio,
+    fatal_if(
+        p.low_watermark_ratio > p.high_watermark_ratio,
         "low_watermark_ratio cannot be greater than high_watermark_ratio");
 }
 
@@ -185,11 +186,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < low watermark: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, feedbackController.getLowWatermark());
+        DPRINTF(CacheComp,
+                "Adaptive bypass active (observed ratio: %.4f < low "
+                "watermark: %.4f). "
+                "Bypassing compression.\n",
+                observedRatio, feedbackController.getLowWatermark());
         return comp_data;
     }
 
@@ -238,7 +239,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 
         // Re-evaluate observed ratio with new sample
         if (sampledCompressedBits > 0) {
-            observedRatio = (double)sampledUncompressedBits / (double)sampledCompressedBits;
+            observedRatio = (double)sampledUncompressedBits /
+                            (double)sampledCompressedBits;
             isActive = feedbackController.update(observedRatio, curTick());
             shouldBypass = enableAdaptiveBypass && !isActive;
         }

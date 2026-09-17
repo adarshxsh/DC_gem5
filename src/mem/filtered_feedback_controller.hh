@@ -61,7 +61,8 @@ class FilteredFeedbackController
     /** Low watermark threshold. */
     double lowWatermark;
 
-    /** Minimum residency dwell time in simulation ticks before state transition. */
+    /** Minimum residency dwell time in simulation ticks before state
+     * transition. */
     Tick minResidencyTicks;
 
     /** Controls whether EMA smoothing is enabled. */
@@ -79,12 +80,12 @@ class FilteredFeedbackController
     /** Tick timestamp of the last state transition. */
     Tick lastStateChangeTick;
 
-    /** Tracks whether smoothedValue has been initialized with the first sample. */
+    /** Tracks whether smoothedValue has been initialized with the first
+     * sample. */
     bool initialized;
 
   public:
-    FilteredFeedbackController(double _alpha = 0.125,
-                               double _high_wm = 1.0,
+    FilteredFeedbackController(double _alpha = 0.125, double _high_wm = 1.0,
                                double _low_wm = 0.0,
                                Tick _min_residency_ticks = 0,
                                bool _enable_ema = true,
@@ -97,11 +98,12 @@ class FilteredFeedbackController
      * Configure or re-configure controller parameters.
      */
     void setParams(double _alpha, double _high_wm, double _low_wm,
-                   Tick _min_residency_ticks,
-                   bool _enable_ema = true, bool _enable_hysteresis = true);
+                   Tick _min_residency_ticks, bool _enable_ema = true,
+                   bool _enable_hysteresis = true);
 
     /**
-     * Process a new raw signal sample at cur_tick, update EMA, and evaluate state transitions.
+     * Process a new raw signal sample at cur_tick, update EMA, and evaluate
+     * state transitions.
      *
      * @param raw_val Raw signal sample.
      * @param cur_tick Current simulation tick.
@@ -110,16 +112,56 @@ class FilteredFeedbackController
     bool update(double raw_val, Tick cur_tick);
 
     /** Getters */
-    double getSmoothedValue() const { return smoothedValue; }
-    bool getState() const { return currentState; }
-    Tick getLastStateChangeTick() const { return lastStateChangeTick; }
-    bool isInitialized() const { return initialized; }
-    double getAlpha() const { return alpha; }
-    double getHighWatermark() const { return highWatermark; }
-    double getLowWatermark() const { return lowWatermark; }
-    Tick getMinResidencyTicks() const { return minResidencyTicks; }
-    bool isEMAEnabled() const { return enableEMA; }
-    bool isHysteresisEnabled() const { return enableHysteresis; }
+    double
+    getSmoothedValue() const
+    {
+        return smoothedValue;
+    }
+    bool
+    getState() const
+    {
+        return currentState;
+    }
+    Tick
+    getLastStateChangeTick() const
+    {
+        return lastStateChangeTick;
+    }
+    bool
+    isInitialized() const
+    {
+        return initialized;
+    }
+    double
+    getAlpha() const
+    {
+        return alpha;
+    }
+    double
+    getHighWatermark() const
+    {
+        return highWatermark;
+    }
+    double
+    getLowWatermark() const
+    {
+        return lowWatermark;
+    }
+    Tick
+    getMinResidencyTicks() const
+    {
+        return minResidencyTicks;
+    }
+    bool
+    isEMAEnabled() const
+    {
+        return enableEMA;
+    }
+    bool
+    isHysteresisEnabled() const
+    {
+        return enableHysteresis;
+    }
 
     /** Setters */
     void setState(bool s, Tick cur_tick = 0);
