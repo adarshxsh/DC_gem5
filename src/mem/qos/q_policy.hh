@@ -193,9 +193,7 @@ class LrgQueuePolicy : public QueuePolicy
 class CpQueuePolicy : public QueuePolicy
 {
   public:
-    CpQueuePolicy(const QoSMemCtrlParams &p)
-      : QueuePolicy(p)
-    {}
+    CpQueuePolicy(const QoSMemCtrlParams &p) : QueuePolicy(p) {}
 
     /**
      * Implements compression and pressure-aware packet select policy
@@ -203,8 +201,7 @@ class CpQueuePolicy : public QueuePolicy
      * @param queue The non-empty queue from which to select a packet
      * @return Iterator to the selected packet
      */
-    PacketQueue::iterator
-    selectPacket(PacketQueue* queue) override;
+    PacketQueue::iterator selectPacket(PacketQueue *queue) override;
 };
 
 } // namespace qos

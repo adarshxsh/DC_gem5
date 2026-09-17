@@ -780,22 +780,26 @@ class Packet : public Printable, public Extensible<Packet>
     inline void qosValue(const uint8_t qos_value)
     { _qosValue = qos_value; }
 
-    inline unsigned getCompressedSize() const
+    inline unsigned
+    getCompressedSize() const
     {
         return (_compressedSize > 0) ? _compressedSize : size;
     }
 
-    inline void setCompressedSize(const unsigned csize)
+    inline void
+    setCompressedSize(const unsigned csize)
     {
         _compressedSize = csize;
     }
 
-    inline bool isCompressed() const
+    inline bool
+    isCompressed() const
     {
         return (_compressedSize > 0) && (_compressedSize < size);
     }
 
-    inline double getCompressionRatio() const
+    inline double
+    getCompressionRatio() const
     {
         const unsigned cs = getCompressedSize();
         return (cs > 0) ? static_cast<double>(size) / cs : 1.0;
@@ -899,13 +903,21 @@ class Packet : public Printable, public Extensible<Packet>
      * not be valid. The command must be supplied.
      */
     Packet(const RequestPtr &_req, MemCmd _cmd)
-        :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
-           data(nullptr), addr(0), _isSecure(false), size(0),
-           _qosValue(0), _compressedSize(0),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(0), snoopDelay(0),
-           payloadDelay(0), senderState(NULL)
+        : cmd(_cmd),
+          id((PacketId)_req.get()),
+          req(_req),
+          data(nullptr),
+          addr(0),
+          _isSecure(false),
+          size(0),
+          _qosValue(0),
+          _compressedSize(0),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(0),
+          snoopDelay(0),
+          payloadDelay(0),
+          senderState(NULL)
     {
         flags.clear();
         if (req->hasPaddr()) {
@@ -940,13 +952,20 @@ class Packet : public Printable, public Extensible<Packet>
      * req.  this allows for overriding the size/addr of the req.
      */
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
-        :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
-           data(nullptr), addr(0), _isSecure(false),
-           _qosValue(0), _compressedSize(0),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(0),
-           snoopDelay(0), payloadDelay(0), senderState(NULL)
+        : cmd(_cmd),
+          id(_id ? _id : (PacketId)_req.get()),
+          req(_req),
+          data(nullptr),
+          addr(0),
+          _isSecure(false),
+          _qosValue(0),
+          _compressedSize(0),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(0),
+          snoopDelay(0),
+          payloadDelay(0),
+          senderState(NULL)
     {
         flags.clear();
         if (req->hasPaddr()) {
@@ -966,18 +985,23 @@ class Packet : public Printable, public Extensible<Packet>
      * packet should allocate its own data.
      */
     Packet(const PacketPtr pkt, bool clear_flags, bool alloc_data)
-        :  Extensible<Packet>(*pkt),
-           cmd(pkt->cmd), id(pkt->id), req(pkt->req),
-           data(nullptr),
-           addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
-           bytesValid(pkt->bytesValid),
-           _qosValue(pkt->qosValue()), _compressedSize(pkt->_compressedSize),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(pkt->headerDelay),
-           snoopDelay(0),
-           payloadDelay(pkt->payloadDelay),
-           senderState(pkt->senderState)
+        : Extensible<Packet>(*pkt),
+          cmd(pkt->cmd),
+          id(pkt->id),
+          req(pkt->req),
+          data(nullptr),
+          addr(pkt->addr),
+          _isSecure(pkt->_isSecure),
+          size(pkt->size),
+          bytesValid(pkt->bytesValid),
+          _qosValue(pkt->qosValue()),
+          _compressedSize(pkt->_compressedSize),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(pkt->headerDelay),
+          snoopDelay(0),
+          payloadDelay(pkt->payloadDelay),
+          senderState(pkt->senderState)
     {
         if (!clear_flags)
             flags.set(pkt->flags & COPY_FLAGS);

@@ -64,7 +64,7 @@ QueuePolicy::create(const QoSMemCtrlParams &p)
       case enums::QoSQPolicy::lrg:
         return new LrgQueuePolicy(p);
       case enums::QoSQPolicy::cp:
-        return new CpQueuePolicy(p);
+          return new CpQueuePolicy(p);
       case enums::QoSQPolicy::lifo:
       default:
         return new LifoQueuePolicy(p);
@@ -171,7 +171,7 @@ LrgQueuePolicy::enqueuePacket(PacketPtr pkt)
 };
 
 QueuePolicy::PacketQueue::iterator
-CpQueuePolicy::selectPacket(PacketQueue* queue)
+CpQueuePolicy::selectPacket(PacketQueue *queue)
 {
     panic_if(queue->empty(),
              "Provided packet queue is not usable by queue policy");
@@ -180,7 +180,7 @@ CpQueuePolicy::selectPacket(PacketQueue* queue)
     double max_score = -1.0;
 
     for (auto it = queue->begin(); it != queue->end(); ++it) {
-        const auto& pkt = *it;
+        const auto &pkt = *it;
         double cr = pkt->getCompressionRatio();
         double pressure = 0.0;
         if (memCtrl && pkt->req) {
@@ -191,8 +191,10 @@ CpQueuePolicy::selectPacket(PacketQueue* queue)
 
         double score = 2.0 * cr + 1.0 * pressure;
 
-        DPRINTF(QOS, "QoSQPolicy::cp packet addr %#x cr %.2f pressure %.2f "
-                     "score %.2f\n", pkt->getAddr(), cr, pressure, score);
+        DPRINTF(QOS,
+                "QoSQPolicy::cp packet addr %#x cr %.2f pressure %.2f "
+                "score %.2f\n",
+                pkt->getAddr(), cr, pressure, score);
 
         if (score > max_score) {
             max_score = score;

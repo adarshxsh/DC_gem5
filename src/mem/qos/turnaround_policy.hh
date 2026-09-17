@@ -62,10 +62,9 @@ class TurnaroundPolicy : public SimObject
 
   public:
     TurnaroundPolicy(const Params &p)
-      : SimObject(p),
-        enablePressureGradient(p.enable_pressure_gradient),
-        hysteresisThreshold(p.hysteresis_threshold)
-    {};
+        : SimObject(p),
+          enablePressureGradient(p.enable_pressure_gradient),
+          hysteresisThreshold(p.hysteresis_threshold){};
 
     virtual ~TurnaroundPolicy() {};
 
