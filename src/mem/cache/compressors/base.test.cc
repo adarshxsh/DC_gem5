@@ -45,7 +45,8 @@ class BaseCompressorTest : public ::testing::Test
     }
 
     CPackParams
-    createCPackParams(bool adaptive, float decay, float threshold, unsigned interval)
+    createCPackParams(bool adaptive, float decay, float threshold,
+                      unsigned interval)
     {
         CPackParams p;
         p.name = "cpack_test";
@@ -91,8 +92,8 @@ TEST_F(BaseCompressorTest, EWMADecayPhaseTransition)
 
     // Phase 2: Switch to uncompressible random lines.
     // With 0.90 decay factor and sampling_interval = 10, adaptive bypass
-    // should activate within 30 sampling intervals (300 requests), rapidly adapting
-    // to the uncompressible phase transition.
+    // should activate within 30 sampling intervals (300 requests), rapidly
+    // adapting to the uncompressible phase transition.
     int requests_until_bypass = 0;
     bool bypassed = false;
 
@@ -101,7 +102,8 @@ TEST_F(BaseCompressorTest, EWMADecayPhaseTransition)
         decomp_lat = Cycles(0);
         auto data = compressor.compress(randomLine, comp_lat, decomp_lat);
 
-        // When bypass is active for non-sampled requests, comp_lat and decomp_lat are 0
+        // When bypass is active for non-sampled requests, comp_lat and
+        // decomp_lat are 0
         if (comp_lat == Cycles(0) && data->getSizeBits() == 512) {
             bypassed = true;
             requests_until_bypass = i + 1;
@@ -109,7 +111,8 @@ TEST_F(BaseCompressorTest, EWMADecayPhaseTransition)
         }
     }
 
-    // Verify adaptive bypass triggered rapidly (within < 100 sampling intervals, here < 300 requests)
+    // Verify adaptive bypass triggered rapidly (within < 100 sampling
+    // intervals, here < 300 requests)
     EXPECT_TRUE(bypassed);
     EXPECT_LT(requests_until_bypass, 300);
 }
@@ -119,7 +122,8 @@ TEST_F(BaseCompressorTest, EWMADecayPhaseTransition)
  */
 TEST_F(BaseCompressorTest, AccumulatorFloorLimits)
 {
-    // High decay factor (e.g. 0.01) to force rapid decay to small floating point numbers
+    // High decay factor (e.g. 0.01) to force rapid decay to small floating
+    // point numbers
     auto p = createCPackParams(true, 0.01f, 1.5f, 1);
     TestCPack compressor(p);
     compressor.regStats();
@@ -129,7 +133,8 @@ TEST_F(BaseCompressorTest, AccumulatorFloorLimits)
     // Compress a block to initialize accumulators
     compressor.compress(zeroLine, comp_lat, decomp_lat);
 
-    // Repeated compressions with 0.01 decay should safely reach 0.0 without subnormal values or crashes
+    // Repeated compressions with 0.01 decay should safely reach 0.0 without
+    // subnormal values or crashes
     for (int i = 0; i < 20; i++) {
         compressor.compress(zeroLine, comp_lat, decomp_lat);
     }
