@@ -38,6 +38,7 @@
 #include "base/cprintf.hh"
 #include "base/logging.hh"
 #include "mem/cache/replacement_policies/dwlru_rp.hh"
+#include "mem/cache/tags/super_blk.hh"
 
 namespace gem5
 {
@@ -59,6 +60,10 @@ void
 SectorSubBlk::setSectorOffset(const int sector_offset)
 {
     _sectorOffset = sector_offset;
+    SuperBlk *superblock = dynamic_cast<SuperBlk *>(getSectorBlock());
+    if (superblock) {
+        superblock->updateSectorOffsetMap();
+    }
 }
 
 int

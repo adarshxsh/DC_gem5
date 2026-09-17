@@ -55,6 +55,7 @@
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
 #include "mem/cache/tags/indexing_policies/base.hh"
 #include "mem/cache/tags/partitioning_policies/partition_manager.hh"
+#include "mem/cache/tags/super_blk.hh"
 
 namespace gem5
 {
@@ -279,9 +280,20 @@ SectorTags::findBlock(const CacheBlk::KeyType &key) const
 
     // Search for block
     for (const auto& sector : entries) {
-        auto blk = static_cast<SectorBlk*>(sector)->blks[offset];
-        if (blk->match(key)) {
-            return blk;
+        SectorBlk* sector_blk = static_cast<SectorBlk*>(sector);
+        if (sector_blk->match(key)) {
+            SuperBlk* super_blk = dynamic_cast<SuperBlk*>(sector_blk);
+            if (super_blk) {
+                SectorSubBlk* sub_blk = super_blk->getSubBlock(offset);
+                if (sub_blk && sub_blk->match(key)) {
+                    return sub_blk;
+                }
+            } else {
+                auto blk = sector_blk->blks[offset];
+                if (blk->match(key)) {
+                    return blk;
+                }
+            }
         }
     }
 

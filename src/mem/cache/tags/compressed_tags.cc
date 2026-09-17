@@ -117,6 +117,9 @@ CompressedTags::tagsInit()
 
         // Register TagExtractor for SuperBlk
         superblock->registerTagExtractor(genTagExtractor(indexingPolicy));
+
+        // Synchronize sectorOffsetMap for SuperBlk
+        superblock->updateSectorOffsetMap();
     }
 }
 
@@ -124,7 +127,7 @@ CacheBlk*
 CompressedTags::findVictim(const CacheBlk::KeyType& key,
                            const std::size_t compressed_size,
                            std::vector<CacheBlk*>& evict_blks,
-                           const uint64_t partition_id=0)
+                           const uint64_t partition_id)
 {
     // Get all possible locations of this superblock
     std::vector<ReplaceableEntry*> superblock_entries =
@@ -144,7 +147,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+            (superblock->getSubBlock(offset) == nullptr) &&
             superblock->isCompressed() &&
             superblock->canCoAllocate(compressed_size))
         {
@@ -177,16 +180,17 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     }
 
     // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = victim_superblock->blks[offset];
-
-    // It would be a hit if victim was valid in a co-allocation, and upgrades
-    // do not call findVictim, so it cannot happen
-    if (is_co_allocation){
+    SectorSubBlk* victim = nullptr;
+    if (is_co_allocation) {
+        victim = victim_superblock->blks[victim_superblock->getNumValid()];
         assert(!victim->isValid());
-
-        // Print all co-allocated blocks
-        DPRINTF(CacheComp, "Co-Allocation: offset %d of %s\n", offset,
+        DPRINTF(CacheComp, "Co-Allocation: offset %llu of %s\n", offset,
                 victim_superblock->print());
+    } else {
+        victim = victim_superblock->getSubBlock(offset);
+        if (!victim) {
+            victim = victim_superblock->blks[0];
+        }
     }
 
     // Update number of sub-blocks evicted due to a replacement
