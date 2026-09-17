@@ -67,7 +67,8 @@ class Message
           m_payload_size(-1),
           m_time(curTime),
           m_LastEnqueueTime(curTime),
-          m_DelayedTicks(0), m_msg_counter(0)
+          m_DelayedTicks(0),
+          m_msg_counter(0)
     { }
 
     Message(const Message &other) = default;
@@ -86,8 +87,16 @@ class Message
      * Query / Set actual byte size of the payload data.
      * Returns -1 if no payload size is specified or not implemented.
      */
-    virtual int getPayloadSize() const { return m_payload_size; }
-    virtual void setPayloadSize(int size) { m_payload_size = size; }
+    virtual int
+    getPayloadSize() const
+    {
+        return m_payload_size;
+    }
+    virtual void
+    setPayloadSize(int size)
+    {
+        m_payload_size = size;
+    }
 
     /**
      * The two functions below are used for reading / writing the message
