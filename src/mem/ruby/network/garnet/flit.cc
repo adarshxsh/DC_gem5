@@ -27,7 +27,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "mem/ruby/network/garnet/flit.hh"
 
 #include "base/intmath.hh"
@@ -43,8 +42,8 @@ namespace garnet
 {
 
 // Constructor for the flit
-flit::flit(int packet_id, int id, int  vc, int vnet, RouteInfo route, int size,
-    MsgPtr msg_ptr, int MsgSize, uint32_t bWidth, Tick curTime)
+flit::flit(int packet_id, int id, int vc, int vnet, RouteInfo route, int size,
+           MsgPtr msg_ptr, int MsgSize, uint32_t bWidth, Tick curTime)
 {
     m_size = size;
     m_msg_ptr = msg_ptr;
@@ -61,16 +60,24 @@ flit::flit(int packet_id, int id, int  vc, int vnet, RouteInfo route, int size,
     m_width = bWidth;
     msgSize = MsgSize;
 
+    if (m_msg_ptr && m_msg_ptr->getCompressedPayloadSize() >= 0) {
+        int comp_payload = m_msg_ptr->getCompressedPayloadSize();
+        m_compressed_length = (divCeil(comp_payload, 8)) & 0x7;
+    } else {
+        m_compressed_length = 0;
+    }
+
     if (size == 1) {
         m_type = HEAD_TAIL_;
         return;
     }
-    if (id == 0)
+    if (id == 0) {
         m_type = HEAD_;
-    else if (id == (size - 1))
+    } else if (id == (size - 1)) {
         m_type = TAIL_;
-    else
+    } else {
         m_type = BODY_;
+    }
 }
 
 flit *
@@ -79,14 +86,15 @@ flit::serialize(int ser_id, int parts, uint32_t bWidth)
     assert(m_width > bWidth);
 
     int ratio = (int)divCeil(m_width, bWidth);
-    int new_id = (m_id*ratio) + ser_id;
+    int new_id = (m_id * ratio) + ser_id;
     int new_size = (int)divCeil((float)msgSize, (float)bWidth);
     assert(new_id < new_size);
 
-    flit *fl = new flit(m_packet_id, new_id, m_vc, m_vnet, m_route,
-                    new_size, m_msg_ptr, msgSize, bWidth, m_time);
+    flit *fl = new flit(m_packet_id, new_id, m_vc, m_vnet, m_route, new_size,
+                        m_msg_ptr, msgSize, bWidth, m_time);
     fl->set_enqueue_time(m_enqueue_time);
     fl->set_src_delay(src_delay);
+    fl->set_compressed_length(m_compressed_length);
     return fl;
 }
 
@@ -94,26 +102,28 @@ flit *
 flit::deserialize(int des_id, int num_flits, uint32_t bWidth)
 {
     int ratio = (int)divCeil((float)bWidth, (float)m_width);
-    int new_id = ((int)divCeil((float)(m_id+1), (float)ratio)) - 1;
+    int new_id = ((int)divCeil((float)(m_id + 1), (float)ratio)) - 1;
     int new_size = (int)divCeil((float)msgSize, (float)bWidth);
     assert(new_id < new_size);
 
-    flit *fl = new flit(m_packet_id, new_id, m_vc, m_vnet, m_route,
-                    new_size, m_msg_ptr, msgSize, bWidth, m_time);
+    flit *fl = new flit(m_packet_id, new_id, m_vc, m_vnet, m_route, new_size,
+                        m_msg_ptr, msgSize, bWidth, m_time);
     fl->set_enqueue_time(m_enqueue_time);
     fl->set_src_delay(src_delay);
+    fl->set_compressed_length(m_compressed_length);
     return fl;
 }
 
 // Flit can be printed out for debugging purposes
 void
-flit::print(std::ostream& out) const
+flit::print(std::ostream &out) const
 {
     out << "[flit:: ";
     out << "PacketId=" << m_packet_id << " ";
     out << "Id=" << m_id << " ";
     out << "Type=" << m_type << " ";
     out << "Size=" << m_size << " ";
+    out << "CompLen3Bit=" << (int)get_compressed_length() << " ";
     out << "Vnet=" << m_vnet << " ";
     out << "VC=" << m_vc << " ";
     out << "Src NI=" << m_route.src_ni << " ";
@@ -121,7 +131,7 @@ flit::print(std::ostream& out) const
     out << "Dest NI=" << m_route.dest_ni << " ";
     out << "Dest Router=" << m_route.dest_router << " ";
     out << "Set Time=" << m_time << " ";
-    out << "Width=" << m_width<< " ";
+    out << "Width=" << m_width << " ";
     out << "]";
 }
 
