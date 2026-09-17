@@ -1774,6 +1774,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         const auto comp_data = compressor->compress(
             pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
         blk_size_bits = comp_data->getSizeBits();
+    } else if (compressor && pkt->isCompressed()) {
+        blk_size_bits = pkt->getCompressedSizeBits();
     }
 
     // get partitionId from Packet

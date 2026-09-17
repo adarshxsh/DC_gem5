@@ -57,6 +57,7 @@
 #include "base/compiler.hh"
 #include "base/extensible.hh"
 #include "base/flags.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/printable.hh"
 #include "base/types.hh"
@@ -301,7 +302,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +361,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Indicates whether the payload is compressed
+        IS_COMPRESSED         = 0x00020000
     };
 
     Flags flags;
@@ -395,6 +399,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     /// The size of the request or transfer.
     unsigned size;
+
+    /// Compressed size in bytes if payload is compressed
+    unsigned _compressedSize = 0;
 
     /**
      * Track the bytes found that satisfy a functional read.
@@ -816,6 +823,27 @@ class Packet : public Printable, public Extensible<Packet>
 
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
 
+    bool isCompressed() const { return flags.isSet(IS_COMPRESSED); }
+    unsigned getCompressedSize() const { return _compressedSize; }
+    void setCompressedSize(unsigned bytes)
+    {
+        _compressedSize = bytes;
+        if (bytes > 0) {
+            flags.set(IS_COMPRESSED);
+        } else {
+            flags.clear(IS_COMPRESSED);
+        }
+    }
+    void setCompressedSizeBits(std::size_t bits)
+    {
+        setCompressedSize(divCeil(bits, 8));
+    }
+    std::size_t getCompressedSizeBits() const { return _compressedSize * 8; }
+    unsigned getTransferSize() const
+    {
+        return isCompressed() ? _compressedSize : getSize();
+    }
+
     /**
      * Get address range to which this packet belongs.
      *
@@ -946,6 +974,7 @@ class Packet : public Printable, public Extensible<Packet>
            cmd(pkt->cmd), id(pkt->id), req(pkt->req),
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
+           _compressedSize(pkt->_compressedSize),
            bytesValid(pkt->bytesValid),
            _qosValue(pkt->qosValue()),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
