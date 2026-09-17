@@ -290,6 +290,20 @@ class BaseTags : public ClockedObject
                                  bool is_prefetch = false) = 0;
 
     /**
+     * Get an estimated compressed size for a block allocation when payload data
+     * is not available (e.g., read miss allocation).
+     *
+     * @param key The block key (address and secure bit).
+     * @param default_size Default uncompressed block size in bits.
+     * @return Estimated block size in bits.
+     */
+    virtual std::size_t getEstimatedCompressedSize(
+        const CacheBlk::KeyType &key, std::size_t default_size) const
+    {
+        return default_size;
+    }
+
+    /**
      * Access block and update replacement data. May not succeed, in which case
      * nullptr is returned. This has all the implications of a cache access and
      * should only be used as such. Returns the tag lookup latency as a side

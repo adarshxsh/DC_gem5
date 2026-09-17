@@ -46,6 +46,8 @@
 #include "mem/cache/base.hh"
 #include <algorithm>
 
+#include <climits>
+
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
@@ -1733,6 +1735,14 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     DPRINTF(Cache, "Block addr %#llx (%s) moving from %s to %s\n",
             addr, is_secure ? "s" : "ns", old_state, blk->print());
 
+    if (compressor && pkt->hasData()) {
+        if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
+                                    writebacks)) {
+            invalidateBlock(blk);
+            return nullptr;
+        }
+    }
+
     // if we got new data, copy it in (checking for a read response
     // and a response that has data is the same in the end)
     if (pkt->isRead()) {
@@ -1770,10 +1780,15 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // compressor is used, the compression/decompression methods are called to
     // calculate the amount of extra cycles needed to read or write compressed
     // blocks.
-    if (compressor && pkt->hasData()) {
-        const auto comp_data = compressor->compress(
-            pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
-        blk_size_bits = comp_data->getSizeBits();
+    if (compressor) {
+        if (pkt->hasData()) {
+            const auto comp_data = compressor->compress(
+                pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
+            blk_size_bits = comp_data->getSizeBits();
+        } else {
+            blk_size_bits = std::min(tags->getEstimatedCompressedSize(
+                {addr, is_secure}, blkSize * CHAR_BIT), blkSize * CHAR_BIT);
+        }
     }
 
     // get partitionId from Packet
