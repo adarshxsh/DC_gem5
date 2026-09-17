@@ -66,7 +66,8 @@ class Message
         : m_block_size(block_size),
           m_time(curTime),
           m_LastEnqueueTime(curTime),
-          m_DelayedTicks(0), m_msg_counter(0),
+          m_DelayedTicks(0),
+          m_msg_counter(0),
           m_payload_size(-1)
     { }
 
@@ -82,11 +83,31 @@ class Message
     virtual MessageSizeType& getMessageSize()
     { panic("MessageSizeType() called on wrong message!"); }
 
-    virtual int getPayloadSizeInBytes() const { return m_payload_size; }
-    virtual void setPayloadSizeInBytes(int size) { m_payload_size = size; }
-    virtual int getCompressedSizeInBytes() const { return m_payload_size; }
-    virtual void setCompressedSizeInBytes(int size) { m_payload_size = size; }
-    virtual bool isCompressed() const { return m_payload_size > 0; }
+    virtual int
+    getPayloadSizeInBytes() const
+    {
+        return m_payload_size;
+    }
+    virtual void
+    setPayloadSizeInBytes(int size)
+    {
+        m_payload_size = size;
+    }
+    virtual int
+    getCompressedSizeInBytes() const
+    {
+        return m_payload_size;
+    }
+    virtual void
+    setCompressedSizeInBytes(int size)
+    {
+        m_payload_size = size;
+    }
+    virtual bool
+    isCompressed() const
+    {
+        return m_payload_size > 0;
+    }
 
     /**
      * The two functions below are used for reading / writing the message
