@@ -559,3 +559,82 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, DensityAwareCandidateRanking)
+{
+    // Test density-aware target candidate ranking logic:
+    // Create 3 candidate superblocks in a set
+    constexpr int NumCandidates = 3;
+    SuperBlk candidates[NumCandidates];
+    std::unique_ptr<CompressionBlk[]> candidate_subBlks[NumCandidates];
+
+    for (int i = 0; i < NumCandidates; ++i) {
+        candidates[i].setBlkSize(BlkSize);
+        candidate_subBlks[i].reset(new CompressionBlk[NumSubBlks]);
+        candidates[i].blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            candidates[i].blks[k] = &candidate_subBlks[i][k];
+            candidate_subBlks[i][k].setSectorBlock(&candidates[i]);
+            candidate_subBlks[i][k].setSectorOffset(k);
+            candidate_subBlks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        candidates[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+
+    // Candidate 0: Dense superblock (3 valid blocks, total 384 bits used)
+    candidate_subBlks[0][0].insert({0x1000, false});
+    candidate_subBlks[0][0].setSizeBits(128);
+    candidate_subBlks[0][1].insert({0x1000, false});
+    candidate_subBlks[0][1].setSizeBits(128);
+    candidate_subBlks[0][2].insert({0x1000, false});
+    candidate_subBlks[0][2].setSizeBits(128);
+
+    // Candidate 1: Moderate superblock (1 valid block, 128 bits used)
+    candidate_subBlks[1][0].insert({0x2000, false});
+    candidate_subBlks[1][0].setSizeBits(128);
+
+    // Candidate 2: Completely empty/unallocated superblock (0 valid blocks)
+    // (candidates[2] remains invalid / empty)
+
+    // Evaluate an expanding sub-block requiring 256 bits at offset 0
+    std::size_t expanding_size = 256;
+
+    // Evaluate candidates by required secondary evictions and free bit space
+    std::size_t best_evictions = std::numeric_limits<std::size_t>::max();
+    ssize_t best_net_space = std::numeric_limits<ssize_t>::lowest();
+    int best_candidate_idx = -1;
+
+    for (int i = 0; i < NumCandidates; ++i) {
+        std::size_t valid_cnt = candidates[i].getNumValid();
+        std::size_t used_bits = 0;
+        for (const auto& sub : candidates[i].blks) {
+            if (sub->isValid()) {
+                used_bits += static_cast<const CompressionBlk*>(sub)->getSizeBits();
+            }
+        }
+        std::size_t total_cap = candidates[i].getBlkSizeBits();
+        std::size_t free_cap = (total_cap > used_bits) ? (total_cap - used_bits) : 0;
+        ssize_t net_space = static_cast<ssize_t>(free_cap) - static_cast<ssize_t>(expanding_size);
+
+        bool can_coalloc = false;
+        if (!candidates[i].isValid() || valid_cnt == 0) {
+            can_coalloc = (expanding_size <= total_cap);
+        } else if (candidates[i].isCompressed()) {
+            can_coalloc = candidates[i].canCoAllocate(expanding_size);
+        }
+
+        std::size_t req_evict = can_coalloc ? 0 : valid_cnt;
+
+        if (req_evict < best_evictions ||
+            (req_evict == best_evictions && net_space > best_net_space)) {
+            best_evictions = req_evict;
+            best_net_space = net_space;
+            best_candidate_idx = i;
+        }
+    }
+
+    // Verify candidate 2 (empty/sparse superblock) is chosen with 0 secondary evictions
+    ASSERT_EQ(best_candidate_idx, 2);
+    ASSERT_EQ(best_evictions, 0);
+    ASSERT_EQ(best_net_space, 256); // 512 - 256
+}
