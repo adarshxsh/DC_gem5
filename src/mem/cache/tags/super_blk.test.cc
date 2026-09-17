@@ -61,3 +61,73 @@ TEST(SuperBlkTest, SetUncompressedClearsCompressed)
     blk.setUncompressed();
     EXPECT_FALSE(blk.isCompressed());
 }
+
+class CanCoAllocateTest : public ::testing::Test
+{
+  protected:
+    static constexpr std::size_t BlkSize = 64;
+    static constexpr unsigned NumSubBlks = 4;
+
+    SuperBlk superBlk;
+    std::unique_ptr<CompressionBlk[]> subBlks;
+
+    void SetUp() override
+    {
+        superBlk.setBlkSize(BlkSize);
+        subBlks.reset(new CompressionBlk[NumSubBlks]);
+        superBlk.blks.resize(NumSubBlks);
+        for (unsigned k = 0; k < NumSubBlks; ++k) {
+            superBlk.blks[k] = &subBlks[k];
+            subBlks[k].setSectorBlock(&superBlk);
+            subBlks[k].setSectorOffset(k);
+            subBlks[k].registerTagExtractor([](Addr addr) { return addr; });
+        }
+        superBlk.registerTagExtractor([](Addr addr) { return addr; });
+    }
+};
+
+TEST_F(CanCoAllocateTest, CumulativeBitSumCheck)
+{
+    // Initially empty superblock
+    EXPECT_TRUE(superBlk.canCoAllocate(128));
+    EXPECT_FALSE(superBlk.canCoAllocate(512)); // uncompressed rejected
+
+    // Add 1st sub-block (128 bits) -> sum = 128
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(128);
+
+    // Add 2nd sub-block (128 bits) -> sum = 256
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(128);
+
+    // 128 + 128 + 128 = 384 <= 512 bits -> should allow co-allocation
+    EXPECT_TRUE(superBlk.canCoAllocate(128));
+
+    // Add 3rd sub-block (128 bits) -> sum = 384
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(128);
+
+    // 384 + 128 = 512 <= 512 bits -> should allow 4th 128-bit sub-block
+    EXPECT_TRUE(superBlk.canCoAllocate(128));
+
+    // 384 + 256 = 640 > 512 bits -> should reject 256-bit sub-block
+    EXPECT_FALSE(superBlk.canCoAllocate(256));
+}
+
+TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
+{
+    // Add 1st sub-block (256 bits, CF=2)
+    subBlks[0].insert({0x2000, false});
+    subBlks[0].setSizeBits(256);
+
+    // Add 2nd sub-block (128 bits, CF=4) -> sum = 384 bits, min_cf = 2
+    subBlks[1].insert({0x2000, false});
+    subBlks[1].setSizeBits(128);
+
+    // Under discrete count cap (numValid < target_cf), numValid = 2 < 2 would be false.
+    // Under cumulative bit sum check (384 + 128 = 512 <= 512), this should succeed!
+    EXPECT_TRUE(superBlk.canCoAllocate(128));
+
+    // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
+    EXPECT_FALSE(superBlk.canCoAllocate(256));
+}
