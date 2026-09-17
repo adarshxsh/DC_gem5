@@ -77,6 +77,12 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     backendLatency(p.static_backend_latency),
     commandWindow(p.command_window),
     prevArrival(0),
+    lastWriteArrivalTick(0),
+    lastWriteQueueSize(0),
+    prevWriteArrivalTick(0),
+    prevWriteQueueSize(0),
+    highPressure(false),
+    leadTimeHorizon(p.lead_time_horizon),
     stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
@@ -403,6 +409,48 @@ MemCtrl::printQs() const
 #endif // TRACING_ON
 }
 
+void
+MemCtrl::updateWriteArrivalTrack(MemInterface* mem_intr)
+{
+    uint32_t current_q = mem_intr ? mem_intr->writeQueueSize : totalWriteQueueSize;
+    if (curTick() > lastWriteArrivalTick) {
+        prevWriteArrivalTick = lastWriteArrivalTick;
+        prevWriteQueueSize = lastWriteQueueSize;
+        lastWriteArrivalTick = curTick();
+        lastWriteQueueSize = current_q;
+    } else {
+        lastWriteQueueSize = current_q;
+    }
+}
+
+uint32_t
+MemCtrl::getEffectiveWriteQueueSize(MemInterface* mem_intr) const
+{
+    uint32_t current_q = mem_intr ? mem_intr->writeQueueSize : totalWriteQueueSize;
+
+    Tick dt = 0;
+    int64_t dq = 0;
+
+    if (curTick() > lastWriteArrivalTick) {
+        if (lastWriteArrivalTick > 0) {
+            dt = curTick() - lastWriteArrivalTick;
+            dq = (int64_t)current_q - (int64_t)lastWriteQueueSize;
+        }
+    } else if (curTick() == lastWriteArrivalTick) {
+        if (prevWriteArrivalTick > 0 && curTick() > prevWriteArrivalTick) {
+            dt = curTick() - prevWriteArrivalTick;
+            dq = (int64_t)current_q - (int64_t)prevWriteQueueSize;
+        }
+    }
+
+    if (dt > 0 && dq > 0) {
+        uint64_t v_tau = ((uint64_t)dq * leadTimeHorizon) / dt;
+        return current_q + (uint32_t)v_tau;
+    }
+
+    return current_q;
+}
+
 bool
 MemCtrl::recvTimingReq(PacketPtr pkt)
 {
@@ -448,7 +496,17 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
             stats.numWrRetry++;
             return false;
         } else {
+            updateWriteArrivalTrack(dram);
             addToWriteQueue(pkt, pkt_count, dram);
+
+            uint32_t Q_eff = getEffectiveWriteQueueSize(dram);
+            highPressure = (Q_eff >= writeHighThreshold);
+            if (highPressure) {
+                DPRINTF(MemCtrl,
+                        "Predictive high pressure asserted: Q_eff=%d >= threshold=%d\n",
+                        Q_eff, writeHighThreshold);
+            }
+
             // If we are not already scheduled to get a request out of the
             // queue, do so now
             if (!nextReqEvent.scheduled()) {
@@ -1036,7 +1094,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // there are no other writes that can issue
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
+            uint32_t Q_eff = getEffectiveWriteQueueSize(mem_intr);
+            highPressure = (Q_eff >= writeHighThreshold);
+            if ((Q_eff > writeHighThreshold) &&
                (mem_intr->readsThisTime >= minReadsPerSwitch ||
                mem_intr->readQueueSize == 0)
                && !(nvmWriteBlock(mem_intr))) {
