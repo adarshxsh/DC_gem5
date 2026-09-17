@@ -268,6 +268,14 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     // line, return its decompression latency
     if (comp_blk && comp_blk->isCompressed() &&
         (comp_blk->getSizeBits() < blkSize * CHAR_BIT)) {
+        if (cache && cache->isCongested()) {
+            stats.bypassedDecompressions += 1;
+            DPRINTF(CacheComp,
+                    "Cache queue congested. Bypassing decompression "
+                    "latency for block: %s\n",
+                    comp_blk->print());
+            return Cycles(0);
+        }
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
         DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
                 comp_blk->print(), decomp_lat);
