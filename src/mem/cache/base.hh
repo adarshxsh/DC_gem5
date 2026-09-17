@@ -1220,6 +1220,11 @@ class BaseCache : public ClockedObject
     }
 
     /**
+     * Returns true if the cache queue is congested (MSHR or Write Buffer saturated).
+     */
+    virtual bool isCongested() const;
+
+    /**
      * Marks the access path of the cache as blocked for the given cause. This
      * also sets the blocked flag in the response interface.
      * @param cause The reason for the cache blocking.
