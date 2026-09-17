@@ -368,7 +368,24 @@ class Base : public ClockedObject
         /** The number of times a HW-prefetch is late
          * (hit in cache, MSHR, WB). */
         statistics::Formula pfLate;
+
+        /** The number of times an uncompressible HW-prefetch is suppressed. */
+        statistics::Scalar pfFilteredUncompressible;
     } prefetchStats;
+
+    /** Compressibility Prediction Filter Parameters and Table */
+    const bool enableCompressibilityFilter;
+    const unsigned compressibilityTableEntries;
+
+    struct CompressibilityEntry
+    {
+        bool valid = false;
+        Addr tag = 0;
+        uint8_t predicted_cf = 1;
+        Tick last_used = 0;
+    };
+
+    mutable std::vector<CompressibilityEntry> compressibilityHistoryTable;
 
     /** Total prefetches issued */
     uint64_t issuedPrefetches;
@@ -399,6 +416,23 @@ class Base : public ClockedObject
     /** Notify prefetcher of cache eviction */
     virtual void notifyEvict(const EvictionInfo &info)
     {}
+
+    /**
+     * Query compressibility history table for predicted compression factor.
+     * @param addr Target block address
+     * @return Predicted compression factor (0 if unknown, 1 if 1x uncompressible, >=2 if compressed)
+     */
+    uint8_t getPredictedCompressionFactor(Addr addr) const;
+
+    /**
+     * Update compressibility history table with observed compression factor.
+     * @param addr Address of line
+     * @param cf Observed compression factor
+     */
+    void updateCompressibilityHistory(Addr addr, uint8_t cf);
+
+    /** Helper to compute compression factor for block data */
+    uint8_t calculateDataCompressionFactor(const uint8_t *data, const CacheAccessor &cache) const;
 
     virtual PacketPtr getPacket() = 0;
 

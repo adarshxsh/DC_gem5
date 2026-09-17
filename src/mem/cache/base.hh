@@ -357,6 +357,9 @@ class BaseCache : public ClockedObject
             return cache.getCompressionFactor(addr, is_secure);
         }
 
+        compression::Base* getCompressor() const override
+        { return cache.compressor; }
+
     } accessor;
 
     /** Miss status registers */

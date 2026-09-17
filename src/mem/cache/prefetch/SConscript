@@ -60,3 +60,5 @@ Source('tagged.cc')
 Source('fdp.cc')
 
 GTest('queued.test', 'queued.test.cc', 'queued.cc', 'base.cc')
+GTest('compressibility_filter.test', 'compressibility_filter.test.cc', 'base.cc', 'queued.cc',
+      with_tag('gem5 simobject'), with_tag('gem5 lib'))

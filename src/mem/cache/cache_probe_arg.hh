@@ -44,6 +44,11 @@
 namespace gem5
 {
 
+namespace compression
+{
+class Base;
+}
+
 /**
  * Provides generic cache lookup functions. A cache may provide
  * a CacheAccessor object to other components that need to perform
@@ -84,6 +89,9 @@ struct CacheAccessor
     {
         return 1;
     }
+
+    /** Get pointer to cache compressor if present */
+    virtual compression::Base* getCompressor() const { return nullptr; }
 };
 
 /**
