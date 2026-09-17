@@ -59,27 +59,27 @@ OutputUnit::OutputUnit(int id, PortDirection direction, Router *router,
 }
 
 void
-OutputUnit::decrement_credit(int out_vc)
+OutputUnit::decrement_credit(int out_vc, int count)
 {
-    DPRINTF(RubyNetwork, "Router %d OutputUnit %s decrementing credit:%d for "
+    DPRINTF(RubyNetwork, "Router %d OutputUnit %s decrementing credit:%d by %d for "
             "outvc %d at time: %lld for %s\n", m_router->get_id(),
             m_router->getPortDirectionName(get_direction()),
-            outVcState[out_vc].get_credit_count(),
+            outVcState[out_vc].get_credit_count(), count,
             out_vc, m_router->curCycle(), m_credit_link->name());
 
-    outVcState[out_vc].decrement_credit();
+    outVcState[out_vc].decrement_credit(count);
 }
 
 void
-OutputUnit::increment_credit(int out_vc)
+OutputUnit::increment_credit(int out_vc, int count)
 {
-    DPRINTF(RubyNetwork, "Router %d OutputUnit %s incrementing credit:%d for "
+    DPRINTF(RubyNetwork, "Router %d OutputUnit %s incrementing credit:%d by %d for "
             "outvc %d at time: %lld from:%s\n", m_router->get_id(),
             m_router->getPortDirectionName(get_direction()),
-            outVcState[out_vc].get_credit_count(),
+            outVcState[out_vc].get_credit_count(), count,
             out_vc, m_router->curCycle(), m_credit_link->name());
 
-    outVcState[out_vc].increment_credit();
+    outVcState[out_vc].increment_credit(count);
 }
 
 // Check if the output VC (i.e., input VC at next router)

@@ -48,6 +48,12 @@ class CreditLink : public NetworkLink
   public:
     typedef CreditLinkParams Params;
     CreditLink(const Params &p) : NetworkLink(p) {}
+
+    void sendCreditToken(int vc, bool is_free_signal, Tick curTime)
+    {
+        DPRINTF(RubyNetwork, "CreditLink %s sending credit token for VC %d "
+                "free:%d at %lld\n", name(), vc, is_free_signal, curTime);
+    }
 };
 
 } // namespace garnet

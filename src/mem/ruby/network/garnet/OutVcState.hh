@@ -50,8 +50,8 @@ class OutVcState
 
     int get_credit_count()          { return m_credit_count; }
     inline bool has_credit()       { return (m_credit_count > 0); }
-    void increment_credit();
-    void decrement_credit();
+    void increment_credit(int count = 1);
+    void decrement_credit(int count = 1);
 
     inline bool
     isInState(VC_state_type state, Tick request_time)
