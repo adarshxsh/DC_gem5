@@ -60,6 +60,7 @@ flit::flit(int packet_id, int id, int  vc, int vnet, RouteInfo route, int size,
     m_stage.second = curTime;
     m_width = bWidth;
     msgSize = MsgSize;
+    m_is_demand_request = (vnet == 0);
 
     if (size == 1) {
         m_type = HEAD_TAIL_;

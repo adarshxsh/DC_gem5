@@ -77,6 +77,14 @@ CrossbarSwitch::wakeup()
         flit *t_flit = switch_buffer.peekTopFlit();
         if (t_flit->is_stage(ST_, curTick())) {
             int outport = t_flit->get_outport();
+            OutputUnit *out_unit = m_router->getOutputUnit(outport);
+
+            if (out_unit && out_unit->is_decompression_busy()) {
+                DPRINTF(RubyNetwork, "CrossbarSwitch at Router %d outport %d "
+                        "endpoint decompression busy at cycle %lld. Delaying flit %s\n",
+                        m_router->get_id(), outport, m_router->curCycle(), *t_flit);
+                continue;
+            }
 
             // flit performs LT_ in the next cycle
             t_flit->advance_stage(LT_, m_router->clockEdge(Cycles(1)));
@@ -84,7 +92,7 @@ CrossbarSwitch::wakeup()
 
             // This will take care of waking up the Network Link
             // in the next cycle
-            m_router->getOutputUnit(outport)->insert_flit(t_flit);
+            out_unit->insert_flit(t_flit);
             switch_buffer.getTopFlit();
             m_crossbar_activity++;
         }
