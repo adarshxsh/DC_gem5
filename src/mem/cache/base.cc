@@ -109,6 +109,12 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       isReadOnly(p.is_read_only),
       replaceExpansions(p.replace_expansions),
       moveContractions(p.move_contractions),
+      enableCompressionBackpressure(p.enable_compression_backpressure),
+      backpressureHighThreshold(p.backpressure_high_threshold),
+      backpressureLowThreshold(p.backpressure_low_threshold),
+      backpressureExpansionThreshold(p.backpressure_expansion_threshold),
+      backpressureActive(false),
+      downstreamBackpressureActive(false),
       blocked(0),
       order(0),
       noTargetMSHR(nullptr),
@@ -141,6 +147,15 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
         "Compressed cache %s does not have a compression algorithm", name());
     if (compressor)
         compressor->setCache(this);
+
+    if (enableCompressionBackpressure) {
+        if (backpressureHighThreshold == 0) {
+            backpressureHighThreshold = std::max(1u, (unsigned)(p.write_buffers * 0.75));
+        }
+        if (backpressureLowThreshold == 0) {
+            backpressureLowThreshold = std::max(0u, (unsigned)(p.write_buffers * 0.25));
+        }
+    }
 }
 
 BaseCache::~BaseCache()
@@ -251,6 +266,7 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
     }
 
     writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++);
+    checkBackpressure(false);
 
     if (writeBuffer.isFull()) {
         setBlocked((BlockedCause)MSHRQueue_WriteBuffer);
@@ -265,6 +281,7 @@ BaseCache::markInService(WriteQueueEntry *entry)
 {
     bool wasFull = writeBuffer.isFull();
     writeBuffer.markInService(entry);
+    checkBackpressure(false);
 
     if (wasFull && !writeBuffer.isFull()) {
         clearBlocked(Blocked_NoWBBuffers);
@@ -910,6 +927,11 @@ BaseCache::getNextQueueEntry()
     MSHR *miss_mshr  = mshrQueue.getNext();
     WriteQueueEntry *wq_entry = writeBuffer.getNext();
 
+    // Defer writebacks if downstream backpressure is active and write buffer is not full
+    if (downstreamBackpressureActive && wq_entry && !writeBuffer.isFull()) {
+        wq_entry = nullptr;
+    }
+
     // If we got a write buffer request ready, first priority is a
     // full write buffer, otherwise we favour the miss requests
     if (wq_entry && (writeBuffer.isFull() || !miss_mshr)) {
@@ -1116,6 +1138,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
         if (!handleEvictions(evict_blks, writebacks)) {
             return false;
         }
+
+        checkBackpressure(is_data_expansion && !evict_blks.empty());
 
         DPRINTF(CacheComp, "Data %s: [%s] from %d to %d bits\n",
                 op_name, blk->print(), prev_size, compression_size);
@@ -2336,6 +2360,8 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
              "number of data expansions"),
     ADD_STAT(dataContractions, statistics::units::Count::get(),
              "number of data contractions"),
+    ADD_STAT(backpressureEvents, statistics::units::Count::get(),
+             "number of compression backpressure events asserted"),
     cmd(MemCmd::NUM_MEM_CMDS)
 {
     for (int idx = 0; idx < MemCmd::NUM_MEM_CMDS; ++idx)
@@ -2568,6 +2594,7 @@ BaseCache::CacheStats::regStats()
 
     dataExpansions.flags(nozero | nonan);
     dataContractions.flags(nozero | nonan);
+    backpressureEvents.flags(nozero | nonan);
 }
 
 void
@@ -2717,6 +2744,64 @@ BaseCache::MemSidePort::recvFunctionalSnoop(PacketPtr pkt)
     // a specific functionalSnoop method, as they have the same
     // behaviour regardless)
     cache->functionalAccess(pkt, false);
+}
+
+void
+BaseCache::MemSidePort::recvCompressionBackpressure(bool active)
+{
+    cache->setDownstreamBackpressure(active);
+}
+
+void
+BaseCache::setDownstreamBackpressure(bool active)
+{
+    if (downstreamBackpressureActive != active) {
+        DPRINTF(CachePort, "Downstream compression backpressure changed to %d\n", active);
+        downstreamBackpressureActive = active;
+        if (!downstreamBackpressureActive) {
+            schedMemSideSendEvent(curTick());
+        }
+    }
+}
+
+void
+BaseCache::checkBackpressure(bool expansionEvictionBurst)
+{
+    if (!enableCompressionBackpressure) return;
+
+    unsigned occupancy = writeBuffer.size();
+    if (!backpressureActive) {
+        if (occupancy >= backpressureHighThreshold || expansionEvictionBurst) {
+            assertBackpressure();
+        }
+    } else {
+        if (occupancy <= backpressureLowThreshold && !expansionEvictionBurst) {
+            deassertBackpressure();
+        }
+    }
+}
+
+void
+BaseCache::assertBackpressure()
+{
+    if (!backpressureActive) {
+        backpressureActive = true;
+        stats.backpressureEvents++;
+        DPRINTF(CachePort, "%s: Asserting compression backpressure (wb size=%d)\n",
+                name(), writeBuffer.size());
+        cpuSidePort.sendCompressionBackpressure(true);
+    }
+}
+
+void
+BaseCache::deassertBackpressure()
+{
+    if (backpressureActive) {
+        backpressureActive = false;
+        DPRINTF(CachePort, "%s: Deasserting compression backpressure (wb size=%d)\n",
+                name(), writeBuffer.size());
+        cpuSidePort.sendCompressionBackpressure(false);
+    }
 }
 
 void

@@ -243,6 +243,8 @@ class BaseCache : public ClockedObject
 
         virtual void recvFunctionalSnoop(PacketPtr pkt);
 
+        void recvCompressionBackpressure(bool active) override;
+
       public:
 
         MemSidePort(const std::string &_name, BaseCache *_cache,
@@ -370,6 +372,21 @@ class BaseCache : public ClockedObject
 
     /** Compression method being used. */
     compression::Base* compressor;
+
+    const bool enableCompressionBackpressure;
+    unsigned backpressureHighThreshold;
+    unsigned backpressureLowThreshold;
+    const unsigned backpressureExpansionThreshold;
+
+    bool backpressureActive;
+    bool downstreamBackpressureActive;
+
+    void setDownstreamBackpressure(bool active);
+    bool isDownstreamBackpressureActive() const { return downstreamBackpressureActive; }
+    bool isBackpressureActive() const { return backpressureActive; }
+    void checkBackpressure(bool expansionEvictionBurst = false);
+    void assertBackpressure();
+    void deassertBackpressure();
 
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
@@ -1155,6 +1172,9 @@ class BaseCache : public ClockedObject
          * factor improved).
          */
         statistics::Scalar dataContractions;
+
+        /** Number of compression backpressure events asserted. */
+        statistics::Scalar backpressureEvents;
 
         /** Per-command statistics */
         std::vector<std::unique_ptr<CacheCmdStats>> cmd;
