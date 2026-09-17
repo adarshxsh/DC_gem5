@@ -69,7 +69,7 @@ class SuperBlkTestFixture : public ::testing::Test
     verifyInvariants(const SuperBlk &sb)
     {
         uint8_t count_valid = 0;
-        uint8_t min_cf = sb.blks.size();
+        double min_cf = sb.blks.size();
         std::size_t total_bits = 0;
         for (const auto &blk : sb.blks) {
             if (blk->isValid()) {
@@ -77,7 +77,7 @@ class SuperBlkTestFixture : public ::testing::Test
                 const CompressionBlk *cblk =
                     static_cast<const CompressionBlk *>(blk);
                 total_bits += cblk->getSizeBits();
-                uint8_t cf =
+                double cf =
                     sb.calculateCompressionFactor(cblk->getSizeBits());
                 if (cf < min_cf) {
                     min_cf = cf;
@@ -89,10 +89,10 @@ class SuperBlkTestFixture : public ::testing::Test
         ASSERT_EQ(sb.getNumValid(), count_valid);
         ASSERT_EQ(sb.isValid(), (count_valid > 0));
         if (count_valid > 0) {
-            ASSERT_EQ(sb.getCompressionFactor(), min_cf);
+            ASSERT_DOUBLE_EQ(sb.getCompressionFactor(), min_cf);
             ASSERT_LE(total_bits, BlkSize * CHAR_BIT);
         } else {
-            ASSERT_EQ(sb.getCompressionFactor(), 1);
+            ASSERT_DOUBLE_EQ(sb.getCompressionFactor(), 1.0);
         }
     }
 };
@@ -101,7 +101,7 @@ TEST_F(SuperBlkTestFixture, InitialState)
 {
     ASSERT_FALSE(superBlk.isValid());
     ASSERT_EQ(superBlk.getNumValid(), 0);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 1);
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 1.0);
     ASSERT_TRUE(superBlk.isCompressed());
     verifyInvariants(superBlk);
 }
@@ -109,12 +109,37 @@ TEST_F(SuperBlkTestFixture, InitialState)
 TEST_F(SuperBlkTestFixture, CalculateCompressionFactor)
 {
     // 64 bytes = 512 bits
-    ASSERT_EQ(superBlk.calculateCompressionFactor(0), 8);
-    ASSERT_EQ(superBlk.calculateCompressionFactor(64), 8);
-    ASSERT_EQ(superBlk.calculateCompressionFactor(128), 4);
-    ASSERT_EQ(superBlk.calculateCompressionFactor(256), 2);
-    ASSERT_EQ(superBlk.calculateCompressionFactor(512), 1);
-    ASSERT_EQ(superBlk.calculateCompressionFactor(1024), 1);
+    ASSERT_DOUBLE_EQ(superBlk.calculateCompressionFactor(0), 8.0);
+    ASSERT_DOUBLE_EQ(superBlk.calculateCompressionFactor(64), 8.0);
+    ASSERT_DOUBLE_EQ(superBlk.calculateCompressionFactor(100), 5.12);
+    ASSERT_DOUBLE_EQ(superBlk.calculateCompressionFactor(128), 4.0);
+    ASSERT_DOUBLE_EQ(superBlk.calculateCompressionFactor(200), 2.56);
+    ASSERT_DOUBLE_EQ(superBlk.calculateCompressionFactor(256), 2.0);
+    ASSERT_DOUBLE_EQ(superBlk.calculateCompressionFactor(512), 1.0);
+    ASSERT_DOUBLE_EQ(superBlk.calculateCompressionFactor(1024), 1.0);
+}
+
+TEST_F(SuperBlkTestFixture, FractionalCoAllocationWithoutDowngrade)
+{
+    // Non-power-of-two compressed size: 100 bits -> CF = 512 / 100 = 5.12
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(100);
+
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 5.12);
+    verifyInvariants(superBlk);
+
+    // Co-allocate blocks 1, 2, 3, 4 with 100 bits each
+    for (int i = 1; i < 5; ++i) {
+        ASSERT_TRUE(superBlk.canCoAllocate(100));
+        subBlks[i].insert({0x4000, false});
+        subBlks[i].setSizeBits(100);
+        ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 5.12);
+    }
+
+    ASSERT_EQ(superBlk.getNumValid(), 5);
+    // 6th block should fail co-allocation since 5 + 1 = 6 > 5.12
+    ASSERT_FALSE(superBlk.canCoAllocate(100));
+    verifyInvariants(superBlk);
 }
 
 TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)

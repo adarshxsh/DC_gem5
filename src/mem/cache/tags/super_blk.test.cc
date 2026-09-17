@@ -62,6 +62,7 @@ TEST(SuperBlkTest, SetUncompressedClearsCompressed)
     EXPECT_FALSE(blk.isCompressed());
 }
 
+<<<<<<< HEAD
 class CanCoAllocateTest : public ::testing::Test
 {
   protected:
@@ -132,4 +133,19 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
 
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
+}
+
+TEST(SuperBlkTest, FractionalCompressionFactor)
+{
+    SuperBlk sb;
+    sb.setBlkSize(64); // 512 bits
+    sb.blks.resize(8);
+
+    // Exact continuous factors
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(512), 1.0);
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(256), 2.0);
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(200), 2.56);
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(100), 5.12);
+    EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(64), 8.0);
+}
 }

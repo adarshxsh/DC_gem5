@@ -113,12 +113,12 @@ CompressionBlk::setSizeBits(const std::size_t size)
     if (superblock) {
         superblock->updateCompressionFactor();
 
-        const uint8_t compression_factor =
+        const double compression_factor =
             superblock->calculateCompressionFactor(size);
 
         // Set compression status of this sub-block based on whether it is
         // compressed
-        if (compression_factor != 1) {
+        if (compression_factor > 1.0) {
             setCompressed();
         } else {
             setUncompressed();
@@ -166,8 +166,8 @@ CompressionBlk::checkExpansionContraction(const std::size_t size) const
     // opposite of expansion)
     const SuperBlk* superblock =
         static_cast<const SuperBlk*>(getSectorBlock());
-    const uint8_t prev_cf = superblock->getCompressionFactor();
-    const uint8_t new_cf = superblock->calculateCompressionFactor(size);
+    const double prev_cf = superblock->getCompressionFactor();
+    const double new_cf = superblock->calculateCompressionFactor(size);
     return (new_cf < prev_cf) ? DATA_EXPANSION :
         ((new_cf > prev_cf) ? DATA_CONTRACTION : UNCHANGED);
 }
@@ -181,7 +181,7 @@ CompressionBlk::print() const
 }
 
 SuperBlk::SuperBlk()
-    : SectorBlk(), blkSize(0), compressionFactor(1)
+    : SectorBlk(), blkSize(0), compressionFactor(1.0)
 {
 }
 
@@ -189,7 +189,7 @@ void
 SuperBlk::invalidate()
 {
     SectorBlk::invalidate();
-    compressionFactor = 1;
+    compressionFactor = 1.0;
 }
 
 bool
@@ -225,8 +225,8 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
-    if (new_blk_cf <= 1) {
+    const double new_blk_cf = calculateCompressionFactor(compressed_size);
+    if (new_blk_cf <= 1.0) {
         return false;
     }
 
@@ -253,27 +253,32 @@ SuperBlk::setBlkSize(const std::size_t blk_size)
     blkSize = blk_size;
 }
 
-uint8_t
+double
 SuperBlk::calculateCompressionFactor(const std::size_t size) const
 {
     // The number of blocks per sector determines the maximum comp factor.
     // If the compressed size is worse than the uncompressed size, we assume
     // the size is the uncompressed size, and thus the compression factor is 1
     const std::size_t blk_size_bits = CHAR_BIT * blkSize;
-    const std::size_t compression_factor = (size > blk_size_bits) ? 1 :
-        ((size == 0) ? blk_size_bits :
-        alignToPowerOfTwo(std::floor(double(blk_size_bits) / size)));
-    return std::min<std::size_t>(compression_factor, blks.size());
+    if (size > blk_size_bits) {
+        return 1.0;
+    }
+    if (size == 0) {
+        return static_cast<double>(blks.size());
+    }
+    const double raw_cf =
+        static_cast<double>(blk_size_bits) / static_cast<double>(size);
+    return std::min<double>(raw_cf, static_cast<double>(blks.size()));
 }
 
-uint8_t
+double
 SuperBlk::getCompressionFactor() const
 {
     return compressionFactor;
 }
 
 void
-SuperBlk::setCompressionFactor(const uint8_t compression_factor)
+SuperBlk::setCompressionFactor(const double compression_factor)
 {
     compressionFactor = compression_factor;
 }
@@ -281,25 +286,25 @@ SuperBlk::setCompressionFactor(const uint8_t compression_factor)
 void
 SuperBlk::updateCompressionFactor()
 {
-    uint8_t min_cf = blks.size();
+    double min_cf = static_cast<double>(blks.size());
     bool has_valid = false;
     for (const auto &blk : blks) {
         if (blk->isValid()) {
             has_valid = true;
             CompressionBlk *cblk = static_cast<CompressionBlk *>(blk);
-            uint8_t cf = calculateCompressionFactor(cblk->getSizeBits());
+            double cf = calculateCompressionFactor(cblk->getSizeBits());
             if (cf < min_cf) {
                 min_cf = cf;
             }
         }
     }
-    setCompressionFactor(has_valid ? min_cf : 1);
+    setCompressionFactor(has_valid ? min_cf : 1.0);
 }
 
 std::string
 SuperBlk::print() const
 {
-    return csprintf("CF: %d %s", getCompressionFactor(), SectorBlk::print());
+    return csprintf("CF: %g %s", getCompressionFactor(), SectorBlk::print());
 }
 
 } // namespace gem5
