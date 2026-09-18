@@ -152,17 +152,20 @@ class Queue : public Drainable, public Named
         return (allocated >= numEntries - numReserve);
     }
 
-    int numAllocated() const
+    int
+    numAllocated() const
     {
         return allocated;
     }
 
-    int capacity() const
+    int
+    capacity() const
     {
         return numEntries - numReserve;
     }
 
-    float getOccupancy() const
+    float
+    getOccupancy() const
     {
         int cap = capacity();
         return cap > 0 ? static_cast<float>(allocated) / cap : 0.0f;

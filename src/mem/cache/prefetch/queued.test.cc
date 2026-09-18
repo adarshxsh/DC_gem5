@@ -275,7 +275,8 @@ TEST(QueuedQueuePressureTest, CandidateSheddingUnderPressure)
 
     Base::PrefetchInfo pfi(&pkt, testAddr, true);
 
-    // 1. Normal conditions: write queue occupancy = 0.0, memoryPressure = false
+    // 1. Normal conditions: write queue occupancy = 0.0, memoryPressure =
+    // false
     mockCache.writeQueueOccupancy = 0.0f;
     mockCache.memoryPressure = false;
 
