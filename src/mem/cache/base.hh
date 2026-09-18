@@ -951,6 +951,10 @@ class BaseCache : public ClockedObject
      */
     const enums::Clusivity clusivity;
 
+    /** Whether clean compressed superblock evictions bypass snoop
+     * invalidations. */
+    const bool nonInclusiveCleanEviction;
+
     /**
      * Is this cache read only, for example the instruction cache, or
      * table-walker cache. A cache that is read only should never see
@@ -1162,6 +1166,9 @@ class BaseCache : public ClockedObject
          * factor improved).
          */
         statistics::Scalar dataContractions;
+
+        /** Number of clean evictions bypassing snoop invalidation. */
+        statistics::Scalar cleanEvictionsNonInclusive;
 
         /** Per-command statistics */
         std::vector<std::unique_ptr<CacheCmdStats>> cmd;
