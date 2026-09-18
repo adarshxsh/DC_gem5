@@ -137,6 +137,15 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** EMA smoothing factor for compression ratio sampling. */
+    const float emaAlpha;
+
+    /** High threshold for enabling adaptive compression bypass. */
+    const float hysteresisHighThreshold;
+
+    /** Low threshold for re-enabling compression. */
+    const float hysteresisLowThreshold;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -145,6 +154,15 @@ class Base : public SimObject
 
     /** Total compressed bits of sampled blocks. */
     uint64_t sampledCompressedBits;
+
+    /** EMA filtered uncompressed bits. */
+    double emaUncompressedBits;
+
+    /** EMA filtered compressed bits. */
+    double emaCompressedBits;
+
+    /** Current adaptive bypass state. */
+    bool isBypassed;
 
     /** Pointer to the parent cache. */
     BaseCache* cache;

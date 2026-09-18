@@ -80,6 +80,18 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    ema_alpha = Param.Float(
+        1.0,
+        "EMA alpha smoothing factor for compression ratio sampling",
+    )
+    hysteresis_high_threshold = Param.Float(
+        Self.latency_breakeven_threshold,
+        "High hysteresis threshold for enabling adaptive compression bypass",
+    )
+    hysteresis_low_threshold = Param.Float(
+        Self.latency_breakeven_threshold,
+        "Low hysteresis threshold for re-enabling compression",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
