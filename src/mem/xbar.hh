@@ -72,7 +72,6 @@ class BaseXBar : public ClockedObject
 {
 
   public:
-
     /**
      * A layer is an internal crossbar arbitration point with its own
      * flow control. Each layer is a converging multiplexer tree. By
@@ -116,7 +115,6 @@ class BaseXBar : public ClockedObject
 
         const std::string name() const { return _name; }
 
-
         /**
          * Determine if the layer accepts a packet from a specific
          * port. If not, the port in question is also added to the
@@ -128,7 +126,7 @@ class BaseXBar : public ClockedObject
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port, PacketPtr pkt = nullptr);
+        bool tryTiming(SrcType *src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -216,8 +214,8 @@ class BaseXBar : public ClockedObject
          * Separate deques of ports that retry should be called on:
          * high-priority demand requests vs lower-priority writeback requests.
          */
-        std::deque<SrcType*> waitingForLayerDemand;
-        std::deque<SrcType*> waitingForLayerWriteback;
+        std::deque<SrcType *> waitingForLayerDemand;
+        std::deque<SrcType *> waitingForLayerWriteback;
 
         /** Decompression latency and writeback classification tracking */
         bool currentIsWriteback;
@@ -236,7 +234,8 @@ class BaseXBar : public ClockedObject
 
         EventFunctionWrapper releaseEvent;
 
-        /** Event and handler to trigger retry when decompression unit frees up */
+        /** Event and handler to trigger retry when decompression unit frees up
+         */
         EventFunctionWrapper decompFreeEvent;
         void processDecompFree();
 
@@ -321,7 +320,6 @@ class BaseXBar : public ClockedObject
     };
 
   protected:
-
     /**
      * Cycles of front-end pipeline including the delay to accept the request
      * and to decode the address.

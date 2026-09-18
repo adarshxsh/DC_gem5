@@ -66,8 +66,10 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
       width(p.width),
       starvationThreshold(p.starvation_threshold),
       gotAddrRanges(p.port_default_connection_count +
-                          p.port_mem_side_ports_connection_count, false),
-      gotAllAddrRanges(false), defaultPortID(InvalidPortID),
+                        p.port_mem_side_ports_connection_count,
+                    false),
+      gotAllAddrRanges(false),
+      defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
 
       ADD_STAT(transDist, statistics::units::Count::get(),
@@ -144,16 +146,26 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
 }
 
 template <typename SrcType, typename DstType>
-BaseXBar::Layer<SrcType, DstType>::Layer(DstType& _port, BaseXBar& _xbar,
-                                       const std::string& _name) :
-    statistics::Group(&_xbar, _name.c_str()),
-    port(_port), xbar(_xbar), _name(xbar.name() + "." + _name), state(IDLE),
-    currentIsWriteback(false), currentDecompLat(0),
-    waitingForPeerIsWriteback(false), decompBusyUntil(0), starvationCounter(0),
-    waitingForPeer(NULL), releaseEvent([this]{ releaseLayer(); }, name()),
-    decompFreeEvent([this]{ processDecompFree(); }, name() + ".decompFreeEvent"),
-    ADD_STAT(occupancy, statistics::units::Tick::get(), "Layer occupancy (ticks)"),
-    ADD_STAT(utilization, statistics::units::Ratio::get(), "Layer utilization")
+BaseXBar::Layer<SrcType, DstType>::Layer(DstType &_port, BaseXBar &_xbar,
+                                         const std::string &_name)
+    : statistics::Group(&_xbar, _name.c_str()),
+      port(_port),
+      xbar(_xbar),
+      _name(xbar.name() + "." + _name),
+      state(IDLE),
+      currentIsWriteback(false),
+      currentDecompLat(0),
+      waitingForPeerIsWriteback(false),
+      decompBusyUntil(0),
+      starvationCounter(0),
+      waitingForPeer(NULL),
+      releaseEvent([this] { releaseLayer(); }, name()),
+      decompFreeEvent([this] { processDecompFree(); },
+                      name() + ".decompFreeEvent"),
+      ADD_STAT(occupancy, statistics::units::Tick::get(),
+               "Layer occupancy (ticks)"),
+      ADD_STAT(utilization, statistics::units::Ratio::get(),
+               "Layer utilization")
 {
     occupancy
         .flags(statistics::nozero);
@@ -170,7 +182,8 @@ void
 BaseXBar::Layer<SrcType, DstType>::processDecompFree()
 {
     if (state == IDLE && waitingForPeer == NULL &&
-        (!waitingForLayerDemand.empty() || !waitingForLayerWriteback.empty())) {
+        (!waitingForLayerDemand.empty() ||
+         !waitingForLayerWriteback.empty())) {
         retryWaiting();
     }
 }
@@ -197,7 +210,7 @@ void BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
 
 template <typename SrcType, typename DstType>
 bool
-BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
+BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType *src_port, PacketPtr pkt)
 {
     // Classify transaction type: writeback vs high-priority demand
     bool is_wb = pkt ? (pkt->isWriteback() || pkt->isEviction()) : false;
@@ -214,9 +227,11 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
     // for a retry from the peer
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already in either queue
-        assert(std::find(waitingForLayerDemand.begin(), waitingForLayerDemand.end(),
+        assert(std::find(waitingForLayerDemand.begin(),
+                         waitingForLayerDemand.end(),
                          src_port) == waitingForLayerDemand.end());
-        assert(std::find(waitingForLayerWriteback.begin(), waitingForLayerWriteback.end(),
+        assert(std::find(waitingForLayerWriteback.begin(),
+                         waitingForLayerWriteback.end(),
                          src_port) == waitingForLayerWriteback.end());
 
         // Put the port in the appropriate waiting queue
@@ -244,7 +259,8 @@ BaseXBar::Layer<SrcType, DstType>::succeededTiming(Tick busy_time)
     assert(state == BUSY);
 
     if (currentIsWriteback && currentDecompLat > 0) {
-        decompBusyUntil = std::max(decompBusyUntil, curTick() + currentDecompLat);
+        decompBusyUntil =
+            std::max(decompBusyUntil, curTick() + currentDecompLat);
     }
 
     // occupy the layer accordingly
@@ -291,7 +307,8 @@ BaseXBar::Layer<SrcType, DstType>::releaseLayer()
         // waiting for the peer
         if (waitingForPeer == NULL)
             retryWaiting();
-    } else if (waitingForPeer == NULL && drainState() == DrainState::Draining) {
+    } else if (waitingForPeer == NULL &&
+               drainState() == DrainState::Draining) {
         DPRINTF(Drain, "Crossbar done draining, signaling drain manager\n");
         //If we weren't able to drain before, do it now.
         signalDrainDone();
@@ -302,12 +319,13 @@ template <typename SrcType, typename DstType>
 void
 BaseXBar::Layer<SrcType, DstType>::retryWaiting()
 {
-    assert(!waitingForLayerDemand.empty() || !waitingForLayerWriteback.empty());
+    assert(!waitingForLayerDemand.empty() ||
+           !waitingForLayerWriteback.empty());
     assert(state == IDLE);
 
     bool decomp_busy = (curTick() < decompBusyUntil);
 
-    SrcType* retryingPort = nullptr;
+    SrcType *retryingPort = nullptr;
     bool selected_is_wb = false;
 
     bool have_demand = !waitingForLayerDemand.empty();
