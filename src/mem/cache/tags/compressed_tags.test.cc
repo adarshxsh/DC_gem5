@@ -253,7 +253,8 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
 
         if (!cblks[sb_idx][sub_idx].isValid()) {
             Addr tag = tag_base + (sb_idx * 0x1000);
-            if (!sblks[sb_idx].isValid() || sblks[sb_idx].getTag() == tag) {
+            if ((!sblks[sb_idx].isValid() || sblks[sb_idx].getTag() == tag) &&
+                sblks[sb_idx].canCoAllocate(sz)) {
                 cblks[sb_idx][sub_idx].insert({tag, false});
                 cblks[sb_idx][sub_idx].setSizeBits(sz);
             }
@@ -281,4 +282,54 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             verifyInvariants(sblks[i]);
         }
     }
+}
+
+TEST_F(SuperBlkTestFixture, SubBlockSlotCompactionOnInvalidation)
+{
+    // Insert sub-blocks at offsets 0, 1, 2
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(64);
+
+    subBlks[1].insert({0x5000, false});
+    subBlks[1].setSizeBits(64);
+
+    subBlks[2].insert({0x5000, false});
+    subBlks[2].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getSlotIndex(0), 0);
+    ASSERT_EQ(superBlk.getSlotIndex(1), 1);
+    ASSERT_EQ(superBlk.getSlotIndex(2), 2);
+
+    // Invalidate sub-block at offset 0 (slot 0)
+    superBlk.getSubBlock(0)->invalidate();
+
+    // Verify compaction shifted remaining active sub-blocks to contiguous
+    // low-index slots
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getSlotIndex(1), 0);
+    ASSERT_EQ(superBlk.getSlotIndex(2), 1);
+    ASSERT_EQ(superBlk.getSlotIndex(0), -1);
+
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 1);
+
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 2);
+
+    ASSERT_FALSE(superBlk.blks[2]->isValid());
+
+    verifyInvariants(superBlk);
+
+    // Verify co-allocation request succeeds in contiguous free slot (slot 2)
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+    SectorSubBlk *free_slot = superBlk.blks[superBlk.getNumValid()];
+    ASSERT_FALSE(free_slot->isValid());
+    free_slot->insert({0x5000, false});
+    free_slot->setSectorOffset(3);
+    static_cast<CompressionBlk *>(free_slot)->setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getSlotIndex(3), 2);
+    verifyInvariants(superBlk);
 }
