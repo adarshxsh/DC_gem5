@@ -89,7 +89,7 @@ class CompressedTags : public SectorTags
 
   public:
     /** Convenience typedef. */
-     typedef CompressedTagsParams Params;
+    typedef CompressedTagsParams Params;
 
     /**
      * Construct and initialize this tag store.
@@ -99,12 +99,21 @@ class CompressedTags : public SectorTags
     /**
      * Destructor.
      */
-    virtual ~CompressedTags() {};
+    virtual ~CompressedTags(){};
 
     /**
      * Initialize blocks as SuperBlk and CompressionBlk instances.
      */
     void tagsInit() override;
+
+    /**
+     * Finds the given address in the cache, matching active sub-blocks
+     * by sector offset within the superblock.
+     *
+     * @param key Key containing address and security state.
+     * @return Pointer to cache block if found.
+     */
+    CacheBlk *findBlock(const CacheBlk::KeyType &key) const override;
 
     /**
      * Find replacement victim based on address. Checks if data can be co-

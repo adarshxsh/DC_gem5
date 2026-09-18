@@ -44,18 +44,17 @@ namespace gem5
 
 CompressionBlk::CompressionBlk()
     : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false)
-{
-}
+{}
 
-CacheBlk&
-CompressionBlk::operator=(CacheBlk&& other)
+CacheBlk &
+CompressionBlk::operator=(CacheBlk &&other)
 {
-    operator=(std::move(static_cast<CompressionBlk&&>(other)));
+    operator=(std::move(static_cast<CompressionBlk &&>(other)));
     return *this;
 }
 
-CompressionBlk&
-CompressionBlk::operator=(CompressionBlk&& other)
+CompressionBlk &
+CompressionBlk::operator=(CompressionBlk &&other)
 {
     _size = other._size;
     setDecompressionLatency(other.getDecompressionLatency());
@@ -64,6 +63,7 @@ CompressionBlk::operator=(CompressionBlk&& other)
     } else {
         setUncompressed();
     }
+    setSectorOffset(other.getSectorOffset());
 
     SuperBlk *src_super = static_cast<SuperBlk *>(other.getSectorBlock());
 
@@ -72,6 +72,9 @@ CompressionBlk::operator=(CompressionBlk&& other)
     SuperBlk *dest_super = static_cast<SuperBlk *>(getSectorBlock());
     if (src_super) {
         src_super->updateCompressionFactor();
+        if (!src_super->isInvalidatingAll()) {
+            src_super->compact();
+        }
     }
     if (dest_super && dest_super != src_super) {
         dest_super->updateCompressionFactor();
@@ -109,7 +112,7 @@ CompressionBlk::setSizeBits(const std::size_t size)
 {
     _size = size;
 
-    SuperBlk* superblock = static_cast<SuperBlk*>(getSectorBlock());
+    SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
         superblock->updateCompressionFactor();
 
@@ -122,6 +125,10 @@ CompressionBlk::setSizeBits(const std::size_t size)
             setCompressed();
         } else {
             setUncompressed();
+        }
+
+        if (!superblock->isInvalidatingAll()) {
+            superblock->compact();
         }
     } else {
         if (size > 0 && size < 512) {
@@ -153,6 +160,23 @@ CompressionBlk::invalidate()
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
         superblock->updateCompressionFactor();
+        if (!superblock->isInvalidatingAll()) {
+            superblock->compact();
+        }
+    }
+}
+
+void
+CompressionBlk::insert(const KeyType &tag)
+{
+    SectorSubBlk::insert(tag);
+    SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
+    if (superblock && superblock->getBlockSize() > 0 &&
+        tag.address != MaxAddr) {
+        std::size_t blk_size = superblock->getBlockSize();
+        std::size_t num_sub_blks = superblock->blks.size();
+        int offset = (tag.address / blk_size) % num_sub_blks;
+        setSectorOffset(offset);
     }
 }
 
@@ -164,12 +188,13 @@ CompressionBlk::checkExpansionContraction(const std::size_t size) const
     // or blkSize/2 to blkSize). A contraction happens when a block passes
     // from a less compressible state to a more compressible state (i.e., the
     // opposite of expansion)
-    const SuperBlk* superblock =
-        static_cast<const SuperBlk*>(getSectorBlock());
+    const SuperBlk *superblock =
+        static_cast<const SuperBlk *>(getSectorBlock());
     const uint8_t prev_cf = superblock->getCompressionFactor();
     const uint8_t new_cf = superblock->calculateCompressionFactor(size);
-    return (new_cf < prev_cf) ? DATA_EXPANSION :
-        ((new_cf > prev_cf) ? DATA_CONTRACTION : UNCHANGED);
+    return (new_cf < prev_cf)
+               ? DATA_EXPANSION
+               : ((new_cf > prev_cf) ? DATA_CONTRACTION : UNCHANGED);
 }
 
 std::string
@@ -181,21 +206,51 @@ CompressionBlk::print() const
 }
 
 SuperBlk::SuperBlk()
-    : SectorBlk(), blkSize(0), compressionFactor(1)
-{
-}
+    : SectorBlk(),
+      blkSize(0),
+      compressionFactor(1),
+      inCompaction(false),
+      isInvalidationInProgress(false)
+{}
 
 void
 SuperBlk::invalidate()
 {
+    isInvalidationInProgress = true;
     SectorBlk::invalidate();
     compressionFactor = 1;
+    isInvalidationInProgress = false;
+}
+
+void
+SuperBlk::compact()
+{
+    if (inCompaction || isInvalidationInProgress) {
+        return;
+    }
+    inCompaction = true;
+
+    unsigned dest = 0;
+    for (unsigned src = 0; src < blks.size(); ++src) {
+        if (blks[src]->isValid()) {
+            if (src != dest) {
+                CompressionBlk *dest_cblk =
+                    static_cast<CompressionBlk *>(blks[dest]);
+                CompressionBlk *src_cblk =
+                    static_cast<CompressionBlk *>(blks[src]);
+                *dest_cblk = std::move(*src_cblk);
+            }
+            dest++;
+        }
+    }
+
+    inCompaction = false;
 }
 
 bool
-SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
+SuperBlk::isCompressed(const CompressionBlk *ignored_blk) const
 {
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk->isValid() && (blk != ignored_blk)) {
             if (!static_cast<CompressionBlk *>(blk)->isCompressed()) {
                 return false;
@@ -260,9 +315,12 @@ SuperBlk::calculateCompressionFactor(const std::size_t size) const
     // If the compressed size is worse than the uncompressed size, we assume
     // the size is the uncompressed size, and thus the compression factor is 1
     const std::size_t blk_size_bits = CHAR_BIT * blkSize;
-    const std::size_t compression_factor = (size > blk_size_bits) ? 1 :
-        ((size == 0) ? blk_size_bits :
-        alignToPowerOfTwo(std::floor(double(blk_size_bits) / size)));
+    const std::size_t compression_factor =
+        (size > blk_size_bits)
+            ? 1
+            : ((size == 0) ? blk_size_bits
+                           : alignToPowerOfTwo(
+                                 std::floor(double(blk_size_bits) / size)));
     return std::min<std::size_t>(compression_factor, blks.size());
 }
 
