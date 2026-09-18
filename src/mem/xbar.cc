@@ -66,8 +66,10 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
       headerLatency(p.header_latency),
       width(p.width),
       gotAddrRanges(p.port_default_connection_count +
-                          p.port_mem_side_ports_connection_count, false),
-      gotAllAddrRanges(false), defaultPortID(InvalidPortID),
+                        p.port_mem_side_ports_connection_count,
+                    false),
+      gotAllAddrRanges(false),
+      defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
       starvationThreshold(p.starvation_threshold),
 
@@ -145,14 +147,20 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
 }
 
 template <typename SrcType, typename DstType>
-BaseXBar::Layer<SrcType, DstType>::Layer(DstType& _port, BaseXBar& _xbar,
-                                       const std::string& _name) :
-    statistics::Group(&_xbar, _name.c_str()),
-    port(_port), xbar(_xbar), _name(xbar.name() + "." + _name), state(IDLE),
-    waitingForPeer(NULL), activeValid(false),
-    releaseEvent([this]{ releaseLayer(); }, name()),
-    ADD_STAT(occupancy, statistics::units::Tick::get(), "Layer occupancy (ticks)"),
-    ADD_STAT(utilization, statistics::units::Ratio::get(), "Layer utilization")
+BaseXBar::Layer<SrcType, DstType>::Layer(DstType &_port, BaseXBar &_xbar,
+                                         const std::string &_name)
+    : statistics::Group(&_xbar, _name.c_str()),
+      port(_port),
+      xbar(_xbar),
+      _name(xbar.name() + "." + _name),
+      state(IDLE),
+      waitingForPeer(NULL),
+      activeValid(false),
+      releaseEvent([this] { releaseLayer(); }, name()),
+      ADD_STAT(occupancy, statistics::units::Tick::get(),
+               "Layer occupancy (ticks)"),
+      ADD_STAT(utilization, statistics::units::Ratio::get(),
+               "Layer utilization")
 {
     occupancy
         .flags(statistics::nozero);
@@ -186,7 +194,7 @@ void BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
 
 template <typename SrcType, typename DstType>
 bool
-BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
+BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType *src_port, PacketPtr pkt)
 {
     // if we are in the retry state, we will not see anything but the
     // retrying port (or in the case of the snoop ports the snoop
@@ -203,12 +211,13 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port, PacketPtr pkt)
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
         assert(std::find_if(waitingForLayer.begin(), waitingForLayer.end(),
-                            [src_port](const WaitingPort& wp) {
+                            [src_port](const WaitingPort &wp) {
                                 return wp.srcPort == src_port;
                             }) == waitingForLayer.end());
 
         // put the port in the retry list waiting for the layer to be freed up
-        waitingForLayer.emplace_back(src_port, is_demand, payload_delay, curTick());
+        waitingForLayer.emplace_back(src_port, is_demand, payload_delay,
+                                     curTick());
         return false;
     }
 
@@ -300,7 +309,8 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     if (waitingForLayer.size() > 1) {
         unsigned int starvationThreshold = xbar.getStarvationThreshold();
 
-        for (auto it = std::next(waitingForLayer.begin()); it != waitingForLayer.end(); ++it) {
+        for (auto it = std::next(waitingForLayer.begin());
+             it != waitingForLayer.end(); ++it) {
             bool best_starved = (best_it->ageCounter >= starvationThreshold);
             bool it_starved = (it->ageCounter >= starvationThreshold);
 
@@ -309,7 +319,8 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
             } else if (it_starved && best_starved) {
                 if (it->ageCounter > best_it->ageCounter) {
                     best_it = it;
-                } else if (it->ageCounter == best_it->ageCounter && it->arrivalTick < best_it->arrivalTick) {
+                } else if (it->ageCounter == best_it->ageCounter &&
+                           it->arrivalTick < best_it->arrivalTick) {
                     best_it = it;
                 }
             } else if (!it_starved && !best_starved) {
@@ -327,14 +338,15 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
             }
         }
 
-        for (auto it = waitingForLayer.begin(); it != waitingForLayer.end(); ++it) {
+        for (auto it = waitingForLayer.begin(); it != waitingForLayer.end();
+             ++it) {
             if (it != best_it) {
                 it->ageCounter++;
             }
         }
     }
 
-    SrcType* retryingPort = best_it->srcPort;
+    SrcType *retryingPort = best_it->srcPort;
     activeEntry = *best_it;
     activeValid = true;
 
