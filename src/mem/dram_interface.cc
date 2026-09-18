@@ -1190,12 +1190,15 @@ DRAMInterface::Rank::checkDrainDone()
     // if this rank was waiting to drain it is now able to proceed to
     // precharge
     if (refreshState == REF_DRAIN) {
-        bool write_drain_active = dram.ctrl->inWriteBusState(true, &(this->dram)) &&
-                                  (writeEntries > 0 || dram.writeQueueSize > dram.ctrl->getWriteLowThreshold());
-        bool defer_refresh = write_drain_active && (curTick() < refreshDueAt + 8 * dram.tREFI);
+        bool write_drain_active =
+            dram.ctrl->inWriteBusState(true, &(this->dram)) &&
+            (writeEntries > 0 ||
+             dram.writeQueueSize > dram.ctrl->getWriteLowThreshold());
+        bool defer_refresh =
+            write_drain_active && (curTick() < refreshDueAt + 8 * dram.tREFI);
 
-        if ((rank == dram.activeRank)
-            && (dram.ctrl->requestEventScheduled(dram.pseudoChannel))) {
+        if ((rank == dram.activeRank) &&
+            (dram.ctrl->requestEventScheduled(dram.pseudoChannel))) {
             return;
         }
 
@@ -1314,15 +1317,18 @@ DRAMInterface::Rank::processRefreshEvent()
     // after which it will
     // hand control back to this event loop
     if (refreshState == REF_DRAIN) {
-        bool write_drain_active = dram.ctrl->inWriteBusState(true, &(this->dram)) &&
-                                  (writeEntries > 0 || dram.writeQueueSize > dram.ctrl->getWriteLowThreshold());
-        bool defer_refresh = write_drain_active && (curTick() < refreshDueAt + 8 * dram.tREFI);
+        bool write_drain_active =
+            dram.ctrl->inWriteBusState(true, &(this->dram)) &&
+            (writeEntries > 0 ||
+             dram.writeQueueSize > dram.ctrl->getWriteLowThreshold());
+        bool defer_refresh =
+            write_drain_active && (curTick() < refreshDueAt + 8 * dram.tREFI);
 
         // if a request is at the moment being handled and this request is
         // accessing the current rank then wait for it to finish
-        if (((rank == dram.activeRank)
-            && (dram.ctrl->requestEventScheduled(dram.pseudoChannel)))
-            || defer_refresh) {
+        if (((rank == dram.activeRank) &&
+             (dram.ctrl->requestEventScheduled(dram.pseudoChannel))) ||
+            defer_refresh) {
             // hand control over to the request loop until it is
             // evaluated next
             DPRINTF(DRAM, "Refresh awaiting draining\n");
@@ -1472,8 +1478,8 @@ DRAMInterface::Rank::processRefreshEvent()
                         pwrStatePostRefresh);
                 powerDownSleep(pwrState, curTick());
 
-            // Force PRE power-down if there are no outstanding commands
-            // in Q after refresh and write drain mode is not active.
+                // Force PRE power-down if there are no outstanding commands
+                // in Q after refresh and write drain mode is not active.
             } else if ((readEntries == 0 && writeEntries == 0) &&
                        !dram.ctrl->inWriteBusState(true, &(this->dram)) &&
                        dram.enableDRAMPowerdown) {
