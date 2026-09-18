@@ -180,8 +180,7 @@ CompressionBlk::print() const
                     getDecompressionLatency());
 }
 
-SuperBlk::SuperBlk()
-    : SectorBlk(), blkSize(0), compressionFactor(1.0)
+SuperBlk::SuperBlk() : SectorBlk(), blkSize(0), compressionFactor(1.0)
 {
 }
 
