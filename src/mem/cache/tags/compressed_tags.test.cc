@@ -163,10 +163,12 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
     verifyInvariants(superBlk);
 
-    // Test continuous integer factor (3x) co-allocation of three 170-bit sub-blocks
+    // Test continuous integer factor (3x) co-allocation of three 170-bit
+    // sub-blocks
     SuperBlk sb3;
     sb3.setBlkSize(BlkSize);
-    std::unique_ptr<CompressionBlk[]> sb3_subBlks(new CompressionBlk[NumSubBlks]);
+    std::unique_ptr<CompressionBlk[]> sb3_subBlks(
+        new CompressionBlk[NumSubBlks]);
     sb3.blks.resize(NumSubBlks);
     for (unsigned k = 0; k < NumSubBlks; ++k) {
         sb3.blks[k] = &sb3_subBlks[k];
@@ -194,7 +196,8 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_EQ(sb3.getCompressionFactor(), 3);
     verifyInvariants(sb3);
 
-    // 4th sub-block of size 170 cannot co-allocate as max sub-blocks for CF=3 is 3
+    // 4th sub-block of size 170 cannot co-allocate as max sub-blocks for CF=3
+    // is 3
     ASSERT_FALSE(sb3.canCoAllocate(170));
 }
 
