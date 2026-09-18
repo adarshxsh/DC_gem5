@@ -116,7 +116,8 @@ Base::Base(const Params &p)
 
     fatal_if(blkSize < sizeThreshold, "Compressed data must fit in a block");
 
-    fatal_if(lowQueuePressureThreshold >= highQueuePressureThreshold,
+    fatal_if(
+        lowQueuePressureThreshold >= highQueuePressureThreshold,
         "High queue pressure threshold (%d) must be greater than low queue "
         "pressure threshold (%d).",
         highQueuePressureThreshold, lowQueuePressureThreshold);
