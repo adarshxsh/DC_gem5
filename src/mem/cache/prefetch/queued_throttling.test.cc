@@ -18,24 +18,51 @@ class MockCacheAccessor : public CacheAccessor
   public:
     double congestionScore = 0.0;
 
-    bool inCache(Addr addr, bool is_secure) const override { return false; }
-    bool hasBeenPrefetched(Addr addr, bool is_secure) const override { return false; }
-    bool hasBeenPrefetched(Addr addr, bool is_secure, RequestorID requestor) const override { return false; }
-    bool inMissQueue(Addr addr, bool is_secure) const override { return false; }
-    bool coalesce() const override { return false; }
-    double getCongestionScore() const override { return congestionScore; }
+    bool
+    inCache(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    hasBeenPrefetched(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    hasBeenPrefetched(Addr addr, bool is_secure,
+                      RequestorID requestor) const override
+    {
+        return false;
+    }
+    bool
+    inMissQueue(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    coalesce() const override
+    {
+        return false;
+    }
+    double
+    getCongestionScore() const override
+    {
+        return congestionScore;
+    }
 };
 
 // Helper function implementing the prefetch throttling multiplier logic
 size_t
-computeMaxPermittedPrefetches(size_t total, size_t throttleControlPct, double congestion_score)
+computeMaxPermittedPrefetches(size_t total, size_t throttleControlPct,
+                              double congestion_score)
 {
     size_t num_pt = total;
     if (throttleControlPct > 0) {
         num_pt = (total * throttleControlPct) / 100;
     }
     if (congestion_score > 0.0) {
-        double multiplier = 1.0 - std::min(1.0, std::max(0.0, congestion_score));
+        double multiplier =
+            1.0 - std::min(1.0, std::max(0.0, congestion_score));
         num_pt = static_cast<size_t>(std::round(num_pt * multiplier));
     }
     return num_pt;
@@ -43,7 +70,8 @@ computeMaxPermittedPrefetches(size_t total, size_t throttleControlPct, double co
 
 // Helper function implementing MSHRQueue canPrefetch congestion gate
 bool
-canPrefetchCongestionGate(size_t demandAllocated, size_t capacity, double congestionScore)
+canPrefetchCongestionGate(size_t demandAllocated, size_t capacity,
+                          double congestionScore)
 {
     if (capacity > 0 && ((double)demandAllocated / capacity) >= 0.80) {
         return false;
@@ -77,7 +105,8 @@ TEST(QueuedThrottlingTest, CongestionThrottlingMultiplier)
     // Critical congestion (1.00): 10 candidates -> 0 permitted
     EXPECT_EQ(computeMaxPermittedPrefetches(10, 0, 1.00), 0);
 
-    // Accuracy throttling (50% -> 5) + congestion (0.50): 5 * 0.5 = 2.5 -> 3 permitted
+    // Accuracy throttling (50% -> 5) + congestion (0.50): 5 * 0.5 = 2.5 -> 3
+    // permitted
     EXPECT_EQ(computeMaxPermittedPrefetches(10, 50, 0.50), 3);
 }
 

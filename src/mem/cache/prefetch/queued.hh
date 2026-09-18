@@ -247,7 +247,6 @@ class Queued : public Base
     void printQueue(const std::list<DeferredPacket> &queue) const;
 
   protected:
-
     /**
      * Returns the maxmimum number of prefetch requests that are allowed
      * to be created from the number of prefetch candidates provided.
@@ -257,7 +256,8 @@ class Queued : public Base
      * @param congestion_score dynamic congestion score in [0.0, 1.0]
      * @return the number of these request candidates are allowed to be created
      */
-    size_t getMaxPermittedPrefetches(size_t total, double congestion_score = 0.0) const;
+    size_t getMaxPermittedPrefetches(size_t total,
+                                     double congestion_score = 0.0) const;
 
   private:
 

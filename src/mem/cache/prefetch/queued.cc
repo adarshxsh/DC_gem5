@@ -177,7 +177,8 @@ Queued::getMaxPermittedPrefetches(size_t total, double congestion_score) const
 
     if (congestion_score > 0.0) {
         double congestion_multiplier = std::max(0.0, 1.0 - congestion_score);
-        max_pfs = static_cast<size_t>(std::round(max_pfs * congestion_multiplier));
+        max_pfs =
+            static_cast<size_t>(std::round(max_pfs * congestion_multiplier));
     }
     return max_pfs;
 }
@@ -214,7 +215,8 @@ Queued::notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi)
     calculatePrefetch(pfi, addresses, cache);
 
     // Get the maximum number of prefetches that we are allowed to generate
-    size_t max_pfs = getMaxPermittedPrefetches(addresses.size(), cache.getCongestionScore());
+    size_t max_pfs = getMaxPermittedPrefetches(addresses.size(),
+                                               cache.getCongestionScore());
 
     // Queue up generated prefetches
     size_t num_pfs = 0;

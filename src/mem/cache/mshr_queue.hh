@@ -155,7 +155,8 @@ class MSHRQueue : public Queue<MSHR>
      * Get the number of currently allocated MSHRs servicing demand targets.
      * @return count of demand MSHRs
      */
-    int getDemandAllocated() const
+    int
+    getDemandAllocated() const
     {
         int count = 0;
         for (const auto &mshr : allocatedList) {
@@ -170,7 +171,8 @@ class MSHRQueue : public Queue<MSHR>
      * Get effective capacity of the queue (excluding overflow reserve).
      * @return capacity of queue
      */
-    int getCapacity() const
+    int
+    getCapacity() const
     {
         return numEntries - numReserve;
     }
@@ -180,21 +182,25 @@ class MSHRQueue : public Queue<MSHR>
      * @param congestion_score dynamic congestion status score in [0.0, 1.0]
      * @return True if sufficient mshrs for prefetch.
      */
-    bool canPrefetch(double congestion_score = 0.0) const
+    bool
+    canPrefetch(double congestion_score = 0.0) const
     {
-        // Deny prefetch allocation if dynamic congestion score reaches critical safety boundary
+        // Deny prefetch allocation if dynamic congestion score reaches
+        // critical safety boundary
         if (congestion_score >= 0.85) {
             return false;
         }
 
-        // Deny prefetch allocation if demand MSHR occupancy crosses safety threshold (80%)
+        // Deny prefetch allocation if demand MSHR occupancy crosses safety
+        // threshold (80%)
         int cap = getCapacity();
         if (cap > 0 && ((double)getDemandAllocated() / cap) >= 0.80) {
             return false;
         }
 
-        int dynamic_reserve = numReserve + 1 + demandReserve +
-                              static_cast<int>(congestion_score * demandReserve * 2);
+        int dynamic_reserve =
+            numReserve + 1 + demandReserve +
+            static_cast<int>(congestion_score * demandReserve * 2);
         return (allocated < numEntries - dynamic_reserve);
     }
 };
