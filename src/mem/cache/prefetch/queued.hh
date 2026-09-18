@@ -216,6 +216,7 @@ class Queued : public Base
         statistics::Scalar pfSpanPage;
         statistics::Scalar pfUsefulSpanPage;
         statistics::Scalar pfDroppedLowCompression;
+        statistics::Scalar pfDroppedCompressionConflict;
     } statsQueued;
   public:
     using AddrPriority = std::pair<Addr, int32_t>;

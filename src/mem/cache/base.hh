@@ -357,6 +357,12 @@ class BaseCache : public ClockedObject
             return cache.getCompressionFactor(addr, is_secure);
         }
 
+        bool
+        canCoAllocatePrefetch(Addr addr, bool is_secure) const override
+        {
+            return cache.canCoAllocatePrefetch(addr, is_secure);
+        }
+
     } accessor;
 
     /** Miss status registers */
@@ -1283,6 +1289,8 @@ class BaseCache : public ClockedObject
     std::size_t getCompressedSizeBits(Addr addr, bool is_secure) const;
 
     uint8_t getCompressionFactor(Addr addr, bool is_secure) const;
+
+    bool canCoAllocatePrefetch(Addr addr, bool is_secure) const;
 
     void incMissCount(PacketPtr pkt)
     {

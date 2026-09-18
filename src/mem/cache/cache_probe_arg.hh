@@ -84,6 +84,14 @@ struct CacheAccessor
     {
         return 1;
     }
+
+    /** Determine if prefetch candidate can co-allocate into superblock without
+     * downgrading compression factor */
+    virtual bool
+    canCoAllocatePrefetch(Addr addr, bool is_secure) const
+    {
+        return true;
+    }
 };
 
 /**

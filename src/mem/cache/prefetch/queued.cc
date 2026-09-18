@@ -291,7 +291,11 @@ Queued::QueuedStats::QueuedStats(statistics::Group *parent)
                "number of prefetches that is useful and crossed the page"),
       ADD_STAT(pfDroppedLowCompression, statistics::units::Count::get(),
                "number of prefetch candidates dropped due to low compression "
-               "confidence filtering")
+               "confidence filtering"),
+      ADD_STAT(
+          pfDroppedCompressionConflict, statistics::units::Count::get(),
+          "number of prefetches dropped due to superblock compression factor "
+          "conflicts or lack of co-allocation capacity")
 {
 }
 
@@ -336,6 +340,13 @@ Queued::translationComplete(DeferredPacket *dp, bool failed,
             statsQueued.pfInCache++;
             DPRINTF(HWPrefetch, "Dropping redundant in "
                     "cache/MSHR prefetch addr:%#x\n", target_paddr);
+        } else if (!cache.canCoAllocatePrefetch(target_paddr,
+                                                it->pfInfo.isSecure())) {
+            statsQueued.pfDroppedCompressionConflict++;
+            DPRINTF(HWPrefetch,
+                    "Dropping prefetch due to superblock "
+                    "compression factor conflict addr:%#x\n",
+                    target_paddr);
         } else {
             Tick pf_time = curTick() + clockPeriod() * latency;
             it->createPkt(target_paddr, blkSize, requestorId, tagPrefetch,
@@ -536,13 +547,26 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
             return;
         }
     }
-    if (has_target_pa && cacheSnoop &&
+    if (has_target_pa) {
+        if (cacheSnoop &&
             (cache.inCache(target_paddr, new_pfi.isSecure()) ||
              cache.inMissQueue(target_paddr, new_pfi.isSecure()))) {
-        statsQueued.pfInCache++;
-        DPRINTF(HWPrefetch, "Dropping redundant in "
-                "cache/MSHR prefetch addr:%#x\n", target_paddr);
-        return;
+            statsQueued.pfInCache++;
+            DPRINTF(HWPrefetch,
+                    "Dropping redundant in "
+                    "cache/MSHR prefetch addr:%#x\n",
+                    target_paddr);
+            return;
+        }
+
+        if (!cache.canCoAllocatePrefetch(target_paddr, new_pfi.isSecure())) {
+            statsQueued.pfDroppedCompressionConflict++;
+            DPRINTF(HWPrefetch,
+                    "Dropping prefetch due to superblock "
+                    "compression factor conflict addr:%#x\n",
+                    target_paddr);
+            return;
+        }
     }
 
     /* Create the packet and find the spot to insert it */
