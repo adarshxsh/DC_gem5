@@ -136,6 +136,9 @@ class Base : public SimObject
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 
+    /** Bit shift for exponential decay factor (1 - 2^-k). */
+    const unsigned decayShift;
+
     /** Size of the window (in sampling intervals) to track compression
      * efficiency. */
     const unsigned adaptiveWindowSize;
