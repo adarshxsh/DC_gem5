@@ -418,6 +418,13 @@ class DRAMInterface : public MemInterface
         bool isQueueEmpty() const;
 
         /**
+         * Check if write queue entries exist targeting open rows in this rank
+         *
+         * @return boolean indicating write entries exist for open rows
+         */
+        bool hasWriteToOpenRow() const;
+
+        /**
          * Let the rank check if it was waiting for requests to drain
          * to allow it to transition states.
          */
