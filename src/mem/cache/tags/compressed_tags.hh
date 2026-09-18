@@ -86,6 +86,8 @@ class CompressedTags : public SectorTags
     std::vector<CompressionBlk> blks;
     /** The cache superblocks. */
     std::vector<SuperBlk> superBlks;
+    /** Sub-block density replacement weight. */
+    const double densityReplacementWeight;
 
   public:
     /** Convenience typedef. */

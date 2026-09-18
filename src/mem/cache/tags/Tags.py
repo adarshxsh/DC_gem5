@@ -154,6 +154,11 @@ class CompressedTags(SectorTags):
         2, "Maximum number of compressed blocks per tag."
     )
 
+    # Weight for sub-block density score in replacement victim selection
+    density_replacement_weight = Param.Float(
+        1.0, "Weight for sub-block density in victim selection."
+    )
+
     # We simulate superblock as sector blocks
     num_blocks_per_sector = Self.max_compression_ratio
 

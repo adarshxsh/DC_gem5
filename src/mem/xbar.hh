@@ -315,6 +315,9 @@ class BaseXBar : public ClockedObject
     const Cycles headerLatency;
     /** the width of the xbar in bytes */
     const uint32_t width;
+    /** Whether crossbar payload delay scaling for compressed packets is
+     * enabled */
+    const bool enableCrossbarCompression;
 
     AddrRangeMap<PortID, 3> portMap;
 
