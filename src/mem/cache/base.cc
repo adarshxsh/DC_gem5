@@ -1074,7 +1074,6 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // must be evicted to make room for the expanded/contracted block
     std::vector<CacheBlk*> evict_blks;
     if (is_data_expansion || is_data_contraction) {
-        std::vector<CacheBlk*> evict_blks;
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
@@ -1101,13 +1100,53 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             DPRINTF(CacheRepl, "Data %s replacement victim: %s\n",
                 op_name, victim->print());
         } else {
-            // If we do not move the expanded block, we must make room for
-            // the expansion to happen, so evict every co-allocated block
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(
-                compression_blk->getSectorBlock());
-            for (auto& sub_blk : superblock->blks) {
+            // If we do not move the expanded block, calculate the exact number
+            // of sub-blocks requiring eviction based on LRU order.
+            SuperBlk *superblock =
+                static_cast<SuperBlk *>(compression_blk->getSectorBlock());
+            const uint8_t new_blk_cf =
+                superblock->calculateCompressionFactor(compression_size);
+
+            uint8_t min_other_cf = superblock->blks.size();
+            for (const auto &sub_blk : superblock->blks) {
                 if (sub_blk->isValid() && (blk != sub_blk)) {
-                    evict_blks.push_back(sub_blk);
+                    CompressionBlk *cblk =
+                        static_cast<CompressionBlk *>(sub_blk);
+                    uint8_t cf = superblock->calculateCompressionFactor(
+                        cblk->getSizeBits());
+                    if (cf < min_other_cf) {
+                        min_other_cf = cf;
+                    }
+                }
+            }
+
+            const uint8_t target_cf = std::min(min_other_cf, new_blk_cf);
+            const uint8_t num_valid = superblock->getNumValid();
+            const std::size_t num_evict =
+                (num_valid > target_cf) ? (num_valid - target_cf) : 0;
+
+            if (num_evict > 0) {
+                std::vector<SectorSubBlk *> candidates;
+                for (auto &sub_blk : superblock->blks) {
+                    if (sub_blk->isValid() && (blk != sub_blk)) {
+                        candidates.push_back(sub_blk);
+                    }
+                }
+
+                // Sort candidates by LRU order (oldest insertion/access tick
+                // first)
+                std::sort(
+                    candidates.begin(), candidates.end(),
+                    [](const SectorSubBlk *a, const SectorSubBlk *b) {
+                        if (a->getTickInserted() != b->getTickInserted()) {
+                            return a->getTickInserted() < b->getTickInserted();
+                        }
+                        return a->getSectorOffset() < b->getSectorOffset();
+                    });
+
+                for (size_t i = 0; i < num_evict && i < candidates.size();
+                     ++i) {
+                    evict_blks.push_back(candidates[i]);
                 }
             }
         }
