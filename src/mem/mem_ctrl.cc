@@ -84,6 +84,9 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     readQueue.resize(p.qos_priorities);
     writeQueue.resize(p.qos_priorities);
 
+    setMaxReadQueueSize(readBufferSize);
+    setMaxWriteQueueSize(writeBufferSize);
+
     dram->setCtrl(this, commandWindow);
 
     // perform a basic check of the write thresholds

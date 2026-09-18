@@ -41,7 +41,7 @@ from m5.proxy import *
 
 # QoS Queue Selection policy used to select packets among same-QoS queues
 class QoSQPolicy(Enum):
-    vals = ["fifo", "lifo", "lrg"]
+    vals = ["fifo", "lifo", "lrg", "compression_aware", "adaptive_compression"]
 
 
 class QoSMemCtrl(ClockedObject):
