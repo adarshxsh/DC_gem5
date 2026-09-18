@@ -65,6 +65,8 @@ namespace gem5
 {
 
 class BaseCache;
+class CacheBlk;
+class SuperBlk;
 
 /**
  * Miss Status and handling Register. This class keeps all the information
@@ -77,12 +79,10 @@ class MSHR : public QueueEntry, public Printable
     /**
      * Consider the queues friends to avoid making everything public.
      */
-    template<typename Entry>
-    friend class Queue;
+    template <typename Entry> friend class Queue;
     friend class MSHRQueue;
 
   private:
-
     /** Flag set by downstream caches */
     bool downstreamPending;
 
@@ -119,7 +119,6 @@ class MSHR : public QueueEntry, public Printable
     bool postDowngrade;
 
   public:
-
     /** Track if we sent this as a whole line write or not */
     bool wasWholeLineWrite;
 
@@ -129,7 +128,6 @@ class MSHR : public QueueEntry, public Printable
     class Target : public QueueEntry::Target
     {
       public:
-
         enum Source
         {
             FromCPU,
@@ -137,7 +135,7 @@ class MSHR : public QueueEntry, public Printable
             FromPrefetcher
         };
 
-        const Source source;  //!< Request from cpu, memory, or prefetcher?
+        const Source source; //!< Request from cpu, memory, or prefetcher?
 
         /**
          * We use this flag to track whether we have cleared the
@@ -156,13 +154,15 @@ class MSHR : public QueueEntry, public Printable
          */
         bool markedPending;
 
-        const bool allocOnFill;   //!< Should the response servicing this
-                                  //!< target list allocate in the cache?
+        const bool allocOnFill; //!< Should the response servicing this
+                                //!< target list allocate in the cache?
 
-        Target(PacketPtr _pkt, Tick _readyTime, Counter _order,
-               Source _source, bool _markedPending, bool alloc_on_fill)
-            : QueueEntry::Target(_pkt, _readyTime, _order), source(_source),
-              markedPending(_markedPending), allocOnFill(alloc_on_fill)
+        Target(PacketPtr _pkt, Tick _readyTime, Counter _order, Source _source,
+               bool _markedPending, bool alloc_on_fill)
+            : QueueEntry::Target(_pkt, _readyTime, _order),
+              source(_source),
+              markedPending(_markedPending),
+              allocOnFill(alloc_on_fill)
         {}
     };
 
@@ -205,7 +205,9 @@ class MSHR : public QueueEntry, public Printable
          * @param blk_addr Address of the cache block
          * @param blk_size Size of the cache block
          */
-        void init(Addr blk_addr, Addr blk_size) {
+        void
+        init(Addr blk_addr, Addr blk_size)
+        {
             blkAddr = blk_addr;
             blkSize = blk_size;
             writesBitmap.resize(blk_size);
@@ -213,7 +215,9 @@ class MSHR : public QueueEntry, public Printable
             resetFlags();
         }
 
-        void resetFlags() {
+        void
+        resetFlags()
+        {
             canMergeWrites = true;
             std::fill(writesBitmap.begin(), writesBitmap.end(), false);
 
@@ -250,9 +254,11 @@ class MSHR : public QueueEntry, public Printable
          *
          * @return True if the TargetList are reset, false otherwise.
          */
-        bool isReset() const {
+        bool
+        isReset() const
+        {
             return !needsWritable && !hasUpgrade && !allocOnFill &&
-                !hasFromCache && canMergeWrites;
+                   !hasFromCache && canMergeWrites;
         }
 
         /**
@@ -289,7 +295,8 @@ class MSHR : public QueueEntry, public Printable
          * miss-packet has been created, and for the corresponding
          * fill we use the wasWholeLineWrite field.
          */
-        bool isWholeLineWrite() const
+        bool
+        isWholeLineWrite() const
         {
             return std::all_of(writesBitmap.begin(), writesBitmap.end(),
                                [](bool i) { return i; });
@@ -326,28 +333,45 @@ class MSHR : public QueueEntry, public Printable
      */
 
     /** True if we need to get a writable copy of the block. */
-    bool needsWritable() const { return targets.needsWritable; }
+    bool
+    needsWritable() const
+    {
+        return targets.needsWritable;
+    }
 
-    bool isCleaning() const {
+    bool
+    isCleaning() const
+    {
         PacketPtr pkt = targets.front().pkt;
         return pkt->isClean();
     }
 
-    bool isPendingModified() const {
-        assert(inService); return pendingModified;
+    bool
+    isPendingModified() const
+    {
+        assert(inService);
+        return pendingModified;
     }
 
-    bool hasPostInvalidate() const {
-        assert(inService); return postInvalidate;
+    bool
+    hasPostInvalidate() const
+    {
+        assert(inService);
+        return postInvalidate;
     }
 
-    bool hasPostDowngrade() const {
-        assert(inService); return postDowngrade;
+    bool
+    hasPostDowngrade() const
+    {
+        assert(inService);
+        return postDowngrade;
     }
 
     bool sendPacket(BaseCache &cache) override;
 
-    bool allocOnFill() const {
+    bool
+    allocOnFill() const
+    {
         return targets.allocOnFill;
     }
 
@@ -356,7 +380,9 @@ class MSHR : public QueueEntry, public Printable
      *
      * @return true if any of the targets is from another cache
      */
-    bool hasFromCache() const {
+    bool
+    hasFromCache() const
+    {
         return targets.hasFromCache;
     }
 
@@ -386,7 +412,7 @@ class MSHR : public QueueEntry, public Printable
      *
      * @param pred A condition on a Target
      */
-    void promoteIf(const std::function<bool (Target &)>& pred);
+    void promoteIf(const std::function<bool(Target &)> &pred);
 
     /**
      * Pointer to this MSHR on the ready list.
@@ -413,7 +439,9 @@ class MSHR : public QueueEntry, public Printable
      * miss-packet has been created, and for the fill we therefore use
      * the wasWholeLineWrite field.
      */
-    bool isWholeLineWrite() const {
+    bool
+    isWholeLineWrite() const
+    {
         return targets.isWholeLineWrite();
     }
 
@@ -492,8 +520,11 @@ class MSHR : public QueueEntry, public Printable
      * Returns the current number of allocated targets.
      * @return The current number of allocated targets.
      */
-    int getNumTargets() const
-    { return targets.size() + deferredTargets.size(); }
+    int
+    getNumTargets() const
+    {
+        return targets.size() + deferredTargets.size();
+    }
 
     /**
      * Extracts the subset of the targets that can be serviced given a
@@ -513,13 +544,18 @@ class MSHR : public QueueEntry, public Printable
      * Returns true if there are targets left.
      * @return true if there are targets
      */
-    bool hasTargets() const { return !targets.empty(); }
+    bool
+    hasTargets() const
+    {
+        return !targets.empty();
+    }
 
     /**
      * Returns a reference to the first target.
      * @return A pointer to the first target.
      */
-    QueueEntry::Target *getTarget() override
+    QueueEntry::Target *
+    getTarget() override
     {
         assert(hasTargets());
         return &targets.front();
@@ -528,7 +564,8 @@ class MSHR : public QueueEntry, public Printable
     /**
      * Pop first target.
      */
-    void popTarget()
+    void
+    popTarget()
     {
         if (targets.front().pkt) {
             DPRINTF(MSHR, "Force deallocating MSHR targets: %s\n",
@@ -564,7 +601,8 @@ class MSHR : public QueueEntry, public Printable
      * Adds a delay relative to the current tick to the current MSHR
      * @param delay_ticks the desired delay in ticks
      */
-    void delay(Tick delay_ticks)
+    void
+    delay(Tick delay_ticks)
     {
         assert(readyTime <= curTick());
         readyTime = curTick() + delay_ticks;
@@ -573,8 +611,7 @@ class MSHR : public QueueEntry, public Printable
     /**
      * Prints the contents of this MSHR for debugging.
      */
-    void print(std::ostream &os,
-               int verbosity = 0,
+    void print(std::ostream &os, int verbosity = 0,
                const std::string &prefix = "") const override;
     /**
      * A no-args wrapper of print(std::ostream...)  meant to be
@@ -586,7 +623,7 @@ class MSHR : public QueueEntry, public Printable
 
     bool matchBlockAddr(const Addr addr, const bool is_secure) const override;
     bool matchBlockAddr(const PacketPtr pkt) const override;
-    bool conflictAddr(const QueueEntry* entry) const override;
+    bool conflictAddr(const QueueEntry *entry) const override;
 };
 
 } // namespace gem5
