@@ -64,16 +64,22 @@ OutVcState::OutVcState(int id, GarnetNetwork *network_ptr,
 }
 
 void
-OutVcState::increment_credit()
+OutVcState::increment_credit(int count)
 {
-    m_credit_count++;
+    m_credit_count += count;
+    if (m_credit_count > m_max_credit_count) {
+        m_credit_count = m_max_credit_count;
+    }
     assert(m_credit_count <= m_max_credit_count);
 }
 
 void
-OutVcState::decrement_credit()
+OutVcState::decrement_credit(int count)
 {
-    m_credit_count--;
+    m_credit_count -= count;
+    if (m_credit_count < 0) {
+        m_credit_count = 0;
+    }
     assert(m_credit_count >= 0);
 }
 

@@ -110,6 +110,13 @@ InputUnit::wakeup()
         // Buffer the flit
         virtualChannels[vc].insertFlit(t_flit);
 
+        // Return credit token immediately upon flit arrival.
+        // On TAIL_ or HEAD_TAIL_ flit arrival, send free_signal = true
+        // so upstream VC buffer is immediately freed for the next packet.
+        bool is_free_signal =
+            (t_flit->get_type() == TAIL_ || t_flit->get_type() == HEAD_TAIL_);
+        increment_credit(vc, is_free_signal, curTick());
+
         int vnet = vc/m_vc_per_vnet;
         // number of writes same as reads
         // any flit that is written will be read only once
@@ -146,6 +153,7 @@ InputUnit::increment_credit(int in_vc, bool free_signal, Tick curTime)
 {
     DPRINTF(RubyNetwork, "Router[%d]: Sending a credit vc:%d free:%d to %s\n",
     m_router->get_id(), in_vc, free_signal, m_credit_link->name());
+    m_credit_link->sendCreditToken(in_vc, free_signal, curTime);
     Credit *t_credit = new Credit(in_vc, free_signal, curTime);
     creditQueue.insert(t_credit);
     m_credit_link->scheduleEventAbsolute(m_router->clockEdge(Cycles(1)));
