@@ -52,17 +52,20 @@ namespace qos
 {
 
 MemCtrl::MemCtrl(const QoSMemCtrlParams &p)
-  : ClockedObject(p),
-    policy(p.qos_policy),
-    turnPolicy(p.qos_turnaround_policy),
-    queuePolicy(QueuePolicy::create(p)),
-    _numPriorities(p.qos_priorities),
-    qosPriorityEscalation(p.qos_priority_escalation),
-    qosSyncroScheduler(p.qos_syncro_scheduler),
-    totalReadQueueSize(0), totalWriteQueueSize(0),
-    busState(READ), busStateNext(READ),
-    stats(*this),
-    _system(p.system)
+    : ClockedObject(p),
+      policy(p.qos_policy),
+      turnPolicy(p.qos_turnaround_policy),
+      queuePolicy(QueuePolicy::create(p)),
+      _numPriorities(p.qos_priorities),
+      qosPriorityEscalation(p.qos_priority_escalation),
+      qosPressureGradient(p.qos_pressure_gradient),
+      qosSyncroScheduler(p.qos_syncro_scheduler),
+      totalReadQueueSize(0),
+      totalWriteQueueSize(0),
+      busState(READ),
+      busStateNext(READ),
+      stats(*this),
+      _system(p.system)
 {
     // Set the priority policy
     if (policy) {
@@ -81,6 +84,8 @@ MemCtrl::MemCtrl(const QoSMemCtrlParams &p)
 
     readQueueSizes.resize(_numPriorities);
     writeQueueSizes.resize(_numPriorities);
+    readArrivals.resize(_numPriorities, 0);
+    writeArrivals.resize(_numPriorities, 0);
     serviceTick.resize(_numPriorities);
 }
 
@@ -106,9 +111,11 @@ MemCtrl::logRequest(BusState dir, RequestorID id, uint8_t _qos,
     if (dir == READ) {
         readQueueSizes[_qos] += entries;
         totalReadQueueSize += entries;
+        readArrivals[_qos] += entries;
     } else if (dir == WRITE) {
         writeQueueSizes[_qos] += entries;
         totalWriteQueueSize += entries;
+        writeArrivals[_qos] += entries;
     }
 
     packetPriorities[id][_qos] += entries;
@@ -370,6 +377,46 @@ MemCtrl::recordTurnaroundStats(BusState busState, BusState busStateNext)
             stats.numStayWriteState++;
         }
     }
+}
+
+double
+MemCtrl::getReadQueuePressure(const uint8_t prio) const
+{
+    if (prio >= _numPriorities) {
+        return 0.0;
+    }
+    return static_cast<double>(readQueueSizes[prio]) +
+           0.5 * static_cast<double>(readArrivals[prio]);
+}
+
+double
+MemCtrl::getWriteQueuePressure(const uint8_t prio) const
+{
+    if (prio >= _numPriorities) {
+        return 0.0;
+    }
+    return static_cast<double>(writeQueueSizes[prio]) +
+           0.5 * static_cast<double>(writeArrivals[prio]);
+}
+
+double
+MemCtrl::getReadQueuePressureGradient() const
+{
+    double gradient = 0.0;
+    for (uint8_t i = 0; i < _numPriorities; ++i) {
+        gradient += (i + 1) * getReadQueuePressure(i);
+    }
+    return gradient;
+}
+
+double
+MemCtrl::getWriteQueuePressureGradient() const
+{
+    double gradient = 0.0;
+    for (uint8_t i = 0; i < _numPriorities; ++i) {
+        gradient += (i + 1) * getWriteQueuePressure(i);
+    }
+    return gradient;
 }
 
 } // namespace qos

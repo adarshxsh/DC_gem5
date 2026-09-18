@@ -63,6 +63,8 @@ QueuePolicy::create(const QoSMemCtrlParams &p)
         return new FifoQueuePolicy(p);
       case enums::QoSQPolicy::lrg:
         return new LrgQueuePolicy(p);
+      case enums::QoSQPolicy::cp:
+          return new CpQueuePolicy(p);
       case enums::QoSQPolicy::lifo:
       default:
         return new LifoQueuePolicy(p);
@@ -167,6 +169,41 @@ LrgQueuePolicy::enqueuePacket(PacketPtr pkt)
         toServe.push_back(requestor_id);
     }
 };
+
+QueuePolicy::PacketQueue::iterator
+CpQueuePolicy::selectPacket(PacketQueue *queue)
+{
+    panic_if(queue->empty(),
+             "Provided packet queue is not usable by queue policy");
+
+    PacketQueue::iterator best_it = queue->begin();
+    double max_score = -1.0;
+
+    for (auto it = queue->begin(); it != queue->end(); ++it) {
+        const auto &pkt = *it;
+        double cr = pkt->getCompressionRatio();
+        double pressure = 0.0;
+        if (memCtrl && pkt->req) {
+            uint8_t qos = pkt->qosValue();
+            pressure = pkt->isRead() ? memCtrl->getReadQueuePressure(qos)
+                                     : memCtrl->getWriteQueuePressure(qos);
+        }
+
+        double score = 2.0 * cr + 1.0 * pressure;
+
+        DPRINTF(QOS,
+                "QoSQPolicy::cp packet addr %#x cr %.2f pressure %.2f "
+                "score %.2f\n",
+                pkt->getAddr(), cr, pressure, score);
+
+        if (score > max_score) {
+            max_score = score;
+            best_it = it;
+        }
+    }
+
+    return best_it;
+}
 
 } // namespace qos
 } // namespace memory
