@@ -31,6 +31,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
