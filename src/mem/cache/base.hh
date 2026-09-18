@@ -371,6 +371,9 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** High-watermark threshold for bypassing compression on MSHR pressure. */
+    const double mshrBypassThreshold;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -1155,6 +1158,10 @@ class BaseCache : public ClockedObject
          * factor improved).
          */
         statistics::Scalar dataContractions;
+
+        /** Number of compressions bypassed due to MSHR queue occupancy
+         * threshold. */
+        statistics::Scalar bypassedCompressionsMSHR;
 
         /** Per-command statistics */
         std::vector<std::unique_ptr<CacheCmdStats>> cmd;

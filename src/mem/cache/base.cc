@@ -81,19 +81,20 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      mshrBypassThreshold(p.mshr_bypass_threshold),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1042,9 +1043,15 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // metadata can be updated.
     Cycles compression_lat = Cycles(0);
     Cycles decompression_lat = Cycles(0);
-    const auto comp_data =
-        compressor->compress(data, compression_lat, decompression_lat);
-    std::size_t compression_size = comp_data->getSizeBits();
+    std::size_t compression_size = blkSize * 8;
+
+    if (mshrQueue.occupancyRatio() > mshrBypassThreshold) {
+        stats.bypassedCompressionsMSHR++;
+    } else {
+        const auto comp_data =
+            compressor->compress(data, compression_lat, decompression_lat);
+        compression_size = comp_data->getSizeBits();
+    }
 
     // Get previous compressed size
     CompressionBlk* compression_blk = static_cast<CompressionBlk*>(blk);
@@ -1685,9 +1692,14 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // calculate the amount of extra cycles needed to read or write compressed
     // blocks.
     if (compressor && pkt->hasData()) {
-        const auto comp_data = compressor->compress(
-            pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
-        blk_size_bits = comp_data->getSizeBits();
+        if (mshrQueue.occupancyRatio() > mshrBypassThreshold) {
+            stats.bypassedCompressionsMSHR++;
+        } else {
+            const auto comp_data =
+                compressor->compress(pkt->getConstPtr<uint64_t>(),
+                                     compression_lat, decompression_lat);
+            blk_size_bits = comp_data->getSizeBits();
+        }
     }
 
     // get partitionId from Packet
@@ -2260,83 +2272,93 @@ BaseCache::CacheCmdStats::regStatsFromParent()
 }
 
 BaseCache::CacheStats::CacheStats(BaseCache &c)
-    : statistics::Group(&c), cache(c),
+    : statistics::Group(&c),
+      cache(c),
 
-    ADD_STAT(demandHits, statistics::units::Count::get(),
-             "number of demand (read+write) hits"),
-    ADD_STAT(overallHits, statistics::units::Count::get(),
-             "number of overall hits"),
-    ADD_STAT(demandHitLatency, statistics::units::Tick::get(),
-             "number of demand (read+write) hit ticks"),
-    ADD_STAT(overallHitLatency, statistics::units::Tick::get(),
-            "number of overall hit ticks"),
-    ADD_STAT(demandMisses, statistics::units::Count::get(),
-             "number of demand (read+write) misses"),
-    ADD_STAT(overallMisses, statistics::units::Count::get(),
-             "number of overall misses"),
-    ADD_STAT(demandMissLatency, statistics::units::Tick::get(),
-             "number of demand (read+write) miss ticks"),
-    ADD_STAT(overallMissLatency, statistics::units::Tick::get(),
-             "number of overall miss ticks"),
-    ADD_STAT(demandAccesses, statistics::units::Count::get(),
-             "number of demand (read+write) accesses"),
-    ADD_STAT(overallAccesses, statistics::units::Count::get(),
-             "number of overall (read+write) accesses"),
-    ADD_STAT(demandMissRate, statistics::units::Ratio::get(),
-             "miss rate for demand accesses"),
-    ADD_STAT(overallMissRate, statistics::units::Ratio::get(),
-             "miss rate for overall accesses"),
-    ADD_STAT(demandAvgMissLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall miss latency in ticks"),
-    ADD_STAT(overallAvgMissLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall miss latency"),
-    ADD_STAT(blockedCycles, statistics::units::Cycle::get(),
-            "number of cycles access was blocked"),
-    ADD_STAT(blockedCauses, statistics::units::Count::get(),
-            "number of times access was blocked"),
-    ADD_STAT(avgBlocked, statistics::units::Rate<
-                statistics::units::Cycle, statistics::units::Count>::get(),
-             "average number of cycles each access was blocked"),
-    ADD_STAT(writebacks, statistics::units::Count::get(),
-             "number of writebacks"),
-    ADD_STAT(demandMshrHits, statistics::units::Count::get(),
-             "number of demand (read+write) MSHR hits"),
-    ADD_STAT(overallMshrHits, statistics::units::Count::get(),
-             "number of overall MSHR hits"),
-    ADD_STAT(demandMshrMisses, statistics::units::Count::get(),
-             "number of demand (read+write) MSHR misses"),
-    ADD_STAT(overallMshrMisses, statistics::units::Count::get(),
-            "number of overall MSHR misses"),
-    ADD_STAT(overallMshrUncacheable, statistics::units::Count::get(),
-             "number of overall MSHR uncacheable misses"),
-    ADD_STAT(demandMshrMissLatency, statistics::units::Tick::get(),
-             "number of demand (read+write) MSHR miss ticks"),
-    ADD_STAT(overallMshrMissLatency, statistics::units::Tick::get(),
-             "number of overall MSHR miss ticks"),
-    ADD_STAT(overallMshrUncacheableLatency, statistics::units::Tick::get(),
-             "number of overall MSHR uncacheable ticks"),
-    ADD_STAT(demandMshrMissRate, statistics::units::Ratio::get(),
-             "mshr miss ratio for demand accesses"),
-    ADD_STAT(overallMshrMissRate, statistics::units::Ratio::get(),
-             "mshr miss ratio for overall accesses"),
-    ADD_STAT(demandAvgMshrMissLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall mshr miss latency"),
-    ADD_STAT(overallAvgMshrMissLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall mshr miss latency"),
-    ADD_STAT(overallAvgMshrUncacheableLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall mshr uncacheable latency"),
-    ADD_STAT(replacements, statistics::units::Count::get(),
-             "number of replacements"),
-    ADD_STAT(dataExpansions, statistics::units::Count::get(),
-             "number of data expansions"),
-    ADD_STAT(dataContractions, statistics::units::Count::get(),
-             "number of data contractions"),
-    cmd(MemCmd::NUM_MEM_CMDS)
+      ADD_STAT(demandHits, statistics::units::Count::get(),
+               "number of demand (read+write) hits"),
+      ADD_STAT(overallHits, statistics::units::Count::get(),
+               "number of overall hits"),
+      ADD_STAT(demandHitLatency, statistics::units::Tick::get(),
+               "number of demand (read+write) hit ticks"),
+      ADD_STAT(overallHitLatency, statistics::units::Tick::get(),
+               "number of overall hit ticks"),
+      ADD_STAT(demandMisses, statistics::units::Count::get(),
+               "number of demand (read+write) misses"),
+      ADD_STAT(overallMisses, statistics::units::Count::get(),
+               "number of overall misses"),
+      ADD_STAT(demandMissLatency, statistics::units::Tick::get(),
+               "number of demand (read+write) miss ticks"),
+      ADD_STAT(overallMissLatency, statistics::units::Tick::get(),
+               "number of overall miss ticks"),
+      ADD_STAT(demandAccesses, statistics::units::Count::get(),
+               "number of demand (read+write) accesses"),
+      ADD_STAT(overallAccesses, statistics::units::Count::get(),
+               "number of overall (read+write) accesses"),
+      ADD_STAT(demandMissRate, statistics::units::Ratio::get(),
+               "miss rate for demand accesses"),
+      ADD_STAT(overallMissRate, statistics::units::Ratio::get(),
+               "miss rate for overall accesses"),
+      ADD_STAT(demandAvgMissLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall miss latency in ticks"),
+      ADD_STAT(overallAvgMissLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall miss latency"),
+      ADD_STAT(blockedCycles, statistics::units::Cycle::get(),
+               "number of cycles access was blocked"),
+      ADD_STAT(blockedCauses, statistics::units::Count::get(),
+               "number of times access was blocked"),
+      ADD_STAT(avgBlocked,
+               statistics::units::Rate<statistics::units::Cycle,
+                                       statistics::units::Count>::get(),
+               "average number of cycles each access was blocked"),
+      ADD_STAT(writebacks, statistics::units::Count::get(),
+               "number of writebacks"),
+      ADD_STAT(demandMshrHits, statistics::units::Count::get(),
+               "number of demand (read+write) MSHR hits"),
+      ADD_STAT(overallMshrHits, statistics::units::Count::get(),
+               "number of overall MSHR hits"),
+      ADD_STAT(demandMshrMisses, statistics::units::Count::get(),
+               "number of demand (read+write) MSHR misses"),
+      ADD_STAT(overallMshrMisses, statistics::units::Count::get(),
+               "number of overall MSHR misses"),
+      ADD_STAT(overallMshrUncacheable, statistics::units::Count::get(),
+               "number of overall MSHR uncacheable misses"),
+      ADD_STAT(demandMshrMissLatency, statistics::units::Tick::get(),
+               "number of demand (read+write) MSHR miss ticks"),
+      ADD_STAT(overallMshrMissLatency, statistics::units::Tick::get(),
+               "number of overall MSHR miss ticks"),
+      ADD_STAT(overallMshrUncacheableLatency, statistics::units::Tick::get(),
+               "number of overall MSHR uncacheable ticks"),
+      ADD_STAT(demandMshrMissRate, statistics::units::Ratio::get(),
+               "mshr miss ratio for demand accesses"),
+      ADD_STAT(overallMshrMissRate, statistics::units::Ratio::get(),
+               "mshr miss ratio for overall accesses"),
+      ADD_STAT(demandAvgMshrMissLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall mshr miss latency"),
+      ADD_STAT(overallAvgMshrMissLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall mshr miss latency"),
+      ADD_STAT(overallAvgMshrUncacheableLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall mshr uncacheable latency"),
+      ADD_STAT(replacements, statistics::units::Count::get(),
+               "number of replacements"),
+      ADD_STAT(dataExpansions, statistics::units::Count::get(),
+               "number of data expansions"),
+      ADD_STAT(dataContractions, statistics::units::Count::get(),
+               "number of data contractions"),
+      ADD_STAT(bypassedCompressionsMSHR, statistics::units::Count::get(),
+               "number of compressions bypassed due to MSHR queue occupancy "
+               "threshold"),
+      cmd(MemCmd::NUM_MEM_CMDS)
 {
     for (int idx = 0; idx < MemCmd::NUM_MEM_CMDS; ++idx)
         cmd[idx].reset(new CacheCmdStats(c, MemCmd(idx).toString()));
@@ -2568,6 +2590,7 @@ BaseCache::CacheStats::regStats()
 
     dataExpansions.flags(nozero | nonan);
     dataContractions.flags(nozero | nonan);
+    bypassedCompressionsMSHR.flags(nozero | nonan);
 }
 
 void
