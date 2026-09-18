@@ -125,6 +125,21 @@ class CompressedTags : public SectorTags
                          bool is_prefetch = false) override;
 
     /**
+     * Proactively reserve a superblock sub-block slot during miss buffer
+     * allocation.
+     */
+    bool reserveSuperblockSlot(const CacheBlk::KeyType &key,
+                               std::size_t predicted_size_bits,
+                               SuperBlk *&reserved_super_blk,
+                               CacheBlk *&reserved_sub_blk) override;
+
+    /**
+     * Release a pre-reserved superblock sub-block slot.
+     */
+    void releaseSuperblockSlot(SuperBlk *reserved_super_blk,
+                               CacheBlk *reserved_sub_blk) override;
+
+    /**
      * Find if any of the sub-blocks satisfies a condition.
      *
      * The visitor should be a std::function that takes a cache block

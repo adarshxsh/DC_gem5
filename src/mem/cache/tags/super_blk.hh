@@ -65,6 +65,9 @@ class CompressionBlk : public SectorSubBlk
     /** Compression bit. */
     bool _compressed;
 
+    /** Superblock slot reservation bit. */
+    bool _reserved;
+
   public:
     /**
      * When an overwrite happens, the data size may change an not fit in its
@@ -112,6 +115,20 @@ class CompressionBlk : public SectorSubBlk
      * Clear compression bit.
      */
     void setUncompressed();
+
+    /**
+     * Check if this block slot is reserved by an in-flight MSHR fill.
+     *
+     * @return True if the slot is reserved.
+     */
+    bool isReserved() const;
+
+    /**
+     * Set reservation status.
+     *
+     * @param reserved True to reserve, false to release.
+     */
+    void setReserved(bool reserved = true);
 
     /*
      * Get size, in bits, of this compressed block's data.
@@ -210,6 +227,13 @@ class SuperBlk : public SectorBlk
      * @return True if block can be co-allocated in superblock.
      */
     bool canCoAllocate(const std::size_t compressed_size) const;
+
+    /**
+     * Get the total number of valid and reserved sub-blocks.
+     *
+     * @return Count of valid and reserved sub-blocks.
+     */
+    uint8_t getNumValidAndReserved() const;
 
     /**
      * Set block size. Should be called only once, when initializing blocks.

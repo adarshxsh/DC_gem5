@@ -66,6 +66,7 @@ namespace gem5
 
 class System;
 class ReplaceableEntry;
+class SuperBlk;
 
 /**
  * A common base class of Cache tagstore objects.
@@ -288,6 +289,30 @@ class BaseTags : public ClockedObject
                                  std::vector<CacheBlk *> &evict_blks,
                                  const uint64_t partition_id = 0,
                                  bool is_prefetch = false) = 0;
+
+    /**
+     * Proactively reserve a superblock sub-block slot during miss buffer
+     * allocation. Overridden by compressed tag stores.
+     */
+    virtual bool
+    reserveSuperblockSlot(const CacheBlk::KeyType &key,
+                          std::size_t predicted_size_bits,
+                          SuperBlk *&reserved_super_blk,
+                          CacheBlk *&reserved_sub_blk)
+    {
+        reserved_super_blk = nullptr;
+        reserved_sub_blk = nullptr;
+        return false;
+    }
+
+    /**
+     * Release a pre-reserved superblock sub-block slot if the miss is
+     * cancelled or deallocated. Overridden by compressed tag stores.
+     */
+    virtual void
+    releaseSuperblockSlot(SuperBlk *reserved_super_blk,
+                          CacheBlk *reserved_sub_blk)
+    {}
 
     /**
      * Access block and update replacement data. May not succeed, in which case
