@@ -82,19 +82,24 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      mshrCompressionBypassHighThreshold(
+          p.mshr_compression_bypass_high_threshold),
+      mshrCompressionBypassLowThreshold(
+          p.mshr_compression_bypass_low_threshold),
+      mshrCompressionBypassed(false),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1653,12 +1658,89 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
     }
 }
 
+bool
+BaseCache::isQueueCongested() const
+{
+    if (!compressor) {
+        return false;
+    }
+
+    const int mshr_occ = mshrQueue.occupancy();
+    const int mshr_cap = mshrQueue.capacity();
+
+    const int wb_occ = writeBuffer.occupancy();
+    const int wb_cap = writeBuffer.capacity();
+
+    const double mshr_pct =
+        (mshr_cap > 0) ? (((double)mshr_occ / mshr_cap) * 100.0) : 0.0;
+    const double wb_pct =
+        (wb_cap > 0) ? (((double)wb_occ / wb_cap) * 100.0) : 0.0;
+
+    return (mshr_pct >= mshrCompressionBypassHighThreshold) ||
+           (wb_pct >= mshrCompressionBypassHighThreshold);
+}
+
+void
+BaseCache::updateMSHRCompressionBypass()
+{
+    if (!compressor) {
+        return;
+    }
+
+    const int mshr_occ = mshrQueue.occupancy();
+    const int mshr_cap = mshrQueue.capacity();
+
+    const int wb_occ = writeBuffer.occupancy();
+    const int wb_cap = writeBuffer.capacity();
+
+    if (mshr_cap <= 0 && wb_cap <= 0) {
+        return;
+    }
+
+    const double mshr_pct =
+        (mshr_cap > 0) ? (((double)mshr_occ / mshr_cap) * 100.0) : 0.0;
+    const double wb_pct =
+        (wb_cap > 0) ? (((double)wb_occ / wb_cap) * 100.0) : 0.0;
+
+    const double max_pct = std::max(mshr_pct, wb_pct);
+
+    if (!mshrCompressionBypassed) {
+        if (max_pct >= mshrCompressionBypassHighThreshold) {
+            mshrCompressionBypassed = true;
+            DPRINTF(CacheComp,
+                    "Queue congestion detected (MSHR: %.1f%% [%d/%d], "
+                    "WriteBuffer: %.1f%% [%d/%d]) >= high threshold (%u%%). "
+                    "Bypassing compression.\n",
+                    mshr_pct, mshr_occ, mshr_cap, wb_pct, wb_occ, wb_cap,
+                    mshrCompressionBypassHighThreshold);
+        }
+    } else {
+        if (max_pct < mshrCompressionBypassLowThreshold) {
+            mshrCompressionBypassed = false;
+            DPRINTF(CacheComp,
+                    "Queue pressure reduced (MSHR: %.1f%% [%d/%d], "
+                    "WriteBuffer: %.1f%% [%d/%d]) < low threshold (%u%%). "
+                    "Resuming compression.\n",
+                    mshr_pct, mshr_occ, mshr_cap, wb_pct, wb_occ, wb_cap,
+                    mshrCompressionBypassLowThreshold);
+        }
+    }
+}
+
 CacheBlk*
 BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool allocate)
 {
     assert(pkt->isResponse());
     Addr addr = pkt->getAddr();
+
+    // Monitor MSHR and write buffer queue occupancy to detect memory queue
+    // congestion
+    updateMSHRCompressionBypass();
+
+    if (mshrCompressionBypassed && pkt) {
+        pkt->payloadDelay = 0;
+    }
     bool is_secure = pkt->isSecure();
     const bool has_old_data = blk && blk->isValid();
     const std::string old_state = (debug::Cache && blk) ? blk->print() : "";
@@ -1771,9 +1853,23 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // calculate the amount of extra cycles needed to read or write compressed
     // blocks.
     if (compressor && pkt->hasData()) {
-        const auto comp_data = compressor->compress(
-            pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
-        blk_size_bits = comp_data->getSizeBits();
+        if (mshrCompressionBypassed) {
+            blk_size_bits = blkSize * 8;
+            compression_lat = Cycles(0);
+            decompression_lat = Cycles(0);
+            pkt->payloadDelay = 0;
+            stats.mshrCompressionBypasses++;
+            DPRINTF(CacheComp,
+                    "Bypassing compression on block fill for address %#llx "
+                    "due to queue congestion (MSHR: %d/%d, WB: %d/%d)\n",
+                    addr, mshrQueue.occupancy(), mshrQueue.capacity(),
+                    writeBuffer.occupancy(), writeBuffer.capacity());
+        } else {
+            const auto comp_data =
+                compressor->compress(pkt->getConstPtr<uint64_t>(),
+                                     compression_lat, decompression_lat);
+            blk_size_bits = comp_data->getSizeBits();
+        }
     }
 
     // get partitionId from Packet
@@ -2435,6 +2531,8 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
                "number of data expansions"),
       ADD_STAT(dataContractions, statistics::units::Count::get(),
                "number of data contractions"),
+      ADD_STAT(mshrCompressionBypasses, statistics::units::Count::get(),
+               "number of queue-congestion-induced compression bypass events"),
       cmd(MemCmd::NUM_MEM_CMDS)
 {
     for (int idx = 0; idx < MemCmd::NUM_MEM_CMDS; ++idx)
@@ -2668,6 +2766,7 @@ BaseCache::CacheStats::regStats()
     detachedL1CleanPreserved.flags(nozero | nonan);
     dataExpansions.flags(nozero | nonan);
     dataContractions.flags(nozero | nonan);
+    mshrCompressionBypasses.flags(nozero | nonan);
 }
 
 void

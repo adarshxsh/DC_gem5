@@ -371,6 +371,32 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** High-watermark threshold percentage for MSHR and write buffer
+     * compression bypass. */
+    const unsigned mshrCompressionBypassHighThreshold;
+
+    /** Low-watermark threshold percentage for MSHR and write buffer
+     * compression bypass. */
+    const unsigned mshrCompressionBypassLowThreshold;
+
+    /** Current state of memory queue compression bypass. */
+    bool mshrCompressionBypassed;
+
+    /**
+     * Updates the mshrCompressionBypassed state using hysteresis based on
+     * current mshrQueue and writeBuffer occupancy against high and low
+     * watermark thresholds.
+     */
+    void updateMSHRCompressionBypass();
+
+  public:
+    /**
+     * Checks if MSHR queue or write buffer occupancy exceeds high threshold.
+     * @return True if queue occupancy percentage >= high threshold.
+     */
+    bool isQueueCongested() const;
+
+  protected:
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -1162,6 +1188,12 @@ class BaseCache : public ClockedObject
          * factor improved).
          */
         statistics::Scalar dataContractions;
+
+        /**
+         * Number of block fills where compression was bypassed due to high
+         * queue occupancy.
+         */
+        statistics::Scalar mshrCompressionBypasses;
 
         /** Per-command statistics */
         std::vector<std::unique_ptr<CacheCmdStats>> cmd;
