@@ -61,4 +61,3 @@ GTest('multi.test', 'multi.test.cc', 'multi.cc', 'base.cc', 'zero.cc',
       '#src/sim/bufval.cc', with_tag('gem5 simobject'))
 
 GTest('compressor_base.test', 'base.test.cc', 'base.cc')
-
