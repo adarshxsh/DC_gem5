@@ -1159,7 +1159,8 @@ class BaseCache : public ClockedObject
          */
         statistics::Scalar dataContractions;
 
-        /** Number of compressions bypassed due to MSHR queue occupancy threshold. */
+        /** Number of compressions bypassed due to MSHR queue occupancy
+         * threshold. */
         statistics::Scalar bypassedCompressionsMSHR;
 
         /** Per-command statistics */
