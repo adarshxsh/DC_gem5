@@ -273,8 +273,9 @@ CompressedTags::reserveSuperblockSlot(const CacheBlk::KeyType &key,
         reserved_cblk->setReserved(true);
         reserved_super_blk = victim_superblock;
         reserved_sub_blk = reserved_cblk;
-        DPRINTF(CacheComp, "Reserved superblock slot: offset %d of %s\n",
-                offset, victim_superblock->print());
+        DPRINTF(CacheComp, "Reserved superblock slot: offset %llu of %s\n",
+                (unsigned long long)offset,
+                victim_superblock->print().c_str());
         return true;
     }
 

@@ -1743,13 +1743,13 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks,
                 DPRINTF(CacheComp,
                         "Co-allocated fill using pre-reserved slot for addr "
                         "%#llx\n",
-                        addr);
+                        (unsigned long long)addr);
                 return victim;
             } else {
                 DPRINTF(
                     CacheComp,
                     "Mispredicted slot size for addr %#llx, releasing slot\n",
-                    addr);
+                    (unsigned long long)addr);
                 tags->releaseSuperblockSlot(res_super, res_sub);
                 mshr->setReservedSubBlk(nullptr);
                 mshr->setReservedSuperBlk(nullptr);
