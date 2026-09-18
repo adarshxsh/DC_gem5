@@ -297,7 +297,7 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
         }
     }
 
-    SrcType* retryingPort = waitingForLayer[best_idx];
+    SrcType *retryingPort = waitingForLayer[best_idx];
     if (best_idx == 0) {
         waitingForLayer.pop_front();
     } else {

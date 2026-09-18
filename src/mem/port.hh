@@ -290,7 +290,11 @@ class RequestPort: public Port, public AtomicRequestProtocol,
      * Get real-time queue pressure/occupancy metrics from connected responder.
      */
     uint64_t getQueuePressure() const;
-    uint64_t getQueueOccupancy() const { return getQueuePressure(); }
+    uint64_t
+    getQueueOccupancy() const
+    {
+        return getQueuePressure();
+    }
 
   protected:
     /**
@@ -395,12 +399,21 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
     virtual AddrRangeList getAddrRanges() const = 0;
 
     /**
-     * Get real-time queue pressure/occupancy metrics from downstream responder.
+     * Get real-time queue pressure/occupancy metrics from downstream
+     * responder.
      *
      * @return Current queue occupancy/pressure metric
      */
-    virtual uint64_t getQueuePressure() const { return 0; }
-    virtual uint64_t getQueueOccupancy() const { return getQueuePressure(); }
+    virtual uint64_t
+    getQueuePressure() const
+    {
+        return 0;
+    }
+    virtual uint64_t
+    getQueueOccupancy() const
+    {
+        return getQueuePressure();
+    }
 
     /**
      * We let the request port do the work, so these don't do anything.

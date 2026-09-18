@@ -274,11 +274,11 @@ class MemCtrl : public qos::MemCtrl
 
         AddrRangeList getAddrRanges() const override;
 
-        uint64_t getQueuePressure() const override
+        uint64_t
+        getQueuePressure() const override
         {
             return ctrl.getQueuePressure();
         }
-
     };
 
     /**
@@ -320,7 +320,8 @@ class MemCtrl : public qos::MemCtrl
     /**
      * Get real-time queue pressure/occupancy of the memory controller
      */
-    uint64_t getQueuePressure() const
+    uint64_t
+    getQueuePressure() const
     {
         return totalReadQueueSize + totalWriteQueueSize + respQueue.size();
     }
