@@ -103,6 +103,17 @@ class BaseCache(ClockedObject):
     tgts_per_mshr = Param.Unsigned("Max number of accesses per MSHR")
     write_buffers = Param.Unsigned(8, "Number of write buffers")
 
+    mshr_compression_bypass_high_threshold = Param.Percent(
+        75,
+        "MSHR and write queue occupancy percentage threshold above which "
+        "cache compression is bypassed",
+    )
+    mshr_compression_bypass_low_threshold = Param.Percent(
+        50,
+        "MSHR and write queue occupancy percentage threshold below which "
+        "cache compression is resumed",
+    )
+
     is_read_only = Param.Bool(False, "Is this cache read only (e.g. inst)")
 
     prefetcher = Param.BasePrefetcher(NULL, "Prefetcher attached to cache")
