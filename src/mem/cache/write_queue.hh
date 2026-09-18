@@ -96,6 +96,21 @@ class WriteQueue : public Queue<WriteQueueEntry>
      * @param entry The entry to mark in service.
      */
     void markInService(WriteQueueEntry *entry);
+
+    /**
+     * Find an un-in-service entry for the given block address that can be
+     * coalesced with a new write request, preserving sub-block boundaries.
+     *
+     * @param blk_addr Block address.
+     * @param blk_size Block size.
+     * @param pkt Packet to coalesce.
+     * @param is_secure True if secure memory space.
+     * @return Pointer to coalescable WriteQueueEntry, or nullptr if none.
+     */
+    WriteQueueEntry *findCoalesce(Addr blk_addr, unsigned blk_size,
+                                  PacketPtr pkt, bool is_secure) const;
+
+    WriteQueueEntry *findCoalesce(Addr blk_addr, bool is_secure) const;
 };
 
 } // namespace gem5

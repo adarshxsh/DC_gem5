@@ -85,4 +85,23 @@ WriteQueue::markInService(WriteQueueEntry *entry)
     deallocate(entry);
 }
 
+WriteQueueEntry *
+WriteQueue::findCoalesce(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
+                         bool is_secure) const
+{
+    for (const auto &entry : allocatedList) {
+        if (!entry->inService && !entry->isUncacheable() &&
+            entry->matchBlockAddr(blk_addr, is_secure)) {
+            return entry;
+        }
+    }
+    return nullptr;
+}
+
+WriteQueueEntry *
+WriteQueue::findCoalesce(Addr blk_addr, bool is_secure) const
+{
+    return findCoalesce(blk_addr, 0, nullptr, is_secure);
+}
+
 } // namespace gem5
