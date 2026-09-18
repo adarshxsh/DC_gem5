@@ -1651,7 +1651,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
     if (compressor && pkt->hasData()) {
         if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                                    writebacks)) {
+                                   writebacks)) {
             invalidateBlock(blk);
             return nullptr;
         }
@@ -1696,12 +1696,15 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // blocks.
     if (compressor) {
         if (pkt->hasData()) {
-            const auto comp_data = compressor->compress(
-                pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
+            const auto comp_data =
+                compressor->compress(pkt->getConstPtr<uint64_t>(),
+                                     compression_lat, decompression_lat);
             blk_size_bits = comp_data->getSizeBits();
         } else {
-            blk_size_bits = std::min(tags->getEstimatedCompressedSize(
-                {addr, is_secure}, blkSize * CHAR_BIT), blkSize * CHAR_BIT);
+            blk_size_bits =
+                std::min(tags->getEstimatedCompressedSize({addr, is_secure},
+                                                          blkSize * CHAR_BIT),
+                         blkSize * CHAR_BIT);
         }
     }
 

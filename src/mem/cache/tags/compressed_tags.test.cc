@@ -212,8 +212,10 @@ TEST_F(SuperBlkTestFixture, ReadMissOptimisticSizeCoAllocation)
     // Uncompressed size (512 bits) fails co-allocation
     ASSERT_FALSE(superBlk.canCoAllocate(512));
 
-    // Estimate compressed size based on matching superblock's compression factor (CF=8)
-    std::size_t estimated_size = (BlkSize * 8) / superBlk.getCompressionFactor();
+    // Estimate compressed size based on matching superblock's compression
+    // factor (CF=8)
+    std::size_t estimated_size =
+        (BlkSize * 8) / superBlk.getCompressionFactor();
     ASSERT_EQ(estimated_size, 64);
 
     // Estimated compressed size succeeds co-allocation
