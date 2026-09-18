@@ -152,7 +152,7 @@ class Base : public SimObject
     const bool enableQueuePressureThrottling;
 
     /** Memory controllers bound to this compressor for pressure monitoring. */
-    const std::vector<memory::MemCtrl*> memoryControllers;
+    const std::vector<memory::MemCtrl *> memoryControllers;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
