@@ -102,6 +102,10 @@ class MemCtrl(QoSMemCtrl):
     command_window = Param.Latency("10ns", "Static backend latency")
     disable_sanity_check = Param.Bool(False, "Disable port resp Q size check")
 
+    enable_pressure_signaling = Param.Bool(
+        False, "Enable queue pressure probe signaling"
+    )
+
 
 add_citation(
     MemCtrl,

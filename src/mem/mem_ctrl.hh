@@ -544,6 +544,9 @@ class MemCtrl : public qos::MemCtrl
      */
     const Tick commandWindow;
 
+    /** Whether queue pressure probe signaling is enabled. */
+    const bool enablePressureSignaling;
+
     /**
      * Till when must we wait before issuing next RD/WR burst?
      */
