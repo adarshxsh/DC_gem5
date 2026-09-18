@@ -148,7 +148,8 @@ TEST_F(SuperBlkTestFixture, IntermediateIntegerFactorsCoAllocation)
     ASSERT_EQ(superBlk.getCompressionFactor(), 3);
     verifyInvariants(superBlk);
 
-    // Cannot co-allocate fourth sub-block (capacity limit reached for factor 3)
+    // Cannot co-allocate fourth sub-block (capacity limit reached for factor
+    // 3)
     ASSERT_FALSE(superBlk.canCoAllocate(170));
 
     // Test capacity recovery: invalidate one sub-block
