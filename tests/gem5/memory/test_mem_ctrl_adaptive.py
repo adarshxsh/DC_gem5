@@ -25,7 +25,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import unittest
-from m5.objects import DDR3_1600_8x8, MemCtrl
+
+from m5.objects import (
+    DDR3_1600_8x8,
+    MemCtrl,
+)
 
 
 class MemCtrlAdaptiveParamTest(unittest.TestCase):
