@@ -43,6 +43,7 @@
 #include "base/logging.hh"
 #include "mem/ruby/common/MachineID.hh"
 #include "mem/ruby/network/BasicLink.hh"
+#include "mem/ruby/slicc_interface/Message.hh"
 #include "mem/ruby/system/RubySystem.hh"
 
 namespace gem5
@@ -163,7 +164,7 @@ Network::~Network()
 }
 
 uint32_t
-Network::MessageSizeType_to_int(MessageSizeType size_type)
+Network::MessageSizeType_to_int(MessageSizeType size_type, const Message *msg)
 {
     switch(size_type) {
       case MessageSizeType_Control:
@@ -184,6 +185,9 @@ Network::MessageSizeType_to_int(MessageSizeType size_type)
       case MessageSizeType_ResponseLocal_Data:
       case MessageSizeType_ResponseL2hit_Data:
       case MessageSizeType_Writeback_Data:
+          if (msg && msg->getCompressedSize() > 0) {
+              return msg->getCompressedSize();
+          }
         return m_data_msg_size;
       default:
         panic("Invalid range for type MessageSizeType");
