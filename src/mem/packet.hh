@@ -57,6 +57,7 @@
 #include "base/compiler.hh"
 #include "base/extensible.hh"
 #include "base/flags.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/printable.hh"
 #include "base/types.hh"
@@ -301,18 +302,18 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS = 0x000200FF,
 
         // Flags that are used to create reponse packets
-        RESPONDER_FLAGS        = 0x00000009,
+        RESPONDER_FLAGS = 0x00000009,
 
         // Does this packet have sharers (which means it should not be
         // considered writable) or not. See setHasSharers below.
-        HAS_SHARERS            = 0x00000001,
+        HAS_SHARERS = 0x00000001,
 
         // Special control flags
         /// Special timing-mode atomic snoop for multi-level coherence.
-        EXPRESS_SNOOP          = 0x00000002,
+        EXPRESS_SNOOP = 0x00000002,
 
         /// Allow a responding cache to inform the cache hierarchy
         /// that it had a writable copy before responding. See
@@ -321,46 +322,49 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Snoop co-ordination flag to indicate that a cache is
         // responding to a snoop. See setCacheResponding below.
-        CACHE_RESPONDING       = 0x00000008,
+        CACHE_RESPONDING = 0x00000008,
 
         // The writeback/writeclean should be propagated further
         // downstream by the receiver
-        WRITE_THROUGH          = 0x00000010,
+        WRITE_THROUGH = 0x00000010,
 
         // Response co-ordination flag for cache maintenance
         // operations
-        SATISFIED              = 0x00000020,
+        SATISFIED = 0x00000020,
 
         // hardware transactional memory
 
         // Indicates that this packet/request has returned from the
         // cache hierarchy in a failed transaction. The core is
         // notified like this.
-        FAILS_TRANSACTION      = 0x00000040,
+        FAILS_TRANSACTION = 0x00000040,
 
         // Indicates that this packet/request originates in the CPU executing
         // in transactional mode, i.e. in a transaction.
-        FROM_TRANSACTION       = 0x00000080,
+        FROM_TRANSACTION = 0x00000080,
 
         /// Are the 'addr' and 'size' fields valid?
-        VALID_ADDR             = 0x00000100,
-        VALID_SIZE             = 0x00000200,
+        VALID_ADDR = 0x00000100,
+        VALID_SIZE = 0x00000200,
 
         /// Is the data pointer set to a value that shouldn't be freed
         /// when the packet is destroyed?
-        STATIC_DATA            = 0x00001000,
+        STATIC_DATA = 0x00001000,
         /// The data pointer points to a value that should be freed when
         /// the packet is destroyed. The pointer is assumed to be pointing
         /// to an array, and delete [] is consequently called
-        DYNAMIC_DATA           = 0x00002000,
+        DYNAMIC_DATA = 0x00002000,
 
         /// suppress the error if this packet encounters a functional
         /// access failure.
-        SUPPRESS_FUNC_ERROR    = 0x00008000,
+        SUPPRESS_FUNC_ERROR = 0x00008000,
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED = 0x00010000,
+
+        // Indicates whether the payload is compressed
+        IS_COMPRESSED = 0x00020000
     };
 
     Flags flags;
@@ -395,6 +399,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     /// The size of the request or transfer.
     unsigned size;
+
+    /// Compressed size in bytes if payload is compressed
+    unsigned _compressedSize = 0;
 
     /**
      * Track the bytes found that satisfy a functional read.
@@ -816,6 +823,42 @@ class Packet : public Printable, public Extensible<Packet>
 
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
 
+    bool
+    isCompressed() const
+    {
+        return flags.isSet(IS_COMPRESSED);
+    }
+    unsigned
+    getCompressedSize() const
+    {
+        return _compressedSize;
+    }
+    void
+    setCompressedSize(unsigned bytes)
+    {
+        _compressedSize = bytes;
+        if (bytes > 0) {
+            flags.set(IS_COMPRESSED);
+        } else {
+            flags.clear(IS_COMPRESSED);
+        }
+    }
+    void
+    setCompressedSizeBits(std::size_t bits)
+    {
+        setCompressedSize(divCeil(bits, 8));
+    }
+    std::size_t
+    getCompressedSizeBits() const
+    {
+        return _compressedSize * 8;
+    }
+    unsigned
+    getTransferSize() const
+    {
+        return isCompressed() ? _compressedSize : getSize();
+    }
+
     /**
      * Get address range to which this packet belongs.
      *
@@ -942,18 +985,23 @@ class Packet : public Printable, public Extensible<Packet>
      * packet should allocate its own data.
      */
     Packet(const PacketPtr pkt, bool clear_flags, bool alloc_data)
-        :  Extensible<Packet>(*pkt),
-           cmd(pkt->cmd), id(pkt->id), req(pkt->req),
-           data(nullptr),
-           addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
-           bytesValid(pkt->bytesValid),
-           _qosValue(pkt->qosValue()),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(pkt->headerDelay),
-           snoopDelay(0),
-           payloadDelay(pkt->payloadDelay),
-           senderState(pkt->senderState)
+        : Extensible<Packet>(*pkt),
+          cmd(pkt->cmd),
+          id(pkt->id),
+          req(pkt->req),
+          data(nullptr),
+          addr(pkt->addr),
+          _isSecure(pkt->_isSecure),
+          size(pkt->size),
+          _compressedSize(pkt->_compressedSize),
+          bytesValid(pkt->bytesValid),
+          _qosValue(pkt->qosValue()),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(pkt->headerDelay),
+          snoopDelay(0),
+          payloadDelay(pkt->payloadDelay),
+          senderState(pkt->senderState)
     {
         if (!clear_flags)
             flags.set(pkt->flags & COPY_FLAGS);

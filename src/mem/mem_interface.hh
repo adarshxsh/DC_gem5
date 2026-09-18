@@ -177,6 +177,11 @@ class MemInterface : public AbstractMemory
     const uint32_t writeBufferSize;
 
     /**
+     * Enable compressed transfers and dynamic burst truncation
+     */
+    const bool enableCompressedTransfers;
+
+    /**
      * NVM specific variable, but declaring it here allows
      * treating different interfaces in a more genral way
      * at the memory controller's end
