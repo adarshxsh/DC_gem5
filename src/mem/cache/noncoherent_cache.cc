@@ -67,13 +67,14 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 }
 
 void
-NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
+NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+                                PacketList &writebacks, bool, bool)
 {
     // As this a non-coherent cache located below the point of
     // coherency, we do not expect requests that are typically used to
     // keep caches coherent (e.g., InvalidateReq or UpdateReq).
     assert(pkt->isRead() || pkt->isWrite());
-    BaseCache::satisfyRequest(pkt, blk);
+    BaseCache::satisfyRequest(pkt, blk, writebacks);
 }
 
 bool
@@ -197,7 +198,7 @@ NoncoherentCache::handleAtomicReqMiss(PacketPtr pkt, CacheBlk *&blk,
         blk = handleFill(bus_pkt, blk, writebacks, allocOnFill(bus_pkt->cmd));
         assert(blk);
     }
-    satisfyRequest(pkt, blk);
+    satisfyRequest(pkt, blk, writebacks);
 
     maintainClusivity(true, blk);
 
@@ -240,7 +241,7 @@ NoncoherentCache::functionalAccess(PacketPtr pkt, bool from_cpu_side)
 
 void
 NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                                     CacheBlk *blk)
+                                     CacheBlk *blk, PacketList &writebacks)
 {
     // First offset for critical word first calculations
     const int initial_offset = mshr->getTarget()->pkt->getOffset(blkSize);
@@ -264,7 +265,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
-            satisfyRequest(tgt_pkt, blk);
+            satisfyRequest(tgt_pkt, blk, writebacks);
 
             // How many bytes past the first request is this one
             int transfer_offset;
