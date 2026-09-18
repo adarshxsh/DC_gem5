@@ -357,6 +357,18 @@ class BaseCache : public ClockedObject
             return cache.getCompressionFactor(addr, is_secure);
         }
 
+        float
+        getWriteQueueOccupancy() const override
+        {
+            return cache.writeBuffer.getOccupancy();
+        }
+
+        bool
+        getMemoryPressure() const override
+        {
+            return cache.isBlocked() || cache.writeBuffer.isFull();
+        }
+
     } accessor;
 
     /** Miss status registers */

@@ -216,6 +216,7 @@ class Queued : public Base
         statistics::Scalar pfSpanPage;
         statistics::Scalar pfUsefulSpanPage;
         statistics::Scalar pfDroppedLowCompression;
+        statistics::Scalar pfDroppedQueuePressure;
     } statsQueued;
   public:
     using AddrPriority = std::pair<Addr, int32_t>;
@@ -295,6 +296,8 @@ class Queued : public Base
      * @return the number of these request candidates are allowed to be created
      */
     size_t getMaxPermittedPrefetches(size_t total) const;
+    size_t getMaxPermittedPrefetches(size_t total,
+                                     const CacheAccessor &cache) const;
 
     RequestPtr createPrefetchRequest(Addr addr, PrefetchInfo const &pfi,
                                         PacketPtr pkt);
