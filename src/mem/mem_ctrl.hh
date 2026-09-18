@@ -183,12 +183,20 @@ class MemPacket
     /**
      * Get compressed size in bytes
      */
-    inline unsigned int getCompressedSize() const { return pkt ? pkt->getCompressedSize() : size; }
+    inline unsigned int
+    getCompressedSize() const
+    {
+        return pkt ? pkt->getCompressedSize() : size;
+    }
 
     /**
      * Check if packet payload is compressed
      */
-    inline bool isCompressed() const { return pkt ? pkt->isCompressed() : false; }
+    inline bool
+    isCompressed() const
+    {
+        return pkt ? pkt->isCompressed() : false;
+    }
 
     /**
      * Get the packet address
