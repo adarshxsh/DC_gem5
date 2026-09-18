@@ -627,16 +627,27 @@ class MemCtrl : public qos::MemCtrl
      */
     std::unique_ptr<Packet> pendingDelete;
 
+    virtual void pruneBurstTick();
+
+  public:
+
     /**
      * Select either the read or write queue
      *
      * @param is_read The current burst is a read, select read queue
      * @return a reference to the appropriate queue
      */
-    std::vector<MemPacketQueue>& selQueue(bool is_read)
+    std::vector<MemPacketQueue> &
+    selQueue(bool is_read)
     {
         return (is_read ? readQueue : writeQueue);
-    };
+    }
+
+    const std::vector<MemPacketQueue> &
+    selQueue(bool is_read) const
+    {
+        return (is_read ? readQueue : writeQueue);
+    }
 
     virtual bool respQEmpty()
     {
@@ -667,13 +678,6 @@ class MemCtrl : public qos::MemCtrl
      * @return a boolean showing if nvm is blocked with writes
      */
     virtual bool nvmWriteBlock(MemInterface* mem_intr);
-
-    /**
-     * Remove commands that have already issued from burstTicks
-     */
-    virtual void pruneBurstTick();
-
-  public:
 
     MemCtrl(const MemCtrlParams &p);
 
@@ -771,18 +775,6 @@ class MemCtrl : public qos::MemCtrl
      * @return True when bus is currently in a write state
      */
     bool inWriteBusState(bool next_state, const MemInterface* mem_intr) const;
-
-    /**
-     * Select either the read or write queue
-     *
-     * @param is_read The current burst is a read, select read queue
-     * @return a reference to the appropriate queue
-     */
-    const std::vector<MemPacketQueue> &
-    selQueue(bool is_read) const
-    {
-        return (is_read ? readQueue : writeQueue);
-    }
 
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
