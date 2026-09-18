@@ -45,6 +45,9 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <algorithm>
+#include <map>
+
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -164,9 +167,66 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             return nullptr;
         }
 
-        // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
-            replacementPolicy->getVictim(superblock_entries));
+        // Choose replacement victim from replacement candidates scaled by
+        // valid sub-block count
+        std::vector<ReplaceableEntry *> invalid_entries;
+        for (const auto &entry : superblock_entries) {
+            SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+            if (!superblock->isValid() || superblock->getNumValid() == 0) {
+                invalid_entries.push_back(entry);
+            }
+        }
+
+        if (!invalid_entries.empty()) {
+            victim_superblock = static_cast<SuperBlk *>(
+                replacementPolicy->getVictim(invalid_entries));
+        } else {
+            std::vector<ReplaceableEntry *> remaining_candidates =
+                superblock_entries;
+            std::map<ReplaceableEntry *, uint64_t> recency_ranks;
+            uint64_t current_rank = remaining_candidates.size();
+
+            while (!remaining_candidates.empty()) {
+                ReplaceableEntry *worst =
+                    replacementPolicy->getVictim(remaining_candidates);
+                recency_ranks[worst] = current_rank;
+                if (current_rank > 0) {
+                    current_rank--;
+                }
+
+                auto it = std::find(remaining_candidates.begin(),
+                                    remaining_candidates.end(), worst);
+                if (it != remaining_candidates.end()) {
+                    remaining_candidates.erase(it);
+                }
+            }
+
+            SuperBlk *best_victim = nullptr;
+            uint64_t max_weight = 0;
+            uint64_t max_recency_rank = 0;
+
+            for (const auto &entry : superblock_entries) {
+                SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+                uint8_t valid_count = superblock->getNumValid();
+                uint8_t comp_factor = superblock->getCompressionFactor();
+                (void)comp_factor;
+                uint64_t recency_rank = recency_ranks[entry] * 1000;
+
+                // Calculate effective weight = recency_rank / (1 +
+                // valid_count)
+                uint64_t effective_weight = recency_rank / (1 + valid_count);
+
+                if (best_victim == nullptr || effective_weight > max_weight ||
+                    (effective_weight == max_weight &&
+                     recency_ranks[entry] > max_recency_rank)) {
+                    best_victim = superblock;
+                    max_weight = effective_weight;
+                    max_recency_rank = recency_ranks[entry];
+                }
+            }
+
+            victim_superblock = best_victim;
+        }
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){
