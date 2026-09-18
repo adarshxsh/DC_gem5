@@ -45,7 +45,8 @@ class QoSTurnaroundPolicy(SimObject):
     abstract = True
 
     enable_pressure_gradient = Param.Bool(
-        False, "Enable priority-weighted queue pressure gradient turnaround policy"
+        False,
+        "Enable priority-weighted queue pressure gradient turnaround policy",
     )
     hysteresis_threshold = Param.Float(
         0.1, "Hysteresis threshold to prevent turnaround oscillation"
