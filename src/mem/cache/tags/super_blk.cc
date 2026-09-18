@@ -208,7 +208,8 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size) const
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        bool is_prefetch) const
 {
     if (!isCompressed()) {
         return false;
@@ -217,6 +218,13 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
     const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
     if (new_blk_cf <= 1) {
         return false;
+    }
+
+    if (is_prefetch && getNumValid() > 0) {
+        const uint8_t min_cf = getCompressionFactor();
+        if (new_blk_cf < min_cf) {
+            return false;
+        }
     }
 
     const uint8_t target_cf =
@@ -244,7 +252,8 @@ SuperBlk::calculateCompressionFactor(const std::size_t size) const
     const std::size_t compression_factor = (size > blk_size_bits) ? 1 :
         ((size == 0) ? blk_size_bits :
         alignToPowerOfTwo(std::floor(double(blk_size_bits) / size)));
-    return std::min<std::size_t>(compression_factor, blks.size());
+    return static_cast<uint8_t>(
+        std::min<std::size_t>(compression_factor, blks.size()));
 }
 
 uint8_t
@@ -262,8 +271,11 @@ SuperBlk::setCompressionFactor(const uint8_t compression_factor)
 void
 SuperBlk::updateCompressionFactor()
 {
-    uint8_t min_cf = blks.size();
+    uint8_t min_cf = static_cast<uint8_t>(blks.size());
+    uint8_t demand_min_cf = static_cast<uint8_t>(blks.size());
     bool has_valid = false;
+    bool has_demand = false;
+
     for (const auto &blk : blks) {
         if (blk->isValid()) {
             has_valid = true;
@@ -272,9 +284,22 @@ SuperBlk::updateCompressionFactor()
             if (cf < min_cf) {
                 min_cf = cf;
             }
+            if (!cblk->wasPrefetched()) {
+                has_demand = true;
+                if (cf < demand_min_cf) {
+                    demand_min_cf = cf;
+                }
+            }
         }
     }
-    setCompressionFactor(has_valid ? min_cf : 1);
+
+    if (!has_valid) {
+        setCompressionFactor(1);
+    } else if (has_demand) {
+        setCompressionFactor(demand_min_cf);
+    } else {
+        setCompressionFactor(min_cf);
+    }
 }
 
 std::string
