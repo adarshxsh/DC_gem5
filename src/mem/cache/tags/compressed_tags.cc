@@ -143,10 +143,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+        if (superblock->match(key) && superblock->isCompressed() &&
+            superblock->canCoAllocate(compressed_size)) {
             victim_superblock = superblock;
             is_co_allocation = true;
             break;
@@ -176,7 +174,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     }
 
     // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = nullptr;
+    SectorSubBlk *victim = nullptr;
     if (is_co_allocation) {
         victim = victim_superblock->blks[victim_superblock->getNumValid()];
         assert(!victim->isValid());
@@ -196,18 +194,18 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     return victim;
 }
 
-CacheBlk*
+CacheBlk *
 CompressedTags::findBlock(const CacheBlk::KeyType &key) const
 {
     const Addr offset = extractSectorOffset(key.address);
-    const std::vector<ReplaceableEntry*> entries =
+    const std::vector<ReplaceableEntry *> entries =
         indexingPolicy->getPossibleEntries(key);
 
-    for (const auto& sector : entries) {
-        SuperBlk* superblock = static_cast<SuperBlk*>(sector);
+    for (const auto &sector : entries) {
+        SuperBlk *superblock = static_cast<SuperBlk *>(sector);
         if (superblock->match(key)) {
             for (uint8_t k = 0; k < superblock->getNumValid(); ++k) {
-                SectorSubBlk* blk = superblock->blks[k];
+                SectorSubBlk *blk = superblock->blks[k];
                 if (blk->isValid() && blk->getSectorOffset() == offset) {
                     return blk;
                 }

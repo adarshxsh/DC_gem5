@@ -339,9 +339,10 @@ TEST_F(SuperBlkTestFixture, CoAllocationIntoConsolidatedFreeSlot)
     // Verify co-allocation is possible
     ASSERT_TRUE(superBlk.canCoAllocate(64));
 
-    // Co-allocate a new block into the consolidated open slot at index numValid = 2
-    CompressionBlk* open_slot = static_cast<CompressionBlk*>(
-        superBlk.blks[superBlk.getNumValid()]);
+    // Co-allocate a new block into the consolidated open slot at index
+    // numValid = 2
+    CompressionBlk *open_slot =
+        static_cast<CompressionBlk *>(superBlk.blks[superBlk.getNumValid()]);
     ASSERT_FALSE(open_slot->isValid());
     open_slot->setSectorOffset(1); // new block for sector offset 1
     open_slot->insert({0x5000, false});

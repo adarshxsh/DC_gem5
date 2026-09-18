@@ -129,7 +129,7 @@ class CompressedTags : public SectorTags
      * @param key The key (address, secure bit) to find.
      * @return Pointer to the cache block if found.
      */
-    CacheBlk* findBlock(const CacheBlk::KeyType &key) const override;
+    CacheBlk *findBlock(const CacheBlk::KeyType &key) const override;
 
     /**
      * Find if any of the sub-blocks satisfies a condition.

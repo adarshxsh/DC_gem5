@@ -266,8 +266,9 @@ SuperBlk::setCompressionFactor(const uint8_t compression_factor)
 void
 SuperBlk::compact()
 {
-    std::stable_partition(blks.begin(), blks.end(),
-        [](const SectorSubBlk* blk) { return blk->isValid(); });
+    std::stable_partition(
+        blks.begin(), blks.end(),
+        [](const SectorSubBlk *blk) { return blk->isValid(); });
 }
 
 void
