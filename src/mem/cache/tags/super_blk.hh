@@ -120,12 +120,18 @@ class CompressionBlk : public SectorSubBlk
     /**
      * Check if this block slot is reserved for an in-flight MSHR.
      */
-    bool isReserved() const { return _reserved; }
+    bool
+    isReserved() const
+    {
+        return _reserved;
+    }
 
     /**
      * Set reservation status and estimated size in bits.
      */
-    void setReserved(bool r, std::size_t size = 0) {
+    void
+    setReserved(bool r, std::size_t size = 0)
+    {
         _reserved = r;
         _reservedSize = r ? size : 0;
     }
@@ -133,7 +139,9 @@ class CompressionBlk : public SectorSubBlk
     /**
      * Clear reservation status.
      */
-    void clearReserved() {
+    void
+    clearReserved()
+    {
         _reserved = false;
         _reservedSize = 0;
     }
@@ -141,7 +149,11 @@ class CompressionBlk : public SectorSubBlk
     /**
      * Get estimated compressed size in bits for reserved slot.
      */
-    std::size_t getReservedSize() const { return _reservedSize; }
+    std::size_t
+    getReservedSize() const
+    {
+        return _reservedSize;
+    }
 
     /*
      * Get size, in bits, of this compressed block's data.
@@ -262,7 +274,8 @@ class SuperBlk : public SectorBlk
     uint8_t getCompressionFactor() const;
 
     /**
-     * Get the number of sub-block slots currently reserved for in-flight MSHRs.
+     * Get the number of sub-block slots currently reserved for in-flight
+     * MSHRs.
      */
     uint8_t getNumReserved() const;
 

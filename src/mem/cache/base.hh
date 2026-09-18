@@ -1202,10 +1202,9 @@ class BaseCache : public ClockedObject
             }
         }
 
-        MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
-                                        pkt, time, order++,
-                                        allocOnFill(pkt->cmd),
-                                        estimated_size);
+        MSHR *mshr =
+            mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize, pkt, time,
+                               order++, allocOnFill(pkt->cmd), estimated_size);
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);
@@ -1218,8 +1217,7 @@ class BaseCache : public ClockedObject
 
         if (compressedTags) {
             compressedTags->reserveSlot(
-                {pkt->getBlockAddr(blkSize), pkt->isSecure()},
-                estimated_size);
+                {pkt->getBlockAddr(blkSize), pkt->isSecure()}, estimated_size);
         }
 
         return mshr;

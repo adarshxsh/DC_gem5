@@ -164,11 +164,13 @@ class MSHR : public QueueEntry, public Printable
          */
         uint16_t estimatedCompressSize;
 
-        Target(PacketPtr _pkt, Tick _readyTime, Counter _order,
-               Source _source, bool _markedPending, bool alloc_on_fill,
+        Target(PacketPtr _pkt, Tick _readyTime, Counter _order, Source _source,
+               bool _markedPending, bool alloc_on_fill,
                uint16_t estimated_compress_size = 0)
-            : QueueEntry::Target(_pkt, _readyTime, _order), source(_source),
-              markedPending(_markedPending), allocOnFill(alloc_on_fill),
+            : QueueEntry::Target(_pkt, _readyTime, _order),
+              source(_source),
+              markedPending(_markedPending),
+              allocOnFill(alloc_on_fill),
               estimatedCompressSize(estimated_compress_size)
         {}
     };

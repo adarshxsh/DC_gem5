@@ -43,8 +43,12 @@ namespace gem5
 {
 
 CompressionBlk::CompressionBlk()
-    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false),
-      _reserved(false), _reservedSize(0)
+    : SectorSubBlk(),
+      _size(0),
+      _decompressionLatency(0),
+      _compressed(false),
+      _reserved(false),
+      _reservedSize(0)
 {
 }
 
@@ -213,10 +217,10 @@ uint8_t
 SuperBlk::getNumReserved() const
 {
     uint8_t count = 0;
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk && !blk->isValid()) {
-            const CompressionBlk* cblk =
-                static_cast<const CompressionBlk*>(blk);
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
             if (cblk->isReserved()) {
                 count++;
             }
@@ -242,14 +246,14 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
     bool has_reserved = false;
     std::size_t total_bits = compressed_size;
 
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk->isValid()) {
-            const CompressionBlk* cblk =
-                static_cast<const CompressionBlk*>(blk);
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
             total_bits += cblk->getSizeBits();
         } else {
-            const CompressionBlk* cblk =
-                static_cast<const CompressionBlk*>(blk);
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
             if (cblk->isReserved()) {
                 has_reserved = true;
                 std::size_t res_size = cblk->getReservedSize();
@@ -264,9 +268,11 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
 
     uint8_t num_allocated = getNumValid() + getNumReserved();
 
-    const uint8_t target_cf = (num_allocated == 0) ? new_blk_cf :
-        std::min({current_cf, new_blk_cf,
-                  has_reserved ? min_reserved_cf : new_blk_cf});
+    const uint8_t target_cf =
+        (num_allocated == 0)
+            ? new_blk_cf
+            : std::min({current_cf, new_blk_cf,
+                        has_reserved ? min_reserved_cf : new_blk_cf});
 
     return (target_cf > 1) && (num_allocated < target_cf) &&
            (total_bits <= blkSize * CHAR_BIT);

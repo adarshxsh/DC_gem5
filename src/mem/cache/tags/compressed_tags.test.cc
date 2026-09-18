@@ -286,13 +286,15 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
 
 TEST_F(SuperBlkTestFixture, MSHRTargetEstimatedCompressSize)
 {
-    MSHR::Target target(nullptr, 100, 1, MSHR::Target::FromCPU, true, true, 256);
+    MSHR::Target target(nullptr, 100, 1, MSHR::Target::FromCPU, true, true,
+                        256);
     ASSERT_EQ(target.estimatedCompressSize, 256);
 }
 
 TEST_F(SuperBlkTestFixture, SlotReservationAndRelease)
 {
-    // Populate superblock with 1 valid sub-block at offset 0 (size 256 bits -> CF=2)
+    // Populate superblock with 1 valid sub-block at offset 0 (size 256 bits ->
+    // CF=2)
     subBlks[0].insert({0x1000, false});
     subBlks[0].setSizeBits(256);
 
