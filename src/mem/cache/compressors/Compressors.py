@@ -98,6 +98,7 @@ class BaseCacheCompressor(SimObject):
     )
 
 
+
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"
     abstract = True

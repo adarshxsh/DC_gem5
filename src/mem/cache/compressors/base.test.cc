@@ -45,8 +45,8 @@ class TestCPackBypass : public CPack
     using Base::compress;
     using Base::decayedCompressedBits;
     using Base::decayedUncompressedBits;
-    using Base::sampledUncompressedBits;
     using Base::sampledCompressedBits;
+    using Base::sampledUncompressedBits;
     using CPack::CPack;
 };
 
