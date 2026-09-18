@@ -41,6 +41,7 @@
 #include "base/compiler.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "sim/probe/probe.hh"
 #include "sim/sim_object.hh"
 
 namespace gem5
@@ -137,6 +138,40 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Memory queue pressure threshold for dynamic bypass. */
+    const double memPressureThreshold;
+
+    /** Flag indicating high memory queue pressure. */
+    bool memoryPressureHigh;
+
+  private:
+    class MemoryPressureListener : public ProbeListenerArgBase<double>
+    {
+      private:
+        Base &parent;
+        double currentPressure;
+
+      public:
+        MemoryPressureListener(Base &_parent, std::string name)
+            : ProbeListenerArgBase(std::move(name)),
+              parent(_parent),
+              currentPressure(0.0)
+        {}
+
+        void notify(const double &pressure) override;
+
+        double
+        getPressure() const
+        {
+            return currentPressure;
+        }
+    };
+
+    std::vector<ProbeListenerPtr<MemoryPressureListener>> listeners;
+
+    void updateMemoryPressure();
+
+  protected:
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -240,6 +275,13 @@ class Base : public SimObject
     typedef BaseCacheCompressorParams Params;
     Base(const Params &p);
     virtual ~Base() = default;
+
+    /** Register probe listeners. */
+    void regProbeListeners() override;
+
+    /** Check whether compression should be bypassed due to memory pressure or
+     * adaptive threshold. */
+    virtual bool shouldBypass() const;
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);

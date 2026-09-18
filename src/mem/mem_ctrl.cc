@@ -57,27 +57,37 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this),
+      queuePressureProbe(nullptr)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -93,6 +103,32 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
               p.write_high_thresh_perc);
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
+    }
+}
+
+void
+MemCtrl::regProbePoints()
+{
+    qos::MemCtrl::regProbePoints();
+    queuePressureProbe =
+        new ProbePointArg<double>(getProbeManager(), "QueuePressure");
+}
+
+double
+MemCtrl::getQueuePressure() const
+{
+    double total_buffer = (double)writeBufferSize + (double)readBufferSize;
+    if (total_buffer == 0.0) {
+        return 0.0;
+    }
+    return (double)(totalWriteQueueSize + totalReadQueueSize) / total_buffer;
+}
+
+void
+MemCtrl::emitQueuePressure()
+{
+    if (queuePressureProbe) {
+        queuePressureProbe->notify(getQueuePressure());
     }
 }
 
@@ -287,6 +323,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     }
 
     // If all packets are serviced by write queue, we send the repsonse back
+    emitQueuePressure();
     if (pktsServicedByWrQ == pkt_count) {
         accessAndRespond(pkt, frontendLatency, mem_intr);
         return true;
@@ -376,6 +413,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
     // @todo, if a pkt size is larger than burst size, we might need a
     // different front end latency
     accessAndRespond(pkt, frontendLatency, mem_intr);
+    emitQueuePressure();
 }
 
 void
@@ -544,6 +582,8 @@ MemCtrl::processRespondEvent(MemInterface* mem_intr,
     }
 
     delete mem_pkt;
+
+    emitQueuePressure();
 
     // We have made a location in the queue available at this point,
     // so if there is a read that was forced to wait, retry now
@@ -1141,6 +1181,8 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
     // action before reaching this point.
     if (!next_req_event.scheduled())
         schedule(next_req_event, std::max(mem_intr->nextReqTime, curTick()));
+
+    emitQueuePressure();
 
     if (retry_wr_req && mem_intr->writeQueueSize < writeBufferSize) {
         retry_wr_req = false;
