@@ -204,7 +204,8 @@ class CoherentXBar : public BaseXBar
         }
 
         void recvRangeChange() override { xbar.recvRangeChange(id); }
-        void recvCompressionBackpressure(bool active) override
+        void
+        recvCompressionBackpressure(bool active) override
         {
             xbar.recvCompressionBackpressure(id, active);
         }
