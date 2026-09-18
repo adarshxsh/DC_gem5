@@ -107,6 +107,24 @@ class CompressedTags : public SectorTags
     void tagsInit() override;
 
     /**
+     * Reserve candidate SuperBlk slot upon MSHR allocation.
+     *
+     * @param key Key containing address and security bit.
+     * @param estimated_compress_size Estimated compressed size in bits.
+     * @return True if slot was successfully reserved.
+     */
+    bool reserveSlot(const CacheBlk::KeyType &key,
+                     std::size_t estimated_compress_size);
+
+    /**
+     * Release reserved slot if fill response size exceeds prediction or MSHR
+     * is deallocated.
+     *
+     * @param key Key containing address and security bit.
+     */
+    void releaseReservedSlot(const CacheBlk::KeyType &key);
+
+    /**
      * Find replacement victim based on address. Checks if data can be co-
      * allocated before choosing blocks to be evicted.
      *

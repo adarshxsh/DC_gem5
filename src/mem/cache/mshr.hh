@@ -159,10 +159,19 @@ class MSHR : public QueueEntry, public Printable
         const bool allocOnFill;   //!< Should the response servicing this
                                   //!< target list allocate in the cache?
 
-        Target(PacketPtr _pkt, Tick _readyTime, Counter _order,
-               Source _source, bool _markedPending, bool alloc_on_fill)
-            : QueueEntry::Target(_pkt, _readyTime, _order), source(_source),
-              markedPending(_markedPending), allocOnFill(alloc_on_fill)
+        /**
+         * Estimated compressed size in bits for superblock slot reservation
+         */
+        uint16_t estimatedCompressSize;
+
+        Target(PacketPtr _pkt, Tick _readyTime, Counter _order, Source _source,
+               bool _markedPending, bool alloc_on_fill,
+               uint16_t estimated_compress_size = 0)
+            : QueueEntry::Target(_pkt, _readyTime, _order),
+              source(_source),
+              markedPending(_markedPending),
+              allocOnFill(alloc_on_fill),
+              estimatedCompressSize(estimated_compress_size)
         {}
     };
 
@@ -258,7 +267,8 @@ class MSHR : public QueueEntry, public Printable
          * @param alloc_on_fill Whether it should allocate on a fill
          */
         void add(PacketPtr pkt, Tick readyTime, Counter order,
-                 Target::Source source, bool markPending, bool alloc_on_fill);
+                 Target::Source source, bool markPending, bool alloc_on_fill,
+                 uint16_t estimated_compress_size = 0);
 
         /**
          * Convert upgrades to the equivalent request if the cache line they
@@ -417,7 +427,8 @@ class MSHR : public QueueEntry, public Printable
      * @param alloc_on_fill Should the cache allocate a block on fill
      */
     void allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                  Tick when_ready, Counter _order, bool alloc_on_fill);
+                  Tick when_ready, Counter _order, bool alloc_on_fill,
+                  uint16_t estimated_compress_size = 0);
 
     void markInService(bool pending_modified_resp);
 
@@ -433,7 +444,8 @@ class MSHR : public QueueEntry, public Printable
      * @param target The target.
      */
     void allocateTarget(PacketPtr target, Tick when, Counter order,
-                        bool alloc_on_fill);
+                        bool alloc_on_fill,
+                        uint16_t estimated_compress_size = 0);
     bool handleSnoop(PacketPtr target, Counter order);
 
     /** A simple constructor. */
