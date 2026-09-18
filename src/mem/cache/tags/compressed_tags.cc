@@ -171,15 +171,13 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     // Check if the superblock this address belongs to has been allocated. If
     // so, try co-allocating
     SuperBlk* victim_superblock = nullptr;
-    SectorSubBlk* victim = nullptr;
+    SectorSubBlk *victim = nullptr;
     bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+        if (superblock->match(key) && superblock->isCompressed() &&
+            superblock->canCoAllocate(compressed_size)) {
             if (is_prefetch && superblock->hasValidDemand()) {
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);
@@ -191,14 +189,15 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
                     continue;
                 }
             }
-
             // Find an available invalid sub-block slot in this superblock.
-            // Check offset position first if invalid, otherwise pick first invalid slot.
-            SectorSubBlk* avail_slot = nullptr;
-            if (offset < superblock->blks.size() && !superblock->blks[offset]->isValid()) {
+            // Check offset position first if invalid, otherwise pick first
+            // invalid slot.
+            SectorSubBlk *avail_slot = nullptr;
+            if (offset < superblock->blks.size() &&
+                !superblock->blks[offset]->isValid()) {
                 avail_slot = superblock->blks[offset];
             } else {
-                for (const auto& blk : superblock->blks) {
+                for (const auto &blk : superblock->blks) {
                     if (!blk->isValid()) {
                         avail_slot = blk;
                         break;

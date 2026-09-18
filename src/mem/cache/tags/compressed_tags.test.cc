@@ -580,8 +580,8 @@ TEST_F(SuperBlkTestFixture, DynamicOffsetRemappingCoAllocationAndLookup)
     ASSERT_EQ(subBlks[1].getSectorOffset(), 2);
 
     // Lambda representing dynamic sub-block offset lookup in SuperBlk
-    auto findSubBlk = [this](int target_offset) -> SectorSubBlk* {
-        for (const auto& blk : superBlk.blks) {
+    auto findSubBlk = [this](int target_offset) -> SectorSubBlk * {
+        for (const auto &blk : superBlk.blks) {
             if (blk->isValid() && blk->getSectorOffset() == target_offset) {
                 return blk;
             }
@@ -646,7 +646,8 @@ TEST_F(SuperBlkTestFixture, DynamicOffsetRemappingMigrationPreservesOffset)
 
     ASSERT_FALSE(subBlks[1].isValid());
     ASSERT_TRUE(subBlksB[4].isValid());
-    // Verify slot 4 in superBlkB retained sector offset 7 from the moved sub-block
+    // Verify slot 4 in superBlkB retained sector offset 7 from the moved
+    // sub-block
     ASSERT_EQ(subBlksB[4].getSectorOffset(), 7);
 
     verifyInvariants(superBlk);
