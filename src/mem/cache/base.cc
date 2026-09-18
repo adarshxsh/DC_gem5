@@ -44,6 +44,7 @@
  */
 
 #include "mem/cache/base.hh"
+#include <algorithm>
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -1074,7 +1075,6 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // must be evicted to make room for the expanded/contracted block
     std::vector<CacheBlk*> evict_blks;
     if (is_data_expansion || is_data_contraction) {
-        std::vector<CacheBlk*> evict_blks;
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
@@ -1101,14 +1101,47 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             DPRINTF(CacheRepl, "Data %s replacement victim: %s\n",
                 op_name, victim->print());
         } else {
-            // If we do not move the expanded block, we must make room for
-            // the expansion to happen, so evict every co-allocated block
+            // Evaluate post-expansion superblock capacity before evicting
+            // co-allocated sub-blocks. Evict only as many sub-blocks as
+            // necessary to fit the expanded block within capacity limits.
             const SuperBlk* superblock = static_cast<const SuperBlk*>(
                 compression_blk->getSectorBlock());
+
+            std::vector<CompressionBlk *> co_blks;
             for (auto& sub_blk : superblock->blks) {
                 if (sub_blk->isValid() && (blk != sub_blk)) {
-                    evict_blks.push_back(sub_blk);
+                    co_blks.push_back(static_cast<CompressionBlk *>(sub_blk));
                 }
+            }
+
+            // Order candidate sub-blocks by age (oldest/LRU first)
+            std::sort(co_blks.begin(), co_blks.end(),
+                      [](const CompressionBlk *a, const CompressionBlk *b) {
+                          return a->getAge() > b->getAge();
+                      });
+
+            const uint8_t new_blk_cf =
+                superblock->calculateCompressionFactor(compression_size);
+            const std::size_t max_bits = blkSize * CHAR_BIT;
+
+            auto fits_capacity =
+                [&](const std::vector<CompressionBlk *> &sub_list) {
+                    uint8_t target_cf = new_blk_cf;
+                    std::size_t total_bits = compression_size;
+                    for (const auto *sblk : sub_list) {
+                        uint8_t scf = superblock->calculateCompressionFactor(
+                            sblk->getSizeBits());
+                        target_cf = std::min(target_cf, scf);
+                        total_bits += sblk->getSizeBits();
+                    }
+                    std::size_t total_count = 1 + sub_list.size();
+                    return (target_cf > 1) && (total_count <= target_cf) &&
+                           (total_bits <= max_bits);
+                };
+
+            while (!co_blks.empty() && !fits_capacity(co_blks)) {
+                evict_blks.push_back(co_blks.front());
+                co_blks.erase(co_blks.begin());
             }
         }
 
@@ -2806,6 +2839,45 @@ WriteAllocator::updateMode(Addr write_addr, unsigned write_size,
         resetDelay(blk_addr);
     }
     nextAddr = write_addr + write_size;
+}
+
+std::size_t
+BaseCache::getCompressedSizeBits(Addr addr, bool is_secure) const
+{
+    CacheBlk *blk = tags->findBlock({addr, is_secure});
+    if (blk) {
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk) {
+            return cblk->getSizeBits();
+        }
+    }
+    return blkSize * 8;
+}
+
+uint8_t
+BaseCache::getCompressionFactor(Addr addr, bool is_secure) const
+{
+    CacheBlk *blk = tags->findBlock({addr, is_secure});
+    if (blk) {
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk) {
+            SuperBlk *sblk = static_cast<SuperBlk *>(cblk->getSectorBlock());
+            if (sblk) {
+                return sblk->calculateCompressionFactor(cblk->getSizeBits());
+            } else {
+                std::size_t size = cblk->getSizeBits();
+                std::size_t blk_bits = blkSize * 8;
+                if (size == 0) {
+                    return 8;
+                }
+                if (size >= blk_bits) {
+                    return 1;
+                }
+                return blk_bits / size;
+            }
+        }
+    }
+    return 1;
 }
 
 } // namespace gem5
