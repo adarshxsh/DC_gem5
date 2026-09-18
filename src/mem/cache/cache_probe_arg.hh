@@ -35,7 +35,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #ifndef __MEM_CACHE_PROBE_ARG_HH__
 #define __MEM_CACHE_PROBE_ARG_HH__
 
@@ -71,6 +70,13 @@ struct CacheAccessor
     /** Determine if cache is coalescing writes */
     virtual bool coalesce() const = 0;
 
+    /** Determine if block at address is compressed */
+    virtual bool
+    isCompressed(Addr addr, bool is_secure) const
+    {
+        return false;
+    }
+
     /** Get compressed size in bits for address in cache */
     virtual std::size_t
     getCompressedSizeBits(Addr addr, bool is_secure) const
@@ -83,6 +89,13 @@ struct CacheAccessor
     getCompressionFactor(Addr addr, bool is_secure) const
     {
         return 1;
+    }
+
+    /** Determine if cache compression is enabled */
+    virtual bool
+    isCompressionEnabled() const
+    {
+        return false;
     }
 };
 
@@ -99,9 +112,8 @@ class CacheAccessProbeArg
     CacheAccessor &cache;
 
     CacheAccessProbeArg(PacketPtr _pkt, CacheAccessor &_cache)
-        :pkt(_pkt), cache(_cache)
-    {
-    }
+        : pkt(_pkt), cache(_cache)
+    {}
 };
 
 /**
@@ -122,18 +134,20 @@ struct CacheDataUpdateProbeArg
     /** The new data contents. If zero-sized this is an invalidation. */
     std::vector<uint64_t> newData;
     /** Set if the update is from a prefetch or evicting a prefetched
-    *  block that was never used. */
+     *  block that was never used. */
     bool hwPrefetched;
     /** Accessor for the cache */
     CacheAccessor &accessor;
 
     CacheDataUpdateProbeArg(Addr _addr, bool is_secure,
-                            RequestorID _requestorID,
-                            CacheAccessor &_accessor)
-        : addr(_addr), isSecure(is_secure), requestorID(_requestorID),
-          oldData(), newData(), accessor(_accessor)
-    {
-    }
+                            RequestorID _requestorID, CacheAccessor &_accessor)
+        : addr(_addr),
+          isSecure(is_secure),
+          requestorID(_requestorID),
+          oldData(),
+          newData(),
+          accessor(_accessor)
+    {}
 };
 
 } // namespace gem5
