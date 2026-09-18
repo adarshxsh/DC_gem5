@@ -7,22 +7,39 @@
 
 #include <gtest/gtest.h>
 
-#include "sim/cur_tick.hh"
-#include "mem/ruby/system/RubySystem.hh"
 #include "mem/ruby/network/garnet/CommonTypes.hh"
 #include "mem/ruby/network/garnet/OutputUnit.hh"
 #include "mem/ruby/network/garnet/Router.hh"
 #include "mem/ruby/network/garnet/flit.hh"
+#include "mem/ruby/system/RubySystem.hh"
+#include "sim/cur_tick.hh"
 
 namespace gem5
 {
 namespace ruby
 {
-int RubySystem::MachineType_base_count(const MachineType &obj) { return 0; }
-int RubySystem::MachineType_base_number(const MachineType &obj) { return 0; }
-MachineType MachineType_from_base_level(int level) { return MachineType_NUM; }
-int MachineType_base_level(const MachineType &obj) { return 0; }
-MachineType &operator++(MachineType &type)
+int
+RubySystem::MachineType_base_count(const MachineType &obj)
+{
+    return 0;
+}
+int
+RubySystem::MachineType_base_number(const MachineType &obj)
+{
+    return 0;
+}
+MachineType
+MachineType_from_base_level(int level)
+{
+    return MachineType_NUM;
+}
+int
+MachineType_base_level(const MachineType &obj)
+{
+    return 0;
+}
+MachineType &
+operator++(MachineType &type)
 {
     type = static_cast<MachineType>(static_cast<int>(type) + 1);
     return type;
@@ -30,14 +47,19 @@ MachineType &operator++(MachineType &type)
 
 namespace garnet
 {
-std::string Router::getPortDirectionName(PortDirection direction) { return direction; }
+std::string
+Router::getPortDirectionName(PortDirection direction)
+{
+    return direction;
+}
 
 class GarnetDecompressionTest : public ::testing::Test
 {
   protected:
     Tick mockTick;
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         mockTick = 100;
         Gem5Internal::_curTickPtr = &mockTick;
@@ -100,7 +122,8 @@ TEST_F(GarnetDecompressionTest, DecompressionAwarePriorityEvaluation)
 
     // Helper lambda mirroring SwitchAllocator priority evaluation
     auto eval_priority = [](OutputUnit *out_unit, flit *t_flit) {
-        bool decomp_busy = out_unit ? out_unit->is_decompression_busy() : false;
+        bool decomp_busy =
+            out_unit ? out_unit->is_decompression_busy() : false;
         int prio = 1;
         if (decomp_busy) {
             prio = 0; // Deprioritize requests blocked on decompression
@@ -110,16 +133,21 @@ TEST_F(GarnetDecompressionTest, DecompressionAwarePriorityEvaluation)
         return prio;
     };
 
-    // Scenario 1: Writeback targeting decompression-busy endpoint -> priority 0 (deprioritized)
+    // Scenario 1: Writeback targeting decompression-busy endpoint -> priority
+    // 0 (deprioritized)
     EXPECT_EQ(eval_priority(&out_unit_busy, &wb_flit), 0);
 
-    // Scenario 1: Demand request targeting unblocked endpoint -> priority 2 (boosted)
+    // Scenario 1: Demand request targeting unblocked endpoint -> priority 2
+    // (boosted)
     EXPECT_EQ(eval_priority(&out_unit_idle, &req_flit), 2);
 
-    // Bypassing logic check: demand request priority (2) > blocked writeback priority (0)
-    EXPECT_GT(eval_priority(&out_unit_idle, &req_flit), eval_priority(&out_unit_busy, &wb_flit));
+    // Bypassing logic check: demand request priority (2) > blocked writeback
+    // priority (0)
+    EXPECT_GT(eval_priority(&out_unit_idle, &req_flit),
+              eval_priority(&out_unit_busy, &wb_flit));
 
-    // Scenario 2: Decompression completes at endpoint -> writeback resumes normal arbitration priority (1)
+    // Scenario 2: Decompression completes at endpoint -> writeback resumes
+    // normal arbitration priority (1)
     out_unit_busy.set_decompression_busy(false);
     EXPECT_EQ(eval_priority(&out_unit_busy, &wb_flit), 1);
 }

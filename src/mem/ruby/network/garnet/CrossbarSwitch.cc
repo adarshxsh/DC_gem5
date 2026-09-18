@@ -80,9 +80,12 @@ CrossbarSwitch::wakeup()
             OutputUnit *out_unit = m_router->getOutputUnit(outport);
 
             if (out_unit && out_unit->is_decompression_busy()) {
-                DPRINTF(RubyNetwork, "CrossbarSwitch at Router %d outport %d "
-                        "endpoint decompression busy at cycle %lld. Delaying flit %s\n",
-                        m_router->get_id(), outport, m_router->curCycle(), *t_flit);
+                DPRINTF(RubyNetwork,
+                        "CrossbarSwitch at Router %d outport %d "
+                        "endpoint decompression busy at cycle %lld. Delaying "
+                        "flit %s\n",
+                        m_router->get_id(), outport, m_router->curCycle(),
+                        *t_flit);
                 continue;
             }
 
