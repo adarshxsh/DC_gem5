@@ -249,27 +249,44 @@ Queued::getPacket()
 {
     DPRINTF(HWPrefetch, "Requesting a prefetch to issue.\n");
 
-    if (pfq.empty()) {
-        // If the queue is empty, attempt first to fill it with requests
-        // from the queue of missing translations
-        processMissingTranslations(queueSize);
+    while (true) {
+        if (pfq.empty()) {
+            // If the queue is empty, attempt first to fill it with requests
+            // from the queue of missing translations
+            processMissingTranslations(queueSize);
+        }
+
+        if (pfq.empty()) {
+            DPRINTF(HWPrefetch, "No hardware prefetches available.\n");
+            return nullptr;
+        }
+
+        DeferredPacket dp = pfq.front();
+        pfq.pop_front();
+
+        if (enableCompressibilityFilter && dp.pkt) {
+            Addr target_addr = dp.pkt->getAddr();
+            uint8_t predicted_cf = getPredictedCompressionFactor(target_addr);
+            if (predicted_cf == 1) {
+                DPRINTF(HWPrefetch,
+                        "Dropping uncompressible prefetch request for %#x "
+                        "before MSHR allocation\n",
+                        target_addr);
+                prefetchStats.pfFilteredUncompressible++;
+                delete dp.pkt;
+                continue;
+            }
+        }
+
+        PacketPtr pkt = dp.pkt;
+        prefetchStats.pfIssued++;
+        issuedPrefetches += 1;
+        assert(pkt != nullptr);
+        DPRINTF(HWPrefetch, "Generating prefetch for %#x.\n", pkt->getAddr());
+
+        processMissingTranslations(queueSize - pfq.size());
+        return pkt;
     }
-
-    if (pfq.empty()) {
-        DPRINTF(HWPrefetch, "No hardware prefetches available.\n");
-        return nullptr;
-    }
-
-    PacketPtr pkt = pfq.front().pkt;
-    pfq.pop_front();
-
-    prefetchStats.pfIssued++;
-    issuedPrefetches += 1;
-    assert(pkt != nullptr);
-    DPRINTF(HWPrefetch, "Generating prefetch for %#x.\n", pkt->getAddr());
-
-    processMissingTranslations(queueSize - pfq.size());
-    return pkt;
 }
 
 Queued::QueuedStats::QueuedStats(statistics::Group *parent)
@@ -459,6 +476,19 @@ void
 Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
                int32_t priority, const CacheAccessor &cache)
 {
+    if (enableCompressibilityFilter) {
+        uint8_t predicted_cf =
+            getPredictedCompressionFactor(new_pfi.getAddr());
+        if (predicted_cf == 1) {
+            DPRINTF(HWPrefetch,
+                    "Dropping uncompressible prefetch candidate %#x "
+                    "(predicted CF=1x)\n",
+                    new_pfi.getAddr());
+            prefetchStats.pfFilteredUncompressible++;
+            return;
+        }
+    }
+
     if (queueFilter) {
         if (alreadyInQueue(pfq, new_pfi, priority)) {
             return;

@@ -48,6 +48,8 @@
 #include <cassert>
 
 #include "base/intmath.hh"
+#include "debug/HWPrefetch.hh"
+#include "mem/cache/compressors/base.hh"
 #include "params/BasePrefetcher.hh"
 #include "sim/system.hh"
 
@@ -99,17 +101,29 @@ Base::PrefetchEvictListener::notify(const EvictionInfo &info)
 }
 
 Base::Base(const BasePrefetcherParams &p)
-    : ClockedObject(p), listeners(), system(nullptr), probeManager(nullptr),
-      blkSize(p.block_size), lBlkSize(floorLog2(blkSize)),
-      onMiss(p.on_miss), onRead(p.on_read),
-      onWrite(p.on_write), onData(p.on_data), onInst(p.on_inst),
+    : ClockedObject(p),
+      listeners(),
+      system(nullptr),
+      probeManager(nullptr),
+      blkSize(p.block_size),
+      lBlkSize(floorLog2(blkSize)),
+      onMiss(p.on_miss),
+      onRead(p.on_read),
+      onWrite(p.on_write),
+      onData(p.on_data),
+      onInst(p.on_inst),
       requestorId(p.sys->getRequestorId(this)),
       pageBytes(p.page_bytes),
       prefetchOnAccess(p.prefetch_on_access),
       prefetchOnPfHit(p.prefetch_on_pf_hit),
       useVirtualAddresses(p.use_virtual_addresses),
-      prefetchStats(this), issuedPrefetches(0),
-      usefulPrefetches(0), mmu(nullptr)
+      prefetchStats(this),
+      enableCompressibilityFilter(p.enable_compressibility_filter),
+      compressibilityTableEntries(p.compressibility_table_entries),
+      compressibilityHistoryTable(p.compressibility_table_entries),
+      issuedPrefetches(0),
+      usefulPrefetches(0),
+      mmu(nullptr)
 {
 }
 
@@ -125,30 +139,32 @@ Base::setParentInfo(System *sys, ProbeManager *pm, unsigned blk_size)
 }
 
 Base::StatGroup::StatGroup(statistics::Group *parent)
-  : statistics::Group(parent),
-    ADD_STAT(demandMshrMisses, statistics::units::Count::get(),
-        "demands not covered by prefetchs"),
-    ADD_STAT(pfIssued, statistics::units::Count::get(),
-        "number of hwpf issued"),
-    ADD_STAT(pfUnused, statistics::units::Count::get(),
-             "number of HardPF blocks evicted w/o reference"),
-    ADD_STAT(pfUseful, statistics::units::Count::get(),
-        "number of useful prefetch"),
-    ADD_STAT(pfUsefulButMiss, statistics::units::Count::get(),
-        "number of hit on prefetch but cache block is not in an usable "
-        "state"),
-    ADD_STAT(accuracy, statistics::units::Count::get(),
-        "accuracy of the prefetcher"),
-    ADD_STAT(coverage, statistics::units::Count::get(),
-    "coverage brought by this prefetcher"),
-    ADD_STAT(pfHitInCache, statistics::units::Count::get(),
-        "number of prefetches hitting in cache"),
-    ADD_STAT(pfHitInMSHR, statistics::units::Count::get(),
-        "number of prefetches hitting in a MSHR"),
-    ADD_STAT(pfHitInWB, statistics::units::Count::get(),
-        "number of prefetches hit in the Write Buffer"),
-    ADD_STAT(pfLate, statistics::units::Count::get(),
-        "number of late prefetches (hitting in cache, MSHR or WB)")
+    : statistics::Group(parent),
+      ADD_STAT(demandMshrMisses, statistics::units::Count::get(),
+               "demands not covered by prefetchs"),
+      ADD_STAT(pfIssued, statistics::units::Count::get(),
+               "number of hwpf issued"),
+      ADD_STAT(pfUnused, statistics::units::Count::get(),
+               "number of HardPF blocks evicted w/o reference"),
+      ADD_STAT(pfUseful, statistics::units::Count::get(),
+               "number of useful prefetch"),
+      ADD_STAT(pfUsefulButMiss, statistics::units::Count::get(),
+               "number of hit on prefetch but cache block is not in an usable "
+               "state"),
+      ADD_STAT(accuracy, statistics::units::Count::get(),
+               "accuracy of the prefetcher"),
+      ADD_STAT(coverage, statistics::units::Count::get(),
+               "coverage brought by this prefetcher"),
+      ADD_STAT(pfHitInCache, statistics::units::Count::get(),
+               "number of prefetches hitting in cache"),
+      ADD_STAT(pfHitInMSHR, statistics::units::Count::get(),
+               "number of prefetches hitting in a MSHR"),
+      ADD_STAT(pfHitInWB, statistics::units::Count::get(),
+               "number of prefetches hit in the Write Buffer"),
+      ADD_STAT(pfLate, statistics::units::Count::get(),
+               "number of late prefetches (hitting in cache, MSHR or WB)"),
+      ADD_STAT(pfFilteredUncompressible, statistics::units::Count::get(),
+               "number of uncompressible prefetches suppressed by filter")
 {
     using namespace statistics;
 
@@ -227,6 +243,120 @@ Base::pageIthBlockAddress(Addr page, uint32_t blockIndex) const
     return page + (blockIndex << lBlkSize);
 }
 
+uint8_t
+Base::calculateDataCompressionFactor(const uint8_t *data,
+                                     const CacheAccessor &cache) const
+{
+    if (!data) {
+        return 1;
+    }
+
+    std::size_t uncomp_bits = blkSize * 8;
+    std::size_t comp_bits = uncomp_bits;
+
+    compression::Base *compressor = cache.getCompressor();
+    if (compressor) {
+        Cycles comp_lat(0), decomp_lat(0);
+        auto comp_data = compressor->compress(
+            reinterpret_cast<const uint64_t *>(data), comp_lat, decomp_lat);
+        if (comp_data) {
+            comp_bits = comp_data->getSizeBits();
+        }
+    } else {
+        const uint64_t *qwords = reinterpret_cast<const uint64_t *>(data);
+        size_t num_qwords = blkSize / sizeof(uint64_t);
+        bool all_zero = true;
+        bool all_equal = true;
+        for (size_t i = 0; i < num_qwords; ++i) {
+            if (qwords[i] != 0) {
+                all_zero = false;
+            }
+            if (qwords[i] != qwords[0]) {
+                all_equal = false;
+            }
+        }
+        if (all_zero) {
+            comp_bits = 64;
+        } else if (all_equal) {
+            comp_bits = 128;
+        } else {
+            int zero_count = 0;
+            for (size_t i = 0; i < blkSize; ++i) {
+                if (data[i] == 0) {
+                    zero_count++;
+                }
+            }
+            if (zero_count >= (int)(blkSize * 3 / 4)) {
+                comp_bits = 256;
+            }
+        }
+    }
+
+    if (comp_bits > uncomp_bits / 2) {
+        return 1;
+    } else if (comp_bits <= uncomp_bits / 4) {
+        return 4;
+    } else {
+        return 2;
+    }
+}
+
+uint8_t
+Base::getPredictedCompressionFactor(Addr addr) const
+{
+    if (!enableCompressibilityFilter || compressibilityTableEntries == 0) {
+        return 0;
+    }
+
+    Addr target_tag = blockAddress(addr);
+    for (const auto &entry : compressibilityHistoryTable) {
+        if (entry.valid && entry.tag == target_tag) {
+            return entry.predicted_cf;
+        }
+    }
+    return 0;
+}
+
+void
+Base::updateCompressibilityHistory(Addr addr, uint8_t cf)
+{
+    if (!enableCompressibilityFilter || compressibilityTableEntries == 0) {
+        return;
+    }
+
+    Addr target_tag = blockAddress(addr);
+    Tick now = curTick();
+
+    for (auto &entry : compressibilityHistoryTable) {
+        if (entry.valid && entry.tag == target_tag) {
+            entry.predicted_cf = cf;
+            entry.last_used = now;
+            return;
+        }
+    }
+
+    size_t lru_idx = 0;
+    Tick oldest_tick = MaxTick;
+
+    for (size_t i = 0; i < compressibilityHistoryTable.size(); ++i) {
+        if (!compressibilityHistoryTable[i].valid) {
+            lru_idx = i;
+            break;
+        }
+        if (compressibilityHistoryTable[i].last_used < oldest_tick) {
+            oldest_tick = compressibilityHistoryTable[i].last_used;
+            lru_idx = i;
+        }
+    }
+
+    if (lru_idx < compressibilityHistoryTable.size()) {
+        compressibilityHistoryTable[lru_idx].valid = true;
+        compressibilityHistoryTable[lru_idx].tag = target_tag;
+        compressibilityHistoryTable[lru_idx].predicted_cf = cf;
+        compressibilityHistoryTable[lru_idx].last_used = now;
+    }
+}
+
 void
 Base::probeNotify(const CacheAccessProbeArg &acc, bool miss)
 {
@@ -241,6 +371,13 @@ Base::probeNotify(const CacheAccessProbeArg &acc, bool miss)
     if (pkt->isWrite() && cache.coalesce()) return;
     if (!pkt->req->hasPaddr()) {
         panic("Request must have a physical address");
+    }
+
+    if (enableCompressibilityFilter && pkt->hasData() &&
+        pkt->getConstPtr<uint8_t>()) {
+        uint8_t obs_cf =
+            calculateDataCompressionFactor(pkt->getConstPtr<uint8_t>(), cache);
+        updateCompressibilityHistory(pkt->getAddr(), obs_cf);
     }
 
     bool has_been_prefetched =

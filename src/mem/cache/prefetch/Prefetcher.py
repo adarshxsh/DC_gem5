@@ -92,6 +92,13 @@ class BasePrefetcher(ClockedObject):
         "4KiB", "Size of pages for virtual addresses"
     )
 
+    enable_compressibility_filter = Param.Bool(
+        True, "Enable data pattern compressibility prediction filter"
+    )
+    compressibility_table_entries = Param.Unsigned(
+        64, "Number of entries in compressibility history table"
+    )
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._events = []
