@@ -76,9 +76,17 @@ class BaseCacheCompressor(SimObject):
         100,
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
-    decay_shift = Param.Unsigned(
-        4,
-        "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
+    evaluation_interval = Param.Unsigned(
+        1000,
+        "Number of cache accesses between bypass threshold evaluations",
+    )
+    decay_factor = Param.Float(
+        0.8,
+        "Exponential decay factor applied to historical compression statistics",
+    )
+    sharp_delta_threshold = Param.Float(
+        0.5,
+        "Ratio delta threshold above which cumulative counters are reset",
     )
 
 
