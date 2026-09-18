@@ -1365,7 +1365,6 @@ class BaseCache : public ClockedObject
      */
     bool isCompressionPressureActive() const;
 
-
     /**
      * Cache block visitor that writes back dirty cache blocks using
      * functional writes.

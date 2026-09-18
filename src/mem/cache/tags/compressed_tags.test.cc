@@ -578,4 +578,3 @@ TEST(CompressionPressureTest, PacketFlagManipulation)
     pkt.clearCompressionPressure();
     EXPECT_FALSE(pkt.isCompressionPressure());
 }
-}

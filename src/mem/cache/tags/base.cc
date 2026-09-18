@@ -228,10 +228,11 @@ BaseTags::forEachBlk(std::function<void(CacheBlk &)> visitor)
 double
 BaseTags::getOccupancyRatio() const
 {
-    if (numBlocks == 0)
+    if (numBlocks == 0) {
         return 0.0;
+    }
     unsigned valid_blocks = 0;
-    const_cast<BaseTags*>(this)->forEachBlk([&valid_blocks](CacheBlk &blk) {
+    const_cast<BaseTags *>(this)->forEachBlk([&valid_blocks](CacheBlk &blk) {
         if (blk.isValid()) {
             valid_blocks++;
         }

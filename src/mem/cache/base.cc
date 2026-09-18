@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -100,7 +100,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -927,23 +927,27 @@ BaseCache::getNextQueueEntry()
     MSHR *miss_mshr  = mshrQueue.getNext();
     WriteQueueEntry *wq_entry = writeBuffer.getNext();
 
-    double wb_occ = writeBuffer.capacity() > 0 ?
-        (double)writeBuffer.occupancy() / writeBuffer.capacity() : 0.0;
+    double wb_occ =
+        writeBuffer.capacity() > 0
+            ? (double)writeBuffer.occupancy() / writeBuffer.capacity()
+            : 0.0;
     bool bypass = (wb_occ >= (double)writeBufferBypassThreshold / 100.0);
 
-    // If L2 compression pressure is active and write buffer is not at bypass limit,
-    // enforce throttling delay on writeback draining
+    // If L2 compression pressure is active and write buffer is not at bypass
+    // limit, enforce throttling delay on writeback draining
     if (wq_entry && l2CompressionPressureActive && !bypass) {
-        Tick min_drain_time = lastWritebackDrainTick +
-            writebackThrottleDelay * clockPeriod();
+        Tick min_drain_time =
+            lastWritebackDrainTick + writebackThrottleDelay * clockPeriod();
         if (curTick() < min_drain_time) {
             wq_entry = nullptr;
         }
     }
 
     // If we got a write buffer request ready, first priority is a
-    // full write buffer or bypass limit reached, otherwise we favour the miss requests
-    if (wq_entry && (writeBuffer.isFull() || bypass || (!miss_mshr && !l2CompressionPressureActive))) {
+    // full write buffer or bypass limit reached, otherwise we favour the miss
+    // requests
+    if (wq_entry && (writeBuffer.isFull() || bypass ||
+                     (!miss_mshr && !l2CompressionPressureActive))) {
         // need to search MSHR queue for conflicting earlier miss.
         MSHR *conflict_mshr = mshrQueue.findPending(wq_entry);
 
@@ -1994,7 +1998,8 @@ BaseCache::isCompressionPressureActive() const
     double occ = tags->getOccupancyRatio();
     double threshold = (double)compressionPressureThreshold / 100.0;
     if (occ >= threshold) {
-        if (compressor != nullptr || dynamic_cast<CompressedTags*>(tags) != nullptr) {
+        if (compressor != nullptr ||
+            dynamic_cast<CompressedTags *>(tags) != nullptr) {
             return true;
         }
     }
@@ -2043,13 +2048,16 @@ BaseCache::nextQueueReadyTime() const
     Tick mshr_ready = mshrQueue.nextReadyTime();
     Tick wq_ready = writeBuffer.nextReadyTime();
 
-    double wb_occ = writeBuffer.capacity() > 0 ?
-        (double)writeBuffer.occupancy() / writeBuffer.capacity() : 0.0;
+    double wb_occ =
+        writeBuffer.capacity() > 0
+            ? (double)writeBuffer.occupancy() / writeBuffer.capacity()
+            : 0.0;
     bool bypass = (wb_occ >= (double)writeBufferBypassThreshold / 100.0);
 
-    if (l2CompressionPressureActive && !bypass && writeBuffer.occupancy() > 0) {
-        Tick min_drain_time = lastWritebackDrainTick +
-            writebackThrottleDelay * clockPeriod();
+    if (l2CompressionPressureActive && !bypass &&
+        writeBuffer.occupancy() > 0) {
+        Tick min_drain_time =
+            lastWritebackDrainTick + writebackThrottleDelay * clockPeriod();
         wq_ready = std::max(wq_ready, min_drain_time);
     }
 
