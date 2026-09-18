@@ -174,6 +174,12 @@ class NoncoherentXBar : public BaseXBar
         }
 
         void
+        recvCompressionBackpressure(bool active) override
+        {
+            xbar.recvCompressionBackpressure(id, active);
+        }
+
+        void
         recvReqRetry() override
         {
             xbar.recvReqRetry(id);

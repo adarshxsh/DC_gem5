@@ -128,6 +128,19 @@ class BaseCache(ClockedObject):
         True, "Try to co-allocate blocks that contract"
     )
 
+    enable_compression_backpressure = Param.Bool(
+        False, "Enable cross-level compression backpressure signaling"
+    )
+    backpressure_high_threshold = Param.Unsigned(
+        0, "High-water mark write queue fill threshold to assert backpressure"
+    )
+    backpressure_low_threshold = Param.Unsigned(
+        0, "Low-water mark write queue fill threshold to deassert backpressure"
+    )
+    backpressure_expansion_threshold = Param.Unsigned(
+        1, "Data expansion eviction threshold to assert backpressure"
+    )
+
     sequential_access = Param.Bool(
         False, "Whether to access tags and data sequentially"
     )
