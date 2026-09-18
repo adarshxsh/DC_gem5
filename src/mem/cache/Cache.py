@@ -163,6 +163,11 @@ class BaseCache(ClockedObject):
     # cache a line is dropped for a mostly exclusive cache.
     clusivity = Param.Clusivity("mostly_incl", "Clusivity with upstream cache")
 
+    non_inclusive_clean_eviction = Param.Bool(
+        True,
+        "Enable selective non-inclusive eviction for clean compressed superblock sub-blocks",
+    )
+
     # The write allocator enables optimizations for streaming write
     # accesses by first coalescing writes and then avoiding allocation
     # in the current cache. Typically, this would be enabled in the

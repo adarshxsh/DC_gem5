@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -94,7 +94,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -107,6 +107,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       numTarget(p.tgts_per_mshr),
       forwardSnoops(true),
       clusivity(p.clusivity),
+      nonInclusiveCleanEviction(p.non_inclusive_clean_eviction),
       isReadOnly(p.is_read_only),
       replaceExpansions(p.replace_expansions),
       moveContractions(p.move_contractions),
@@ -1022,6 +1023,13 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
         // Evict valid blocks associated to this victim block
         for (auto& blk : evict_blks) {
             if (blk->isValid()) {
+                if (compressor && nonInclusiveCleanEviction &&
+                    !blk->isSet(CacheBlk::DirtyBit)) {
+                    DPRINTF(Cache,
+                            "handleEvictions: Non-inclusive clean eviction "
+                            "detected for sub-block %s\n",
+                            blk->print());
+                }
                 evictBlock(blk, writebacks);
             }
         }
@@ -2601,6 +2609,7 @@ BaseCache::CacheStats::regStats()
 
     dataExpansions.flags(nozero | nonan);
     dataContractions.flags(nozero | nonan);
+    cleanEvictionsNonInclusive.flags(nozero | nonan);
 }
 
 void
