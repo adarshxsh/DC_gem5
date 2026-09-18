@@ -43,6 +43,7 @@
 #include "debug/CacheComp.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/mem_ctrl.hh"
 #include "params/BaseCacheCompressor.hh"
 
 namespace gem5
@@ -94,6 +95,9 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      memCtrl(p.mem_ctrl),
+      enableQueuePressureThrottling(p.enable_queue_pressure_throttling),
+      memoryQueuePressureThreshold(p.memory_queue_pressure_threshold),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -169,8 +173,13 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
-    bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+    bool isQueuePressureBypassed =
+        enableQueuePressureThrottling && (memCtrl != nullptr) &&
+        (memCtrl->getQueuePressure() >= memoryQueuePressureThreshold);
+
+    bool shouldBypass = (enableAdaptiveBypass &&
+                         (observedRatio < latencyBreakevenThreshold)) ||
+                        isQueuePressureBypassed;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -180,11 +189,19 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+        if (isQueuePressureBypassed) {
+            DPRINTF(CacheComp,
+                    "Queue pressure bypass active (pressure: %.2f%% >= "
+                    "threshold: %d%%). "
+                    "Bypassing compression.\n",
+                    memCtrl->getQueuePressure(), memoryQueuePressureThreshold);
+        } else {
+            DPRINTF(CacheComp,
+                    "Adaptive bypass active (observed ratio: %.4f < "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    observedRatio, latencyBreakevenThreshold);
+        }
         return comp_data;
     }
 
@@ -237,8 +254,14 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
         comp_data->setSizeBits(blkSize * CHAR_BIT);
         stats.bypassedCompressions++;
-        DPRINTF(CacheComp, "Adaptive bypass active (sampled request). "
-                           "Bypassing compression.\n");
+        if (isQueuePressureBypassed) {
+            DPRINTF(CacheComp,
+                    "Queue pressure bypass active (sampled request). "
+                    "Bypassing compression.\n");
+        } else {
+            DPRINTF(CacheComp, "Adaptive bypass active (sampled request). "
+                               "Bypassing compression.\n");
+        }
     } else {
         // Update stats
         stats.compressions++;

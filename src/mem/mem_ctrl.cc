@@ -185,6 +185,19 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
     return  wrsize_new > writeBufferSize;
 }
 
+double
+MemCtrl::getQueuePressure() const
+{
+    double read_pressure =
+        readBufferSize ? (100.0 * (totalReadQueueSize + respQueue.size()) /
+                          readBufferSize)
+                       : 0.0;
+    double write_pressure =
+        writeBufferSize ? (100.0 * totalWriteQueueSize / writeBufferSize)
+                        : 0.0;
+    return std::max(read_pressure, write_pressure);
+}
+
 bool
 MemCtrl::addToReadQueue(PacketPtr pkt,
                 unsigned int pkt_count, MemInterface* mem_intr)
