@@ -585,7 +585,7 @@ TEST_F(SuperBlkTestFixture, ProactiveSlotReservation)
 
     // Commit reservation for sub-block 0
     subBlks[0].setReserved(false);
-    subBlks[0].insert({0x1000, false});
+    subBlks[0].insert(CacheBlk::KeyType{0x1000, false});
 
     ASSERT_FALSE(subBlks[0].isReserved());
     ASSERT_TRUE(subBlks[0].isValid());
@@ -634,7 +634,7 @@ TEST_F(SuperBlkTestFixture, ConcurrentFillCoAllocationWithReservation)
     // Complete fills for all 8 reserved sub-blocks
     for (unsigned k = 0; k < 8; ++k) {
         subBlks[k].setReserved(false);
-        subBlks[k].insert({0x5000, false});
+        subBlks[k].insert(CacheBlk::KeyType{0x5000, false});
     }
 
     ASSERT_EQ(superBlk.getNumValid(), 8);

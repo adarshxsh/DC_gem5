@@ -47,6 +47,7 @@
 #define __MEM_CACHE_TAGS_BASE_HH__
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
