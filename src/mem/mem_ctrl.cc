@@ -352,6 +352,11 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
 
             mem_intr->writeQueueSize++;
 
+            if (mem_intr->busState == READ &&
+                mem_intr->writeQueueSize > writeHighThreshold) {
+                mem_intr->isDrainingWrites = true;
+            }
+
             assert(totalWriteQueueSize == isInWriteQueue.size());
 
             // Update stats
@@ -947,6 +952,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                 DPRINTF(MemCtrl,
                         "Switching to writes due to read queue empty\n");
                 switch_to_writes = true;
+                if (mem_intr->writeQueueSize > writeHighThreshold) {
+                    mem_intr->isDrainingWrites = true;
+                }
             } else {
                 // check if we are drained
                 // not done draining until in PWR_IDLE state
@@ -1041,6 +1049,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                mem_intr->readQueueSize == 0)
                && !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
+                mem_intr->isDrainingWrites = true;
             }
 
             // remove the request from the queue
@@ -1114,6 +1123,12 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         delete mem_pkt;
 
+        if (mem_intr->isDrainingWrites &&
+            (mem_intr->writeQueueSize <= writeLowThreshold ||
+             mem_intr->writeQueueSize == 0)) {
+            mem_intr->isDrainingWrites = false;
+        }
+
         // If we emptied the write queue, or got sufficiently below the
         // threshold (using the minWritesPerSwitch as the hysteresis) and
         // are not draining, or we have reads waiting and have done enough
@@ -1124,8 +1139,10 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
 
         if (mem_intr->writeQueueSize == 0 ||
-            (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
+            (!mem_intr->isDrainingWrites &&
+             ((below_threshold && drainState() != DrainState::Draining) ||
+              (mem_intr->readQueueSize &&
+               mem_intr->writesThisTime >= minWritesPerSwitch))) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again

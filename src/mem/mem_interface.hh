@@ -205,6 +205,8 @@ class MemInterface : public AbstractMemory
     uint32_t readQueueSize = 0;
     uint32_t writeQueueSize = 0;
 
+    /** Track active write buffer draining phase */
+    bool isDrainingWrites = false;
 
     MemCtrl::BusState busState = MemCtrl::READ;
 
