@@ -40,6 +40,8 @@
 
 #include "mem/dram_interface.hh"
 
+#include <algorithm>
+
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
 #include "base/trace.hh"
@@ -405,29 +407,47 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     else
         cmd_at = ctrl->verifySingleCmd(cmd_at, maxCommandsPerWindow, false);
 
+    // Calculate scaled tBURST based on compressed payload size
+    unsigned int csize = mem_pkt->getCompressedSize();
+    if (csize == 0 || csize > burstSize) {
+        csize = burstSize;
+    }
+
+    Tick cur_tBURST = tBURST;
+    if (csize < burstSize && burstSize > 0) {
+        Tick calc_burst = divCeil(csize * tBURST, burstSize);
+        Tick unit = (tBURST_MIN < tBURST && tBURST_MIN > 0)
+                        ? tBURST_MIN
+                        : (tCK > 0 ? tCK : 1);
+        cur_tBURST = divCeil(calc_burst, unit) * unit;
+        cur_tBURST = std::max(unit, std::min(tBURST, cur_tBURST));
+    }
+
     // if we are interleaving bursts, ensure that
     // 1) we don't double interleave on next burst issue
     // 2) we are at an interleave boundary; if not, shift to next boundary
-    Tick burst_gap = tBURST_MIN;
+    Tick burst_gap = (tBURST_MIN < cur_tBURST) ? tBURST_MIN : cur_tBURST;
     if (burstInterleave) {
         if (cmd_at == (rank_ref.lastBurstTick + tBURST_MIN)) {
             // already interleaving, push next command to end of full burst
-            burst_gap = tBURST;
-        } else if (cmd_at < (rank_ref.lastBurstTick + tBURST)) {
+            burst_gap = cur_tBURST;
+        } else if (cmd_at < (rank_ref.lastBurstTick + cur_tBURST)) {
             // not at an interleave boundary after bandwidth check
             // Shift command to tBURST boundary to avoid data contention
             // Command will remain in the same burst window given that
             // tBURST is less than tBURST_MAX
-            cmd_at = rank_ref.lastBurstTick + tBURST;
+            cmd_at = rank_ref.lastBurstTick + cur_tBURST;
         }
+    } else {
+        burst_gap = cur_tBURST;
     }
     DPRINTF(DRAM, "Schedule RD/WR burst at tick %d\n", cmd_at);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {
-        mem_pkt->readyTime = cmd_at + tRL + tBURST;
+        mem_pkt->readyTime = cmd_at + tRL + cur_tBURST;
     } else {
-        mem_pkt->readyTime = cmd_at + tWL + tBURST;
+        mem_pkt->readyTime = cmd_at + tWL + cur_tBURST;
     }
 
     rank_ref.lastBurstTick = cmd_at;
@@ -579,13 +599,14 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.readBursts++;
         if (row_hit)
             stats.readRowHits++;
-        stats.dramBytesRead += burstSize;
+        stats.dramBytesRead += csize;
+        stats.dramBytesReadLogical += burstSize;
         stats.perBankRdBursts[mem_pkt->bankId]++;
 
         // Update latency stats
         stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
         stats.totQLat += cmd_at - mem_pkt->entryTime;
-        stats.totBusLat += tBURST;
+        stats.totBusLat += cur_tBURST;
     } else {
         // Schedule write done event to decrement event count
         // after the readyTime has been reached
@@ -608,7 +629,8 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.writeBursts++;
         if (row_hit)
             stats.writeRowHits++;
-        stats.dramBytesWritten += burstSize;
+        stats.dramBytesWritten += csize;
+        stats.dramBytesWrittenLogical += burstSize;
         stats.perBankWrBursts[mem_pkt->bankId]++;
 
     }
@@ -1844,71 +1866,81 @@ DRAMInterface::DRAMStats::resetStats()
 
 DRAMInterface::DRAMStats::DRAMStats(DRAMInterface &_dram)
     : statistics::Group(&_dram),
-    dram(_dram),
+      dram(_dram),
 
-    ADD_STAT(readBursts, statistics::units::Count::get(),
-             "Number of DRAM read bursts"),
-    ADD_STAT(writeBursts, statistics::units::Count::get(),
-             "Number of DRAM write bursts"),
+      ADD_STAT(readBursts, statistics::units::Count::get(),
+               "Number of DRAM read bursts"),
+      ADD_STAT(writeBursts, statistics::units::Count::get(),
+               "Number of DRAM write bursts"),
 
-    ADD_STAT(perBankRdBursts, statistics::units::Count::get(),
-             "Per bank write bursts"),
-    ADD_STAT(perBankWrBursts, statistics::units::Count::get(),
-             "Per bank write bursts"),
+      ADD_STAT(perBankRdBursts, statistics::units::Count::get(),
+               "Per bank write bursts"),
+      ADD_STAT(perBankWrBursts, statistics::units::Count::get(),
+               "Per bank write bursts"),
 
-    ADD_STAT(totQLat, statistics::units::Tick::get(),
-             "Total ticks spent queuing"),
-    ADD_STAT(totBusLat, statistics::units::Tick::get(),
-             "Total ticks spent in databus transfers"),
-    ADD_STAT(totMemAccLat, statistics::units::Tick::get(),
-             "Total ticks spent from burst creation until serviced "
-             "by the DRAM"),
+      ADD_STAT(totQLat, statistics::units::Tick::get(),
+               "Total ticks spent queuing"),
+      ADD_STAT(totBusLat, statistics::units::Tick::get(),
+               "Total ticks spent in databus transfers"),
+      ADD_STAT(totMemAccLat, statistics::units::Tick::get(),
+               "Total ticks spent from burst creation until serviced "
+               "by the DRAM"),
 
-    ADD_STAT(avgQLat, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "Average queueing delay per DRAM burst"),
-    ADD_STAT(avgBusLat, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "Average bus latency per DRAM burst"),
-    ADD_STAT(avgMemAccLat, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "Average memory access latency per DRAM burst"),
+      ADD_STAT(avgQLat,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "Average queueing delay per DRAM burst"),
+      ADD_STAT(avgBusLat,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "Average bus latency per DRAM burst"),
+      ADD_STAT(avgMemAccLat,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "Average memory access latency per DRAM burst"),
 
-    ADD_STAT(readRowHits, statistics::units::Count::get(),
-             "Number of row buffer hits during reads"),
-    ADD_STAT(writeRowHits, statistics::units::Count::get(),
-             "Number of row buffer hits during writes"),
-    ADD_STAT(readRowHitRate, statistics::units::Ratio::get(),
-             "Row buffer hit rate for reads"),
-    ADD_STAT(writeRowHitRate, statistics::units::Ratio::get(),
-             "Row buffer hit rate for writes"),
+      ADD_STAT(readRowHits, statistics::units::Count::get(),
+               "Number of row buffer hits during reads"),
+      ADD_STAT(writeRowHits, statistics::units::Count::get(),
+               "Number of row buffer hits during writes"),
+      ADD_STAT(readRowHitRate, statistics::units::Ratio::get(),
+               "Row buffer hit rate for reads"),
+      ADD_STAT(writeRowHitRate, statistics::units::Ratio::get(),
+               "Row buffer hit rate for writes"),
 
-    ADD_STAT(bytesPerActivate, statistics::units::Byte::get(),
-             "Bytes accessed per row activation"),
-    ADD_STAT(dramBytesRead, statistics::units::Byte::get(),
-            "Total bytes read"),
-    ADD_STAT(dramBytesWritten, statistics::units::Byte::get(),
-            "Total bytes written"),
+      ADD_STAT(bytesPerActivate, statistics::units::Byte::get(),
+               "Bytes accessed per row activation"),
+      ADD_STAT(dramBytesRead, statistics::units::Byte::get(),
+               "Total bytes read"),
+      ADD_STAT(dramBytesWritten, statistics::units::Byte::get(),
+               "Total bytes written"),
+      ADD_STAT(dramBytesReadLogical, statistics::units::Byte::get(),
+               "Total logical bytes read"),
+      ADD_STAT(dramBytesWrittenLogical, statistics::units::Byte::get(),
+               "Total logical bytes written"),
 
-    ADD_STAT(avgRdBW, statistics::units::Rate<
-                statistics::units::Byte, statistics::units::Second>::get(),
-             "Average DRAM read bandwidth in MiBytes/s"),
-    ADD_STAT(avgWrBW, statistics::units::Rate<
-                statistics::units::Byte, statistics::units::Second>::get(),
-             "Average DRAM write bandwidth in MiBytes/s"),
-    ADD_STAT(peakBW,  statistics::units::Rate<
-                statistics::units::Byte, statistics::units::Second>::get(),
-             "Theoretical peak bandwidth in MiByte/s"),
+      ADD_STAT(avgRdBW,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Average DRAM read bandwidth in MiBytes/s"),
+      ADD_STAT(avgWrBW,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Average DRAM write bandwidth in MiBytes/s"),
+      ADD_STAT(peakBW,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Theoretical peak bandwidth in MiByte/s"),
 
-    ADD_STAT(busUtil, statistics::units::Ratio::get(),
-             "Data bus utilization in percentage"),
-    ADD_STAT(busUtilRead, statistics::units::Ratio::get(),
-             "Data bus utilization in percentage for reads"),
-    ADD_STAT(busUtilWrite, statistics::units::Ratio::get(),
-             "Data bus utilization in percentage for writes"),
+      ADD_STAT(busUtil, statistics::units::Ratio::get(),
+               "Data bus utilization in percentage"),
+      ADD_STAT(busUtilRead, statistics::units::Ratio::get(),
+               "Data bus utilization in percentage for reads"),
+      ADD_STAT(busUtilWrite, statistics::units::Ratio::get(),
+               "Data bus utilization in percentage for writes"),
 
-    ADD_STAT(pageHitRate, statistics::units::Ratio::get(),
-             "Row buffer hit rate, read and write combined")
+      ADD_STAT(pageHitRate, statistics::units::Ratio::get(),
+               "Row buffer hit rate, read and write combined")
 
 {
 }
