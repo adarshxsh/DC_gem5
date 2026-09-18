@@ -91,7 +91,8 @@ class MemCtrl(QoSMemCtrl):
 
     # enable dynamic watermark scaling and queue pressure adaptation
     enable_adaptive_watermarks = Param.Bool(
-        False, "Enable dynamic watermark scaling and burst adaptation based on queue pressure"
+        False,
+        "Enable dynamic watermark scaling and burst adaptation based on queue pressure",
     )
 
     # adaptive threshold percentage bounds
