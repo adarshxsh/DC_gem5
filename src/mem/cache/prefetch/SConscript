@@ -58,3 +58,5 @@ Source('spatio_temporal_memory_streaming.cc')
 Source('stride.cc')
 Source('tagged.cc')
 Source('fdp.cc')
+
+GTest('queued.test', 'queued.test.cc', 'queued.cc', 'base.cc')

@@ -2798,4 +2798,43 @@ WriteAllocator::updateMode(Addr write_addr, unsigned write_size,
     nextAddr = write_addr + write_size;
 }
 
+std::size_t
+BaseCache::getCompressedSizeBits(Addr addr, bool is_secure) const
+{
+    CacheBlk *blk = tags->findBlock({addr, is_secure});
+    if (blk) {
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk) {
+            return cblk->getSizeBits();
+        }
+    }
+    return blkSize * 8;
+}
+
+uint8_t
+BaseCache::getCompressionFactor(Addr addr, bool is_secure) const
+{
+    CacheBlk *blk = tags->findBlock({addr, is_secure});
+    if (blk) {
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk) {
+            SuperBlk *sblk = static_cast<SuperBlk *>(cblk->getSectorBlock());
+            if (sblk) {
+                return sblk->calculateCompressionFactor(cblk->getSizeBits());
+            } else {
+                std::size_t size = cblk->getSizeBits();
+                std::size_t blk_bits = blkSize * 8;
+                if (size == 0) {
+                    return 8;
+                }
+                if (size >= blk_bits) {
+                    return 1;
+                }
+                return blk_bits / size;
+            }
+        }
+    }
+    return 1;
+}
+
 } // namespace gem5

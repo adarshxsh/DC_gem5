@@ -43,9 +43,12 @@
 #include <utility>
 
 #include "arch/generic/mmu.hh"
+#include "base/cache/associative_cache.hh"
+#include "base/sat_counter.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "mem/cache/prefetch/base.hh"
+#include "mem/cache/tags/tagged_entry.hh"
 #include "mem/packet.hh"
 
 namespace gem5
@@ -176,6 +179,31 @@ class Queued : public Base
     /** Percentage of requests that can be throttled */
     const unsigned int throttleControlPct;
 
+    /** Compression History Table (CHT) entry */
+    struct CHTEntry : public TaggedEntry
+    {
+        SatCounter8 counter;
+        CHTEntry(TagExtractor ext) : TaggedEntry(), counter(2, 2)
+        {
+            registerTagExtractor(ext);
+        }
+        void
+        invalidate() override
+        {
+            TaggedEntry::invalidate();
+            counter = SatCounter8(2, 2);
+        }
+    };
+
+    /** Compression History Table (CHT) */
+    AssociativeCache<CHTEntry> cht;
+
+    /** Enable Compression History Table (CHT) filtering */
+    const bool enableCHT;
+
+    /** Minimum compression factor threshold for CHT filtering */
+    const unsigned chtMinCFThreshold;
+
     struct QueuedStats : public statistics::Group
     {
         QueuedStats(statistics::Group *parent);
@@ -187,6 +215,7 @@ class Queued : public Base
         statistics::Scalar pfRemovedFull;
         statistics::Scalar pfSpanPage;
         statistics::Scalar pfUsefulSpanPage;
+        statistics::Scalar pfDroppedLowCompression;
     } statsQueued;
   public:
     using AddrPriority = std::pair<Addr, int32_t>;
@@ -196,6 +225,11 @@ class Queued : public Base
 
     void
     notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi) override;
+
+    void notifyFill(const CacheAccessProbeArg &acc) override;
+
+    bool isLowCompression(Addr pc, bool secure);
+    void updateCHT(Addr pc, bool secure, uint8_t cf);
 
     void insert(const PacketPtr &pkt, PrefetchInfo &new_pfi, int32_t priority,
                 const CacheAccessor &cache);

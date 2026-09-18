@@ -134,8 +134,9 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 
-    // Check co-allocation possibilities with 384 bits occupied in 512-bit superblock:
-    // A 128-bit candidate sub-block (384 + 128 = 512 bits) co-allocates successfully
+    // Check co-allocation possibilities with 384 bits occupied in 512-bit
+    // superblock: A 128-bit candidate sub-block (384 + 128 = 512 bits)
+    // co-allocates successfully
     ASSERT_TRUE(superBlk.canCoAllocate(128));
     // Exceeding 512 bits (384 + 129 = 513 bits) returns false
     ASSERT_FALSE(superBlk.canCoAllocate(129));
@@ -153,7 +154,8 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     // With 512 bits occupied, no further co-allocation is possible
     ASSERT_FALSE(superBlk.canCoAllocate(64));
 
-    // Invalidate block 1 (free sub-block capacity: 512 - 128 = 384 bits occupied)
+    // Invalidate block 1 (free sub-block capacity: 512 - 128 = 384 bits
+    // occupied)
     subBlks[1].invalidate();
 
     ASSERT_EQ(superBlk.getNumValid(), 2);
