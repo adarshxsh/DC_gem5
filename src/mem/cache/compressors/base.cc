@@ -173,7 +173,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
     totalCompressionRequests++;
 
-    if (enableQueuePressureThrottling && (getQueuePressure() >= queuePressureThreshold)) {
+    if (enableQueuePressureThrottling &&
+        (getQueuePressure() >= queuePressureThreshold)) {
         std::unique_ptr<CompressionData> comp_data =
             std::make_unique<CompressionData>();
         comp_data->setSizeBits(blkSize * CHAR_BIT);
@@ -182,11 +183,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 
         stats.queuePressureBypassedCompressions++;
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Queue pressure throttling active (observed pressure: %.2f%% >= threshold: %.2f%%). "
-            "Bypassing compression.\n",
-            getQueuePressure(), queuePressureThreshold);
+        DPRINTF(CacheComp,
+                "Queue pressure throttling active (observed pressure: %.2f%% "
+                ">= threshold: %.2f%%). "
+                "Bypassing compression.\n",
+                getQueuePressure(), queuePressureThreshold);
         return comp_data;
     }
 
@@ -314,7 +315,8 @@ Base::getDecompressionLatency(const CacheBlk* blk)
         }
     }
 
-    if (enableQueuePressureThrottling && comp_blk && !comp_blk->isCompressed()) {
+    if (enableQueuePressureThrottling && comp_blk &&
+        !comp_blk->isCompressed()) {
         if (getQueuePressure() >= queuePressureThreshold) {
             stats.queuePressureBypassedDecompressions += 1;
         }
@@ -366,10 +368,13 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of bypassed compressions"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
-      ADD_STAT(queuePressureBypassedCompressions, statistics::units::Count::get(),
-               "Total number of compressions bypassed due to high queue pressure"),
-      ADD_STAT(queuePressureBypassedDecompressions, statistics::units::Count::get(),
-               "Total number of decompressions bypassed due to high queue pressure"),
+      ADD_STAT(
+          queuePressureBypassedCompressions, statistics::units::Count::get(),
+          "Total number of compressions bypassed due to high queue pressure"),
+      ADD_STAT(queuePressureBypassedDecompressions,
+               statistics::units::Count::get(),
+               "Total number of decompressions bypassed due to high queue "
+               "pressure"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),
                "Total number of sampled compressions"),
       ADD_STAT(sampledUncompressedBits, statistics::units::Bit::get(),
