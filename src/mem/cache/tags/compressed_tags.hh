@@ -89,7 +89,7 @@ class CompressedTags : public SectorTags
 
   public:
     /** Convenience typedef. */
-     typedef CompressedTagsParams Params;
+    typedef CompressedTagsParams Params;
 
     /**
      * Construct and initialize this tag store.
@@ -99,7 +99,7 @@ class CompressedTags : public SectorTags
     /**
      * Destructor.
      */
-    virtual ~CompressedTags() {};
+    virtual ~CompressedTags(){};
 
     /**
      * Initialize blocks as SuperBlk and CompressionBlk instances.
@@ -141,6 +141,17 @@ class CompressedTags : public SectorTags
      * @return True if all invariants hold.
      */
     bool checkInvariants() const override;
+
+    /**
+     * Check if a prefetch request can co-allocate into the target superblock
+     * without downgrading the superblock compression factor or forcing
+     * eviction of active demand lines.
+     *
+     * @param addr Target address to check.
+     * @param is_secure True if secure memory space.
+     * @return True if prefetch can co-allocate without conflict.
+     */
+    bool canCoAllocatePrefetch(Addr addr, bool is_secure) const;
 };
 
 } // namespace gem5
