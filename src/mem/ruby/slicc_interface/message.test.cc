@@ -42,12 +42,32 @@ namespace ruby
 uint32_t Network::m_control_msg_size = 8;
 uint32_t Network::m_data_msg_size = 72;
 
-int MachineType_base_level(const MachineType &) { return 1; }
-MachineType MachineType_from_base_level(int) { return static_cast<MachineType>(0); }
-MachineType &operator++(MachineType &m) { return m; }
+int
+MachineType_base_level(const MachineType &)
+{
+    return 1;
+}
+MachineType
+MachineType_from_base_level(int)
+{
+    return static_cast<MachineType>(0);
+}
+MachineType &
+operator++(MachineType &m)
+{
+    return m;
+}
 
-int RubySystem::MachineType_base_count(const MachineType &) { return 0; }
-int RubySystem::MachineType_base_number(const MachineType &) { return 0; }
+int
+RubySystem::MachineType_base_count(const MachineType &)
+{
+    return 0;
+}
+int
+RubySystem::MachineType_base_number(const MachineType &)
+{
+    return 0;
+}
 
 uint32_t
 Network::MessageSizeType_to_int(MessageSizeType size_type, const Message *msg)
@@ -56,55 +76,60 @@ Network::MessageSizeType_to_int(MessageSizeType size_type, const Message *msg)
         return msg->getPayloadSize() + m_control_msg_size;
     }
 
-    switch(size_type) {
-      case MessageSizeType_Control:
-      case MessageSizeType_Request_Control:
-      case MessageSizeType_Reissue_Control:
-      case MessageSizeType_Response_Control:
-      case MessageSizeType_Writeback_Control:
-      case MessageSizeType_Broadcast_Control:
-      case MessageSizeType_Multicast_Control:
-      case MessageSizeType_Forwarded_Control:
-      case MessageSizeType_Invalidate_Control:
-      case MessageSizeType_Unblock_Control:
-      case MessageSizeType_Persistent_Control:
-      case MessageSizeType_Completion_Control:
-        return m_control_msg_size;
-      case MessageSizeType_Data:
-      case MessageSizeType_Response_Data:
-      case MessageSizeType_ResponseLocal_Data:
-      case MessageSizeType_ResponseL2hit_Data:
-      case MessageSizeType_Writeback_Data:
-        return m_data_msg_size;
-      default:
-        panic("Invalid range for type MessageSizeType");
-        break;
+    switch (size_type) {
+        case MessageSizeType_Control:
+        case MessageSizeType_Request_Control:
+        case MessageSizeType_Reissue_Control:
+        case MessageSizeType_Response_Control:
+        case MessageSizeType_Writeback_Control:
+        case MessageSizeType_Broadcast_Control:
+        case MessageSizeType_Multicast_Control:
+        case MessageSizeType_Forwarded_Control:
+        case MessageSizeType_Invalidate_Control:
+        case MessageSizeType_Unblock_Control:
+        case MessageSizeType_Persistent_Control:
+        case MessageSizeType_Completion_Control:
+            return m_control_msg_size;
+        case MessageSizeType_Data:
+        case MessageSizeType_Response_Data:
+        case MessageSizeType_ResponseLocal_Data:
+        case MessageSizeType_ResponseL2hit_Data:
+        case MessageSizeType_Writeback_Data:
+            return m_data_msg_size;
+        default:
+            panic("Invalid range for type MessageSizeType");
+            break;
     }
 }
 
 class TestMessage : public Message
 {
   public:
-    TestMessage(MessageSizeType size_type, Tick curTime = 0, int block_size = 64)
+    TestMessage(MessageSizeType size_type, Tick curTime = 0,
+                int block_size = 64)
         : Message(curTime, block_size, nullptr), m_size_type(size_type)
     {}
 
-    MsgPtr clone() const override
+    MsgPtr
+    clone() const override
     {
         return std::shared_ptr<Message>(new TestMessage(*this));
     }
 
-    void print(std::ostream& out) const override
+    void
+    print(std::ostream &out) const override
     {
         out << "[TestMessage]";
     }
 
-    const MessageSizeType& getMessageSize() const override
+    const MessageSizeType &
+    getMessageSize() const override
     {
         return m_size_type;
     }
 
-    MessageSizeType& getMessageSize() override
+    MessageSizeType &
+    getMessageSize() override
     {
         return m_size_type;
     }
@@ -139,16 +164,16 @@ TEST(NetworkTest, DynamicPayloadSizeResolution)
     TestMessage msg(MessageSizeType_Response_Data);
 
     // Fallback to static data message size when payload size is 0
-    uint32_t static_size = Network::MessageSizeType_to_int(
-        msg.getMessageSize(), &msg);
+    uint32_t static_size =
+        Network::MessageSizeType_to_int(msg.getMessageSize(), &msg);
     EXPECT_GT(static_size, 0);
 
     // Dynamic payload size resolution when payload size > 0
     msg.setPayloadSize(16);
-    uint32_t dynamic_size = Network::MessageSizeType_to_int(
-        msg.getMessageSize(), &msg);
-    uint32_t ctrl_size = Network::MessageSizeType_to_int(
-        MessageSizeType_Control);
+    uint32_t dynamic_size =
+        Network::MessageSizeType_to_int(msg.getMessageSize(), &msg);
+    uint32_t ctrl_size =
+        Network::MessageSizeType_to_int(MessageSizeType_Control);
     EXPECT_EQ(dynamic_size, 16 + ctrl_size);
 }
 
@@ -165,8 +190,8 @@ TEST(SimpleNetworkThrottleTest, DynamicMessageToSizeCalculation)
 
     uint32_t compressed_size = Network::MessageSizeType_to_int(
         compressed_msg.getMessageSize(), &compressed_msg);
-    uint32_t ctrl_size = Network::MessageSizeType_to_int(
-        MessageSizeType_Control);
+    uint32_t ctrl_size =
+        Network::MessageSizeType_to_int(MessageSizeType_Control);
     EXPECT_EQ(compressed_size, 16 + ctrl_size);
     EXPECT_LT(compressed_size, uncompressed_size);
 }
@@ -176,8 +201,8 @@ TEST(GarnetFlitTest, DynamicFlitTypeAssignment)
     TestMessage msg(MessageSizeType_Response_Data);
     msg.setPayloadSize(16);
 
-    uint32_t ctrl_size = Network::MessageSizeType_to_int(
-        MessageSizeType_Control);
+    uint32_t ctrl_size =
+        Network::MessageSizeType_to_int(MessageSizeType_Control);
     uint32_t total_msg_size = 16 + ctrl_size;
     uint32_t link_width = 16;
     int num_flits = (total_msg_size + link_width - 1) / link_width;
@@ -190,8 +215,8 @@ TEST(GarnetFlitTest, DynamicFlitTypeAssignment)
     MsgPtr msg_ptr = msg.clone();
 
     for (int i = 0; i < num_flits; i++) {
-        garnet::flit f(1, i, 0, 0, route, num_flits, msg_ptr,
-                       total_msg_size, link_width, 0);
+        garnet::flit f(1, i, 0, 0, route, num_flits, msg_ptr, total_msg_size,
+                       link_width, 0);
         if (num_flits == 1) {
             EXPECT_EQ(f.get_type(), garnet::HEAD_TAIL_);
         } else if (i == 0) {

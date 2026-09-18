@@ -209,9 +209,8 @@ Throttle::operateVnet(int vnet, int channel, int &total_bw_remaining,
             (*(throttleStats.
                 msg_counts[net_msg_ptr->getMessageSize()]))[vnet]++;
             throttleStats.total_msg_count += 1;
-            uint32_t total_size =
-                Network::MessageSizeType_to_int(net_msg_ptr->getMessageSize(),
-                                                net_msg_ptr);
+            uint32_t total_size = Network::MessageSizeType_to_int(
+                net_msg_ptr->getMessageSize(), net_msg_ptr);
             throttleStats.total_msg_bytes += total_size;
             total_size -=
                 Network::MessageSizeType_to_int(MessageSizeType_Control);
