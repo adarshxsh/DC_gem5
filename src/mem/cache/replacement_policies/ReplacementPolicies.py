@@ -187,3 +187,15 @@ class DensityAwareLRURP(CompLRURP):
     type = "DensityAwareLRURP"
     cxx_class = "gem5::replacement_policy::DensityAwareLRU"
     cxx_header = "mem/cache/replacement_policies/comp_lru_rp.hh"
+
+
+class DWLRURP(LRURP):
+    type = "DWLRURP"
+    cxx_class = "gem5::replacement_policy::DWLRU"
+    cxx_header = "mem/cache/replacement_policies/dwlru_rp.hh"
+
+
+class DensityWeightedLRURP(DWLRURP):
+    type = "DensityWeightedLRURP"
+    cxx_class = "gem5::replacement_policy::DWLRU"
+    cxx_header = "mem/cache/replacement_policies/dwlru_rp.hh"
