@@ -51,13 +51,20 @@ class WeightedLRU : public LRU
     /** Weighted LRU implementation of replacement data. */
     struct WeightedLRUReplData : LRUReplData
     {
-        /** pointer for last occupancy */
+        /** pointer for last occupancy / weight / density */
         int last_occ_ptr;
+        int validSubBlocks;
+        int compressionFactor;
 
         /**
          * Default constructor. Invalidate data.
          */
-        WeightedLRUReplData() : LRUReplData(), last_occ_ptr(0) {}
+        WeightedLRUReplData()
+            : LRUReplData(),
+              last_occ_ptr(0),
+              validSubBlocks(0),
+              compressionFactor(1)
+        {}
     };
   public:
     typedef WeightedLRURPParams Params;
