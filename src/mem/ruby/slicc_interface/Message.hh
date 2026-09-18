@@ -85,7 +85,11 @@ class Message
      * Get actual compressed payload size in bytes.
      * Returns -1 if message is uncompressed or default.
      */
-    virtual int getPayloadSizeInBytes() const { return -1; }
+    virtual int
+    getPayloadSizeInBytes() const
+    {
+        return -1;
+    }
 
     /**
      * The two functions below are used for reading / writing the message
