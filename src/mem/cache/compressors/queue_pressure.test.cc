@@ -24,13 +24,15 @@ class TestMemCtrl : public memory::MemCtrl
   public:
     TestMemCtrl(const MemCtrlParams &p) : memory::MemCtrl(p) {}
 
-    void setReadQueueState(uint64_t read_size, uint32_t buf_size)
+    void
+    setReadQueueState(uint64_t read_size, uint32_t buf_size)
     {
         totalReadQueueSize = read_size;
         readBufferSize = buf_size;
     }
 
-    void setWriteQueueState(uint64_t write_size, uint32_t buf_size)
+    void
+    setWriteQueueState(uint64_t write_size, uint32_t buf_size)
     {
         totalWriteQueueSize = write_size;
         writeBufferSize = buf_size;
@@ -65,7 +67,8 @@ TEST(MemCtrlQueuePressureTest, QueuePressureCalculation)
     // Initial state: 0% pressure
     EXPECT_DOUBLE_EQ(mem_ctrl.getQueuePressure(), 0.0);
 
-    // Read queue pressure 70% (70 / 100), Write queue 20% (10 / 50) -> max is 70%
+    // Read queue pressure 70% (70 / 100), Write queue 20% (10 / 50) -> max is
+    // 70%
     mem_ctrl.setReadQueueState(70, 100);
     mem_ctrl.setWriteQueueState(10, 50);
     EXPECT_DOUBLE_EQ(mem_ctrl.getQueuePressure(), 70.0);
@@ -75,14 +78,21 @@ TEST(MemCtrlQueuePressureTest, QueuePressureCalculation)
     EXPECT_DOUBLE_EQ(mem_ctrl.getQueuePressure(), 90.0);
 }
 
-TEST(QueuePressureThrottlingTest, CompressionBypassWhenQueuePressureExceedsThreshold)
+TEST(QueuePressureThrottlingTest,
+     CompressionBypassWhenQueuePressureExceedsThreshold)
 {
     class MockMemCtrl : public memory::MemCtrl
     {
       public:
         double mockPressure;
-        MockMemCtrl(const MemCtrlParams &p) : memory::MemCtrl(p), mockPressure(0.0) {}
-        double getQueuePressure() const override { return mockPressure; }
+        MockMemCtrl(const MemCtrlParams &p)
+            : memory::MemCtrl(p), mockPressure(0.0)
+        {}
+        double
+        getQueuePressure() const override
+        {
+            return mockPressure;
+        }
     };
 
     MemCtrlParams mem_p = createTestMemCtrlParams("mock_mem_ctrl");
