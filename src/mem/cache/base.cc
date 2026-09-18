@@ -1712,7 +1712,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
                 DPRINTF(CacheRepl,
                         "Suppressing prefetch fill for %#llx: would evict "
                         "valid demand sub-block %#llx\n",
-                        addr, evict_blk->getAddr());
+                        (unsigned long long)addr,
+                        (unsigned long long)evict_blk->getAddr());
                 return nullptr;
             }
         }
