@@ -116,6 +116,13 @@ class BaseCache(ClockedObject):
     )
 
     compressor = Param.BaseCacheCompressor(NULL, "Cache compressor.")
+    enable_queue_aware_decompression = Param.Bool(
+        False, "Enable queue-aware adaptive decompression latency throttling"
+    )
+    mshr_queue_throttling_threshold = Param.Unsigned(
+        80,
+        "MSHR or write buffer queue occupancy percentage threshold (0-100) to trigger decompression latency throttling",
+    )
     replace_expansions = Param.Bool(
         True,
         "Apply replacement policy to "

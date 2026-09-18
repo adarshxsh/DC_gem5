@@ -81,19 +81,21 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      enableQueueAwareDecompression(p.enable_queue_aware_decompression),
+      mshrQueueThrottlingThreshold(p.mshr_queue_throttling_threshold),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1287,6 +1289,49 @@ BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
 }
 
 bool
+BaseCache::isQueueCongested() const
+{
+    if (!enableQueueAwareDecompression && mshrQueueThrottlingThreshold == 0) {
+        return false;
+    }
+
+    if (mshrQueue.isFull() || writeBuffer.isFull()) {
+        return true;
+    }
+
+    if (mshrQueueThrottlingThreshold > 0) {
+        if (mshrQueueThrottlingThreshold <= 100) {
+            if (mshrQueue.capacity() > 0 &&
+                (mshrQueue.occupancy() * 100 / mshrQueue.capacity()) >=
+                    mshrQueueThrottlingThreshold) {
+                return true;
+            }
+            if (writeBuffer.capacity() > 0 &&
+                (writeBuffer.occupancy() * 100 / writeBuffer.capacity()) >=
+                    mshrQueueThrottlingThreshold) {
+                return true;
+            }
+        } else {
+            if (mshrQueue.occupancy() >= mshrQueueThrottlingThreshold ||
+                writeBuffer.occupancy() >= mshrQueueThrottlingThreshold) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+Cycles
+BaseCache::getEffectiveDecompressionLatency(const CacheBlk *blk) const
+{
+    if (!compressor || isQueueCongested()) {
+        return Cycles(0);
+    }
+    return compressor->getDecompressionLatency(blk);
+}
+
+bool
 BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                   PacketList &writebacks)
 {
@@ -1527,7 +1572,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // When a block is compressed, it must first be decompressed
             // before being read. This adds to the access latency.
             if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
+                lat += getEffectiveDecompressionLatency(blk);
             }
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
@@ -1796,7 +1841,7 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->payloadDelay = getEffectiveDecompressionLatency(blk);
     }
 
     return pkt;
@@ -1841,7 +1886,7 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->payloadDelay = getEffectiveDecompressionLatency(blk);
     }
 
     return pkt;
