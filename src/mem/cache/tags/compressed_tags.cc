@@ -57,10 +57,8 @@
 namespace gem5
 {
 
-CompressedTags::CompressedTags(const Params &p)
-    : SectorTags(p)
-{
-}
+CompressedTags::CompressedTags(const Params &p) : SectorTags(p)
+{}
 
 void
 CompressedTags::tagsInit()
@@ -70,12 +68,11 @@ CompressedTags::tagsInit()
     superBlks = std::vector<SuperBlk>(numSectors);
 
     // Initialize all blocks
-    unsigned blk_index = 0;          // index into blks array
+    unsigned blk_index = 0; // index into blks array
     for (unsigned superblock_index = 0; superblock_index < numSectors;
-         superblock_index++)
-    {
+         superblock_index++) {
         // Locate next cache superblock
-        SuperBlk* superblock = &superBlks[superblock_index];
+        SuperBlk *superblock = &superBlks[superblock_index];
 
         // Superblocks must be aware of the block size due to their co-
         // allocation conditions
@@ -86,15 +83,15 @@ CompressedTags::tagsInit()
 
         // Initialize all blocks in this superblock
         superblock->blks.resize(numBlocksPerSector, nullptr);
-        for (unsigned k = 0; k < numBlocksPerSector; ++k){
+        for (unsigned k = 0; k < numBlocksPerSector; ++k) {
             // Select block within the set to be linked
-            SectorSubBlk*& blk = superblock->blks[k];
+            SectorSubBlk *&blk = superblock->blks[k];
 
             // Locate next cache block
             blk = &blks[blk_index];
 
             // Associate a data chunk to the block
-            blk->data = &dataBlks[blkSize*blk_index];
+            blk->data = &dataBlks[blkSize * blk_index];
 
             // Associate superblock to this block
             blk->setSectorBlock(superblock);
@@ -120,34 +117,31 @@ CompressedTags::tagsInit()
     }
 }
 
-CacheBlk*
-CompressedTags::findVictim(const CacheBlk::KeyType& key,
+CacheBlk *
+CompressedTags::findVictim(const CacheBlk::KeyType &key,
                            const std::size_t compressed_size,
-                           std::vector<CacheBlk*>& evict_blks,
-                           const uint64_t partition_id=0)
+                           std::vector<CacheBlk *> &evict_blks,
+                           const uint64_t partition_id = 0)
 {
     // Get all possible locations of this superblock
-    std::vector<ReplaceableEntry*> superblock_entries =
+    std::vector<ReplaceableEntry *> superblock_entries =
         indexingPolicy->getPossibleEntries(key);
 
     // Filter entries based on PartitionID
-    if (partitionManager){
-        partitionManager->filterByPartition(superblock_entries,
-            partition_id);
+    if (partitionManager) {
+        partitionManager->filterByPartition(superblock_entries, partition_id);
     }
 
     // Check if the superblock this address belongs to has been allocated. If
     // so, try co-allocating
-    SuperBlk* victim_superblock = nullptr;
+    SuperBlk *victim_superblock = nullptr;
     bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
-    for (const auto& entry : superblock_entries){
-        SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+    for (const auto &entry : superblock_entries) {
+        SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
             superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+            superblock->canCoAllocate(compressed_size)) {
             victim_superblock = superblock;
             is_co_allocation = true;
             break;
@@ -156,20 +150,20 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
 
     // If the superblock is not present or cannot be co-allocated a
     // superblock must be replaced
-    if (victim_superblock == nullptr){
+    if (victim_superblock == nullptr) {
         // check if partitioning policy limited allocation and if true - return
         // this assumes that superblock_entries would not be empty if
         // partitioning policy is not in place
-        if (superblock_entries.size() == 0){
+        if (superblock_entries.size() == 0) {
             return nullptr;
         }
 
         // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
+        victim_superblock = static_cast<SuperBlk *>(
             replacementPolicy->getVictim(superblock_entries));
 
         // The whole superblock must be evicted to make room for the new one
-        for (const auto& blk : victim_superblock->blks){
+        for (const auto &blk : victim_superblock->blks) {
             if (blk->isValid()) {
                 evict_blks.push_back(blk);
             }
@@ -177,11 +171,11 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     }
 
     // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = victim_superblock->blks[offset];
+    SectorSubBlk *victim = victim_superblock->blks[offset];
 
     // It would be a hit if victim was valid in a co-allocation, and upgrades
     // do not call findVictim, so it cannot happen
-    if (is_co_allocation){
+    if (is_co_allocation) {
         assert(!victim->isValid());
 
         // Print all co-allocated blocks
@@ -195,10 +189,80 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     return victim;
 }
 
+CacheBlk *
+CompressedTags::findRelocationVictim(const CacheBlk::KeyType &key,
+                                     const std::size_t compressed_size,
+                                     const CacheBlk *src_blk,
+                                     std::vector<CacheBlk *> &evict_blks,
+                                     const uint64_t partition_id = 0)
+{
+    // Get all possible locations of this superblock
+    std::vector<ReplaceableEntry *> superblock_entries =
+        indexingPolicy->getPossibleEntries(key);
+
+    // Filter entries based on PartitionID
+    if (partitionManager) {
+        partitionManager->filterByPartition(superblock_entries, partition_id);
+    }
+
+    // Identify source superblock containing src_blk
+    const SuperBlk *src_superblock = nullptr;
+    if (src_blk) {
+        const SectorSubBlk *sub_blk =
+            static_cast<const SectorSubBlk *>(src_blk);
+        src_superblock =
+            static_cast<const SuperBlk *>(sub_blk->getSectorBlock());
+    }
+
+    // Filter out src_superblock to form candidate relocation superblocks
+    std::vector<ReplaceableEntry *> candidate_entries;
+    for (const auto &entry : superblock_entries) {
+        if (static_cast<SuperBlk *>(entry) != src_superblock) {
+            candidate_entries.push_back(entry);
+        }
+    }
+
+    if (candidate_entries.empty()) {
+        return nullptr;
+    }
+
+    SuperBlk *victim_superblock = nullptr;
+    const uint64_t offset = extractSectorOffset(key.address);
+
+    // Check if any candidate superblock is invalid or can co-allocate
+    for (const auto &entry : candidate_entries) {
+        SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+        if (!superblock->isValid() ||
+            (superblock->match(key) && !superblock->blks[offset]->isValid() &&
+             superblock->isCompressed() &&
+             superblock->canCoAllocate(compressed_size))) {
+            victim_superblock = superblock;
+            break;
+        }
+    }
+
+    // If no free or co-allocatable candidate superblock, pick a victim using
+    // replacement policy
+    if (victim_superblock == nullptr) {
+        victim_superblock = static_cast<SuperBlk *>(
+            replacementPolicy->getVictim(candidate_entries));
+
+        for (const auto &blk : victim_superblock->blks) {
+            if (blk->isValid()) {
+                evict_blks.push_back(blk);
+            }
+        }
+    }
+
+    SectorSubBlk *victim = victim_superblock->blks[offset];
+    sectorStats.evictionsReplacement[evict_blks.size()]++;
+    return victim;
+}
+
 bool
 CompressedTags::anyBlk(std::function<bool(CacheBlk &)> visitor)
 {
-    for (CompressionBlk& blk : blks) {
+    for (CompressionBlk &blk : blks) {
         if (visitor(blk)) {
             return true;
         }
