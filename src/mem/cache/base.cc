@@ -1944,22 +1944,26 @@ BaseCache::sendMSHRQueuePacket(MSHR* mshr)
         if (!mshr->isWholeLineWrite()) {
             bool subblock_expansion_risk = false;
             if (tags) {
-                CacheBlk *blk = tags->findBlock({mshr->blkAddr, mshr->isSecure});
+                CacheBlk *blk =
+                    tags->findBlock({mshr->blkAddr, mshr->isSecure});
                 if (blk) {
-                    CompressionBlk *cblk = dynamic_cast<CompressionBlk*>(blk);
+                    CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
                     if (cblk) {
-                        SuperBlk *super_blk = dynamic_cast<SuperBlk*>(cblk->getSectorBlock());
-                        if (super_blk && (super_blk->isCompressed() || cblk->isCompressed())) {
+                        SuperBlk *super_blk =
+                            dynamic_cast<SuperBlk *>(cblk->getSectorBlock());
+                        if (super_blk && (super_blk->isCompressed() ||
+                                          cblk->isCompressed())) {
                             subblock_expansion_risk = true;
                         }
                     }
-                } else if (dynamic_cast<CompressedTags*>(tags)) {
+                } else if (dynamic_cast<CompressedTags *>(tags)) {
                     subblock_expansion_risk = true;
                 }
             }
 
             if (subblock_expansion_risk) {
-                // Bypass writeAllocator delay when sub-block expansion risk is identified
+                // Bypass writeAllocator delay when sub-block expansion risk is
+                // identified
                 writeAllocator->reset();
             } else if (writeAllocator->delay(mshr->blkAddr)) {
                 Tick delay = blkSize / tgt_pkt->getSize() * clockPeriod();

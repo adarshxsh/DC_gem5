@@ -62,7 +62,7 @@ MSHRQueue::MSHRQueue(const std::string &_label,
 MSHR *
 MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
                     Tick when_ready, Counter order, bool alloc_on_fill,
-                    const BaseTags* tags)
+                    const BaseTags *tags)
 {
     assert(!freeList.empty());
     MSHR *mshr = freeList.front();
@@ -72,7 +72,8 @@ MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
     DPRINTF(MSHR, "Allocating new MSHR. Number in use will be %lu/%lu\n",
             allocatedList.size() + 1, numEntries);
 
-    mshr->allocate(blk_addr, blk_size, pkt, when_ready, order, alloc_on_fill, tags);
+    mshr->allocate(blk_addr, blk_size, pkt, when_ready, order, alloc_on_fill,
+                   tags);
     mshr->allocIter = allocatedList.insert(allocatedList.end(), mshr);
     mshr->readyIter = addToReadyList(mshr);
 
