@@ -1239,7 +1239,8 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
         // When a block is compressed, it must first be decompressed before
         // being read, and this increases the snoop delay.
         if (compressor && pkt->isRead()) {
-            snoop_delay += cyclesToTicks(compressor->getDecompressionLatency(blk));
+            snoop_delay +=
+                cyclesToTicks(compressor->getDecompressionLatency(blk));
         }
     }
 
