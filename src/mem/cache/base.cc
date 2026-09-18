@@ -89,6 +89,12 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      compressionPressureThreshold(p.compression_pressure_threshold),
+      enableCompressionPressure(p.enable_compression_pressure),
+      writebackThrottleDelay(p.writeback_throttle_delay),
+      writeBufferBypassThreshold(p.write_buffer_bypass_threshold),
+      l2CompressionPressureActive(false),
+      lastWritebackDrainTick(0),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
@@ -334,6 +340,9 @@ BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
         assert(pkt->payloadDelay == 0);
 
         pkt->makeTimingResponse();
+        if (isCompressionPressureActive()) {
+            pkt->setCompressionPressure();
+        }
 
         // In this case we are considering request_time that takes
         // into account the delay of the xbar, if any, and just
@@ -533,6 +542,10 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
     // Reset the bus additional time as it is now accounted for
     pkt->headerDelay = pkt->payloadDelay = 0;
 
+    if (isCompressionPressureActive()) {
+        pkt->setCompressionPressure();
+    }
+
     cpuSidePort.schedTimingResp(pkt, completion_time);
 }
 
@@ -540,6 +553,9 @@ void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
+
+    // Update L1 compression pressure state based on in-band packet flag
+    l2CompressionPressureActive = pkt->isCompressionPressure();
 
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above
@@ -911,9 +927,23 @@ BaseCache::getNextQueueEntry()
     MSHR *miss_mshr  = mshrQueue.getNext();
     WriteQueueEntry *wq_entry = writeBuffer.getNext();
 
+    double wb_occ = writeBuffer.capacity() > 0 ?
+        (double)writeBuffer.occupancy() / writeBuffer.capacity() : 0.0;
+    bool bypass = (wb_occ >= (double)writeBufferBypassThreshold / 100.0);
+
+    // If L2 compression pressure is active and write buffer is not at bypass limit,
+    // enforce throttling delay on writeback draining
+    if (wq_entry && l2CompressionPressureActive && !bypass) {
+        Tick min_drain_time = lastWritebackDrainTick +
+            writebackThrottleDelay * clockPeriod();
+        if (curTick() < min_drain_time) {
+            wq_entry = nullptr;
+        }
+    }
+
     // If we got a write buffer request ready, first priority is a
-    // full write buffer, otherwise we favour the miss requests
-    if (wq_entry && (writeBuffer.isFull() || !miss_mshr)) {
+    // full write buffer or bypass limit reached, otherwise we favour the miss requests
+    if (wq_entry && (writeBuffer.isFull() || bypass || (!miss_mshr && !l2CompressionPressureActive))) {
         // need to search MSHR queue for conflicting earlier miss.
         MSHR *conflict_mshr = mshrQueue.findPending(wq_entry);
 
@@ -930,25 +960,18 @@ BaseCache::getNextQueueEntry()
         // need to check for conflicting earlier writeback
         WriteQueueEntry *conflict_mshr = writeBuffer.findPending(miss_mshr);
         if (conflict_mshr) {
-            // not sure why we don't check order here... it was in the
-            // original code but commented out.
-
-            // The only way this happens is if we are
-            // doing a write and we didn't have permissions
-            // then subsequently saw a writeback (owned got evicted)
-            // We need to make sure to perform the writeback first
-            // To preserve the dirty data, then we can issue the write
-
-            // should we return wq_entry here instead?  I.e. do we
-            // have to flush writes in order?  I don't think so... not
-            // for Alpha anyway.  Maybe for x86?
             return conflict_mshr;
-
-            // @todo Note that we ignore the ready time of the conflict here
         }
 
         // No conflicts; issue read
         return miss_mshr;
+    } else if (wq_entry) {
+        // Fallback when no miss_mshr present
+        MSHR *conflict_mshr = mshrQueue.findPending(wq_entry);
+        if (conflict_mshr && conflict_mshr->order < wq_entry->order) {
+            return conflict_mshr;
+        }
+        return wq_entry;
     }
 
     // fall through... no pending requests.  Try a prefetch.
@@ -1962,6 +1985,22 @@ BaseCache::coalesce() const
     return writeAllocator && writeAllocator->coalesce();
 }
 
+bool
+BaseCache::isCompressionPressureActive() const
+{
+    if (!enableCompressionPressure || !tags) {
+        return false;
+    }
+    double occ = tags->getOccupancyRatio();
+    double threshold = (double)compressionPressureThreshold / 100.0;
+    if (occ >= threshold) {
+        if (compressor != nullptr || dynamic_cast<CompressedTags*>(tags) != nullptr) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void
 BaseCache::writebackVisitor(CacheBlk &blk)
 {
@@ -2001,8 +2040,20 @@ BaseCache::invalidateVisitor(CacheBlk &blk)
 Tick
 BaseCache::nextQueueReadyTime() const
 {
-    Tick nextReady = std::min(mshrQueue.nextReadyTime(),
-                              writeBuffer.nextReadyTime());
+    Tick mshr_ready = mshrQueue.nextReadyTime();
+    Tick wq_ready = writeBuffer.nextReadyTime();
+
+    double wb_occ = writeBuffer.capacity() > 0 ?
+        (double)writeBuffer.occupancy() / writeBuffer.capacity() : 0.0;
+    bool bypass = (wb_occ >= (double)writeBufferBypassThreshold / 100.0);
+
+    if (l2CompressionPressureActive && !bypass && writeBuffer.occupancy() > 0) {
+        Tick min_drain_time = lastWritebackDrainTick +
+            writebackThrottleDelay * clockPeriod();
+        wq_ready = std::max(wq_ready, min_drain_time);
+    }
+
+    Tick nextReady = std::min(mshr_ready, wq_ready);
 
     // Don't signal prefetch ready time if no MSHRs available
     // Will signal once enoguh MSHRs are deallocated
@@ -2138,6 +2189,7 @@ BaseCache::sendWriteQueuePacket(WriteQueueEntry* wq_entry)
         return true;
     } else {
         markInService(wq_entry);
+        lastWritebackDrainTick = curTick();
         return false;
     }
 }

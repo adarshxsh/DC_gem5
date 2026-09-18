@@ -336,6 +336,12 @@ class BaseTags : public ClockedObject
     virtual Addr regenerateBlkAddr(const CacheBlk* blk) const = 0;
 
     /**
+     * Get the occupancy ratio (0.0 to 1.0) of valid blocks in the tag store.
+     * @return Occupancy ratio.
+     */
+    virtual double getOccupancyRatio() const;
+
+    /**
      * Visit each block in the tags and apply a visitor
      *
      * The visitor should be a std::function that takes a cache block
