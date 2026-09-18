@@ -153,20 +153,44 @@ class MemInterface : public AbstractMemory
     /*
      * @return delay between write and read commands
      */
-    virtual Tick writeToReadDelay(Tick burst_len) const { return burst_len + tWTR; }
-    virtual Tick writeToReadDelay() const { return writeToReadDelay(tBURST); }
+    virtual Tick
+    writeToReadDelay(Tick burst_len) const
+    {
+        return burst_len + tWTR;
+    }
+    virtual Tick
+    writeToReadDelay() const
+    {
+        return writeToReadDelay(tBURST);
+    }
 
     /*
      * @return delay between read and write commands
      */
-    Tick readToWriteDelay(Tick burst_len) const { return burst_len + tRTW; }
-    Tick readToWriteDelay() const { return readToWriteDelay(tBURST); }
+    Tick
+    readToWriteDelay(Tick burst_len) const
+    {
+        return burst_len + tRTW;
+    }
+    Tick
+    readToWriteDelay() const
+    {
+        return readToWriteDelay(tBURST);
+    }
 
     /*
      * @return delay between accesses to different ranks
      */
-    Tick rankToRankDelay(Tick burst_len) const { return burst_len + tCS; }
-    Tick rankToRankDelay() const { return rankToRankDelay(tBURST); }
+    Tick
+    rankToRankDelay(Tick burst_len) const
+    {
+        return burst_len + tCS;
+    }
+    Tick
+    rankToRankDelay() const
+    {
+        return rankToRankDelay(tBURST);
+    }
 
   public:
 

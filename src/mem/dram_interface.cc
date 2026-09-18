@@ -406,13 +406,16 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         cmd_at = ctrl->verifySingleCmd(cmd_at, maxCommandsPerWindow, false);
 
     // Calculate effective burst length based on compressed payload size
-    unsigned comp_bytes = mem_pkt->pkt ? mem_pkt->pkt->getCompressedSize() : mem_pkt->size;
+    unsigned comp_bytes =
+        mem_pkt->pkt ? mem_pkt->pkt->getCompressedSize() : mem_pkt->size;
     if (comp_bytes == 0 || comp_bytes > burstSize) {
         comp_bytes = burstSize;
     }
 
     Tick min_burst = (tBURST_MIN < tBURST) ? tBURST_MIN : 1;
-    Tick eff_tBURST = std::max(min_burst, (Tick)divCeil((uint64_t)comp_bytes * tBURST, (uint64_t)burstSize));
+    Tick eff_tBURST =
+        std::max(min_burst, (Tick)divCeil((uint64_t)comp_bytes * tBURST,
+                                          (uint64_t)burstSize));
 
     // if we are interleaving bursts, ensure that
     // 1) we don't double interleave on next burst issue
@@ -428,7 +431,8 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
             cmd_at = rank_ref.lastBurstTick + eff_tBURST;
         }
     }
-    DPRINTF(DRAM, "Schedule RD/WR burst at tick %d (eff_tBURST=%d)\n", cmd_at, eff_tBURST);
+    DPRINTF(DRAM, "Schedule RD/WR burst at tick %d (eff_tBURST=%d)\n", cmd_at,
+            eff_tBURST);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {
@@ -461,10 +465,12 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                 } else {
                     // eff_tBURST is default requirement for diff BG timing
                     // Need to also take bus turnaround delays into account
-                    dly_to_rd_cmd = mem_pkt->isRead() ? burst_gap :
-                                                       writeToReadDelay(eff_tBURST);
-                    dly_to_wr_cmd = mem_pkt->isRead() ? readToWriteDelay(eff_tBURST) :
-                                                       burst_gap;
+                    dly_to_rd_cmd = mem_pkt->isRead()
+                                        ? burst_gap
+                                        : writeToReadDelay(eff_tBURST);
+                    dly_to_wr_cmd = mem_pkt->isRead()
+                                        ? readToWriteDelay(eff_tBURST)
+                                        : burst_gap;
                 }
             } else {
                 // different rank is by default in a different bank group and
