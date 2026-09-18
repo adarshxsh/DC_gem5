@@ -201,7 +201,6 @@ class QueuedPrefetcher(BasePrefetcher):
     compression_counter_bits = Param.Unsigned(
         3, "Bits for saturating confidence counter"
     )
-    )
 
 
 class StridePrefetcherHashedSetAssociative(TaggedSetAssociative):
