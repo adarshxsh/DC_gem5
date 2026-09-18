@@ -126,11 +126,11 @@ CacheBlk *
 CompressedTags::findBlock(const CacheBlk::KeyType &key) const
 {
     const Addr offset = extractSectorOffset(key.address);
-    const std::vector<ReplaceableEntry*> entries =
+    const std::vector<ReplaceableEntry *> entries =
         indexingPolicy->getPossibleEntries(key);
 
-    for (const auto& entry : entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    for (const auto &entry : entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         if (superblock->match(key)) {
             int slot = superblock->getSlot(offset);
             if (slot != -1 && slot < superblock->blks.size()) {
@@ -168,10 +168,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+        if (superblock->match(key) && superblock->isCompressed() &&
+            superblock->canCoAllocate(compressed_size)) {
             if (is_prefetch && superblock->hasValidDemand()) {
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);
@@ -228,11 +226,12 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Get the location of the victim block within the superblock.
-    // In a compacted superblock, valid blocks occupy contiguous low-index slots,
-    // so the next available slot for allocation is at slot index numValid.
+    // In a compacted superblock, valid blocks occupy contiguous low-index
+    // slots, so the next available slot for allocation is at slot index
+    // numValid.
     int target_slot = victim_superblock->getNumValid();
     assert(target_slot < victim_superblock->blks.size());
-    SectorSubBlk* victim = victim_superblock->blks[target_slot];
+    SectorSubBlk *victim = victim_superblock->blks[target_slot];
 
     victim->setSectorOffset(offset);
     victim_superblock->mapOffset(offset, target_slot);
