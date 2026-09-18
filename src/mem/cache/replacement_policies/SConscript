@@ -31,11 +31,13 @@ Import('*')
 SimObject('ReplacementPolicies.py', sim_objects=[
     'BaseReplacementPolicy', 'DuelingRP', 'FIFORP', 'SecondChanceRP',
     'LFURP', 'LRURP', 'BIPRP', 'MRURP', 'RandomRP', 'BRRIPRP', 'SHiPRP',
-    'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP'])
+    'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP', 'DWLRURP',
+    'DensityWeightedLRURP'])
 
 Source('bip_rp.cc')
 Source('brrip_rp.cc')
 Source('dueling_rp.cc')
+Source('dwlru_rp.cc')
 Source('fifo_rp.cc')
 Source('lfu_rp.cc')
 Source('lru_rp.cc')
@@ -53,3 +55,5 @@ GTest('fifo_rp.test', 'fifo_rp.cc', 'fifo_rp.test.cc',
     with_tag('gem5 simobject'))
 GTest('lfu_rp.test', 'lfu_rp.cc', 'lfu_rp.test.cc', with_tag('gem5 simobject'))
 GTest('mru_rp.test', 'mru_rp.cc', 'mru_rp.test.cc', with_tag('gem5 simobject'))
+GTest('dwlru_rp.test', 'dwlru_rp.cc', 'lru_rp.cc', '../tags/sector_blk.cc',
+    'dwlru_rp.test.cc', with_tag('gem5 simobject'))
