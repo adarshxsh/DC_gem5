@@ -128,8 +128,15 @@ class Base : public SimObject
     /** Whether adaptive compression bypass is enabled. */
     const bool enableAdaptiveBypass;
 
+    /** Upper and lower hysteresis thresholds for adaptive bypass. */
+    const float hysteresisHighThreshold;
+    const float hysteresisLowThreshold;
+
     /** Compression ratio threshold below which compression is bypassed. */
     const float latencyBreakevenThreshold;
+
+    /** Current bypass state for hysteresis windowing. */
+    bool isBypassed;
 
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;

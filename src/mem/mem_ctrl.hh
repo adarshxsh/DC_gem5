@@ -361,6 +361,12 @@ class MemCtrl : public qos::MemCtrl
                          MemInterface* mem_intr);
 
     /**
+     * Update EMA statistics for read and write queues.
+     */
+    void updateRdQueueEMA();
+    void updateWrQueueEMA();
+
+    /**
      * Actually do the burst based on media specific access function.
      * Update bus statistics when complete.
      *
@@ -558,6 +564,13 @@ class MemCtrl : public qos::MemCtrl
      * and access, it is tRP + tRCD + tCL.
      */
     Tick nextReqTime;
+
+    /** EMA smoothing factor for queue statistics. */
+    const double emaAlpha;
+
+    /** Exponentially smoothed read and write queue length statistics. */
+    double smoothedRdQLen;
+    double smoothedWrQLen;
 
     struct CtrlStats : public statistics::Group
     {
