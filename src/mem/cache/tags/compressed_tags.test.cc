@@ -282,3 +282,55 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, PrefetchCompressionFactorGuard)
+{
+    // Insert a high-compression demand block (64 bits -> CF=8) into superBlk
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].clearPrefetched(); // Mark as demand block
+
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+
+    // For demand fill (is_prefetch = false), co-allocation with CF=4 (128
+    // bits) is allowed
+    ASSERT_TRUE(superBlk.canCoAllocate(128, /*is_prefetch=*/false));
+
+    // For prefetch fill (is_prefetch = true), co-allocation with CF=4 (128
+    // bits < 8) MUST be rejected
+    ASSERT_FALSE(superBlk.canCoAllocate(128, /*is_prefetch=*/true));
+
+    // For prefetch fill with equal CF=8 (64 bits), co-allocation MUST be
+    // allowed
+    ASSERT_TRUE(superBlk.canCoAllocate(64, /*is_prefetch=*/true));
+
+    // Co-allocate a prefetch block with equal CF=8
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(64);
+    subBlks[1].setPrefetched();
+
+    // Compression factor must remain 8 (no downgrade)
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, DemandSubBlockProtection)
+{
+    // Setup superBlk with a demand sub-block
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].clearPrefetched();
+
+    // Verify subBlks[0] is recognized as a valid demand sub-block
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_FALSE(subBlks[0].wasPrefetched());
+
+    // Setup subBlks[1] as a prefetched sub-block
+    subBlks[1].insert({0x5000, false});
+    subBlks[1].setSizeBits(64);
+    subBlks[1].setPrefetched();
+
+    ASSERT_TRUE(subBlks[1].isValid());
+    ASSERT_TRUE(subBlks[1].wasPrefetched());
+}
