@@ -1779,9 +1779,9 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // get partitionId from Packet
     const auto partition_id = partitionManager ?
         partitionManager->readPacketPartitionID(pkt) : 0;
-    const bool is_prefetch = (pkt->cmd == MemCmd::HardPFReq ||
-                              (pkt->req && pkt->req->isPrefetch()) ||
-                              pkt->isPrefetch());
+    const bool is_prefetch =
+        (pkt->cmd == MemCmd::HardPFReq ||
+         (pkt->req && pkt->req->isPrefetch()) || pkt->isPrefetch());
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim = tags->findVictim({addr, is_secure}, blk_size_bits,
