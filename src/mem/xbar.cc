@@ -45,6 +45,7 @@
 
 #include "mem/xbar.hh"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 
@@ -131,9 +132,11 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
         // deliver the payload of the packet, after the header delay,
         // we take the maximum since the payload delay could already
         // be longer than what this parcitular crossbar enforces.
-        pkt->payloadDelay = std::max<Tick>(pkt->payloadDelay,
-                                           divCeil(pkt->getSize(), width) *
-                                           clockPeriod());
+        std::size_t pkt_size = pkt->hasCompressedSize()
+                                   ? pkt->getCompressedSize()
+                                   : pkt->getSize();
+        pkt->payloadDelay = std::max<Tick>(
+            pkt->payloadDelay, divCeil(pkt_size, width) * clockPeriod());
     }
 
     // the payload delay is not paying for the clock offset as that is
