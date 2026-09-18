@@ -102,6 +102,26 @@ class MemCtrl(QoSMemCtrl):
     command_window = Param.Latency("10ns", "Static backend latency")
     disable_sanity_check = Param.Bool(False, "Disable port resp Q size check")
 
+    ema_alpha = Param.Float(
+        0.125, "EMA smoothing factor for write queue feedback controller"
+    )
+    high_watermark_ratio = Param.Float(
+        0.85, "High watermark ratio for write queue pressure"
+    )
+    low_watermark_ratio = Param.Float(
+        0.50, "Low watermark ratio for write queue pressure"
+    )
+    min_residency_ticks = Param.Unsigned(
+        0, "Minimum residency dwell time in ticks before state transition"
+    )
+    enable_ema = Param.Bool(
+        True, "Enable EMA signal smoothing in feedback controller"
+    )
+    enable_hysteresis = Param.Bool(
+        True,
+        "Enable dual-threshold hysteresis windowing in feedback controller",
+    )
+
 
 add_citation(
     MemCtrl,
