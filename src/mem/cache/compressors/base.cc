@@ -94,6 +94,9 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      enableQueuePressureThrottling(p.enable_queue_pressure_throttling),
+      queuePressureThreshold(p.queue_pressure_threshold),
+      pressureThrottlingPolicy(p.pressure_throttling_policy),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -118,6 +121,15 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+double
+Base::getQueuePressure() const
+{
+    if (cache) {
+        return cache->getQueuePressure();
+    }
+    return 0.0;
 }
 
 std::vector<Base::Chunk>
@@ -160,6 +172,24 @@ std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
     totalCompressionRequests++;
+
+    if (enableQueuePressureThrottling &&
+        (getQueuePressure() >= queuePressureThreshold)) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.queuePressureBypassedCompressions++;
+        stats.bypassedCompressions++;
+        DPRINTF(CacheComp,
+                "Queue pressure throttling active (observed pressure: %.2f%% "
+                ">= threshold: %.2f%%). "
+                "Bypassing compression.\n",
+                getQueuePressure(), queuePressureThreshold);
+        return comp_data;
+    }
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
@@ -285,6 +315,13 @@ Base::getDecompressionLatency(const CacheBlk* blk)
         }
     }
 
+    if (enableQueuePressureThrottling && comp_blk &&
+        !comp_blk->isCompressed()) {
+        if (getQueuePressure() >= queuePressureThreshold) {
+            stats.queuePressureBypassedDecompressions += 1;
+        }
+    }
+
     // Block is not compressed, so there is no decompression latency
     return Cycles(0);
 }
@@ -331,6 +368,13 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of bypassed compressions"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
+      ADD_STAT(
+          queuePressureBypassedCompressions, statistics::units::Count::get(),
+          "Total number of compressions bypassed due to high queue pressure"),
+      ADD_STAT(queuePressureBypassedDecompressions,
+               statistics::units::Count::get(),
+               "Total number of decompressions bypassed due to high queue "
+               "pressure"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),
                "Total number of sampled compressions"),
       ADD_STAT(sampledUncompressedBits, statistics::units::Bit::get(),
