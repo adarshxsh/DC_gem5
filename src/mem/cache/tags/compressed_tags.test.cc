@@ -93,7 +93,8 @@ class SuperBlkTestFixture : public ::testing::Test
             ASSERT_EQ(sb.getCompressionFactor(), 1);
         }
 
-        // Verify slot compaction invariant: active sub-blocks are contiguous in slots 0..count_valid-1
+        // Verify slot compaction invariant: active sub-blocks are contiguous
+        // in slots 0..count_valid-1
         for (uint8_t i = 0; i < count_valid; ++i) {
             ASSERT_TRUE(sb.blks[i]->isValid());
         }
@@ -165,7 +166,7 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     // Freed capacity can now co-allocate another 64-bit block
     ASSERT_TRUE(superBlk.canCoAllocate(64));
     int slot2 = superBlk.getSlotForOffset(2);
-    auto cblk2 = static_cast<CompressionBlk*>(superBlk.blks[slot2]);
+    auto cblk2 = static_cast<CompressionBlk *>(superBlk.blks[slot2]);
     cblk2->insert({0x1000, false});
     cblk2->setSizeBits(64);
 
@@ -201,13 +202,13 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
     // Move subBlks[1] (128 bits) to subBlksB[1] in superBlkB
     int slotA1 = superBlk.getSlotForOffset(1);
     int slotB1 = superBlkB.getSlotForOffset(1);
-    auto cblkA1 = static_cast<CompressionBlk*>(superBlk.blks[slotA1]);
-    auto cblkB1 = static_cast<CompressionBlk*>(superBlkB.blks[slotB1]);
+    auto cblkA1 = static_cast<CompressionBlk *>(superBlk.blks[slotA1]);
+    auto cblkB1 = static_cast<CompressionBlk *>(superBlkB.blks[slotB1]);
     *cblkB1 = std::move(*cblkA1);
 
     // Verify subBlksB offset 1 is valid and retained its 128-bit size
     int newSlotB1 = superBlkB.getSlotForOffset(1);
-    auto newBlkB1 = static_cast<CompressionBlk*>(superBlkB.blks[newSlotB1]);
+    auto newBlkB1 = static_cast<CompressionBlk *>(superBlkB.blks[newSlotB1]);
     ASSERT_TRUE(newBlkB1->isValid());
     ASSERT_EQ(newBlkB1->getSizeBits(), 128);
     ASSERT_EQ(superBlkB.getNumValid(), 1);
@@ -215,7 +216,7 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
 
     // Verify superBlk (A) lost offset 1, so its CF recovered to 8
     int newSlotA1 = superBlk.getSlotForOffset(1);
-    auto newBlkA1 = static_cast<CompressionBlk*>(superBlk.blks[newSlotA1]);
+    auto newBlkA1 = static_cast<CompressionBlk *>(superBlk.blks[newSlotA1]);
     ASSERT_FALSE(newBlkA1->isValid());
     ASSERT_EQ(superBlk.getNumValid(), 1);
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
@@ -276,7 +277,7 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         std::size_t sz = sizes[(iter * 7) % 4];
 
         int slot = sblks[sb_idx].getSlotForOffset(sub_idx);
-        auto cblk = static_cast<CompressionBlk*>(sblks[sb_idx].blks[slot]);
+        auto cblk = static_cast<CompressionBlk *>(sblks[sb_idx].blks[slot]);
 
         if (!cblk->isValid()) {
             Addr tag = tag_base + (sb_idx * 0x1000);
@@ -292,8 +293,8 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             // and destination superblock tag matches or is invalid
             int target_sb = (sb_idx + 1) % NumSuperBlks;
             int target_slot = sblks[target_sb].getSlotForOffset(sub_idx);
-            auto target_cblk =
-                static_cast<CompressionBlk*>(sblks[target_sb].blks[target_slot]);
+            auto target_cblk = static_cast<CompressionBlk *>(
+                sblks[target_sb].blks[target_slot]);
             if (!target_cblk->isValid() &&
                 (!sblks[target_sb].isValid() ||
                  sblks[target_sb].getTag() == cblk->getTag())) {
@@ -312,7 +313,8 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
 
 TEST_F(SuperBlkTestFixture, DynamicSlotCompactionAndOffsetRemapping)
 {
-    // Populate sub-blocks at sector offsets 0, 1, 2, 3 with CF=8 (64 bits each)
+    // Populate sub-blocks at sector offsets 0, 1, 2, 3 with CF=8 (64 bits
+    // each)
     for (unsigned k = 0; k < 4; ++k) {
         subBlks[k].insert({0x5000, false});
         subBlks[k].setSizeBits(64);
@@ -350,11 +352,12 @@ TEST_F(SuperBlkTestFixture, DynamicSlotCompactionAndOffsetRemapping)
 
     verifyInvariants(superBlk);
 
-    // Co-allocate a new block for sector offset 1 into available free slot (slot 3)
+    // Co-allocate a new block for sector offset 1 into available free slot
+    // (slot 3)
     int slot1 = superBlk.getSlotForOffset(1);
     ASSERT_FALSE(superBlk.blks[slot1]->isValid());
     superBlk.blks[slot1]->insert({0x5000, false});
-    static_cast<CompressionBlk*>(superBlk.blks[slot1])->setSizeBits(64);
+    static_cast<CompressionBlk *>(superBlk.blks[slot1])->setSizeBits(64);
 
     ASSERT_EQ(superBlk.getNumValid(), 4);
     verifyInvariants(superBlk);
