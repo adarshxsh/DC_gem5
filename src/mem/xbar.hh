@@ -72,7 +72,6 @@ class BaseXBar : public ClockedObject
 {
 
   public:
-
     /**
      * A layer is an internal crossbar arbitration point with its own
      * flow control. Each layer is a converging multiplexer tree. By
@@ -116,7 +115,6 @@ class BaseXBar : public ClockedObject
 
         const std::string name() const { return _name; }
 
-
         /**
          * Determine if the layer accepts a packet from a specific
          * port. If not, the port in question is also added to the
@@ -128,7 +126,7 @@ class BaseXBar : public ClockedObject
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port, PacketPtr pkt = nullptr);
+        bool tryTiming(SrcType *src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -207,17 +205,19 @@ class BaseXBar : public ClockedObject
 
         struct WaitingPort
         {
-            SrcType* srcPort;
+            SrcType *srcPort;
             bool isDemand;
             Tick payloadDelay;
             Tick arrivalTick;
             unsigned int ageCounter;
 
-            WaitingPort(SrcType* _port = nullptr, bool _is_demand = false,
+            WaitingPort(SrcType *_port = nullptr, bool _is_demand = false,
                         Tick _payload_delay = 0, Tick _arrival_tick = 0,
                         unsigned int _age = 0)
-                : srcPort(_port), isDemand(_is_demand),
-                  payloadDelay(_payload_delay), arrivalTick(_arrival_tick),
+                : srcPort(_port),
+                  isDemand(_is_demand),
+                  payloadDelay(_payload_delay),
+                  arrivalTick(_arrival_tick),
                   ageCounter(_age)
             {}
         };
@@ -424,11 +424,13 @@ class BaseXBar : public ClockedObject
     const unsigned starvationThreshold;
 
   public:
-
-    unsigned getStarvationThreshold() const { return starvationThreshold; }
+    unsigned
+    getStarvationThreshold() const
+    {
+        return starvationThreshold;
+    }
 
   protected:
-
     BaseXBar(const BaseXBarParams &p);
 
     /**
