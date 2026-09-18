@@ -82,9 +82,9 @@ class CompressionBlk : public SectorSubBlk
     };
 
     CompressionBlk();
-    CompressionBlk(const CompressionBlk&) = delete;
-    CompressionBlk& operator=(const CompressionBlk&) = delete;
-    CompressionBlk(CompressionBlk&&) = delete;
+    CompressionBlk(const CompressionBlk &) = delete;
+    CompressionBlk &operator=(const CompressionBlk &) = delete;
+    CompressionBlk(CompressionBlk &&) = delete;
     /**
      * Move assignment operator.
      * This should only be used to move an existing valid entry into an
@@ -92,8 +92,8 @@ class CompressionBlk : public SectorSubBlk
      * will become invalid, and the invalid, valid. All location related
      * variables will remain the same.
      */
-    CompressionBlk& operator=(CompressionBlk&& other);
-    CacheBlk& operator=(CacheBlk&& other) override;
+    CompressionBlk &operator=(CompressionBlk &&other);
+    CacheBlk &operator=(CacheBlk &&other) override;
     ~CompressionBlk() = default;
 
     /**
@@ -143,6 +143,8 @@ class CompressionBlk : public SectorSubBlk
 
     void invalidate() override;
 
+    void insert(const KeyType &tag) override;
+
     /**
      * Determines if changing the size of the block will cause a data
      * expansion (new size is bigger) or contraction (new size is smaller).
@@ -180,11 +182,44 @@ class SuperBlk : public SectorBlk
      */
     uint8_t compressionFactor;
 
+    /** Reentrancy guard to prevent recursive compaction. */
+    bool inCompaction;
+
+    /** Flag indicating whether the entire superblock is being invalidated. */
+    bool isInvalidationInProgress;
+
   public:
     SuperBlk();
-    SuperBlk(const SuperBlk&) = delete;
-    SuperBlk& operator=(const SuperBlk&) = delete;
-    ~SuperBlk() {};
+    SuperBlk(const SuperBlk &) = delete;
+    SuperBlk &operator=(const SuperBlk &) = delete;
+    ~SuperBlk(){};
+
+    /**
+     * Get uncompressed block size in bytes.
+     *
+     * @return Block size in bytes.
+     */
+    std::size_t
+    getBlockSize() const
+    {
+        return blkSize;
+    }
+
+    /**
+     * Compact active sub-blocks into contiguous lower slots [0, numValid - 1].
+     */
+    void compact();
+
+    /**
+     * Check if invalidation of all sub-blocks is in progress.
+     *
+     * @return True if superblock invalidation is active.
+     */
+    bool
+    isInvalidatingAll() const
+    {
+        return isInvalidationInProgress;
+    }
 
     /**
      * Returns whether the superblock contains compressed blocks or not. By
@@ -193,7 +228,7 @@ class SuperBlk : public SectorBlk
      * @param ignored_blk If provided don't consider the given block.
      * @return The compressibility state of the superblock.
      */
-    bool isCompressed(const CompressionBlk* ignored_blk = nullptr) const;
+    bool isCompressed(const CompressionBlk *ignored_blk = nullptr) const;
 
     /**
      * Checks whether a superblock can co-allocate given compressed data block.
