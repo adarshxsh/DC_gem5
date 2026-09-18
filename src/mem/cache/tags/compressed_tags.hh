@@ -87,9 +87,19 @@ class CompressedTags : public SectorTags
     /** The cache superblocks. */
     std::vector<SuperBlk> superBlks;
 
+    /** Configured sector eviction threshold to signal high compression
+     * pressure. */
+    const uint64_t sectorEvictionThreshold;
+
+    /** Cumulative total of sector evictions across co-allocation failures. */
+    mutable uint64_t totalSectorEvictions;
+
+    /** Flag indicating if superblock co-allocation failed recently. */
+    mutable bool coAllocationFailed;
+
   public:
     /** Convenience typedef. */
-     typedef CompressedTagsParams Params;
+    typedef CompressedTagsParams Params;
 
     /**
      * Construct and initialize this tag store.
@@ -99,7 +109,7 @@ class CompressedTags : public SectorTags
     /**
      * Destructor.
      */
-    virtual ~CompressedTags() {};
+    virtual ~CompressedTags(){};
 
     /**
      * Initialize blocks as SuperBlk and CompressionBlk instances.
@@ -117,9 +127,9 @@ class CompressedTags : public SectorTags
      * @param partition_id Partition ID for resource management.
      * @return Cache block to be replaced.
      */
-    CacheBlk* findVictim(const CacheBlk::KeyType& key,
+    CacheBlk *findVictim(const CacheBlk::KeyType &key,
                          const std::size_t compressed_size,
-                         std::vector<CacheBlk*>& evict_blks,
+                         std::vector<CacheBlk *> &evict_blks,
                          const uint64_t partition_id) override;
 
     /**
@@ -139,6 +149,18 @@ class CompressedTags : public SectorTags
      * @return True if all invariants hold.
      */
     bool checkInvariants() const override;
+
+    /**
+     * Check if compressed tags generate high pressure signal due to
+     * co-allocation failure or total sector eviction count exceeding
+     * threshold.
+     */
+    bool
+    hasCompressionPressure() const override
+    {
+        return coAllocationFailed ||
+               (totalSectorEvictions >= sectorEvictionThreshold);
+    }
 };
 
 } // namespace gem5

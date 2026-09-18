@@ -154,6 +154,11 @@ class CompressedTags(SectorTags):
         2, "Maximum number of compressed blocks per tag."
     )
 
+    # Configured threshold for sector evictions to trigger compression pressure
+    sector_eviction_threshold = Param.Int(
+        10, "Sector eviction threshold to signal compression pressure"
+    )
+
     # We simulate superblock as sector blocks
     num_blocks_per_sector = Self.max_compression_ratio
 
