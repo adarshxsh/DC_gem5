@@ -659,7 +659,9 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
             // Request the bus for a prefetch if this deallocation freed enough
             // MSHRs for a prefetch to take place
-            if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+            double congestion = getCongestionScore();
+            if (prefetcher && mshrQueue.canPrefetch(congestion) &&
+                !isBlocked()) {
                 Tick next_pf_time = std::max(
                     prefetcher->nextPrefetchReadyTime(), clockEdge());
                 if (next_pf_time != MaxTick)
@@ -953,7 +955,8 @@ BaseCache::getNextQueueEntry()
 
     // fall through... no pending requests.  Try a prefetch.
     assert(!miss_mshr && !wq_entry);
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    double congestion = getCongestionScore();
+    if (prefetcher && mshrQueue.canPrefetch(congestion) && !isBlocked()) {
         // If we have a miss queue slot, we can try a prefetch
         PacketPtr pkt = prefetcher->getPacket();
         if (pkt) {
@@ -1560,7 +1563,9 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // When a block is compressed, it must first be decompressed
             // before being read. This adds to the access latency.
             if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
+                Cycles dlat = compressor->getDecompressionLatency(blk);
+                lat += dlat;
+                updateCongestionMetrics(dlat);
             }
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
@@ -1829,7 +1834,9 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        Cycles dlat = compressor->getDecompressionLatency(blk);
+        pkt->payloadDelay = dlat;
+        updateCongestionMetrics(dlat);
     }
 
     return pkt;
@@ -1874,7 +1881,9 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        Cycles dlat = compressor->getDecompressionLatency(blk);
+        pkt->payloadDelay = dlat;
+        updateCongestionMetrics(dlat);
     }
 
     return pkt;
@@ -1950,7 +1959,8 @@ BaseCache::nextQueueReadyTime() const
 
     // Don't signal prefetch ready time if no MSHRs available
     // Will signal once enoguh MSHRs are deallocated
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    double congestion = getCongestionScore();
+    if (prefetcher && mshrQueue.canPrefetch(congestion) && !isBlocked()) {
         nextReady = std::min(nextReady,
                              prefetcher->nextPrefetchReadyTime());
     }
@@ -1958,6 +1968,41 @@ BaseCache::nextQueueReadyTime() const
     return nextReady;
 }
 
+void
+BaseCache::updateCongestionMetrics(Cycles decomp_lat)
+{
+    constexpr double alpha = 0.1;
+    size_t cur_port_q = memSidePort.reqQueueSize();
+    portOccupancyEMA = (1.0 - alpha) * portOccupancyEMA +
+                       alpha * static_cast<double>(cur_port_q);
+    decompLatencyEMA = (1.0 - alpha) * decompLatencyEMA +
+                       alpha * static_cast<double>(decomp_lat);
+}
+
+double
+BaseCache::getCongestionScore() const
+{
+    constexpr double alpha = 0.05;
+    size_t cur_port_q = memSidePort.reqQueueSize();
+    portOccupancyEMA = (1.0 - alpha) * portOccupancyEMA +
+                       alpha * static_cast<double>(cur_port_q);
+
+    int total_mshr_cap = mshrQueue.getCapacity();
+    double mshr_ratio =
+        (total_mshr_cap > 0)
+            ? static_cast<double>(mshrQueue.getDemandAllocated()) /
+                  total_mshr_cap
+            : 0.0;
+
+    double port_ratio = std::min(1.0, portOccupancyEMA / 8.0);
+    double comp_ratio = std::min(1.0, decompLatencyEMA / 10.0);
+
+    double composite = 0.4 * mshr_ratio + 0.3 * port_ratio + 0.3 * comp_ratio;
+    double max_metric = std::max({mshr_ratio, port_ratio, comp_ratio});
+
+    double score = std::max(composite, max_metric);
+    return std::clamp(score, 0.0, 1.0);
+}
 
 bool
 BaseCache::sendMSHRQueuePacket(MSHR* mshr)

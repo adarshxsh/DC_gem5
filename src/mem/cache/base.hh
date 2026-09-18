@@ -247,6 +247,13 @@ class BaseCache : public ClockedObject
 
         MemSidePort(const std::string &_name, BaseCache *_cache,
                     const std::string &_label);
+
+        /** Get downstream request queue size */
+        size_t
+        reqQueueSize() const
+        {
+            return _reqQueue.size();
+        }
     };
 
     /**
@@ -355,6 +362,12 @@ class BaseCache : public ClockedObject
         getCompressionFactor(Addr addr, bool is_secure) const override
         {
             return cache.getCompressionFactor(addr, is_secure);
+        }
+
+        double
+        getCongestionScore() const override
+        {
+            return cache.getCongestionScore();
         }
 
     } accessor;
@@ -493,6 +506,25 @@ class BaseCache : public ClockedObject
      */
     Cycles calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
                                   const Cycles lookup_lat) const;
+
+  protected:
+    /** Exponential moving averages for adaptive congestion tracking */
+    mutable double portOccupancyEMA = 0.0;
+    mutable double decompLatencyEMA = 0.0;
+
+  public:
+    /**
+     * Update congestion metrics with latest access decompression latency.
+     * @param decomp_lat Cycles of decompression latency incurred
+     */
+    void updateCongestionMetrics(Cycles decomp_lat = Cycles(0));
+
+    /**
+     * Calculates real-time congestion score combining demand MSHR utilization,
+     * downstream port queue occupancy, and decompression latencies.
+     * @return composite congestion score in [0.0, 1.0]
+     */
+    double getCongestionScore() const;
 
     /**
      * Does all the processing necessary to perform the provided request.

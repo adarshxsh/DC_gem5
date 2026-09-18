@@ -84,6 +84,13 @@ struct CacheAccessor
     {
         return 1;
     }
+
+    /** Get current cache congestion score */
+    virtual double
+    getCongestionScore() const
+    {
+        return 0.0;
+    }
 };
 
 /**
