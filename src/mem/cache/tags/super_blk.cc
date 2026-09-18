@@ -212,11 +212,11 @@ SuperBlk::getPhysicalSlot(int logical_offset) const
     return InvalidSlot;
 }
 
-SectorSubBlk*
+SectorSubBlk *
 SuperBlk::getSubBlk(int logical_offset) const
 {
     if (indirectMap.size() != blks.size()) {
-        const_cast<SuperBlk*>(this)->initIndirectMap(blks.size());
+        const_cast<SuperBlk *>(this)->initIndirectMap(blks.size());
     }
     int p_idx = getPhysicalSlot(logical_offset);
     if (p_idx != InvalidSlot && p_idx >= 0 && p_idx < blks.size()) {
@@ -229,16 +229,17 @@ bool
 SuperBlk::isLogicalMapped(int logical_offset) const
 {
     if (indirectMap.size() != blks.size()) {
-        const_cast<SuperBlk*>(this)->initIndirectMap(blks.size());
+        const_cast<SuperBlk *>(this)->initIndirectMap(blks.size());
     }
     int p_idx = getPhysicalSlot(logical_offset);
-    return (p_idx != InvalidSlot && p_idx >= 0 && p_idx < blks.size() && blks[p_idx]->isValid());
+    return (p_idx != InvalidSlot && p_idx >= 0 && p_idx < blks.size() &&
+            blks[p_idx]->isValid());
 }
 
 bool
 SuperBlk::hasFreePhysicalSlot() const
 {
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (!blk->isValid()) {
             return true;
         }
@@ -313,7 +314,7 @@ SuperBlk::unmapPhysical(int physical_slot)
 }
 
 void
-SuperBlk::unmapSubBlk(const SectorSubBlk* sub_blk)
+SuperBlk::unmapSubBlk(const SectorSubBlk *sub_blk)
 {
     for (int i = 0; i < blks.size(); ++i) {
         if (blks[i] == sub_blk) {
@@ -327,7 +328,7 @@ void
 SuperBlk::invalidate()
 {
     SectorBlk::invalidate();
-    for (auto& blk : blks) {
+    for (auto &blk : blks) {
         if (blk && blk->isValid()) {
             blk->invalidate();
         }

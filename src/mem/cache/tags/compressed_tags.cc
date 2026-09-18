@@ -209,7 +209,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
 
     // Assign logical offset to a physical sub-block slot in victim superblock
     int p_idx = victim_superblock->mapLogicalToPhysical(offset);
-    SectorSubBlk* victim = victim_superblock->blks[p_idx];
+    SectorSubBlk *victim = victim_superblock->blks[p_idx];
 
     // It would be a hit if victim was valid in a co-allocation, and upgrades
     // do not call findVictim, so it cannot happen
