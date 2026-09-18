@@ -69,7 +69,7 @@ class SuperBlkTestFixture : public ::testing::Test
     verifyInvariants(const SuperBlk &sb)
     {
         uint8_t count_valid = 0;
-        uint8_t min_cf = sb.blks.size();
+        uint8_t min_cf = static_cast<uint8_t>(sb.blks.size());
         for (const auto &blk : sb.blks) {
             if (blk->isValid()) {
                 count_valid++;
