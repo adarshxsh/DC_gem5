@@ -325,13 +325,15 @@ TEST_F(SuperBlkTestFixture, VariableRatioCoAllocationAccumulativeBits)
     // Try co-allocating 256-bit block: 384 + 256 = 640 > 512 bits -> false
     ASSERT_FALSE(superBlk.canCoAllocate(256));
 
-    // Co-allocate block 3 at offset 3 (size 128 bits) -> exact capacity boundary (512 bits)
+    // Co-allocate block 3 at offset 3 (size 128 bits) -> exact capacity
+    // boundary (512 bits)
     subBlks[3].insert({0x5000, false});
     subBlks[3].setSizeBits(128);
 
     ASSERT_EQ(superBlk.getNumValid(), 4);
     verifyInvariants(superBlk);
 
-    // Total bits is now 512. Any non-zero compressed payload exceeds physical capacity
+    // Total bits is now 512. Any non-zero compressed payload exceeds physical
+    // capacity
     ASSERT_FALSE(superBlk.canCoAllocate(64));
 }
