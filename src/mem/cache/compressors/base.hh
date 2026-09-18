@@ -71,7 +71,8 @@ class Base : public SimObject
     class CompressionData;
 
   public:
-    enum CongestionLevel {
+    enum CongestionLevel
+    {
         NORMAL = 0,
         CONGESTED = 1,
         HIGH_PRESSURE = 2
@@ -254,7 +255,11 @@ class Base : public SimObject
 
     /** Update operational mode based on downstream memory queue pressure. */
     virtual void setCongestionLevel(CongestionLevel level);
-    CongestionLevel getCongestionLevel() const { return congestionLevel; }
+    CongestionLevel
+    getCongestionLevel() const
+    {
+        return congestionLevel;
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression
