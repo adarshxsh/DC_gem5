@@ -94,6 +94,11 @@ class BaseXBar(ClockedObject):
         False, "Perform address mapping for the default port"
     )
 
+    # Maximum consecutive demand retries before servicing writebacks
+    starvation_threshold = Param.Unsigned(
+        10, "Maximum consecutive demand retries before servicing writebacks"
+    )
+
 
 class NoncoherentXBar(BaseXBar):
     type = "NoncoherentXBar"
