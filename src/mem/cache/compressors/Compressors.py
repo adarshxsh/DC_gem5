@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects.IndexingPolicies import *
+from m5.objects.MemCtrl import MemCtrl
 from m5.objects.ReplacementPolicies import *
 from m5.params import *
 from m5.proxy import *
@@ -79,6 +80,19 @@ class BaseCacheCompressor(SimObject):
     decay_shift = Param.Unsigned(
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
+    )
+
+    high_queue_pressure_threshold = Param.Percent(
+        80, "High queue pressure threshold percentage"
+    )
+    low_queue_pressure_threshold = Param.Percent(
+        50, "Low queue pressure threshold percentage"
+    )
+    enable_queue_pressure_throttling = Param.Bool(
+        False, "Enable queue pressure throttling"
+    )
+    memory_controllers = VectorParam.MemCtrl(
+        [], "Target memory controllers for queue pressure monitoring"
     )
 
 

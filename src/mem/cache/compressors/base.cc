@@ -94,6 +94,10 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      highQueuePressureThreshold(p.high_queue_pressure_threshold),
+      lowQueuePressureThreshold(p.low_queue_pressure_threshold),
+      enableQueuePressureThrottling(p.enable_queue_pressure_throttling),
+      memoryControllers(p.memory_controllers),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -111,6 +115,12 @@ Base::Base(const Params &p)
         "chunks in the input");
 
     fatal_if(blkSize < sizeThreshold, "Compressed data must fit in a block");
+
+    fatal_if(
+        lowQueuePressureThreshold >= highQueuePressureThreshold,
+        "High queue pressure threshold (%d) must be greater than low queue "
+        "pressure threshold (%d).",
+        highQueuePressureThreshold, lowQueuePressureThreshold);
 }
 
 void

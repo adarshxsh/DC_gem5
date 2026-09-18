@@ -50,6 +50,11 @@ class BaseCache;
 class CacheBlk;
 struct BaseCacheCompressorParams;
 
+namespace memory
+{
+class MemCtrl;
+}
+
 namespace compression
 {
 
@@ -136,6 +141,18 @@ class Base : public SimObject
 
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
+
+    /** High queue pressure threshold percentage. */
+    const uint8_t highQueuePressureThreshold;
+
+    /** Low queue pressure threshold percentage. */
+    const uint8_t lowQueuePressureThreshold;
+
+    /** Whether queue pressure throttling is enabled. */
+    const bool enableQueuePressureThrottling;
+
+    /** Memory controllers bound to this compressor for pressure monitoring. */
+    const std::vector<memory::MemCtrl *> memoryControllers;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
