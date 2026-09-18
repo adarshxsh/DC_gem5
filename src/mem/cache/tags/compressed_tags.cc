@@ -144,33 +144,35 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
 
     const uint64_t offset = extractSectorOffset(key.address);
 
-    SuperBlk* best_superblock = nullptr;
+    SuperBlk *best_superblock = nullptr;
     bool best_is_co_allocation = false;
     std::size_t min_evictions = std::numeric_limits<std::size_t>::max();
     ssize_t max_net_space = std::numeric_limits<ssize_t>::lowest();
     std::size_t min_valid_count = std::numeric_limits<std::size_t>::max();
-    std::vector<ReplaceableEntry*> tied_candidates;
+    std::vector<ReplaceableEntry *> tied_candidates;
 
-    for (const auto& entry : superblock_entries) {
+    for (const auto &entry : superblock_entries) {
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         bool is_match = superblock->match(key);
 
         // Count valid sub-blocks and sum used bits, excluding the sub-block
-        // at 'offset' if superblock matches key (since it is being updated/relocated)
+        // at 'offset' if superblock matches key (since it is being
+        // updated/relocated)
         std::size_t valid_count = 0;
         std::size_t used_bits = 0;
         uint8_t min_cf_other = superblock->blks.size();
 
-        for (const auto& sub_blk : superblock->blks) {
+        for (const auto &sub_blk : superblock->blks) {
             if (sub_blk->isValid()) {
-                bool is_target_sub = is_match && (sub_blk->getSectorOffset() == offset);
+                bool is_target_sub =
+                    is_match && (sub_blk->getSectorOffset() == offset);
                 if (!is_target_sub) {
                     valid_count++;
-                    const CompressionBlk* cblk =
-                        static_cast<const CompressionBlk*>(sub_blk);
+                    const CompressionBlk *cblk =
+                        static_cast<const CompressionBlk *>(sub_blk);
                     used_bits += cblk->getSizeBits();
-                    uint8_t cf =
-                        superblock->calculateCompressionFactor(cblk->getSizeBits());
+                    uint8_t cf = superblock->calculateCompressionFactor(
+                        cblk->getSizeBits());
                     if (cf < min_cf_other) {
                         min_cf_other = cf;
                     }
@@ -181,9 +183,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         std::size_t total_capacity = superblock->getBlkSizeBits();
         std::size_t free_bit_capacity =
             (total_capacity > used_bits) ? (total_capacity - used_bits) : 0;
-        ssize_t net_available_space =
-            static_cast<ssize_t>(free_bit_capacity) -
-            static_cast<ssize_t>(compressed_size);
+        ssize_t net_available_space = static_cast<ssize_t>(free_bit_capacity) -
+                                      static_cast<ssize_t>(compressed_size);
 
         // Determine if co-allocation is possible without secondary evictions
         bool can_coallocate = false;
@@ -205,13 +206,16 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
 
         // Rank candidate superblocks:
         // 1. Minimize required secondary evictions
-        // 2. Maximize net available bit space (free_bit_capacity - compressed_size)
-        // 3. Minimize valid sub-block count (destination sub-block density / sparsity)
-        if (!best_superblock ||
-            req_evictions < min_evictions ||
-            (req_evictions == min_evictions && net_available_space > max_net_space) ||
-            (req_evictions == min_evictions && net_available_space == max_net_space && valid_count < min_valid_count))
-        {
+        // 2. Maximize net available bit space (free_bit_capacity -
+        // compressed_size)
+        // 3. Minimize valid sub-block count (destination sub-block density /
+        // sparsity)
+        if (!best_superblock || req_evictions < min_evictions ||
+            (req_evictions == min_evictions &&
+             net_available_space > max_net_space) ||
+            (req_evictions == min_evictions &&
+             net_available_space == max_net_space &&
+             valid_count < min_valid_count)) {
             best_superblock = superblock;
             best_is_co_allocation = is_co_alloc;
             min_evictions = req_evictions;
@@ -221,25 +225,24 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             tied_candidates.push_back(entry);
         } else if (req_evictions == min_evictions &&
                    net_available_space == max_net_space &&
-                   valid_count == min_valid_count)
-        {
+                   valid_count == min_valid_count) {
             tied_candidates.push_back(entry);
         }
     }
 
-    SuperBlk* victim_superblock = best_superblock;
+    SuperBlk *victim_superblock = best_superblock;
     if (tied_candidates.size() > 1) {
-        victim_superblock = static_cast<SuperBlk*>(
+        victim_superblock = static_cast<SuperBlk *>(
             replacementPolicy->getVictim(tied_candidates));
     }
 
-    // Populate evict_blks with valid sub-blocks to be evicted if replacement is required
+    // Populate evict_blks with valid sub-blocks to be evicted if replacement
+    // is required
     if (min_evictions > 0) {
-        for (const auto& blk : victim_superblock->blks) {
+        for (const auto &blk : victim_superblock->blks) {
             if (blk->isValid()) {
-                bool is_target_sub =
-                    victim_superblock->match(key) &&
-                    (blk->getSectorOffset() == offset);
+                bool is_target_sub = victim_superblock->match(key) &&
+                                     (blk->getSectorOffset() == offset);
                 if (!is_target_sub) {
                     evict_blks.push_back(blk);
                 }
