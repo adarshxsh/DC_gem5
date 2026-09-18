@@ -28,7 +28,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "mem/ruby/network/garnet/CrossbarSwitch.hh"
 
 #include "debug/RubyNetwork.hh"
@@ -45,15 +44,18 @@ namespace garnet
 {
 
 CrossbarSwitch::CrossbarSwitch(Router *router)
-  : Consumer(router), m_router(router), m_num_vcs(m_router->get_num_vcs()),
-    m_crossbar_activity(0), switchBuffers(0)
-{
-}
+    : Consumer(router),
+      m_router(router),
+      m_num_vcs(m_router->get_num_vcs()),
+      m_crossbar_activity(0),
+      switchBuffers(0)
+{}
 
 void
 CrossbarSwitch::init()
 {
     switchBuffers.resize(m_router->get_num_inports());
+    m_channel_busy_until.resize(m_router->get_num_outports(), 0);
 }
 
 /*
@@ -65,11 +67,12 @@ CrossbarSwitch::init()
 void
 CrossbarSwitch::wakeup()
 {
-    DPRINTF(RubyNetwork, "CrossbarSwitch at Router %d woke up "
+    DPRINTF(RubyNetwork,
+            "CrossbarSwitch at Router %d woke up "
             "at time: %lld\n",
             m_router->get_id(), m_router->curCycle());
 
-    for (auto& switch_buffer : switchBuffers) {
+    for (auto &switch_buffer : switchBuffers) {
         if (!switch_buffer.isReady(curTick())) {
             continue;
         }
@@ -78,15 +81,27 @@ CrossbarSwitch::wakeup()
         if (t_flit->is_stage(ST_, curTick())) {
             int outport = t_flit->get_outport();
 
+            if (curTick() < m_channel_busy_until[outport]) {
+                m_router->schedule_wakeup(m_router->ticksToCycles(
+                    m_channel_busy_until[outport] - curTick()));
+                continue;
+            }
+
+            Cycles transfer_cycles = Cycles(1);
+            Tick lock_release_tick = m_router->clockEdge(transfer_cycles);
+            m_channel_busy_until[outport] = lock_release_tick;
+
             // flit performs LT_ in the next cycle
-            t_flit->advance_stage(LT_, m_router->clockEdge(Cycles(1)));
-            t_flit->set_time(m_router->clockEdge(Cycles(1)));
+            t_flit->advance_stage(LT_, lock_release_tick);
+            t_flit->set_time(lock_release_tick);
 
             // This will take care of waking up the Network Link
             // in the next cycle
             m_router->getOutputUnit(outport)->insert_flit(t_flit);
             switch_buffer.getTopFlit();
             m_crossbar_activity++;
+
+            m_router->schedule_wakeup(transfer_cycles);
         }
     }
 }
@@ -95,23 +110,24 @@ bool
 CrossbarSwitch::functionalRead(Packet *pkt, WriteMask &mask)
 {
     bool read = false;
-    for (auto& switch_buffer : switchBuffers) {
-        if (switch_buffer.functionalRead(pkt, mask))
+    for (auto &switch_buffer : switchBuffers) {
+        if (switch_buffer.functionalRead(pkt, mask)) {
             read = true;
-   }
-   return read;
+        }
+    }
+    return read;
 }
 
 uint32_t
 CrossbarSwitch::functionalWrite(Packet *pkt)
 {
-   uint32_t num_functional_writes = 0;
+    uint32_t num_functional_writes = 0;
 
-   for (auto& switch_buffer : switchBuffers) {
-       num_functional_writes += switch_buffer.functionalWrite(pkt);
-   }
+    for (auto &switch_buffer : switchBuffers) {
+        num_functional_writes += switch_buffer.functionalWrite(pkt);
+    }
 
-   return num_functional_writes;
+    return num_functional_writes;
 }
 
 void
