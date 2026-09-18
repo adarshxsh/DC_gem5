@@ -302,18 +302,18 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000200FF,
+        COPY_FLAGS = 0x000200FF,
 
         // Flags that are used to create reponse packets
-        RESPONDER_FLAGS        = 0x00000009,
+        RESPONDER_FLAGS = 0x00000009,
 
         // Does this packet have sharers (which means it should not be
         // considered writable) or not. See setHasSharers below.
-        HAS_SHARERS            = 0x00000001,
+        HAS_SHARERS = 0x00000001,
 
         // Special control flags
         /// Special timing-mode atomic snoop for multi-level coherence.
-        EXPRESS_SNOOP          = 0x00000002,
+        EXPRESS_SNOOP = 0x00000002,
 
         /// Allow a responding cache to inform the cache hierarchy
         /// that it had a writable copy before responding. See
@@ -322,49 +322,49 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Snoop co-ordination flag to indicate that a cache is
         // responding to a snoop. See setCacheResponding below.
-        CACHE_RESPONDING       = 0x00000008,
+        CACHE_RESPONDING = 0x00000008,
 
         // The writeback/writeclean should be propagated further
         // downstream by the receiver
-        WRITE_THROUGH          = 0x00000010,
+        WRITE_THROUGH = 0x00000010,
 
         // Response co-ordination flag for cache maintenance
         // operations
-        SATISFIED              = 0x00000020,
+        SATISFIED = 0x00000020,
 
         // hardware transactional memory
 
         // Indicates that this packet/request has returned from the
         // cache hierarchy in a failed transaction. The core is
         // notified like this.
-        FAILS_TRANSACTION      = 0x00000040,
+        FAILS_TRANSACTION = 0x00000040,
 
         // Indicates that this packet/request originates in the CPU executing
         // in transactional mode, i.e. in a transaction.
-        FROM_TRANSACTION       = 0x00000080,
+        FROM_TRANSACTION = 0x00000080,
 
         /// Are the 'addr' and 'size' fields valid?
-        VALID_ADDR             = 0x00000100,
-        VALID_SIZE             = 0x00000200,
+        VALID_ADDR = 0x00000100,
+        VALID_SIZE = 0x00000200,
 
         /// Is the data pointer set to a value that shouldn't be freed
         /// when the packet is destroyed?
-        STATIC_DATA            = 0x00001000,
+        STATIC_DATA = 0x00001000,
         /// The data pointer points to a value that should be freed when
         /// the packet is destroyed. The pointer is assumed to be pointing
         /// to an array, and delete [] is consequently called
-        DYNAMIC_DATA           = 0x00002000,
+        DYNAMIC_DATA = 0x00002000,
 
         /// suppress the error if this packet encounters a functional
         /// access failure.
-        SUPPRESS_FUNC_ERROR    = 0x00008000,
+        SUPPRESS_FUNC_ERROR = 0x00008000,
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000,
+        BLOCK_CACHED = 0x00010000,
 
         // Indicates whether packet payload is compressed
-        IS_COMPRESSED          = 0x00020000
+        IS_COMPRESSED = 0x00020000
     };
 
     Flags flags;
@@ -827,12 +827,17 @@ class Packet : public Printable, public Extensible<Packet>
     /**
      * Check if packet carries a compressed payload.
      */
-    bool isCompressed() const { return flags.isSet(IS_COMPRESSED); }
+    bool
+    isCompressed() const
+    {
+        return flags.isSet(IS_COMPRESSED);
+    }
 
     /**
      * Set compressed payload size in bits.
      */
-    void setCompressedSizeBits(std::size_t bits)
+    void
+    setCompressedSizeBits(std::size_t bits)
     {
         _compressedSizeBits = bits;
         _compressedSize = divCeil(bits, 8);
@@ -842,7 +847,8 @@ class Packet : public Printable, public Extensible<Packet>
     /**
      * Set compressed payload size in bytes.
      */
-    void setCompressedSize(unsigned size_bytes)
+    void
+    setCompressedSize(unsigned size_bytes)
     {
         _compressedSize = size_bytes;
         _compressedSizeBits = size_bytes * 8;
@@ -852,12 +858,18 @@ class Packet : public Printable, public Extensible<Packet>
     /**
      * Get compressed payload size in bits.
      */
-    std::size_t getCompressedSizeBits() const { return _compressedSizeBits; }
+    std::size_t
+    getCompressedSizeBits() const
+    {
+        return _compressedSizeBits;
+    }
 
     /**
-     * Get compressed payload size in bytes (falls back to getSize if not compressed).
+     * Get compressed payload size in bytes (falls back to getSize if not
+     * compressed).
      */
-    unsigned getCompressedSize() const
+    unsigned
+    getCompressedSize() const
     {
         return isCompressed() ? _compressedSize : getSize();
     }
@@ -865,7 +877,8 @@ class Packet : public Printable, public Extensible<Packet>
     /**
      * Get physical transfer size in bytes for interconnect timing calculation.
      */
-    unsigned getTransferSize() const
+    unsigned
+    getTransferSize() const
     {
         return isCompressed() ? _compressedSize : getSize();
     }
@@ -929,14 +942,22 @@ class Packet : public Printable, public Extensible<Packet>
      * not be valid. The command must be supplied.
      */
     Packet(const RequestPtr &_req, MemCmd _cmd)
-        :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
-           data(nullptr), addr(0), _isSecure(false), size(0),
-           _compressedSizeBits(0), _compressedSize(0),
-           _qosValue(0),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(0), snoopDelay(0),
-           payloadDelay(0), senderState(NULL)
+        : cmd(_cmd),
+          id((PacketId)_req.get()),
+          req(_req),
+          data(nullptr),
+          addr(0),
+          _isSecure(false),
+          size(0),
+          _compressedSizeBits(0),
+          _compressedSize(0),
+          _qosValue(0),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(0),
+          snoopDelay(0),
+          payloadDelay(0),
+          senderState(NULL)
     {
         flags.clear();
         if (req->hasPaddr()) {
@@ -971,14 +992,21 @@ class Packet : public Printable, public Extensible<Packet>
      * req.  this allows for overriding the size/addr of the req.
      */
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
-        :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
-           data(nullptr), addr(0), _isSecure(false),
-           _compressedSizeBits(0), _compressedSize(0),
-           _qosValue(0),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(0),
-           snoopDelay(0), payloadDelay(0), senderState(NULL)
+        : cmd(_cmd),
+          id(_id ? _id : (PacketId)_req.get()),
+          req(_req),
+          data(nullptr),
+          addr(0),
+          _isSecure(false),
+          _compressedSizeBits(0),
+          _compressedSize(0),
+          _qosValue(0),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(0),
+          snoopDelay(0),
+          payloadDelay(0),
+          senderState(NULL)
     {
         flags.clear();
         if (req->hasPaddr()) {
@@ -998,20 +1026,24 @@ class Packet : public Printable, public Extensible<Packet>
      * packet should allocate its own data.
      */
     Packet(const PacketPtr pkt, bool clear_flags, bool alloc_data)
-        :  Extensible<Packet>(*pkt),
-           cmd(pkt->cmd), id(pkt->id), req(pkt->req),
-           data(nullptr),
-           addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
-           _compressedSizeBits(pkt->_compressedSizeBits),
-           _compressedSize(pkt->_compressedSize),
-           bytesValid(pkt->bytesValid),
-           _qosValue(pkt->qosValue()),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(pkt->headerDelay),
-           snoopDelay(0),
-           payloadDelay(pkt->payloadDelay),
-           senderState(pkt->senderState)
+        : Extensible<Packet>(*pkt),
+          cmd(pkt->cmd),
+          id(pkt->id),
+          req(pkt->req),
+          data(nullptr),
+          addr(pkt->addr),
+          _isSecure(pkt->_isSecure),
+          size(pkt->size),
+          _compressedSizeBits(pkt->_compressedSizeBits),
+          _compressedSize(pkt->_compressedSize),
+          bytesValid(pkt->bytesValid),
+          _qosValue(pkt->qosValue()),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(pkt->headerDelay),
+          snoopDelay(0),
+          payloadDelay(pkt->payloadDelay),
+          senderState(pkt->senderState)
     {
         if (!clear_flags)
             flags.set(pkt->flags & COPY_FLAGS);
