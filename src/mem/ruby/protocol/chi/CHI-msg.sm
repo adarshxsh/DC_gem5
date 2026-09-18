@@ -171,6 +171,7 @@ structure(CHIResponseMsg, desc="", interface="Message") {
   bool usesTxnId,       desc="True if using a Transaction ID", default="false";
   Addr txnId,           desc="Transaction ID", default="0";
   Addr dbid,            desc="Data Buffer ID", default="0";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
   //NOTE: not in CHI and for debuging only
 
   MessageSizeType MessageSize, default="MessageSizeType_Control";
@@ -221,6 +222,7 @@ structure(CHIDataMsg, desc="", interface="Message") {
   WriteMask bitMask,    desc="Which bytes in the data block are valid";
   bool usesTxnId,       desc="True if using a Transaction ID", default="false";
   Addr txnId,           desc="Transaction ID", default="0";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
 
   MessageSizeType MessageSize, default="MessageSizeType_Data";
 

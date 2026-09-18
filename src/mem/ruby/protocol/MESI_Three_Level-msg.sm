@@ -82,6 +82,7 @@ structure(CoherenceMsg, desc="...", interface="Message") {
   MachineID Sender,             desc="What component sent this message";
   MachineID Dest,        desc="What machine receives this message";
   MessageSizeType MessageSize,  desc="size category of the message";
+  int PayloadSize, default="-1", desc="Payload size in bytes";
   DataBlock DataBlk,            desc="Data for the cache line (if PUTX)";
   bool Dirty, default="false",  desc="Dirty bit";
   PrefetchBit Prefetch,         desc="Is this a prefetch request";

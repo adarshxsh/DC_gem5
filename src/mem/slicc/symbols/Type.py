@@ -517,6 +517,48 @@ set${{dm.ident}}(const ${{dm.real_c_type}}& local_${{dm.ident}})
 """
                 )
 
+            if self.isMessage:
+                if "PayloadSize" in self.data_members:
+                    code(
+                        """
+int
+getPayloadSizeInBytes() const override
+{
+    return m_PayloadSize;
+}
+"""
+                    )
+                elif "PayloadSizeInBytes" in self.data_members:
+                    code(
+                        """
+int
+getPayloadSizeInBytes() const override
+{
+    return m_PayloadSizeInBytes;
+}
+"""
+                    )
+                elif "CompressedLen" in self.data_members:
+                    code(
+                        """
+int
+getPayloadSizeInBytes() const override
+{
+    return m_CompressedLen;
+}
+"""
+                    )
+                elif "Len" in self.data_members:
+                    code(
+                        """
+int
+getPayloadSizeInBytes() const override
+{
+    return m_Len;
+}
+"""
+                    )
+
         code("void print(std::ostream& out) const;")
         code.dedent()
         code("  //private:")
