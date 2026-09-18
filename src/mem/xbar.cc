@@ -48,6 +48,7 @@
 #include <memory>
 #include <string>
 
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/trace.hh"
 #include "debug/AddrRanges.hh"

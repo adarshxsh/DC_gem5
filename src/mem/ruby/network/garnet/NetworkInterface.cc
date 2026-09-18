@@ -35,6 +35,7 @@
 #include <cmath>
 
 #include "base/cast.hh"
+#include "base/intmath.hh"
 #include "debug/RubyNetwork.hh"
 #include "mem/ruby/network/MessageBuffer.hh"
 #include "mem/ruby/network/garnet/Credit.hh"

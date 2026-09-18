@@ -57,6 +57,7 @@
 #include "base/compiler.hh"
 #include "base/extensible.hh"
 #include "base/flags.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/printable.hh"
 #include "base/types.hh"
