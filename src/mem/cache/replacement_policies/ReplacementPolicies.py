@@ -187,3 +187,9 @@ class DensityWeightedLRURP(DWLRURP):
     type = "DensityWeightedLRURP"
     cxx_class = "gem5::replacement_policy::DWLRU"
     cxx_header = "mem/cache/replacement_policies/dwlru_rp.hh"
+
+
+class SuperblockDensityRP(LRURP):
+    type = "SuperblockDensityRP"
+    cxx_class = "gem5::replacement_policy::SuperblockDensity"
+    cxx_header = "mem/cache/replacement_policies/superblock_density_rp.hh"
