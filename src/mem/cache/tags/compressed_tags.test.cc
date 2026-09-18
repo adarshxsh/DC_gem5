@@ -60,9 +60,10 @@ class SuperBlkTestFixture : public ::testing::Test
             superBlk.blks[k] = &subBlks[k];
             subBlks[k].setSectorBlock(&superBlk);
             subBlks[k].setSectorOffset(k);
-            subBlks[k].registerTagExtractor([](Addr addr) { return addr; });
+            subBlks[k].registerTagExtractor(
+                [](Addr addr) { return addr & ~0x1FF; });
         }
-        superBlk.registerTagExtractor([](Addr addr) { return addr; });
+        superBlk.registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
     }
 
     void
@@ -169,9 +170,10 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
         superBlkB.blks[k] = &subBlksB[k];
         subBlksB[k].setSectorBlock(&superBlkB);
         subBlksB[k].setSectorOffset(k);
-        subBlksB[k].registerTagExtractor([](Addr addr) { return addr; });
+        subBlksB[k].registerTagExtractor(
+            [](Addr addr) { return addr & ~0x1FF; });
     }
-    superBlkB.registerTagExtractor([](Addr addr) { return addr; });
+    superBlkB.registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
 
     // Populate superBlk (A) with 2 blocks
     subBlks[0].insert({0x2000, false});
@@ -238,9 +240,10 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             sblks[i].blks[k] = &cblks[i][k];
             cblks[i][k].setSectorBlock(&sblks[i]);
             cblks[i][k].setSectorOffset(k);
-            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+            cblks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr & ~0x1FF; });
         }
-        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+        sblks[i].registerTagExtractor([](Addr addr) { return addr & ~0x1FF; });
     }
 
     const std::size_t sizes[] = {32, 64, 128, 256};
@@ -281,4 +284,68 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             verifyInvariants(sblks[i]);
         }
     }
+}
+
+TEST_F(SuperBlkTestFixture, InPlaceSlotCompaction)
+{
+    // Insert 3 sub-blocks with sector offsets 0, 1, 2
+    subBlks[0].insert({0x1000, false}); // offset 0
+    subBlks[0].setSizeBits(64);
+    subBlks[1].insert({0x1040, false}); // offset 1
+    subBlks[1].setSizeBits(64);
+    subBlks[2].insert({0x1080, false}); // offset 2
+    subBlks[2].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 1);
+    ASSERT_EQ(superBlk.blks[2]->getSectorOffset(), 2);
+    verifyInvariants(superBlk);
+
+    // Invalidate the middle sub-block (offset 1)
+    superBlk.blks[1]->invalidate();
+
+    // In-place compaction should shift offset 2 to physical slot 1
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 2);
+
+    // Free slots must be contiguous starting at index 2
+    ASSERT_FALSE(superBlk.blks[2]->isValid());
+    ASSERT_FALSE(superBlk.blks[3]->isValid());
+
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, CoAllocationOffsetMismatch)
+{
+    // Insert sub-blocks at offsets 0 and 1
+    subBlks[0].insert({0x1000, false}); // offset 0
+    subBlks[0].setSizeBits(64);
+    subBlks[1].insert({0x1040, false}); // offset 1
+    subBlks[1].setSizeBits(64);
+
+    // Invalidate offset 0
+    superBlk.blks[0]->invalidate();
+
+    // Slot 0 now holds offset 1, slot 1 is free
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 1);
+    ASSERT_FALSE(superBlk.blks[1]->isValid());
+
+    // Co-allocate a new block with offset 5 into the free physical slot (slot
+    // 1)
+    CompressionBlk *freeSlot =
+        static_cast<CompressionBlk *>(superBlk.blks[superBlk.getNumValid()]);
+    freeSlot->insert({0x1140, false}); // offset 5
+    freeSlot->setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 1);
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 5);
+
+    verifyInvariants(superBlk);
 }

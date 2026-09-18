@@ -170,9 +170,6 @@ class CompressionBlk : public SectorSubBlk
 class SuperBlk : public SectorBlk
 {
   protected:
-    /** Block size, in bytes. */
-    std::size_t blkSize;
-
     /**
      * Superblock's compression factor. It is aligned to be a power of two,
      * limited by the maximum compression ratio, and calculated as:

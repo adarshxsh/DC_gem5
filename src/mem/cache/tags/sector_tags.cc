@@ -96,6 +96,8 @@ SectorTags::tagsInit()
         // Locate next cache sector
         SectorBlk* sec_blk = &secBlks[sec_blk_index];
 
+        sec_blk->setBlkSize(blkSize);
+
         // Associate a replacement data entry to the sector
         sec_blk->replacementData = replacementPolicy->instantiateEntry();
 
@@ -200,6 +202,7 @@ SectorTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {
     // Get block's sector
     SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
+    sub_blk->setSectorOffset(extractSectorOffset(pkt->getAddr()));
     const SectorBlk* sector_blk = sub_blk->getSectorBlock();
 
     // When a block is inserted, the tag is only a newly used tag if the
@@ -279,9 +282,13 @@ SectorTags::findBlock(const CacheBlk::KeyType &key) const
 
     // Search for block
     for (const auto& sector : entries) {
-        auto blk = static_cast<SectorBlk*>(sector)->blks[offset];
-        if (blk->match(key)) {
-            return blk;
+        SectorBlk *sector_blk = static_cast<SectorBlk *>(sector);
+        if (sector_blk->match(key)) {
+            for (auto blk : sector_blk->blks) {
+                if (blk->isValid() && blk->getSectorOffset() == offset) {
+                    return blk;
+                }
+            }
         }
     }
 
@@ -327,14 +334,14 @@ SectorTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Get the entry of the victim block within the sector
-    SectorSubBlk* victim = victim_sector->blks[
-        extractSectorOffset(key.address)];
+    SectorSubBlk *victim = nullptr;
 
     // Get evicted blocks. Blocks are only evicted if the sectors mismatch and
     // the currently existing sector is valid.
     if (victim_sector->match(key)) {
-        // It would be a hit if victim was valid, and upgrades do not call
-        // findVictim, so it cannot happen
+        // Sector matched, pick first free slot (compacted)
+        assert(victim_sector->getNumValid() < victim_sector->blks.size());
+        victim = victim_sector->blks[victim_sector->getNumValid()];
         assert(!victim->isValid());
     } else {
         // The whole sector must be evicted to make room for the new sector
@@ -343,6 +350,7 @@ SectorTags::findVictim(const CacheBlk::KeyType &key,
                 evict_blks.push_back(blk);
             }
         }
+        victim = victim_sector->blks[0];
     }
 
     // Update number of sub-blocks evicted due to a replacement
@@ -416,6 +424,13 @@ SectorTags::checkInvariants() const
         }
         assert(sec_blk.getNumValid() == count_valid_sub);
         assert(sec_blk.isValid() == (count_valid_sub > 0));
+        for (int k = 0; k < sec_blk.blks.size(); ++k) {
+            if (k < count_valid_sub) {
+                assert(sec_blk.blks[k]->isValid());
+            } else {
+                assert(!sec_blk.blks[k]->isValid());
+            }
+        }
         if (sec_blk.isValid()) {
             valid_sectors++;
         }
