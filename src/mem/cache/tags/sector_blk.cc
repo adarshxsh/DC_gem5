@@ -138,7 +138,7 @@ SectorBlk::SectorBlk()
 {
 }
 
-SectorSubBlk*
+SectorSubBlk *
 SectorBlk::getSubBlk(int logical_offset) const
 {
     if (logical_offset >= 0 && logical_offset < blks.size()) {
