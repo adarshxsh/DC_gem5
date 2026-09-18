@@ -214,7 +214,7 @@ class SuperBlk : public SectorBlk
      * @param sector_offset Sector offset within the superblock.
      * @return Pointer to SectorSubBlk or nullptr if not found / invalid.
      */
-    SectorSubBlk* getSubBlock(int sector_offset) const;
+    SectorSubBlk *getSubBlock(int sector_offset) const;
 
     /**
      * Updates/synchronizes sectorOffsetMap based on current sub-blocks.

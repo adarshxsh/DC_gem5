@@ -200,8 +200,10 @@ SuperBlk::compact()
     for (std::size_t read_idx = 0; read_idx < blks.size(); ++read_idx) {
         if (blks[read_idx] && blks[read_idx]->isValid()) {
             if (read_idx != write_idx) {
-                CompressionBlk* dest = static_cast<CompressionBlk*>(blks[write_idx]);
-                CompressionBlk* src = static_cast<CompressionBlk*>(blks[read_idx]);
+                CompressionBlk *dest =
+                    static_cast<CompressionBlk *>(blks[write_idx]);
+                CompressionBlk *src =
+                    static_cast<CompressionBlk *>(blks[read_idx]);
                 if (dest && src) {
                     int offset = src->getSectorOffset();
                     *dest = std::move(*src);
@@ -227,7 +229,8 @@ SuperBlk::updateSectorOffsetMap()
     for (std::size_t i = 0; i < blks.size(); ++i) {
         if (blks[i] && blks[i]->isValid()) {
             int offset = blks[i]->getSectorOffset();
-            if (offset >= 0 && static_cast<std::size_t>(offset) < sectorOffsetMap.size()) {
+            if (offset >= 0 &&
+                static_cast<std::size_t>(offset) < sectorOffsetMap.size()) {
                 sectorOffsetMap[offset] = static_cast<int>(i);
             }
         }
@@ -237,22 +240,25 @@ SuperBlk::updateSectorOffsetMap()
 int
 SuperBlk::getSlotIndex(int sector_offset) const
 {
-    if (sector_offset >= 0 && static_cast<std::size_t>(sector_offset) < sectorOffsetMap.size()) {
+    if (sector_offset >= 0 &&
+        static_cast<std::size_t>(sector_offset) < sectorOffsetMap.size()) {
         int slot = sectorOffsetMap[sector_offset];
         if (slot >= 0 && static_cast<std::size_t>(slot) < blks.size() &&
-            blks[slot] && blks[slot]->isValid() && blks[slot]->getSectorOffset() == sector_offset) {
+            blks[slot] && blks[slot]->isValid() &&
+            blks[slot]->getSectorOffset() == sector_offset) {
             return slot;
         }
     }
     for (std::size_t i = 0; i < blks.size(); ++i) {
-        if (blks[i] && blks[i]->isValid() && blks[i]->getSectorOffset() == sector_offset) {
+        if (blks[i] && blks[i]->isValid() &&
+            blks[i]->getSectorOffset() == sector_offset) {
             return static_cast<int>(i);
         }
     }
     return -1;
 }
 
-SectorSubBlk*
+SectorSubBlk *
 SuperBlk::getSubBlock(int sector_offset) const
 {
     int slot = getSlotIndex(sector_offset);

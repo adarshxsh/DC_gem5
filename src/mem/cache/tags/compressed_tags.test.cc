@@ -304,7 +304,8 @@ TEST_F(SuperBlkTestFixture, SubBlockSlotCompactionOnInvalidation)
     // Invalidate sub-block at offset 0 (slot 0)
     superBlk.getSubBlock(0)->invalidate();
 
-    // Verify compaction shifted remaining active sub-blocks to contiguous low-index slots
+    // Verify compaction shifted remaining active sub-blocks to contiguous
+    // low-index slots
     ASSERT_EQ(superBlk.getNumValid(), 2);
     ASSERT_EQ(superBlk.getSlotIndex(1), 0);
     ASSERT_EQ(superBlk.getSlotIndex(2), 1);
@@ -322,11 +323,11 @@ TEST_F(SuperBlkTestFixture, SubBlockSlotCompactionOnInvalidation)
 
     // Verify co-allocation request succeeds in contiguous free slot (slot 2)
     ASSERT_TRUE(superBlk.canCoAllocate(64));
-    SectorSubBlk* free_slot = superBlk.blks[superBlk.getNumValid()];
+    SectorSubBlk *free_slot = superBlk.blks[superBlk.getNumValid()];
     ASSERT_FALSE(free_slot->isValid());
     free_slot->insert({0x5000, false});
     free_slot->setSectorOffset(3);
-    static_cast<CompressionBlk*>(free_slot)->setSizeBits(64);
+    static_cast<CompressionBlk *>(free_slot)->setSizeBits(64);
 
     ASSERT_EQ(superBlk.getNumValid(), 3);
     ASSERT_EQ(superBlk.getSlotIndex(3), 2);

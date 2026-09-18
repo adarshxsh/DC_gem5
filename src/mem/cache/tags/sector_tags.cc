@@ -280,11 +280,11 @@ SectorTags::findBlock(const CacheBlk::KeyType &key) const
 
     // Search for block
     for (const auto& sector : entries) {
-        SectorBlk* sector_blk = static_cast<SectorBlk*>(sector);
+        SectorBlk *sector_blk = static_cast<SectorBlk *>(sector);
         if (sector_blk->match(key)) {
-            SuperBlk* super_blk = dynamic_cast<SuperBlk*>(sector_blk);
+            SuperBlk *super_blk = dynamic_cast<SuperBlk *>(sector_blk);
             if (super_blk) {
-                SectorSubBlk* sub_blk = super_blk->getSubBlock(offset);
+                SectorSubBlk *sub_blk = super_blk->getSubBlock(offset);
                 if (sub_blk && sub_blk->match(key)) {
                     return sub_blk;
                 }
