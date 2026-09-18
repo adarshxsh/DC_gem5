@@ -21,14 +21,23 @@ class MockResponsePort : public ResponsePort
     uint64_t pressure;
 
   public:
-    MockResponsePort(const std::string& name, uint64_t _pressure = 0)
+    MockResponsePort(const std::string &name, uint64_t _pressure = 0)
         : ResponsePort(name), pressure(_pressure)
     {}
 
-    void setPressure(uint64_t p) { pressure = p; }
-    uint64_t getQueuePressure() const override { return pressure; }
+    void
+    setPressure(uint64_t p)
+    {
+        pressure = p;
+    }
+    uint64_t
+    getQueuePressure() const override
+    {
+        return pressure;
+    }
 
-    AddrRangeList getAddrRanges() const override
+    AddrRangeList
+    getAddrRanges() const override
     {
         return AddrRangeList();
     }
@@ -37,9 +46,7 @@ class MockResponsePort : public ResponsePort
 class MockRequestPort : public RequestPort
 {
   public:
-    MockRequestPort(const std::string& name)
-        : RequestPort(name)
-    {}
+    MockRequestPort(const std::string &name) : RequestPort(name) {}
 };
 
 TEST(PortPressureTest, ProtocolInterfaceMetrics)
@@ -67,13 +74,14 @@ TEST(PortPressureTest, ProtocolInterfaceMetrics)
 class TestReqLayer : public BaseXBar::ReqLayer
 {
   public:
-    std::vector<ResponsePort*> retryOrder;
+    std::vector<ResponsePort *> retryOrder;
 
-    TestReqLayer(RequestPort& _port, BaseXBar& _xbar, const std::string& _name)
+    TestReqLayer(RequestPort &_port, BaseXBar &_xbar, const std::string &_name)
         : ReqLayer(_port, _xbar, _name)
     {}
 
-    void addWaitingPort(ResponsePort* port)
+    void
+    addWaitingPort(ResponsePort *port)
     {
         tryTiming(port);
     }
@@ -81,7 +89,8 @@ class TestReqLayer : public BaseXBar::ReqLayer
     using ReqLayer::retryWaiting;
 
   protected:
-    void sendRetry(ResponsePort* retry_port) override
+    void
+    sendRetry(ResponsePort *retry_port) override
     {
         retryOrder.push_back(retry_port);
     }
