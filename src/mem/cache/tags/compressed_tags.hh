@@ -120,7 +120,7 @@ class CompressedTags : public SectorTags
     CacheBlk *findVictim(const CacheBlk::KeyType &key,
                          const std::size_t compressed_size,
                          std::vector<CacheBlk *> &evict_blks,
-                         const uint64_t partition_id,
+                         const uint64_t partition_id = 0,
                          bool is_prefetch = false) override;
 
     /**

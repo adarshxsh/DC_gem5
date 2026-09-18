@@ -252,7 +252,8 @@ SuperBlk::calculateCompressionFactor(const std::size_t size) const
     const std::size_t compression_factor = (size > blk_size_bits) ? 1 :
         ((size == 0) ? blk_size_bits :
         alignToPowerOfTwo(std::floor(double(blk_size_bits) / size)));
-    return std::min<std::size_t>(compression_factor, blks.size());
+    return static_cast<uint8_t>(
+        std::min<std::size_t>(compression_factor, blks.size()));
 }
 
 uint8_t
@@ -270,8 +271,8 @@ SuperBlk::setCompressionFactor(const uint8_t compression_factor)
 void
 SuperBlk::updateCompressionFactor()
 {
-    uint8_t min_cf = blks.size();
-    uint8_t demand_min_cf = blks.size();
+    uint8_t min_cf = static_cast<uint8_t>(blks.size());
+    uint8_t demand_min_cf = static_cast<uint8_t>(blks.size());
     bool has_valid = false;
     bool has_demand = false;
 
