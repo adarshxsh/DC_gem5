@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -70,11 +71,13 @@ class SuperBlkTestFixture : public ::testing::Test
     {
         uint8_t count_valid = 0;
         uint8_t min_cf = sb.blks.size();
+        std::size_t total_bits = 0;
         for (const auto &blk : sb.blks) {
             if (blk->isValid()) {
                 count_valid++;
                 const CompressionBlk *cblk =
                     static_cast<const CompressionBlk *>(blk);
+                total_bits += cblk->getSizeBits();
                 uint8_t cf =
                     sb.calculateCompressionFactor(cblk->getSizeBits());
                 if (cf < min_cf) {
@@ -86,9 +89,9 @@ class SuperBlkTestFixture : public ::testing::Test
         }
         ASSERT_EQ(sb.getNumValid(), count_valid);
         ASSERT_EQ(sb.isValid(), (count_valid > 0));
+        ASSERT_LE(total_bits, BlkSize * CHAR_BIT);
         if (count_valid > 0) {
             ASSERT_EQ(sb.getCompressionFactor(), min_cf);
-            ASSERT_LE(count_valid, sb.getCompressionFactor());
         } else {
             ASSERT_EQ(sb.getCompressionFactor(), 1);
         }
@@ -156,6 +159,37 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_EQ(superBlk.getNumValid(), 2);
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
     verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, MultiFactorCoAllocation)
+{
+    // Block 0: 256 bits (CF = 2)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(256);
+
+    // Block 1: 64 bits (CF = 8)
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(64);
+
+    // Block 2: 64 bits (CF = 8)
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(64);
+
+    // Total valid sub-blocks = 3, min CF = 2.
+    // Note count_valid (3) > getCompressionFactor() (2).
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+
+    // Total bits occupied = 256 + 64 + 64 = 384 bits out of 512 bits.
+    // Candidate block of 64 bits: 384 + 64 = 448 <= 512. Should succeed!
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+
+    // Candidate block of 128 bits: 384 + 128 = 512 <= 512. Should succeed!
+    ASSERT_TRUE(superBlk.canCoAllocate(128));
+
+    // Candidate block of 129 bits: 384 + 129 = 513 > 512. Should fail!
+    ASSERT_FALSE(superBlk.canCoAllocate(129));
 }
 
 TEST_F(SuperBlkTestFixture, SubBlockMigration)
