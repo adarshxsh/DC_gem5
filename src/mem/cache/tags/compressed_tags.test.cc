@@ -290,8 +290,8 @@ TEST_F(SuperBlkTestFixture, SubblockDensityWeightedVictimSelection)
     // Candidate B: 1 valid sub-block, recency rank = 1 (newer, raw rank 1000)
     // Weight A = 2000 / (1 + 4) = 400
     // Weight B = 1000 / (1 + 1) = 500
-    // Candidate B (single sub-block) has higher effective weight (worst weighted rank)
-    // and is selected as victim, preserving Candidate A.
+    // Candidate B (single sub-block) has higher effective weight (worst
+    // weighted rank) and is selected as victim, preserving Candidate A.
 
     uint64_t rank_A = 2000;
     uint8_t valid_A = 4;
@@ -305,4 +305,3 @@ TEST_F(SuperBlkTestFixture, SubblockDensityWeightedVictimSelection)
     ASSERT_EQ(weight_B, 500);
     ASSERT_GT(weight_B, weight_A);
 }
-
