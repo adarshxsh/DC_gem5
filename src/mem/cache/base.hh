@@ -1157,7 +1157,8 @@ class BaseCache : public ClockedObject
         /** Number of data expansions. */
         statistics::Scalar dataExpansions;
 
-        /** Number of partial sub-block evictions caused by block expansions. */
+        /** Number of partial sub-block evictions caused by block expansions.
+         */
         statistics::Scalar partialSubBlockEvictions;
 
         /**
