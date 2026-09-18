@@ -174,9 +174,9 @@ class SuperBlk : public SectorBlk
     std::size_t blkSize;
 
     /**
-     * Superblock's compression factor, limited by the maximum compression ratio,
-     * and calculated as:
-     *   compressionFactor = floor(uncompressedSize/compressedSize)
+     * Superblock's compression factor, limited by the maximum compression
+     * ratio, and calculated as: compressionFactor =
+     * floor(uncompressedSize/compressedSize)
      */
     uint8_t compressionFactor;
 
