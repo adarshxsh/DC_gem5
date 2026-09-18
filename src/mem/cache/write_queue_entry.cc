@@ -126,13 +126,16 @@ WriteQueueEntry::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
 void
 WriteQueueEntry::markSubBlocksDirty(Addr offset, unsigned size)
 {
-    if (subBlockDirty.empty()) return;
+    if (subBlockDirty.empty()) {
+        return;
+    }
 
     unsigned num_subblocks = subBlockDirty.size();
     unsigned subblock_size = std::max(1u, blkSize / num_subblocks);
 
     unsigned start_sb = offset / subblock_size;
-    unsigned end_sb = (size == 0) ? start_sb : ((offset + size - 1) / subblock_size);
+    unsigned end_sb =
+        (size == 0) ? start_sb : ((offset + size - 1) / subblock_size);
 
     start_sb = std::min(start_sb, num_subblocks - 1);
     end_sb = std::min(end_sb, num_subblocks - 1);
@@ -153,7 +156,9 @@ WriteQueueEntry::getNumDirtySubBlocks() const
 {
     unsigned count = 0;
     for (bool dirty : subBlockDirty) {
-        if (dirty) count++;
+        if (dirty) {
+            count++;
+        }
     }
     return count;
 }
@@ -165,15 +170,16 @@ WriteQueueEntry::getNumSubBlocks() const
 }
 
 void
-WriteQueueEntry::coalesceSubBlock(PacketPtr pkt, Tick when_ready, Counter _order)
+WriteQueueEntry::coalesceSubBlock(PacketPtr pkt, Tick when_ready,
+                                  Counter _order)
 {
     markSubBlocksDirty(pkt->getOffset(blkSize), pkt->getSize());
 
     if (hasTargets()) {
         PacketPtr primary_pkt = getTarget()->pkt;
         if (primary_pkt && primary_pkt->hasData() && pkt->hasData()) {
-            uint8_t* primary_data = primary_pkt->getPtr<uint8_t>();
-            const uint8_t* new_data = pkt->getConstPtr<uint8_t>();
+            uint8_t *primary_data = primary_pkt->getPtr<uint8_t>();
+            const uint8_t *new_data = pkt->getConstPtr<uint8_t>();
             Addr offset = pkt->getOffset(blkSize);
             size_t len = pkt->getSize();
             if (primary_data && new_data && (offset + len <= blkSize)) {

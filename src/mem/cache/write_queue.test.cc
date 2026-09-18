@@ -15,16 +15,22 @@
 
 using namespace gem5;
 
-namespace gem5 {
-bool BaseCache::sendWriteQueuePacket(WriteQueueEntry* wq_entry) { return false; }
+namespace gem5
+{
+bool
+BaseCache::sendWriteQueuePacket(WriteQueueEntry *wq_entry)
+{
+    return false;
 }
+} // namespace gem5
 
 class WriteQueueTest : public ::testing::Test
 {
   protected:
     Tick mockTick = 0;
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         Gem5Internal::_curTickPtr = &mockTick;
     }

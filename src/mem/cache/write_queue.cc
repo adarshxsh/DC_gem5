@@ -86,10 +86,10 @@ WriteQueue::markInService(WriteQueueEntry *entry)
 }
 
 WriteQueueEntry *
-WriteQueue::findCoalesce(Addr blk_addr, unsigned blk_size,
-                         PacketPtr pkt, bool is_secure) const
+WriteQueue::findCoalesce(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
+                         bool is_secure) const
 {
-    for (const auto& entry : allocatedList) {
+    for (const auto &entry : allocatedList) {
         if (!entry->inService && !entry->isUncacheable() &&
             entry->matchBlockAddr(blk_addr, is_secure)) {
             return entry;
