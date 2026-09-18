@@ -189,6 +189,19 @@ class QueuedPrefetcher(BasePrefetcher):
         LRURP(), "Replacement policy of CHT"
     )
 
+    enable_compression_filter = Param.Bool(
+        False, "Enable PC-indexed compression confidence prefetch filtering"
+    )
+    compression_confidence_threshold = Param.Unsigned(
+        4, "Threshold below which prefetch candidates are dropped"
+    )
+    compression_table_entries = Param.Unsigned(
+        256, "Number of entries in PC compression confidence tracking table"
+    )
+    compression_counter_bits = Param.Unsigned(
+        3, "Bits for saturating confidence counter"
+    )
+
 
 class StridePrefetcherHashedSetAssociative(TaggedSetAssociative):
     type = "StridePrefetcherHashedSetAssociative"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026
+ * Copyright (c) 2026 gem5
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -216,4 +216,66 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
 
     delete params.cht_indexing_policy;
     delete params.cht_replacement_policy;
+}
+
+TEST(CompressionConfidenceTableTest, InitialAndSaturatingCounter)
+{
+    Queued::CompressionConfidenceTable table;
+    // enable = true, threshold = 4, entries = 16, counter_bits = 3 (0..7)
+    table.init(true, 4, 16, 3);
+
+    Addr pc1 = 0x1000;
+
+    // Unknown PC defaults to true (allow)
+    EXPECT_TRUE(table.check(pc1));
+
+    // Update with uncompressed fill: initial confidence = 3.
+    // 3 < threshold(4) -> check returns false.
+    table.update(pc1, false);
+    EXPECT_FALSE(table.check(pc1));
+
+    // Multiple uncompressed fills saturate at 0
+    for (int i = 0; i < 10; ++i) {
+        table.update(pc1, false);
+    }
+    EXPECT_FALSE(table.check(pc1));
+
+    // Compressed fills increase confidence up to max (7)
+    for (int i = 0; i < 10; ++i) {
+        table.update(pc1, true);
+    }
+    // Now confidence = 7 >= threshold 4
+    EXPECT_TRUE(table.check(pc1));
+}
+
+TEST(CompressionConfidenceTableTest, ThresholdFiltering)
+{
+    Queued::CompressionConfidenceTable table;
+    // threshold = 6
+    table.init(true, 6, 16, 3);
+
+    Addr pc1 = 0x2000;
+
+    // First compressed fill creates entry with confidence = init_counter +
+    // 1 = 5.
+    table.update(pc1, true);
+    // 5 < threshold 6 -> false
+    EXPECT_FALSE(table.check(pc1));
+
+    // Another compressed fill increases 5 -> 6.
+    table.update(pc1, true);
+    // 6 >= threshold 6 -> true
+    EXPECT_TRUE(table.check(pc1));
+}
+
+TEST(CompressionConfidenceTableTest, DisabledTable)
+{
+    Queued::CompressionConfidenceTable table;
+    table.init(false, 4, 16, 3);
+
+    Addr pc1 = 0x3000;
+    table.update(pc1, false);
+
+    // Table disabled -> check always returns true
+    EXPECT_TRUE(table.check(pc1));
 }
