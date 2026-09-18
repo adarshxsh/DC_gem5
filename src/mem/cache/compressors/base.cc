@@ -91,12 +91,13 @@ Base::Base(const Params &p)
       decompChunksPerCycle(p.decomp_chunks_per_cycle),
       decompExtraLatency(p.decomp_extra_latency),
       enableAdaptiveBypass(p.enable_adaptive_bypass),
+      decayFactor(p.decay_factor),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
       totalCompressionRequests(0),
-      sampledUncompressedBits(0),
-      sampledCompressedBits(0),
+      sampledUncompressedBits(0.0),
+      sampledCompressedBits(0.0),
       cache(nullptr),
       stats(*this)
 {
@@ -165,8 +166,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
 
     double observedRatio =
-        (sampledCompressedBits > 0)
-            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
+        (sampledCompressedBits > 0.0)
+            ? (sampledUncompressedBits / sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
     bool shouldBypass =
@@ -220,10 +221,16 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     }
 
     if (isSampled) {
-        if (enableAdaptiveBypass && (decayShift > 0)) {
-            sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
-            sampledCompressedBits -= (sampledCompressedBits >> decayShift);
+        sampledUncompressedBits *= decayFactor;
+        sampledCompressedBits *= decayFactor;
+
+        if (sampledUncompressedBits < 1e-6) {
+            sampledUncompressedBits = 0.0;
         }
+        if (sampledCompressedBits < 1e-6) {
+            sampledCompressedBits = 0.0;
+        }
+
         uint64_t uncomp_bits = blkSize * CHAR_BIT;
         sampledUncompressedBits += uncomp_bits;
         sampledCompressedBits += comp_size_bits;
@@ -276,10 +283,10 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0)
-                                   ? ((double)sampledUncompressedBits /
-                                      (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
+        double observedRatio =
+            (sampledCompressedBits > 0.0)
+                ? (sampledUncompressedBits / sampledCompressedBits)
+                : (latencyBreakevenThreshold + 1.0);
         if (observedRatio < latencyBreakevenThreshold) {
             stats.bypassedDecompressions += 1;
         }
