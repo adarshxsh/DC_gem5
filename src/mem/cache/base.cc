@@ -227,6 +227,12 @@ BaseCache::inRange(Addr addr) const
     return false;
 }
 
+bool
+BaseCache::isCongested() const
+{
+    return mshrQueue.isFull() || writeBuffer.isFull() || isBlocked();
+}
+
 void
 BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
 {
