@@ -128,6 +128,16 @@ class BaseCache(ClockedObject):
         True, "Try to co-allocate blocks that contract"
     )
 
+    writeback_throttle_interval = Param.Cycles(
+        10,
+        "Minimum cycle interval between non-critical dirty writeback drains when downstream backpressure is active",
+    )
+
+    max_queue_residence_time = Param.Cycles(
+        100,
+        "Maximum queue residence cycles before forcing writeback under backpressure",
+    )
+
     sequential_access = Param.Bool(
         False, "Whether to access tags and data sequentially"
     )
