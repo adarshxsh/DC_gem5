@@ -1082,7 +1082,6 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // must be evicted to make room for the expanded/contracted block
     std::vector<CacheBlk*> evict_blks;
     if (is_data_expansion || is_data_contraction) {
-        std::vector<CacheBlk*> evict_blks;
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
