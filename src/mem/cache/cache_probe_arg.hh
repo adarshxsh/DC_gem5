@@ -91,7 +91,11 @@ struct CacheAccessor
     }
 
     /** Get pointer to cache compressor if present */
-    virtual compression::Base* getCompressor() const { return nullptr; }
+    virtual compression::Base *
+    getCompressor() const
+    {
+        return nullptr;
+    }
 };
 
 /**

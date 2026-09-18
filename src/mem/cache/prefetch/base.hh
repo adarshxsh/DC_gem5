@@ -420,7 +420,8 @@ class Base : public ClockedObject
     /**
      * Query compressibility history table for predicted compression factor.
      * @param addr Target block address
-     * @return Predicted compression factor (0 if unknown, 1 if 1x uncompressible, >=2 if compressed)
+     * @return Predicted compression factor (0 if unknown, 1 if 1x
+     * uncompressible, >=2 if compressed)
      */
     uint8_t getPredictedCompressionFactor(Addr addr) const;
 
@@ -432,7 +433,8 @@ class Base : public ClockedObject
     void updateCompressibilityHistory(Addr addr, uint8_t cf);
 
     /** Helper to compute compression factor for block data */
-    uint8_t calculateDataCompressionFactor(const uint8_t *data, const CacheAccessor &cache) const;
+    uint8_t calculateDataCompressionFactor(const uint8_t *data,
+                                           const CacheAccessor &cache) const;
 
     virtual PacketPtr getPacket() = 0;
 

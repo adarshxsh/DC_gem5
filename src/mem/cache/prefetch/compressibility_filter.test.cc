@@ -43,9 +43,19 @@ class TestPrefetcher : public Base
   public:
     TestPrefetcher(const BasePrefetcherParams &p) : Base(p) {}
 
-    void notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi) override {}
-    PacketPtr getPacket() override { return nullptr; }
-    Tick nextPrefetchReadyTime() const override { return 0; }
+    void
+    notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi) override
+    {}
+    PacketPtr
+    getPacket() override
+    {
+        return nullptr;
+    }
+    Tick
+    nextPrefetchReadyTime() const override
+    {
+        return 0;
+    }
 };
 
 TEST(CompressibilityFilterTest, LookupDefaultUnseen)
@@ -159,11 +169,32 @@ TEST(CompressibilityFilterTest, CalculateDataCompressionFactor)
 
     struct DummyAccessor : public CacheAccessor
     {
-        bool inCache(Addr addr, bool is_secure) const override { return false; }
-        bool hasBeenPrefetched(Addr addr, bool is_secure) const override { return false; }
-        bool hasBeenPrefetched(Addr addr, bool is_secure, RequestorID requestor) const override { return false; }
-        bool inMissQueue(Addr addr, bool is_secure) const override { return false; }
-        bool coalesce() const override { return false; }
+        bool
+        inCache(Addr addr, bool is_secure) const override
+        {
+            return false;
+        }
+        bool
+        hasBeenPrefetched(Addr addr, bool is_secure) const override
+        {
+            return false;
+        }
+        bool
+        hasBeenPrefetched(Addr addr, bool is_secure,
+                          RequestorID requestor) const override
+        {
+            return false;
+        }
+        bool
+        inMissQueue(Addr addr, bool is_secure) const override
+        {
+            return false;
+        }
+        bool
+        coalesce() const override
+        {
+            return false;
+        }
     } acc;
 
     // Zero block
