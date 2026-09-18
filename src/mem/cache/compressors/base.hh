@@ -245,10 +245,14 @@ class Base : public SimObject
     virtual void setCache(BaseCache *_cache);
 
     /** Check if adaptive compression bypass is currently active. */
-    virtual bool isBypassing() const
+    virtual bool
+    isBypassing() const
     {
-        if (!enableAdaptiveBypass || sampledCompressedBits == 0) return false;
-        double ratio = (double)sampledUncompressedBits / (double)sampledCompressedBits;
+        if (!enableAdaptiveBypass || sampledCompressedBits == 0) {
+            return false;
+        }
+        double ratio =
+            (double)sampledUncompressedBits / (double)sampledCompressedBits;
         return ratio < latencyBreakevenThreshold;
     }
 
