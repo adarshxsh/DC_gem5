@@ -64,11 +64,11 @@ class Message
   public:
     Message(Tick curTime, int block_size, const RubySystem *rs)
         : m_block_size(block_size),
+          m_payload_size(-1),
           m_time(curTime),
           m_LastEnqueueTime(curTime),
           m_DelayedTicks(0),
-          m_msg_counter(0),
-          m_payload_size(-1)
+          m_msg_counter(0)
     { }
 
     Message(const Message &other) = default;
