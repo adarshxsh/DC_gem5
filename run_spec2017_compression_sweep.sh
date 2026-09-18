@@ -55,6 +55,7 @@ run_simulation() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: Benchmark=$bench | L2=$csize | Compressor=$comp | WriteHigh=$write_high% | WriteLow=$write_low% | PressureThrottling=$enable_throttling"
     echo "OutDir: $outdir"
     echo "--------------------------------------------------------------------------------"
+
     local cmd_args=(
         --benchmark="$bench"
         --size="$SIZE"
