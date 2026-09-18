@@ -122,10 +122,26 @@ class Message
     int getVnet() const { return vnet; }
     void setVnet(int net) { vnet = net; }
 
-    int getCompressedSize() const { return m_compressed_size; }
-    void setCompressedSize(int size) { m_compressed_size = size; }
-    int getPayloadSize() const { return m_compressed_size > 0 ? m_compressed_size : m_block_size; }
-    void setPayloadSize(int size) { m_compressed_size = size; }
+    int
+    getCompressedSize() const
+    {
+        return m_compressed_size;
+    }
+    void
+    setCompressedSize(int size)
+    {
+        m_compressed_size = size;
+    }
+    int
+    getPayloadSize() const
+    {
+        return m_compressed_size > 0 ? m_compressed_size : m_block_size;
+    }
+    void
+    setPayloadSize(int size)
+    {
+        m_compressed_size = size;
+    }
 
   protected:
     int m_block_size = 0;

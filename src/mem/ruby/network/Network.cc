@@ -185,9 +185,9 @@ Network::MessageSizeType_to_int(MessageSizeType size_type, const Message *msg)
       case MessageSizeType_ResponseLocal_Data:
       case MessageSizeType_ResponseL2hit_Data:
       case MessageSizeType_Writeback_Data:
-        if (msg && msg->getCompressedSize() > 0) {
-            return msg->getCompressedSize();
-        }
+          if (msg && msg->getCompressedSize() > 0) {
+              return msg->getCompressedSize();
+          }
         return m_data_msg_size;
       default:
         panic("Invalid range for type MessageSizeType");
