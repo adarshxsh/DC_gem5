@@ -1213,7 +1213,8 @@ class BaseCache : public ClockedObject
     }
 
     /**
-     * Returns true if the cache queue is congested (MSHR or Write Buffer saturated).
+     * Returns true if the cache queue is congested (MSHR or Write Buffer
+     * saturated).
      */
     virtual bool isCongested() const;
 
