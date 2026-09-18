@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -94,7 +94,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -151,10 +151,12 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
 
     if (enableCompressionBackpressure) {
         if (backpressureHighThreshold == 0) {
-            backpressureHighThreshold = std::max(1u, (unsigned)(p.write_buffers * 0.75));
+            backpressureHighThreshold =
+                std::max(1u, (unsigned)(p.write_buffers * 0.75));
         }
         if (backpressureLowThreshold == 0) {
-            backpressureLowThreshold = std::max(0u, (unsigned)(p.write_buffers * 0.25));
+            backpressureLowThreshold =
+                std::max(0u, (unsigned)(p.write_buffers * 0.25));
         }
     }
 }
@@ -928,7 +930,8 @@ BaseCache::getNextQueueEntry()
     MSHR *miss_mshr  = mshrQueue.getNext();
     WriteQueueEntry *wq_entry = writeBuffer.getNext();
 
-    // Defer writebacks if downstream backpressure is active and write buffer is not full
+    // Defer writebacks if downstream backpressure is active and write buffer
+    // is not full
     if (downstreamBackpressureActive && wq_entry && !writeBuffer.isFull()) {
         wq_entry = nullptr;
     }
@@ -2856,7 +2859,8 @@ void
 BaseCache::setDownstreamBackpressure(bool active)
 {
     if (downstreamBackpressureActive != active) {
-        DPRINTF(CachePort, "Downstream compression backpressure changed to %d\n", active);
+        DPRINTF(CachePort,
+                "Downstream compression backpressure changed to %d\n", active);
         downstreamBackpressureActive = active;
         if (!downstreamBackpressureActive) {
             schedMemSideSendEvent(curTick());
@@ -2867,7 +2871,9 @@ BaseCache::setDownstreamBackpressure(bool active)
 void
 BaseCache::checkBackpressure(bool expansionEvictionBurst)
 {
-    if (!enableCompressionBackpressure) return;
+    if (!enableCompressionBackpressure) {
+        return;
+    }
 
     unsigned occupancy = writeBuffer.size();
     if (!backpressureActive) {
@@ -2887,7 +2893,8 @@ BaseCache::assertBackpressure()
     if (!backpressureActive) {
         backpressureActive = true;
         stats.backpressureEvents++;
-        DPRINTF(CachePort, "%s: Asserting compression backpressure (wb size=%d)\n",
+        DPRINTF(CachePort,
+                "%s: Asserting compression backpressure (wb size=%d)\n",
                 name(), writeBuffer.size());
         cpuSidePort.sendCompressionBackpressure(true);
     }
@@ -2898,7 +2905,8 @@ BaseCache::deassertBackpressure()
 {
     if (backpressureActive) {
         backpressureActive = false;
-        DPRINTF(CachePort, "%s: Deasserting compression backpressure (wb size=%d)\n",
+        DPRINTF(CachePort,
+                "%s: Deasserting compression backpressure (wb size=%d)\n",
                 name(), writeBuffer.size());
         cpuSidePort.sendCompressionBackpressure(false);
     }

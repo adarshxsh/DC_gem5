@@ -297,9 +297,12 @@ class RequestPort: public Port, public AtomicRequestProtocol,
     virtual void recvRangeChange() { }
 
     /**
-     * Called to receive a compression backpressure signal from the peer response port.
+     * Called to receive a compression backpressure signal from the peer
+     * response port.
      */
-    virtual void recvCompressionBackpressure(bool active) { }
+    virtual void
+    recvCompressionBackpressure(bool active)
+    {}
 
     /**
      * Default implementations.
@@ -385,7 +388,8 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
     void sendRangeChange() const { _requestPort->recvRangeChange(); }
 
     /**
-     * Called by the owner to send compression backpressure signal to the peer request port.
+     * Called by the owner to send compression backpressure signal to the peer
+     * request port.
      */
     void sendCompressionBackpressure(bool active) const;
 

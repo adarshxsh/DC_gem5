@@ -382,8 +382,16 @@ class BaseCache : public ClockedObject
     bool downstreamBackpressureActive;
 
     void setDownstreamBackpressure(bool active);
-    bool isDownstreamBackpressureActive() const { return downstreamBackpressureActive; }
-    bool isBackpressureActive() const { return backpressureActive; }
+    bool
+    isDownstreamBackpressureActive() const
+    {
+        return downstreamBackpressureActive;
+    }
+    bool
+    isBackpressureActive() const
+    {
+        return backpressureActive;
+    }
     void checkBackpressure(bool expansionEvictionBurst = false);
     void assertBackpressure();
     void deassertBackpressure();
