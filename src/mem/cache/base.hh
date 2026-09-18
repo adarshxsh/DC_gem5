@@ -1147,7 +1147,8 @@ class BaseCache : public ClockedObject
         /** Number of replacements of valid blocks. */
         statistics::Scalar replacements;
 
-        /** Number of detached clean L1 lines preserved during L2 superblock eviction. */
+        /** Number of detached clean L1 lines preserved during L2 superblock
+         * eviction. */
         statistics::Scalar detachedL1CleanPreserved;
 
         /** Number of data expansions. */
@@ -1283,7 +1284,8 @@ class BaseCache : public ClockedObject
      * Query whether a block is cached in upper level caches.
      * Overridden in Cache class.
      */
-    virtual bool isCachedAbove(PacketPtr pkt, bool is_timing = true)
+    virtual bool
+    isCachedAbove(PacketPtr pkt, bool is_timing = true)
     {
         return false;
     }
@@ -1293,17 +1295,20 @@ class BaseCache : public ClockedObject
     std::unordered_set<Addr> detachedL1CleanAddrs;
 
   public:
-    void trackDetachedL1CleanBlock(Addr addr, bool is_secure)
+    void
+    trackDetachedL1CleanBlock(Addr addr, bool is_secure)
     {
         detachedL1CleanAddrs.insert(addr);
     }
 
-    bool isDetachedL1CleanBlock(Addr addr, bool is_secure) const
+    bool
+    isDetachedL1CleanBlock(Addr addr, bool is_secure) const
     {
         return detachedL1CleanAddrs.find(addr) != detachedL1CleanAddrs.end();
     }
 
-    void clearDetachedL1CleanBlock(Addr addr, bool is_secure)
+    void
+    clearDetachedL1CleanBlock(Addr addr, bool is_secure)
     {
         detachedL1CleanAddrs.erase(addr);
     }

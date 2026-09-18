@@ -78,14 +78,14 @@ class CacheBlk : public TaggedEntry
     enum CoherenceBits : unsigned
     {
         /** write permission */
-        WritableBit =       0x02,
+        WritableBit = 0x02,
         /**
          * Read permission. Note that a block can be valid but not readable
          * if there is an outstanding write upgrade miss.
          */
-        ReadableBit =       0x04,
+        ReadableBit = 0x04,
         /** dirty (modified) */
-        DirtyBit =          0x08,
+        DirtyBit = 0x08,
         /** detached L1 clean sub-block */
         DetachedL1CleanBit = 0x10,
 
@@ -93,7 +93,7 @@ class CacheBlk : public TaggedEntry
          * Helper enum value that includes all other bits. Whenever a new
          * bits is added, this should be updated.
          */
-        AllBits  =          0x1E,
+        AllBits = 0x1E,
     };
 
     /**
@@ -247,9 +247,21 @@ class CacheBlk : public TaggedEntry
         return isValid() && (coherence & bits);
     }
 
-    bool isDetachedL1Clean() const { return isSet(DetachedL1CleanBit); }
-    void setDetachedL1Clean() { setCoherenceBits(DetachedL1CleanBit); }
-    void clearDetachedL1Clean() { clearCoherenceBits(DetachedL1CleanBit); }
+    bool
+    isDetachedL1Clean() const
+    {
+        return isSet(DetachedL1CleanBit);
+    }
+    void
+    setDetachedL1Clean()
+    {
+        setCoherenceBits(DetachedL1CleanBit);
+    }
+    void
+    clearDetachedL1Clean()
+    {
+        clearCoherenceBits(DetachedL1CleanBit);
+    }
 
     /**
      * Check if this block was the result of a hardware prefetch, yet to
