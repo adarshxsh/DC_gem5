@@ -223,14 +223,22 @@ class SuperBlk : public SectorBlk
      *
      * @return The uncompressed block size in bytes.
      */
-    std::size_t getBlkSize() const { return blkSize; }
+    std::size_t
+    getBlkSize() const
+    {
+        return blkSize;
+    }
 
     /**
      * Get block size, in bits.
      *
      * @return The uncompressed block size in bits.
      */
-    std::size_t getBlkSizeBits() const { return blkSize * CHAR_BIT; }
+    std::size_t
+    getBlkSizeBits() const
+    {
+        return blkSize * CHAR_BIT;
+    }
 
     /**
      * Calculate the compression factor (cf) given a compressed size and the

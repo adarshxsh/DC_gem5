@@ -576,7 +576,8 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateRanking)
             candidates[i].blks[k] = &candidate_subBlks[i][k];
             candidate_subBlks[i][k].setSectorBlock(&candidates[i]);
             candidate_subBlks[i][k].setSectorOffset(k);
-            candidate_subBlks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+            candidate_subBlks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr; });
         }
         candidates[i].registerTagExtractor([](Addr addr) { return addr; });
     }
@@ -607,14 +608,17 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateRanking)
     for (int i = 0; i < NumCandidates; ++i) {
         std::size_t valid_cnt = candidates[i].getNumValid();
         std::size_t used_bits = 0;
-        for (const auto& sub : candidates[i].blks) {
+        for (const auto &sub : candidates[i].blks) {
             if (sub->isValid()) {
-                used_bits += static_cast<const CompressionBlk*>(sub)->getSizeBits();
+                used_bits +=
+                    static_cast<const CompressionBlk *>(sub)->getSizeBits();
             }
         }
         std::size_t total_cap = candidates[i].getBlkSizeBits();
-        std::size_t free_cap = (total_cap > used_bits) ? (total_cap - used_bits) : 0;
-        ssize_t net_space = static_cast<ssize_t>(free_cap) - static_cast<ssize_t>(expanding_size);
+        std::size_t free_cap =
+            (total_cap > used_bits) ? (total_cap - used_bits) : 0;
+        ssize_t net_space = static_cast<ssize_t>(free_cap) -
+                            static_cast<ssize_t>(expanding_size);
 
         bool can_coalloc = false;
         if (!candidates[i].isValid() || valid_cnt == 0) {
@@ -633,7 +637,8 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateRanking)
         }
     }
 
-    // Verify candidate 2 (empty/sparse superblock) is chosen with 0 secondary evictions
+    // Verify candidate 2 (empty/sparse superblock) is chosen with 0 secondary
+    // evictions
     ASSERT_EQ(best_candidate_idx, 2);
     ASSERT_EQ(best_evictions, 0);
     ASSERT_EQ(best_net_space, 256); // 512 - 256
