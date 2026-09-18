@@ -188,7 +188,11 @@ class MemPacket
     /**
      * Get the compressed packet size
      */
-    inline unsigned int getCompressedSize() const { return compressedSize; }
+    inline unsigned int
+    getCompressedSize() const
+    {
+        return compressedSize;
+    }
 
     /**
      * Get the packet address
@@ -214,14 +218,27 @@ class MemPacket
     inline bool isDram() const { return dram; }
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _channel,
-               uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
-               Addr _addr, unsigned int _size, unsigned int _compressedSize = 0)
-        : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
+              uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
+              Addr _addr, unsigned int _size, unsigned int _compressedSize = 0)
+        : entryTime(curTick()),
+          readyTime(curTick()),
+          pkt(_pkt),
           _requestorId(pkt->requestorId()),
-          read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
-          bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
-          compressedSize(_compressedSize ? _compressedSize : (_pkt && _pkt->hasCompressedSize() ? _pkt->getCompressedSize() : _size)),
-          burstHelper(NULL), _qosValue(_pkt->qosValue())
+          read(is_read),
+          dram(is_dram),
+          pseudoChannel(_channel),
+          rank(_rank),
+          bank(_bank),
+          row(_row),
+          bankId(bank_id),
+          addr(_addr),
+          size(_size),
+          compressedSize(_compressedSize ? _compressedSize
+                                         : (_pkt && _pkt->hasCompressedSize()
+                                                ? _pkt->getCompressedSize()
+                                                : _size)),
+          burstHelper(NULL),
+          _qosValue(_pkt->qosValue())
     { }
 
 };
