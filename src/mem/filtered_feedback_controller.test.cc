@@ -94,7 +94,7 @@ TEST(FilteredFeedbackControllerTest, MinimumResidencyTicks)
     // At tick 1000: residency met -> transitions to true
     ctrl.update(20.0, 1000);
     EXPECT_TRUE(ctrl.getState());
-    EXPECT_EQ(ctrl.getLastStateChangeTick(), 1000);
+    EXPECT_EQ(ctrl.getLastStateChangeTick(), 1000ULL);
 
     // Signal drops below low_wm (5.0) at tick 1500, but tick 1500 < 1000 +
     // 1000 -> remains true
@@ -104,7 +104,7 @@ TEST(FilteredFeedbackControllerTest, MinimumResidencyTicks)
     // At tick 2000: residency met -> transitions to false
     ctrl.update(1.0, 2000);
     EXPECT_FALSE(ctrl.getState());
-    EXPECT_EQ(ctrl.getLastStateChangeTick(), 2000);
+    EXPECT_EQ(ctrl.getLastStateChangeTick(), 2000ULL);
 }
 
 TEST(FilteredFeedbackControllerTest, FallbackModes)
