@@ -84,6 +84,20 @@ struct CacheAccessor
     {
         return 1;
     }
+
+    /** Get real-time write queue occupancy ratio */
+    virtual float
+    getWriteQueueOccupancy() const
+    {
+        return 0.0f;
+    }
+
+    /** Get memory controller queue pressure indicator */
+    virtual bool
+    getMemoryPressure() const
+    {
+        return false;
+    }
 };
 
 /**
