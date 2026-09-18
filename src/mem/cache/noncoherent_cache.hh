@@ -82,8 +82,8 @@ class NoncoherentCache : public BaseCache
 
     void doWritebacksAtomic(PacketList& writebacks) override;
 
-    void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                            CacheBlk *blk, PacketList &writebacks) override;
+    void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
+                            PacketList &writebacks) override;
 
     void recvTimingResp(PacketPtr pkt) override;
 
@@ -106,8 +106,7 @@ class NoncoherentCache : public BaseCache
 
     void functionalAccess(PacketPtr pkt, bool from_cpu_side) override;
 
-    void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                        PacketList &writebacks,
+    void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         bool deferred_response = false,
                         bool pending_downgrade = false) override;
 

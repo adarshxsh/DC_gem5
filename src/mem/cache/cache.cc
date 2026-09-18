@@ -76,12 +76,11 @@ Cache::Cache(const CacheParams &p)
 }
 
 void
-Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                      PacketList &writebacks,
+Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool deferred_response, bool pending_downgrade)
 {
-    BaseCache::satisfyRequest(pkt, blk, writebacks,
-                               deferred_response, pending_downgrade);
+    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
+                              pending_downgrade);
 
     if (pkt->isRead()) {
         // determine if this read is from a (coherent) cache or not
@@ -696,7 +695,6 @@ Cache::recvAtomic(PacketPtr pkt)
 // Response handling: responses from the memory side
 //
 /////////////////////////////////////////////////////
-
 
 void
 Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,

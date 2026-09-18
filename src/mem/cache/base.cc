@@ -1176,8 +1176,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 }
 
 void
-BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                          PacketList &writebacks, bool, bool)
+BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                          bool, bool)
 {
     assert(pkt->isRequest());
 
@@ -1229,8 +1229,8 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
         }
 
         if (compressor) {
-            if (!updateCompressionData(blk,
-                    reinterpret_cast<const uint64_t*>(blk->data),
+            if (!updateCompressionData(
+                    blk, reinterpret_cast<const uint64_t *>(blk->data),
                     writebacks)) {
                 invalidateBlock(blk);
             }
@@ -1253,8 +1253,8 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
         DPRINTF(CacheVerbose, "%s for %s (write)\n", __func__, pkt->print());
 
         if (compressor) {
-            if (!updateCompressionData(blk,
-                    reinterpret_cast<const uint64_t*>(blk->data),
+            if (!updateCompressionData(
+                    blk, reinterpret_cast<const uint64_t *>(blk->data),
                     writebacks)) {
                 invalidateBlock(blk);
             }
@@ -1581,7 +1581,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             }
         } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
-                compressor->getDecompressionLatency(blk);
+                  compressor->getDecompressionLatency(blk);
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }

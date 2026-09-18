@@ -68,7 +68,7 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 
 void
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                PacketList &writebacks, bool, bool)
+                                 PacketList &writebacks, bool, bool)
 {
     // As this a non-coherent cache located below the point of
     // coherency, we do not expect requests that are typically used to
