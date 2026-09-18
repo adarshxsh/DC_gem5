@@ -136,3 +136,59 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
         EXPECT_EQ(decomp_data[i], non_zero_data[i]);
     }
 }
+
+class TestMemAwareCPack : public CPack
+{
+  public:
+    using Base::compress;
+    using Base::getDecompressionLatency;
+    using CPack::CPack;
+
+    bool mockCongested = false;
+    bool
+    isMemoryCongested() const override
+    {
+        return mockCongested;
+    }
+};
+
+TEST(DictionaryCompressorTest, MemoryQueuePressureAwareBypass)
+{
+    CPackParams p;
+    p.name = "cpack_mem_aware";
+    p.block_size = 64;
+    p.chunk_size_bits = 32;
+    p.dictionary_size = 4;
+    p.comp_chunks_per_cycle = 2;
+    p.comp_extra_latency = Cycles(5);
+    p.decomp_chunks_per_cycle = 2;
+    p.decomp_extra_latency = Cycles(1);
+    p.enable_mem_aware_bypass = true;
+
+    TestMemAwareCPack compressor(p);
+
+    uint64_t data[8] = {0x1234567891011121ULL, 0x1314151617181920ULL,
+                        0x2122232425262728ULL, 0x2930313233343536ULL,
+                        0x3738394041424344ULL, 0x4546474849505152ULL,
+                        0x5354555657585960ULL, 0x6162636465666768ULL};
+
+    Cycles comp_lat(0), decomp_lat(0);
+
+    // 1. When memory queue is NOT congested, standard compression occurs
+    compressor.mockCongested = false;
+    auto comp_data_normal = compressor.compress(data, comp_lat, decomp_lat);
+    EXPECT_GT(comp_lat, Cycles(0));
+
+    // 2. When memory queue IS congested, compression is bypassed with 0 cycles
+    compressor.mockCongested = true;
+    comp_lat = Cycles(10);
+    decomp_lat = Cycles(10);
+    auto comp_data_bypassed = compressor.compress(data, comp_lat, decomp_lat);
+
+    EXPECT_EQ(comp_lat, Cycles(0));
+    EXPECT_EQ(decomp_lat, Cycles(0));
+    EXPECT_EQ(comp_data_bypassed->getSizeBits(), 64 * 8);
+
+    // 3. Decompression latency query under memory congestion returns 0
+    EXPECT_EQ(compressor.getDecompressionLatency(nullptr), Cycles(0));
+}

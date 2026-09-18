@@ -57,27 +57,42 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      readQueueHighThreshold(readBufferSize * p.read_queue_high_thresh_perc /
+                             100.0),
+      writeQueueHighThreshold(writeBufferSize *
+                              p.write_queue_high_thresh_perc / 100.0),
+      readQueueHighThreshPerc(p.read_queue_high_thresh_perc),
+      writeQueueHighThreshPerc(p.write_queue_high_thresh_perc),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -183,6 +198,40 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 
     auto wrsize_new = (totalWriteQueueSize + neededEntries);
     return  wrsize_new > writeBufferSize;
+}
+
+double
+MemCtrl::getReadQueueFillRatio() const
+{
+    return readBufferSize > 0
+               ? (double)(totalReadQueueSize + respQueue.size()) /
+                     readBufferSize
+               : 0.0;
+}
+
+double
+MemCtrl::getWriteQueueFillRatio() const
+{
+    return writeBufferSize > 0 ? (double)totalWriteQueueSize / writeBufferSize
+                               : 0.0;
+}
+
+bool
+MemCtrl::isReadQueueCongested() const
+{
+    return (totalReadQueueSize + respQueue.size()) >= readQueueHighThreshold;
+}
+
+bool
+MemCtrl::isWriteQueueCongested() const
+{
+    return totalWriteQueueSize >= writeQueueHighThreshold;
+}
+
+bool
+MemCtrl::isCongested() const
+{
+    return isReadQueueCongested() || isWriteQueueCongested();
 }
 
 bool
