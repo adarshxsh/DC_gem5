@@ -44,6 +44,7 @@
  */
 
 #include "mem/cache/base.hh"
+#include <algorithm>
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
