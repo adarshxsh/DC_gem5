@@ -83,10 +83,10 @@ class WriteQueue : public Queue<WriteQueueEntry>
      * @param super_blk Pointer to parent superblock.
      * @return Pointer to the matching WriteQueueEntry, null if not found.
      */
-    WriteQueueEntry* findMatch(Addr blk_addr, bool is_secure,
+    WriteQueueEntry *findMatch(Addr blk_addr, bool is_secure,
                                bool ignore_uncacheable = true,
                                Addr super_blk_addr = 0,
-                               const SuperBlk* super_blk = nullptr) const;
+                               const SuperBlk *super_blk = nullptr) const;
 
     /**
      * Allocates a new WriteQueueEntry for the request and size. This
@@ -106,13 +106,11 @@ class WriteQueue : public Queue<WriteQueueEntry>
      *
      * @pre There are free entries.
      */
-    WriteQueueEntry *allocate(Addr blk_addr, unsigned blk_size,
-                              PacketPtr pkt, Tick when_ready, Counter order,
-                              const SuperBlk* super_blk = nullptr,
-                              Addr super_blk_addr = 0,
-                              int sub_blk_idx = -1,
+    WriteQueueEntry *allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
+                              Tick when_ready, Counter order,
+                              const SuperBlk *super_blk = nullptr,
+                              Addr super_blk_addr = 0, int sub_blk_idx = -1,
                               std::size_t comp_size = 0);
-
 
     /**
      * Mark the given entry as in service. This removes the entry from

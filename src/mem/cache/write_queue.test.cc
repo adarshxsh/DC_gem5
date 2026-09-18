@@ -13,7 +13,7 @@ namespace gem5
 static Tick currentTestTick = 0;
 
 bool
-BaseCache::sendWriteQueuePacket(WriteQueueEntry* wq_entry)
+BaseCache::sendWriteQueuePacket(WriteQueueEntry *wq_entry)
 {
     return false;
 }
@@ -23,8 +23,7 @@ class WriteQueueTest : public ::testing::Test
   protected:
     WriteQueue writeQueue;
 
-    WriteQueueTest()
-        : writeQueue("test_wq", 8, 0, "test_cache")
+    WriteQueueTest() : writeQueue("test_wq", 8, 0, "test_cache")
     {
         Gem5Internal::_curTickPtr = &currentTestTick;
     }
@@ -67,18 +66,20 @@ TEST_F(WriteQueueTest, SubBlockCoalescingAndBitmaskTracking)
     EXPECT_EQ(entry->getReadyTime(), 100);
 
     // Find match for sub-block 1
-    WriteQueueEntry *match1 = writeQueue.findMatch(
-        subBlk1Addr, false, true, superBlkAddr, &superBlk);
+    WriteQueueEntry *match1 = writeQueue.findMatch(subBlk1Addr, false, true,
+                                                   superBlkAddr, &superBlk);
     EXPECT_EQ(match1, entry);
 
-    // Coalesce sub-block 1 with delay = 10 (when_ready = 120 -> 120 + 10 = 130)
+    // Coalesce sub-block 1 with delay = 10 (when_ready = 120 -> 120 + 10 =
+    // 130)
     entry->coalesceSubBlock(pkt1, 120, 2, 1, 128, 10);
     EXPECT_EQ(entry->getNumTargets(), 2);
     EXPECT_EQ(entry->getSubBlkMask(), (1ULL << 0) | (1ULL << 1));
     EXPECT_EQ(entry->getTotalCompressedSizeBits(), 256 + 128);
     EXPECT_EQ(entry->getReadyTime(), 130);
 
-    // Coalesce sub-block 2 with delay = 15 (when_ready = 130 -> 130 + 15 = 145)
+    // Coalesce sub-block 2 with delay = 15 (when_ready = 130 -> 130 + 15 =
+    // 145)
     entry->coalesceSubBlock(pkt2, 130, 3, 2, 192, 15);
     EXPECT_EQ(entry->getNumTargets(), 3);
     EXPECT_EQ(entry->getSubBlkMask(), (1ULL << 0) | (1ULL << 1) | (1ULL << 2));
@@ -93,17 +94,18 @@ TEST_F(WriteQueueTest, SubBlockCoalescingAndBitmaskTracking)
 TEST_F(WriteQueueTest, UncacheableGuardrailPreventsCoalescing)
 {
     Addr addr = 0x2000;
-    RequestPtr reqUnc = std::make_shared<Request>(addr, 64, Request::UNCACHEABLE, 0);
+    RequestPtr reqUnc =
+        std::make_shared<Request>(addr, 64, Request::UNCACHEABLE, 0);
     PacketPtr pktUnc = new Packet(reqUnc, MemCmd::WriteReq);
     pktUnc->allocate();
 
-    WriteQueueEntry *entry = writeQueue.allocate(
-        addr, 64, pktUnc, 100, 1);
+    WriteQueueEntry *entry = writeQueue.allocate(addr, 64, pktUnc, 100, 1);
 
     ASSERT_NE(entry, nullptr);
     EXPECT_TRUE(entry->isUncacheable());
 
-    // findMatch with ignore_uncacheable = true should not match uncacheable entry
+    // findMatch with ignore_uncacheable = true should not match uncacheable
+    // entry
     WriteQueueEntry *match = writeQueue.findMatch(addr, false, true);
     EXPECT_EQ(match, nullptr);
 

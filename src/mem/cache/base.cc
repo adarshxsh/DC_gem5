@@ -247,23 +247,24 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
         pkt->payloadDelay = 0;
     }
 
-    const SuperBlk* super_blk = nullptr;
+    const SuperBlk *super_blk = nullptr;
     Addr super_blk_addr = 0;
     int sub_blk_idx = -1;
     std::size_t comp_size = 0;
 
-    SectorTags* sec_tags = dynamic_cast<SectorTags*>(tags);
+    SectorTags *sec_tags = dynamic_cast<SectorTags *>(tags);
     if (sec_tags) {
         sub_blk_idx = sec_tags->extractSectorOffset(blk_addr);
         super_blk_addr = blk_addr - (sub_blk_idx * blkSize);
 
-        CacheBlk* blk = tags->findBlock({blk_addr, pkt->isSecure()});
+        CacheBlk *blk = tags->findBlock({blk_addr, pkt->isSecure()});
         if (blk) {
-            SectorSubBlk* sub_blk = dynamic_cast<SectorSubBlk*>(blk);
+            SectorSubBlk *sub_blk = dynamic_cast<SectorSubBlk *>(blk);
             if (sub_blk) {
-                super_blk = dynamic_cast<SuperBlk*>(sub_blk->getSectorBlock());
+                super_blk =
+                    dynamic_cast<SuperBlk *>(sub_blk->getSectorBlock());
             }
-            CompressionBlk* comp_blk = dynamic_cast<CompressionBlk*>(blk);
+            CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
             if (comp_blk) {
                 comp_size = comp_blk->getSizeBits();
             }
@@ -275,20 +276,21 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
     bool is_atomic = pkt->isAtomicOp() || (pkt->cmd == MemCmd::SwapReq);
     bool can_coalesce = !is_uncacheable && !is_strictly_ordered && !is_atomic;
 
-    WriteQueueEntry *wq_entry =
-        writeBuffer.findMatch(blk_addr, pkt->isSecure(), true, super_blk_addr, super_blk);
+    WriteQueueEntry *wq_entry = writeBuffer.findMatch(
+        blk_addr, pkt->isSecure(), true, super_blk_addr, super_blk);
 
     if (wq_entry && !wq_entry->inService && can_coalesce &&
         (wq_entry->isSuperBlockEntry() || super_blk_addr != 0)) {
         DPRINTF(Cache, "Coalescing writeback %s into entry %#llx\n",
                 pkt->print(), wq_entry->getSuperBlockAddr());
-        wq_entry->coalesceSubBlock(pkt, time, order++, sub_blk_idx, comp_size, delay);
+        wq_entry->coalesceSubBlock(pkt, time, order++, sub_blk_idx, comp_size,
+                                   delay);
     } else {
         if (wq_entry && !wq_entry->inService) {
             DPRINTF(Cache, "Potential to merge writeback %s\n", pkt->print());
         }
-        writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++,
-                             super_blk, super_blk_addr, sub_blk_idx, comp_size);
+        writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++, super_blk,
+                             super_blk_addr, sub_blk_idx, comp_size);
     }
 
     if (writeBuffer.isFull()) {
