@@ -371,6 +371,21 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** Enable queue pressure adaptive decompression latency throttling. */
+    const bool enableQueueAwareDecompression;
+
+    /** Queue occupancy high-watermark threshold for decompression throttling.
+     */
+    const unsigned mshrQueueThrottlingThreshold;
+
+    /**
+     * Check if downstream MSHR or write buffer queue occupancy exceeds
+     * the throttling threshold.
+     *
+     * @return true if queues are congested.
+     */
+    bool isQueueCongested() const;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 

@@ -81,19 +81,21 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      enableQueueAwareDecompression(p.enable_queue_aware_decompression),
+      mshrQueueThrottlingThreshold(p.mshr_queue_throttling_threshold),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1252,6 +1254,16 @@ BaseCache::calculateTagOnlyLatency(const uint32_t delay,
     return ticksToCycles(delay) + lookup_lat;
 }
 
+bool
+BaseCache::isQueueCongested() const
+{
+    const unsigned mshr_occ = mshrQueue.occupancy();
+    const unsigned wq_occ = writeBuffer.occupancy();
+    return (mshr_occ >= mshrQueueThrottlingThreshold) ||
+           (wq_occ >= mshrQueueThrottlingThreshold) ||
+           (mshr_occ + wq_occ >= mshrQueueThrottlingThreshold);
+}
+
 Cycles
 BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
                                   const Cycles lookup_lat) const
@@ -1275,6 +1287,14 @@ BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
         if (when_ready > tick &&
             ticksToCycles(when_ready - tick) > lat) {
             lat += ticksToCycles(when_ready - tick);
+        }
+
+        if (compressor) {
+            const bool is_congested =
+                enableQueueAwareDecompression && isQueueCongested();
+            if (!is_congested) {
+                lat += compressor->getDecompressionLatency(blk);
+            }
         }
     } else {
         // In case of a miss, we neglect the data access in a parallel
@@ -1523,12 +1543,6 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // Calculate access latency based on the need to access the data array
         if (pkt->isRead()) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
-
-            // When a block is compressed, it must first be decompressed
-            // before being read. This adds to the access latency.
-            if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
-            }
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
@@ -1646,6 +1660,12 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
     DPRINTF(Cache, "Block addr %#llx (%s) moving from %s to %s\n",
             addr, is_secure ? "s" : "ns", old_state, blk->print());
+
+    if (enableQueueAwareDecompression && isQueueCongested()) {
+        if (compressor && blk) {
+            compressor->setDecompressionLatency(blk, Cycles(0));
+        }
+    }
 
     // if we got new data, copy it in (checking for a read response
     // and a response that has data is the same in the end)
