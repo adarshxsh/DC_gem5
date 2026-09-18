@@ -81,6 +81,18 @@ class BaseCacheCompressor(SimObject):
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
 
+    enable_memory_pressure_throttling = Param.Bool(
+        False,
+        "Enable compression/decompression bypass when downstream memory queues are congested",
+    )
+    memory_congestion_manager = Param.SimObject(
+        NULL,
+        "SimObject (e.g. MemCtrl) providing memory congestion probe point",
+    )
+    memory_congestion_managers = VectorParam.SimObject(
+        [], "List of SimObjects providing memory congestion probe points"
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"

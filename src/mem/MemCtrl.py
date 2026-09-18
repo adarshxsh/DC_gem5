@@ -79,6 +79,13 @@ class MemCtrl(QoSMemCtrl):
     # queue is empty
     write_low_thresh_perc = Param.Percent(50, "Threshold to start writes")
 
+    congestion_high_threshold_percent = Param.Percent(
+        80, "High watermark percentage for memory queue congestion probe"
+    )
+    congestion_low_threshold_percent = Param.Percent(
+        65, "Low watermark percentage for memory queue congestion probe"
+    )
+
     # minimum write bursts to schedule before switching back to reads
     min_writes_per_switch = Param.Unsigned(
         16, "Minimum write bursts before switching to reads"
