@@ -64,9 +64,12 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
       responseLatency(p.response_latency),
       headerLatency(p.header_latency),
       width(p.width),
+      enableCrossbarCompression(p.enable_crossbar_compression),
       gotAddrRanges(p.port_default_connection_count +
-                          p.port_mem_side_ports_connection_count, false),
-      gotAllAddrRanges(false), defaultPortID(InvalidPortID),
+                        p.port_mem_side_ports_connection_count,
+                    false),
+      gotAllAddrRanges(false),
+      defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
 
       ADD_STAT(transDist, statistics::units::Count::get(),
@@ -131,9 +134,11 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
         // deliver the payload of the packet, after the header delay,
         // we take the maximum since the payload delay could already
         // be longer than what this parcitular crossbar enforces.
-        pkt->payloadDelay = std::max<Tick>(pkt->payloadDelay,
-                                           divCeil(pkt->getSize(), width) *
-                                           clockPeriod());
+        std::size_t payload_bytes = enableCrossbarCompression
+                                        ? pkt->getCompressedSize()
+                                        : pkt->getSize();
+        pkt->payloadDelay = std::max<Tick>(
+            pkt->payloadDelay, divCeil(payload_bytes, width) * clockPeriod());
     }
 
     // the payload delay is not paying for the clock offset as that is
