@@ -46,20 +46,22 @@ namespace qos
 
 AdaptiveCompressionQueuePressurePolicy::AdaptiveCompressionQueuePressurePolicy(
     const Params &p)
-  : Policy(p),
-    writePressureThreshold(p.write_pressure_threshold),
-    readPressureThreshold(p.read_pressure_threshold),
-    compressionRatioThreshold(p.compression_ratio_threshold),
-    writeboostMax(p.writeboost_max),
-    readboostMax(p.readboost_max),
-    defaultPriority(p.default_prio)
+    : Policy(p),
+      writePressureThreshold(p.write_pressure_threshold),
+      readPressureThreshold(p.read_pressure_threshold),
+      compressionRatioThreshold(p.compression_ratio_threshold),
+      writeboostMax(p.writeboost_max),
+      readboostMax(p.readboost_max),
+      defaultPriority(p.default_prio)
 {}
 
-AdaptiveCompressionQueuePressurePolicy::~AdaptiveCompressionQueuePressurePolicy()
+AdaptiveCompressionQueuePressurePolicy::
+    ~AdaptiveCompressionQueuePressurePolicy()
 {}
 
 uint8_t
-AdaptiveCompressionQueuePressurePolicy::schedule(const RequestorID id, const uint64_t data)
+AdaptiveCompressionQueuePressurePolicy::schedule(const RequestorID id,
+                                                 const uint64_t data)
 {
     return defaultPriority;
 }
@@ -76,7 +78,8 @@ AdaptiveCompressionQueuePressurePolicy::schedule(const PacketPtr pkt)
         return base_prio;
     }
 
-    uint8_t max_prio = memCtrl->numPriorities() > 0 ? (memCtrl->numPriorities() - 1) : 0;
+    uint8_t max_prio =
+        memCtrl->numPriorities() > 0 ? (memCtrl->numPriorities() - 1) : 0;
     uint8_t calculated_prio = base_prio;
 
     if (pkt->isWrite() || pkt->isWriteback()) {
@@ -85,15 +88,19 @@ AdaptiveCompressionQueuePressurePolicy::schedule(const PacketPtr pkt)
         double comp_ratio = pkt->getCompressionRatio();
 
         if (wr_fill >= writePressureThreshold || wr_grad > 0.0) {
-            if (pkt->isCompressed() || comp_ratio >= compressionRatioThreshold) {
-                double pressure_factor = std::max(0.0, wr_fill + std::max(0.0, wr_grad));
-                uint8_t boost = static_cast<uint8_t>(
-                    std::min<double>(writeboostMax, std::round(comp_ratio * pressure_factor * writeboostMax))
-                );
-                if (boost == 0 && (wr_fill >= writePressureThreshold || comp_ratio >= compressionRatioThreshold)) {
+            if (pkt->isCompressed() ||
+                comp_ratio >= compressionRatioThreshold) {
+                double pressure_factor =
+                    std::max(0.0, wr_fill + std::max(0.0, wr_grad));
+                uint8_t boost = static_cast<uint8_t>(std::min<double>(
+                    writeboostMax,
+                    std::round(comp_ratio * pressure_factor * writeboostMax)));
+                if (boost == 0 && (wr_fill >= writePressureThreshold ||
+                                   comp_ratio >= compressionRatioThreshold)) {
                     boost = 1;
                 }
-                calculated_prio = std::min<uint8_t>(max_prio, base_prio + boost);
+                calculated_prio =
+                    std::min<uint8_t>(max_prio, base_prio + boost);
             }
         }
     } else if (pkt->isRead()) {
@@ -101,22 +108,25 @@ AdaptiveCompressionQueuePressurePolicy::schedule(const PacketPtr pkt)
         double rd_grad = memCtrl->getReadQueuePressureGradient();
         double wr_fill = memCtrl->getWriteQueueFillRatio();
 
-        if (rd_fill >= readPressureThreshold || rd_grad > 0.0 || wr_fill >= writePressureThreshold) {
-            double pressure_factor = std::max(0.0, rd_fill + std::max(0.0, rd_grad));
-            uint8_t boost = static_cast<uint8_t>(
-                std::min<double>(readboostMax, std::round(pressure_factor * readboostMax))
-            );
-            if (boost == 0 && (rd_fill >= readPressureThreshold || rd_grad > 0.0)) {
+        if (rd_fill >= readPressureThreshold || rd_grad > 0.0 ||
+            wr_fill >= writePressureThreshold) {
+            double pressure_factor =
+                std::max(0.0, rd_fill + std::max(0.0, rd_grad));
+            uint8_t boost = static_cast<uint8_t>(std::min<double>(
+                readboostMax, std::round(pressure_factor * readboostMax)));
+            if (boost == 0 &&
+                (rd_fill >= readPressureThreshold || rd_grad > 0.0)) {
                 boost = 1;
             }
             calculated_prio = std::min<uint8_t>(max_prio, base_prio + boost);
         }
     }
 
-    DPRINTF(QOS, "AdaptiveCompressionQueuePressurePolicy: pkt addr %#x type %s "
-                 "compRatio %.2f base_prio %d calculated_prio %d\n",
-                 pkt->getAddr(), pkt->isWrite() ? "WRITE" : "READ",
-                 pkt->getCompressionRatio(), base_prio, calculated_prio);
+    DPRINTF(QOS,
+            "AdaptiveCompressionQueuePressurePolicy: pkt addr %#x type %s "
+            "compRatio %.2f base_prio %d calculated_prio %d\n",
+            pkt->getAddr(), pkt->isWrite() ? "WRITE" : "READ",
+            pkt->getCompressionRatio(), base_prio, calculated_prio);
 
     return std::min<uint8_t>(max_prio, calculated_prio);
 }

@@ -65,7 +65,7 @@ QueuePolicy::create(const QoSMemCtrlParams &p)
         return new LrgQueuePolicy(p);
       case enums::QoSQPolicy::compression_aware:
       case enums::QoSQPolicy::adaptive_compression:
-        return new AdaptiveCompressionQueuePolicy(p);
+          return new AdaptiveCompressionQueuePolicy(p);
       case enums::QoSQPolicy::lifo:
       default:
         return new LifoQueuePolicy(p);
@@ -172,7 +172,7 @@ LrgQueuePolicy::enqueuePacket(PacketPtr pkt)
 };
 
 QueuePolicy::PacketQueue::iterator
-AdaptiveCompressionQueuePolicy::selectPacket(PacketQueue* queue)
+AdaptiveCompressionQueuePolicy::selectPacket(PacketQueue *queue)
 {
     panic_if(queue->empty(),
              "Provided packet queue is not usable by queue policy");
@@ -183,7 +183,8 @@ AdaptiveCompressionQueuePolicy::selectPacket(PacketQueue* queue)
         double rd_fill = memCtrl->getReadQueueFillRatio();
         double rd_grad = memCtrl->getReadQueuePressureGradient();
 
-        bool pressure_spike = (wr_fill >= 0.5 || wr_grad > 0.0 || rd_fill >= 0.5 || rd_grad > 0.0);
+        bool pressure_spike = (wr_fill >= 0.5 || wr_grad > 0.0 ||
+                               rd_fill >= 0.5 || rd_grad > 0.0);
 
         if (pressure_spike) {
             auto best_it = queue->end();
@@ -191,7 +192,8 @@ AdaptiveCompressionQueuePolicy::selectPacket(PacketQueue* queue)
 
             for (auto it = queue->begin(); it != queue->end(); ++it) {
                 PacketPtr pkt = *it;
-                if (pkt && (pkt->isCompressed() || pkt->getCompressionRatio() > max_comp)) {
+                if (pkt && (pkt->isCompressed() ||
+                            pkt->getCompressionRatio() > max_comp)) {
                     max_comp = pkt->getCompressionRatio();
                     best_it = it;
                 }

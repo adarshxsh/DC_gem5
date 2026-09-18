@@ -68,7 +68,8 @@ class AdaptiveCompressionQueuePressurePolicy : public Policy
     /** Read queue pressure threshold ratio (0.0 to 1.0) */
     const double readPressureThreshold;
 
-    /** Minimum payload compression ratio to trigger writeback priority boost */
+    /** Minimum payload compression ratio to trigger writeback priority boost
+     */
     const double compressionRatioThreshold;
 
     /** Maximum priority boost for compressed writebacks */
