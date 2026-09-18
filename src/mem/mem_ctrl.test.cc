@@ -41,18 +41,23 @@ class MemCtrlUnitTest : public ::testing::Test
   protected:
     Tick mockTick = 0;
 
-    void SetUp() override {
+    void
+    SetUp() override
+    {
         Gem5Internal::_curTickPtr = &mockTick;
     }
 
-    void TearDown() override {
+    void
+    TearDown() override
+    {
         Gem5Internal::_curTickPtr = nullptr;
     }
 };
 
 TEST_F(MemCtrlUnitTest, BaselineEquivalenceWhenDisabled)
 {
-    // Test that when enable_adaptive_thresholds is false, static thresholds remain unchanged
+    // Test that when enable_adaptive_thresholds is false, static thresholds
+    // remain unchanged
     MemCtrlParams p;
     p.write_high_thresh_perc = 85;
     p.write_low_thresh_perc = 50;
