@@ -151,14 +151,12 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
 
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
-            superblock->isCompressed())
-        {
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
+            superblock->isCompressed()) {
             if (superblock->canCoAllocate(compressed_size) ||
                 (is_uncompressed_default &&
-                 superblock->getNumValid() < superblock->getCompressionFactor()))
-            {
+                 superblock->getNumValid() <
+                     superblock->getCompressionFactor())) {
                 victim_superblock = superblock;
                 is_co_allocation = true;
                 break;
@@ -178,23 +176,23 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
 
         // Find minimum valid sub-block count among candidate superblocks
         uint8_t min_valid = std::numeric_limits<uint8_t>::max();
-        for (const auto& entry : superblock_entries) {
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        for (const auto &entry : superblock_entries) {
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
             min_valid = std::min(min_valid, superblock->getNumValid());
         }
 
         // Isolate candidates with minimum valid sub-block count
-        std::vector<ReplaceableEntry*> candidate_entries;
+        std::vector<ReplaceableEntry *> candidate_entries;
         candidate_entries.reserve(superblock_entries.size());
-        for (const auto& entry : superblock_entries) {
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+        for (const auto &entry : superblock_entries) {
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
             if (superblock->getNumValid() == min_valid) {
                 candidate_entries.push_back(entry);
             }
         }
 
         // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
+        victim_superblock = static_cast<SuperBlk *>(
             replacementPolicy->getVictim(candidate_entries));
 
         // The whole superblock must be evicted to make room for the new one
