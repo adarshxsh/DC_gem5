@@ -95,6 +95,21 @@ class MockCacheAccessor : public CacheAccessor
     {
         return compressionFactor;
     }
+
+    float writeQueueOccupancy = 0.0f;
+    bool memoryPressure = false;
+
+    float
+    getWriteQueueOccupancy() const override
+    {
+        return writeQueueOccupancy;
+    }
+
+    bool
+    getMemoryPressure() const override
+    {
+        return memoryPressure;
+    }
 };
 
 class TestQueuedPrefetcher : public Queued
@@ -216,4 +231,83 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
 
     delete params.cht_indexing_policy;
     delete params.cht_replacement_policy;
+}
+
+TEST(QueuedQueuePressureTest, CandidateSheddingUnderPressure)
+{
+    Tick mockTick = 1000;
+    Gem5Internal::_curTickPtr = &mockTick;
+
+    QueuedPrefetcherParams params;
+    params.name = "test_pressure_prefetcher";
+    params.block_size = 64;
+    params.latency = 1;
+    params.queue_size = 32;
+    params.max_prefetch_requests_with_pending_translation = 32;
+    params.queue_squash = true;
+    params.queue_filter = true;
+    params.cache_snoop = false;
+    params.tag_prefetch = true;
+    params.throttle_control_percentage = 0;
+    params.on_miss = false;
+    params.on_read = true;
+    params.on_write = true;
+    params.on_data = true;
+    params.on_inst = true;
+    params.prefetch_on_access = true;
+    params.prefetch_on_pf_hit = true;
+    params.use_virtual_addresses = false;
+    params.page_bytes = 4096;
+    params.enable_cht = false;
+    params.cht_entries = 1;
+    params.cht_assoc = 1;
+    params.cht_min_cf_threshold = 1;
+    params.cht_indexing_policy = nullptr;
+    params.cht_replacement_policy = nullptr;
+
+    TestQueuedPrefetcher prefetcher(params);
+    MockCacheAccessor mockCache;
+
+    Addr testAddr = 0x9000;
+    RequestPtr req = std::make_shared<Request>(testAddr, 64, 0, 0);
+    Packet pkt(req, MemCmd::ReadReq);
+    pkt.allocate();
+
+    Base::PrefetchInfo pfi(&pkt, testAddr, true);
+
+    // 1. Normal conditions: write queue occupancy = 0.0, memoryPressure = false
+    mockCache.writeQueueOccupancy = 0.0f;
+    mockCache.memoryPressure = false;
+
+    prefetcher.insert(&pkt, pfi, 0, mockCache);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+    EXPECT_EQ(prefetcher.getStats().pfDroppedQueuePressure.value(), 0);
+
+    // Clear queue for next test
+    prefetcher.getPFQ().clear();
+
+    // 2. High write queue occupancy (85% >= threshold 80%)
+    mockCache.writeQueueOccupancy = 0.85f;
+
+    // Low priority prefetch (priority = 0) should be shed
+    prefetcher.insert(&pkt, pfi, 0, mockCache);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 0);
+    EXPECT_EQ(prefetcher.getStats().pfDroppedQueuePressure.value(), 1);
+
+    // High priority prefetch (priority = 10) should NOT be shed
+    prefetcher.insert(&pkt, pfi, 10, mockCache);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+    EXPECT_EQ(prefetcher.getStats().pfDroppedQueuePressure.value(), 1);
+
+    // Clear queue
+    prefetcher.getPFQ().clear();
+
+    // 3. Memory pressure active
+    mockCache.writeQueueOccupancy = 0.0f;
+    mockCache.memoryPressure = true;
+
+    // Low priority prefetch should be shed
+    prefetcher.insert(&pkt, pfi, -1, mockCache);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 0);
+    EXPECT_EQ(prefetcher.getStats().pfDroppedQueuePressure.value(), 2);
 }
