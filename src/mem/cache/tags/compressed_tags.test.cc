@@ -75,8 +75,7 @@ class SuperBlkTestFixture : public ::testing::Test
                 count_valid++;
                 const CompressionBlk *cblk =
                     static_cast<const CompressionBlk *>(blk);
-                double cf =
-                    sb.calculateCompressionFactor(cblk->getSizeBits());
+                double cf = sb.calculateCompressionFactor(cblk->getSizeBits());
                 if (cf < min_cf) {
                     min_cf = cf;
                 }

@@ -211,8 +211,8 @@ class SuperBlk : public SectorBlk
     void setBlkSize(const std::size_t blk_size);
 
     /**
-     * Calculate the exact fractional compression factor (cf) given a compressed
-     * size and the maximum compression ratio.
+     * Calculate the exact fractional compression factor (cf) given a
+     * compressed size and the maximum compression ratio.
      *
      * @param size The compressed size.
      * @return Compression factor corresponding to the size.
