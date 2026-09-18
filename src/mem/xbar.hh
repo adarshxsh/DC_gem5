@@ -116,7 +116,6 @@ class BaseXBar : public ClockedObject
 
         const std::string name() const { return _name; }
 
-
         /**
          * Determine if the layer accepts a packet from a specific
          * port. If not, the port in question is also added to the
@@ -128,7 +127,7 @@ class BaseXBar : public ClockedObject
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port, PacketPtr pkt = nullptr);
+        bool tryTiming(SrcType *src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -219,17 +218,22 @@ class BaseXBar : public ClockedObject
          */
         struct WaitingPort
         {
-            SrcType* srcPort;
+            SrcType *srcPort;
             uint8_t qos;
             bool isRead;
             bool isWriteback;
             Tick decompDelay;
             Tick arrivalTick;
 
-            WaitingPort(SrcType* port = nullptr, uint8_t q = 0, bool rd = false,
-                        bool wb = false, Tick delay = 0, Tick arrival = 0)
-                : srcPort(port), qos(q), isRead(rd), isWriteback(wb),
-                  decompDelay(delay), arrivalTick(arrival)
+            WaitingPort(SrcType *port = nullptr, uint8_t q = 0,
+                        bool rd = false, bool wb = false, Tick delay = 0,
+                        Tick arrival = 0)
+                : srcPort(port),
+                  qos(q),
+                  isRead(rd),
+                  isWriteback(wb),
+                  decompDelay(delay),
+                  arrivalTick(arrival)
             {}
         };
 
@@ -263,7 +267,8 @@ class BaseXBar : public ClockedObject
 
         EventFunctionWrapper releaseEvent;
 
-        /** Event and handler to trigger retry when endpoint decompression unit frees up */
+        /** Event and handler to trigger retry when endpoint decompression unit
+         * frees up */
         EventFunctionWrapper decompFreeEvent;
         void processDecompFree();
 
