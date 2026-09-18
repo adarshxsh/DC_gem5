@@ -66,8 +66,10 @@ class Message
         : m_block_size(block_size),
           m_time(curTime),
           m_LastEnqueueTime(curTime),
-          m_DelayedTicks(0), m_msg_counter(0),
-          incoming_link(-1), vnet(-1),
+          m_DelayedTicks(0),
+          m_msg_counter(0),
+          incoming_link(-1),
+          vnet(-1),
           m_compressed_payload_size(-1)
     { }
 
@@ -78,9 +80,21 @@ class Message
     virtual MsgPtr clone() const = 0;
     virtual void print(std::ostream& out) const = 0;
 
-    int getCompressedPayloadSize() const { return m_compressed_payload_size; }
-    void setCompressedPayloadSize(int size) { m_compressed_payload_size = size; }
-    bool isPayloadCompressed() const { return m_compressed_payload_size >= 0; }
+    int
+    getCompressedPayloadSize() const
+    {
+        return m_compressed_payload_size;
+    }
+    void
+    setCompressedPayloadSize(int size)
+    {
+        m_compressed_payload_size = size;
+    }
+    bool
+    isPayloadCompressed() const
+    {
+        return m_compressed_payload_size >= 0;
+    }
 
     virtual const MessageSizeType& getMessageSize() const
     { panic("MessageSizeType() called on wrong message!"); }
