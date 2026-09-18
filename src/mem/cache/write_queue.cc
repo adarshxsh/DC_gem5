@@ -46,6 +46,7 @@
 
 #include <cassert>
 
+#include "mem/cache/tags/super_blk.hh"
 #include "mem/cache/write_queue_entry.hh"
 
 namespace gem5
@@ -58,15 +59,62 @@ WriteQueue::WriteQueue(const std::string &_label,
 {}
 
 WriteQueueEntry *
+WriteQueue::findMatch(Addr blk_addr, bool is_secure, bool ignore_uncacheable,
+                      Addr super_blk_addr, const SuperBlk *super_blk) const
+{
+    for (const auto &entry : allocatedList) {
+        if (ignore_uncacheable && entry->isUncacheable()) {
+            continue;
+        }
+
+        // 1. Exact block address match
+        if (entry->matchBlockAddr(blk_addr, is_secure)) {
+            return entry;
+        }
+
+        // 2. Superblock base address match for unissued entries
+        if (!entry->inService && !entry->isUncacheable()) {
+            if (super_blk && entry->getSuperBlock() == super_blk &&
+                entry->isSecure == is_secure) {
+                return entry;
+            }
+            if (super_blk_addr != 0 && entry->getSuperBlockAddr() != 0 &&
+                entry->getSuperBlockAddr() == super_blk_addr &&
+                entry->isSecure == is_secure) {
+                return entry;
+            }
+            if (entry->getSuperBlockAddr() != 0 &&
+                entry->isSecure == is_secure) {
+                Addr entry_sb = entry->getSuperBlockAddr();
+                unsigned sb_num_blks =
+                    (entry->getSuperBlock() &&
+                     !entry->getSuperBlock()->blks.empty())
+                        ? entry->getSuperBlock()->blks.size()
+                        : 4;
+                Addr entry_sb_end = entry_sb + (sb_num_blks * entry->blkSize);
+                if ((super_blk_addr != 0 && super_blk_addr == entry_sb) ||
+                    (blk_addr >= entry_sb && blk_addr < entry_sb_end)) {
+                    return entry;
+                }
+            }
+        }
+    }
+    return nullptr;
+}
+
+WriteQueueEntry *
 WriteQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                    Tick when_ready, Counter order)
+                     Tick when_ready, Counter order, const SuperBlk *super_blk,
+                     Addr super_blk_addr, int sub_blk_idx,
+                     std::size_t comp_size)
 {
     assert(!freeList.empty());
     WriteQueueEntry *entry = freeList.front();
     assert(entry->getNumTargets() == 0);
     freeList.pop_front();
 
-    entry->allocate(blk_addr, blk_size, pkt, when_ready, order);
+    entry->allocate(blk_addr, blk_size, pkt, when_ready, order, super_blk,
+                    super_blk_addr, sub_blk_idx, comp_size);
     entry->allocIter = allocatedList.insert(allocatedList.end(), entry);
     entry->readyIter = addToReadyList(entry);
 
@@ -82,7 +130,9 @@ WriteQueue::markInService(WriteQueueEntry *entry)
     // this cache, and for uncacheable write we do not need the entry
     // as part of the response handling
     entry->popTarget();
-    deallocate(entry);
+    if (!entry->hasTargets()) {
+        deallocate(entry);
+    }
 }
 
 } // namespace gem5
