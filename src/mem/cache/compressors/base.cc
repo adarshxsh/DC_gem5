@@ -93,10 +93,23 @@ Base::Base(const Params &p)
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
+      ewmaAlpha(p.ewma_alpha),
+      hysteresisMarginPerc(p.hysteresis_margin_perc),
+      bypassEnableThreshold(p.bypass_enable_threshold > 0.0
+                                ? p.bypass_enable_threshold
+                                : (p.latency_breakeven_threshold *
+                                   (1.0 - p.hysteresis_margin_perc / 100.0))),
+      bypassDisableThreshold(p.bypass_disable_threshold > 0.0
+                                 ? p.bypass_disable_threshold
+                                 : (p.latency_breakeven_threshold *
+                                    (1.0 + p.hysteresis_margin_perc / 100.0))),
+      bypassActive(false),
       decayShift(p.decay_shift),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
+      decayedUncompressedBits(0.0),
+      decayedCompressedBits(0.0),
       cache(nullptr),
       stats(*this)
 {
@@ -165,12 +178,30 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
 
     double observedRatio =
-        (sampledCompressedBits > 0)
-            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+        (decayedCompressedBits > 0.0)
+            ? (decayedUncompressedBits / decayedCompressedBits)
+            : ((sampledCompressedBits > 0)
+                   ? ((double)sampledUncompressedBits /
+                      (double)sampledCompressedBits)
+                   : (latencyBreakevenThreshold + 1.0));
 
-    bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+    if (enableAdaptiveBypass) {
+        if (!bypassActive && (observedRatio < bypassEnableThreshold)) {
+            bypassActive = true;
+            DPRINTF(CacheComp,
+                    "Adaptive bypass ENABLED (observed ratio: %.4f < enable "
+                    "threshold: %.4f).\n",
+                    observedRatio, bypassEnableThreshold);
+        } else if (bypassActive && (observedRatio > bypassDisableThreshold)) {
+            bypassActive = false;
+            DPRINTF(CacheComp,
+                    "Adaptive bypass DISABLED (observed ratio: %.4f > disable "
+                    "threshold: %.4f).\n",
+                    observedRatio, bypassDisableThreshold);
+        }
+    }
+
+    bool shouldBypass = enableAdaptiveBypass && bypassActive;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -180,11 +211,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+        DPRINTF(CacheComp,
+                "Adaptive bypass active (observed ratio: %.4f). "
+                "Bypassing compression.\n",
+                observedRatio);
         return comp_data;
     }
 
@@ -227,6 +257,18 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         uint64_t uncomp_bits = blkSize * CHAR_BIT;
         sampledUncompressedBits += uncomp_bits;
         sampledCompressedBits += comp_size_bits;
+
+        if (decayedUncompressedBits == 0.0 && decayedCompressedBits == 0.0) {
+            decayedUncompressedBits = uncomp_bits;
+            decayedCompressedBits = comp_size_bits;
+        } else {
+            decayedUncompressedBits =
+                ewmaAlpha * uncomp_bits +
+                (1.0 - ewmaAlpha) * decayedUncompressedBits;
+            decayedCompressedBits = ewmaAlpha * comp_size_bits +
+                                    (1.0 - ewmaAlpha) * decayedCompressedBits;
+        }
+
         stats.sampledCompressions++;
         stats.sampledUncompressedBits += uncomp_bits;
         stats.sampledCompressedBits += comp_size_bits;
@@ -276,11 +318,7 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0)
-                                   ? ((double)sampledUncompressedBits /
-                                      (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
-        if (observedRatio < latencyBreakevenThreshold) {
+        if (bypassActive) {
             stats.bypassedDecompressions += 1;
         }
     }
