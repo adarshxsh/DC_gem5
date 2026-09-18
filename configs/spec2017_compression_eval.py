@@ -138,7 +138,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         enable_adaptive_bypass: bool = False,
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
-        decay_shift: int = 4,
+        evaluation_interval: int = 1000,
+        decay_factor: float = 0.8,
+        sharp_delta_threshold: float = 0.5,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -151,6 +153,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
         :param latency_breakeven_threshold: Compression ratio threshold for bypass.
         :param sampling_interval: Sampling interval for compression effectiveness.
+        :param evaluation_interval: Evaluation interval in accesses for bypass threshold.
+        :param decay_factor: Exponential decay factor for historical statistics.
+        :param sharp_delta_threshold: Ratio delta threshold for resetting accumulators.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -168,7 +173,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._enable_adaptive_bypass = enable_adaptive_bypass
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
-        self._decay_shift = decay_shift
+        self._evaluation_interval = evaluation_interval
+        self._decay_factor = decay_factor
+        self._sharp_delta_threshold = sharp_delta_threshold
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -197,7 +204,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                     self._latency_breakeven_threshold
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
-                l2.compressor.decay_shift = self._decay_shift
+                l2.compressor.evaluation_interval = self._evaluation_interval
+                l2.compressor.decay_factor = self._decay_factor
+                l2.compressor.sharp_delta_threshold = (
+                    self._sharp_delta_threshold
+                )
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
@@ -426,11 +437,27 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--decay-shift",
+    "--evaluation-interval",
     type=int,
     required=False,
-    default=4,
-    help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
+    default=1000,
+    help="Evaluation interval in accesses for bypass threshold (default: 1000).",
+)
+
+parser.add_argument(
+    "--decay-factor",
+    type=float,
+    required=False,
+    default=0.8,
+    help="Exponential decay factor for historical compression stats (default: 0.8).",
+)
+
+parser.add_argument(
+    "--sharp-delta-threshold",
+    type=float,
+    required=False,
+    default=0.5,
+    help="Ratio delta threshold above which cumulative counters are reset (default: 0.5).",
 )
 
 args = parser.parse_args()
@@ -491,7 +518,9 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     enable_adaptive_bypass=args.enable_adaptive_bypass,
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
-    decay_shift=args.decay_shift,
+    evaluation_interval=args.evaluation_interval,
+    decay_factor=args.decay_factor,
+    sharp_delta_threshold=args.sharp_delta_threshold,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
