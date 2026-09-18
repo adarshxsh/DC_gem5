@@ -409,7 +409,8 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     unsigned comp_size = mem_pkt->getCompressedSize();
     Tick effective_tBURST = tBURST;
     if (comp_size < burstSize && burstSize > 0) {
-        Tick scaled_tBURST = divCeil((uint64_t)tBURST * comp_size, (uint64_t)burstSize);
+        Tick scaled_tBURST =
+            divCeil((uint64_t)tBURST * comp_size, (uint64_t)burstSize);
         effective_tBURST = std::max(tBURST_MIN, scaled_tBURST);
     }
 
@@ -423,7 +424,8 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
             burst_gap = effective_tBURST;
         } else if (cmd_at < (rank_ref.lastBurstTick + effective_tBURST)) {
             // not at an interleave boundary after bandwidth check
-            // Shift command to effective_tBURST boundary to avoid data contention
+            // Shift command to effective_tBURST boundary to avoid data
+            // contention
             cmd_at = rank_ref.lastBurstTick + effective_tBURST;
         }
     } else {
