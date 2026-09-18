@@ -31,6 +31,8 @@
 #ifndef __MEM_RUBY_NETWORK_GARNET_0_CREDITLINK_HH__
 #define __MEM_RUBY_NETWORK_GARNET_0_CREDITLINK_HH__
 
+#include "base/trace.hh"
+#include "debug/RubyNetwork.hh"
 #include "mem/ruby/network/garnet/NetworkLink.hh"
 #include "params/CreditLink.hh"
 
@@ -54,8 +56,8 @@ class CreditLink : public NetworkLink
     {
         DPRINTF(RubyNetwork,
                 "CreditLink %s sending credit token for VC %d "
-                "free:%d at %lld\n",
-                name(), vc, is_free_signal, curTime);
+                "free:%d at %llu\n",
+                name(), vc, is_free_signal, (unsigned long long)curTime);
     }
 };
 

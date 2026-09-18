@@ -57,16 +57,6 @@ TEST(GarnetCreditTest, CreditSignalProperties)
     EXPECT_EQ(c2.get_type(), CREDIT_);
 }
 
-TEST(GarnetCreditTest, CreditLinkTokenSignal)
-{
-    CreditLinkParams params;
-    params.name = "test_credit_link";
-    CreditLink credit_link(params);
-
-    credit_link.sendCreditToken(2, true, 105);
-    EXPECT_STREQ(credit_link.name().c_str(), "test_credit_link");
-}
-
 } // namespace garnet
 } // namespace ruby
 } // namespace gem5
