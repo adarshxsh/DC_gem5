@@ -166,16 +166,20 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationGuard)
 
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
-    // 1. Demand request with lower compression factor (size 128 bits -> CF=4) is permitted
+    // 1. Demand request with lower compression factor (size 128 bits -> CF=4)
+    // is permitted
     ASSERT_TRUE(superBlk.canCoAllocate(128, /*is_prefetch=*/false));
 
-    // 2. Prefetch request with strictly lower compression factor (size 128 bits -> CF=4 < 8) MUST BE REJECTED
+    // 2. Prefetch request with strictly lower compression factor (size 128
+    // bits -> CF=4 < 8) MUST BE REJECTED
     ASSERT_FALSE(superBlk.canCoAllocate(128, /*is_prefetch=*/true));
 
-    // 3. Prefetch request with equal compression factor (size 64 bits -> CF=8 >= 8) is permitted
+    // 3. Prefetch request with equal compression factor (size 64 bits -> CF=8
+    // >= 8) is permitted
     ASSERT_TRUE(superBlk.canCoAllocate(64, /*is_prefetch=*/true));
 
-    // 4. Prefetch request with higher compression factor (size 32 bits -> CF=8 >= 8) is permitted
+    // 4. Prefetch request with higher compression factor (size 32 bits -> CF=8
+    // >= 8) is permitted
     ASSERT_TRUE(superBlk.canCoAllocate(32, /*is_prefetch=*/true));
 
     // Verify existing sub-block and superblock invariants are preserved
