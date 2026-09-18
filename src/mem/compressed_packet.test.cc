@@ -38,10 +38,7 @@ namespace gem5
 static Tick dummyCurTick = 0;
 struct TestInit
 {
-    TestInit()
-    {
-        Gem5Internal::_curTickPtr = &dummyCurTick;
-    }
+    TestInit() { Gem5Internal::_curTickPtr = &dummyCurTick; }
 } testInit;
 
 TEST(CompressedPacketTest, UncompressedPacketDefaults)
@@ -85,7 +82,8 @@ TEST(CompressedPacketTest, CopyCompressedPacket)
 
 TEST(CompressedPacketTest, QueueSlotAllocation)
 {
-    // Test divCeil queue slot calculation for compressed vs uncompressed packets
+    // Test divCeil queue slot calculation for compressed vs uncompressed
+    // packets
     unsigned burst_size = 64;
 
     // Uncompressed 64B packet
@@ -101,7 +99,8 @@ TEST(CompressedPacketTest, QueueSlotAllocation)
 
     // Uncompressed 128B packet across 2 bursts
     unsigned large_uncomp_size = 128;
-    unsigned large_uncomp_count = divCeil(offset + large_uncomp_size, burst_size);
+    unsigned large_uncomp_count =
+        divCeil(offset + large_uncomp_size, burst_size);
     EXPECT_EQ(large_uncomp_count, 2);
 
     // Compressed 32B representation of 128B line
