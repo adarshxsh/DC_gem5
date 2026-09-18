@@ -120,11 +120,11 @@ CompressedTags::tagsInit()
     }
 }
 
-CacheBlk*
-CompressedTags::findVictim(const CacheBlk::KeyType& key,
+CacheBlk *
+CompressedTags::findVictim(const CacheBlk::KeyType &key,
                            const std::size_t compressed_size,
-                           std::vector<CacheBlk*>& evict_blks,
-                           const uint64_t partition_id=0)
+                           std::vector<CacheBlk *> &evict_blks,
+                           const uint64_t partition_id, bool is_hw_prefetch)
 {
     // Get all possible locations of this superblock
     std::vector<ReplaceableEntry*> superblock_entries =
@@ -148,6 +148,16 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             superblock->isCompressed() &&
             superblock->canCoAllocate(compressed_size))
         {
+            if (is_hw_prefetch && superblock->getNumValid() > 0) {
+                const uint8_t prefetch_cf =
+                    superblock->calculateCompressionFactor(compressed_size);
+                if (prefetch_cf < superblock->getCompressionFactor()) {
+                    // Prefetch compression factor is strictly less than active
+                    // superblock compression factor; reject co-allocation to
+                    // prevent downgrading.
+                    continue;
+                }
+            }
             victim_superblock = superblock;
             is_co_allocation = true;
             break;
@@ -164,9 +174,40 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             return nullptr;
         }
 
+        std::vector<ReplaceableEntry *> candidate_entries;
+        if (is_hw_prefetch) {
+            // Filter candidate superblocks to avoid evicting valid demand
+            // sub-blocks
+            for (const auto &entry : superblock_entries) {
+                SuperBlk *sb = static_cast<SuperBlk *>(entry);
+                bool has_demand_blks = false;
+                for (const auto &blk : sb->blks) {
+                    if (blk->isValid() && !blk->wasPrefetched()) {
+                        has_demand_blks = true;
+                        break;
+                    }
+                }
+                if (!has_demand_blks) {
+                    candidate_entries.push_back(entry);
+                }
+            }
+            if (candidate_entries.empty()) {
+                // No candidate superblock without valid demand sub-blocks is
+                // available. Suppress demand eviction and cancel prefetch fill
+                // insertion.
+                return nullptr;
+            }
+        } else {
+            candidate_entries = superblock_entries;
+        }
+
         // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
-            replacementPolicy->getVictim(superblock_entries));
+        victim_superblock = static_cast<SuperBlk *>(
+            replacementPolicy->getVictim(candidate_entries));
+
+        if (!victim_superblock) {
+            return nullptr;
+        }
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){
