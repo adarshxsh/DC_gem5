@@ -371,6 +371,16 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** Parameters for L2-L1 compression pressure signaling and throttling */
+    const unsigned compressionPressureThreshold;
+    const bool enableCompressionPressure;
+    const Cycles writebackThrottleDelay;
+    const unsigned writeBufferBypassThreshold;
+
+    /** Dynamic pressure signaling state and writeback drain timing */
+    bool l2CompressionPressureActive;
+    Tick lastWritebackDrainTick;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -1308,6 +1318,12 @@ class BaseCache : public ClockedObject
      */
     bool coalesce() const;
 
+    /**
+     * Checks if local compressed tag occupancy exceeds the pressure threshold
+     *
+     * @return True if compression pressure condition is detected
+     */
+    bool isCompressionPressureActive() const;
 
     /**
      * Cache block visitor that writes back dirty cache blocks using
