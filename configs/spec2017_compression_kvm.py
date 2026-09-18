@@ -83,6 +83,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         l2_size: str = "512KiB",
         l2_assoc: int = 16,
         compressor: str = "none",
+        enable_queue_pressure_signaling: bool = False,
+        mem_high_pressure_thresh: int = 80,
+        mem_low_pressure_thresh: int = 50,
+        enable_pressure_throttling: bool = False,
+        pressure_throttle_thresh: int = 80,
         membus: Optional[SystemXBar] = None,
     ) -> None:
         AbstractClassicCacheHierarchy.__init__(self)
@@ -101,6 +106,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._l2_size = l2_size
         self._l2_assoc = l2_assoc
         self._compressor_choice = compressor.lower()
+        self._enable_queue_pressure_signaling = enable_queue_pressure_signaling
+        self._mem_high_pressure_thresh = mem_high_pressure_thresh
+        self._mem_low_pressure_thresh = mem_low_pressure_thresh
+        self._enable_pressure_throttling = enable_pressure_throttling
+        self._pressure_throttle_thresh = pressure_throttle_thresh
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -135,10 +145,16 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             else:
                 l2.compressor = BDI()
 
+            if self._enable_pressure_throttling:
+                l2.compressor.enable_pressure_throttling = True
+                l2.compressor.pressure_throttle_threshold_perc = (
+                    self._pressure_throttle_thresh
+                )
+
             l2.tags = CompressedTags()
             print(
                 f"[CompressionEval] L2 cache configured with {l2.compressor.type} compressor "
-                "and CompressedTags"
+                f"and CompressedTags (pressure_throttling={self._enable_pressure_throttling})"
             )
         else:
             print(
@@ -153,6 +169,18 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         for _, port in board.get_mem_ports():
             self.membus.mem_side_ports = port
+
+        if board.get_memory():
+            for ctrl in board.get_memory().get_memory_controllers():
+                ctrl.enable_queue_pressure_signaling = (
+                    self._enable_queue_pressure_signaling
+                )
+                ctrl.pressure_high_threshold_perc = (
+                    self._mem_high_pressure_thresh
+                )
+                ctrl.pressure_low_threshold_perc = (
+                    self._mem_low_pressure_thresh
+                )
 
         from m5.objects import NULL
 
@@ -358,6 +386,46 @@ parser.add_argument(
     help="Number of instructions for measured ROI (default: 10M).",
 )
 
+parser.add_argument(
+    "--enable-queue-pressure-signaling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable memory queue pressure signaling to memory controller.",
+)
+
+parser.add_argument(
+    "--mem-high-pressure-thresh",
+    type=int,
+    required=False,
+    default=80,
+    help="Memory write queue high pressure threshold percentage (default: 80).",
+)
+
+parser.add_argument(
+    "--mem-low-pressure-thresh",
+    type=int,
+    required=False,
+    default=50,
+    help="Memory write queue low pressure threshold percentage (default: 50).",
+)
+
+parser.add_argument(
+    "--enable-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable pressure-driven cache compression throttling.",
+)
+
+parser.add_argument(
+    "--pressure-throttle-thresh",
+    type=int,
+    required=False,
+    default=80,
+    help="Queue pressure threshold percentage to throttle cache compression (default: 80).",
+)
+
 args = parser.parse_args()
 
 # Normalize compressor choice
@@ -428,6 +496,11 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     l2_size=args.l2_size,
     l2_assoc=16,
     compressor=chosen_compressor,
+    enable_queue_pressure_signaling=args.enable_queue_pressure_signaling,
+    mem_high_pressure_thresh=args.mem_high_pressure_thresh,
+    mem_low_pressure_thresh=args.mem_low_pressure_thresh,
+    enable_pressure_throttling=args.enable_pressure_throttling,
+    pressure_throttle_thresh=args.pressure_throttle_thresh,
 )
 
 memory = DualChannelDDR4_2400(size="3GiB")

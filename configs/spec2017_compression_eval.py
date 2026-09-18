@@ -139,6 +139,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
         decay_shift: int = 4,
+        enable_queue_pressure_signaling: bool = False,
+        mem_high_pressure_thresh: int = 80,
+        mem_low_pressure_thresh: int = 50,
+        enable_pressure_throttling: bool = False,
+        pressure_throttle_thresh: int = 80,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -151,6 +156,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         :param enable_adaptive_bypass: If True, enable adaptive compression bypass.
         :param latency_breakeven_threshold: Compression ratio threshold for bypass.
         :param sampling_interval: Sampling interval for compression effectiveness.
+        :param enable_queue_pressure_signaling: If True, enable memory queue pressure signaling.
+        :param mem_high_pressure_thresh: High pressure threshold percentage for memory queue.
+        :param mem_low_pressure_thresh: Low pressure threshold percentage for memory queue.
+        :param enable_pressure_throttling: If True, enable compression throttling on queue pressure.
+        :param pressure_throttle_thresh: Pressure threshold percentage to throttle compression.
         :param membus: Optional memory bus override.
         """
         AbstractClassicCacheHierarchy.__init__(self=self)
@@ -169,6 +179,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._decay_shift = decay_shift
+        self._enable_queue_pressure_signaling = enable_queue_pressure_signaling
+        self._mem_high_pressure_thresh = mem_high_pressure_thresh
+        self._mem_low_pressure_thresh = mem_low_pressure_thresh
+        self._enable_pressure_throttling = enable_pressure_throttling
+        self._pressure_throttle_thresh = pressure_throttle_thresh
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -198,11 +213,17 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
                 l2.compressor.decay_shift = self._decay_shift
+            if self._enable_pressure_throttling:
+                l2.compressor.enable_pressure_throttling = True
+                l2.compressor.pressure_throttle_threshold_perc = (
+                    self._pressure_throttle_thresh
+                )
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
                 "and CompressedTags (max_compression_ratio=2, "
-                f"adaptive_bypass={self._enable_adaptive_bypass})"
+                f"adaptive_bypass={self._enable_adaptive_bypass}, "
+                f"pressure_throttling={self._enable_pressure_throttling})"
             )
         else:
             print(
@@ -218,6 +239,18 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
 
         for _, port in board.get_mem_ports():
             self.membus.mem_side_ports = port
+
+        if board.get_memory():
+            for ctrl in board.get_memory().get_memory_controllers():
+                ctrl.enable_queue_pressure_signaling = (
+                    self._enable_queue_pressure_signaling
+                )
+                ctrl.pressure_high_threshold_perc = (
+                    self._mem_high_pressure_thresh
+                )
+                ctrl.pressure_low_threshold_perc = (
+                    self._mem_low_pressure_thresh
+                )
 
         from m5.objects import NULL
 
@@ -433,6 +466,46 @@ parser.add_argument(
     help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
 )
 
+parser.add_argument(
+    "--enable-queue-pressure-signaling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable memory queue pressure signaling to memory controller.",
+)
+
+parser.add_argument(
+    "--mem-high-pressure-thresh",
+    type=int,
+    required=False,
+    default=80,
+    help="Memory write queue high pressure threshold percentage (default: 80).",
+)
+
+parser.add_argument(
+    "--mem-low-pressure-thresh",
+    type=int,
+    required=False,
+    default=50,
+    help="Memory write queue low pressure threshold percentage (default: 50).",
+)
+
+parser.add_argument(
+    "--enable-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable pressure-driven cache compression throttling.",
+)
+
+parser.add_argument(
+    "--pressure-throttle-thresh",
+    type=int,
+    required=False,
+    default=80,
+    help="Queue pressure threshold percentage to throttle cache compression (default: 80).",
+)
+
 args = parser.parse_args()
 
 
@@ -492,6 +565,11 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
     decay_shift=args.decay_shift,
+    enable_queue_pressure_signaling=args.enable_queue_pressure_signaling,
+    mem_high_pressure_thresh=args.mem_high_pressure_thresh,
+    mem_low_pressure_thresh=args.mem_low_pressure_thresh,
+    enable_pressure_throttling=args.enable_pressure_throttling,
+    pressure_throttle_thresh=args.pressure_throttle_thresh,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
