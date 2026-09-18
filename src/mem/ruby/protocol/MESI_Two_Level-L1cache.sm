@@ -782,7 +782,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
           cache_entry.SubblockValidMask.fillMask();
         }
         if (in_msg.InvalidationBitmap.isEmpty() == false) {
-          WriteMask inv;
+          WriteMask inv := in_msg.InvalidationBitmap;
           inv.setInvertedMask(in_msg.InvalidationBitmap);
           cache_entry.SubblockValidMask.andMask(inv);
         } else {
@@ -838,7 +838,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
           cache_entry.SubblockValidMask.fillMask();
         }
         if (in_msg.InvalidationBitmap.isEmpty() == false) {
-          WriteMask inv;
+          WriteMask inv := in_msg.InvalidationBitmap;
           inv.setInvertedMask(in_msg.InvalidationBitmap);
           cache_entry.SubblockValidMask.andMask(inv);
         } else {
