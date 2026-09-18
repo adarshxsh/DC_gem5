@@ -70,6 +70,8 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeBufferSize(dram->writeBufferSize),
     writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+    highPressureWatermark(writeBufferSize * p.high_pressure_watermark / 100.0),
+    lowPressureWatermark(writeBufferSize * p.low_pressure_watermark / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),

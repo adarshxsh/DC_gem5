@@ -43,6 +43,7 @@ run_simulation() {
     local bench="$1"
     local csize="$2"
     local comp="$3"
+    shift 3
 
     local outdir="$OUTPUT_BASE/${bench}_${csize}_${comp}"
     mkdir -p "$outdir"
@@ -64,13 +65,14 @@ run_simulation() {
         --fast-forward-insts="$FAST_FORWARD_INSTS" \
         --warmup-insts="$WARMUP_INSTS" \
         --max-insts="$MAX_INSTS" \
+        "$@" \
         2>&1 | tee "$outdir/sim_run.log"
 }
 
 # If arguments passed, allow running a single target, e.g.:
-# ./run_spec2017_compression_sweep.sh 541.leela_r 256KiB cpack
+# ./run_spec2017_compression_sweep.sh 541.leela_r 256KiB cpack --enable-queue-pressure-throttling
 if [ "$#" -ge 3 ]; then
-    run_simulation "$1" "$2" "$3"
+    run_simulation "$@"
     exit 0
 fi
 
