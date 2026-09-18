@@ -37,6 +37,8 @@
 #define __MEM_CACHE_COMPRESSORS_BASE_HH__
 
 #include <cstdint>
+#include <deque>
+#include <utility>
 
 #include "base/compiler.hh"
 #include "base/statistics.hh"
@@ -136,6 +138,20 @@ class Base : public SimObject
 
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
+
+    /** Size of the window (in sampling intervals) to track compression
+     * efficiency. */
+    const unsigned adaptiveWindowSize;
+
+    /** Queue storing history of sampled (uncompressed, compressed) bits in
+     * active window. */
+    std::deque<std::pair<uint64_t, uint64_t>> sampleQueue;
+
+    /** Total uncompressed bits of samples in active window. */
+    uint64_t windowUncompressedBits;
+
+    /** Total compressed bits of samples in active window. */
+    uint64_t windowCompressedBits;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
@@ -255,6 +271,12 @@ class Base : public SimObject
      */
     std::unique_ptr<CompressionData>
     compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat);
+
+    /**
+     * Get the current observed compression ratio based on active window
+     * samples, or historical totals if no active window samples exist.
+     */
+    double getObservedRatio() const;
 
     /**
      * Get the decompression latency if the block is compressed. Latency is 0

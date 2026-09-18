@@ -76,6 +76,10 @@ class BaseCacheCompressor(SimObject):
         100,
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",
     )
+    adaptive_window_size = Param.Unsigned(
+        1000,
+        "Size of the window (in sampling intervals) to track compression efficiency",
+    )
     decay_shift = Param.Unsigned(
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
