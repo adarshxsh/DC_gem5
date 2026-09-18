@@ -149,6 +149,8 @@ class Base : public SimObject
     /** Current adaptive bypass state (true if bypassing compression). */
     bool bypassActive;
 
+    /** Bit shift for exponential decay factor (1 - 2^-k). */
+    const unsigned decayShift;
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 

@@ -104,6 +104,7 @@ Base::Base(const Params &p)
                                  : (p.latency_breakeven_threshold *
                                     (1.0 + p.hysteresis_margin_perc / 100.0))),
       bypassActive(false),
+      decayShift(p.decay_shift),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -249,6 +250,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     }
 
     if (isSampled) {
+        if (enableAdaptiveBypass && (decayShift > 0)) {
+            sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
+            sampledCompressedBits -= (sampledCompressedBits >> decayShift);
+        }
         uint64_t uncomp_bits = blkSize * CHAR_BIT;
         sampledUncompressedBits += uncomp_bits;
         sampledCompressedBits += comp_size_bits;

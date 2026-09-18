@@ -92,6 +92,10 @@ class BaseCacheCompressor(SimObject):
         0.0,
         "Lower boundary to disable compression bypass (0.0 to compute from breakeven and margin)",
     )
+    decay_shift = Param.Unsigned(
+        4,
+        "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
+    )    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
