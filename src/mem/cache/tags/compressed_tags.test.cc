@@ -575,7 +575,8 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateFiltering)
             candidates[i].blks[k] = &candidate_subblks[i][k];
             candidate_subblks[i][k].setSectorBlock(&candidates[i]);
             candidate_subblks[i][k].setSectorOffset(k);
-            candidate_subblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+            candidate_subblks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr; });
         }
         candidates[i].registerTagExtractor([](Addr addr) { return addr; });
     }
@@ -607,28 +608,29 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateFiltering)
     ASSERT_EQ(candidates[3].getNumValid(), 4);
 
     // Construct superblock_entries vector
-    std::vector<ReplaceableEntry*> superblock_entries;
+    std::vector<ReplaceableEntry *> superblock_entries;
     for (unsigned i = 0; i < NumCandidates; ++i) {
         superblock_entries.push_back(&candidates[i]);
     }
 
     // Perform density-aware candidate filtering
     uint8_t min_valid = std::numeric_limits<uint8_t>::max();
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         min_valid = std::min(min_valid, superblock->getNumValid());
     }
     ASSERT_EQ(min_valid, 1);
 
-    std::vector<ReplaceableEntry*> filtered_entries;
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    std::vector<ReplaceableEntry *> filtered_entries;
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         if (superblock->getNumValid() == min_valid) {
             filtered_entries.push_back(entry);
         }
     }
 
-    // Superblock with 1 valid sub-block (candidate 2) must be preferred for eviction
+    // Superblock with 1 valid sub-block (candidate 2) must be preferred for
+    // eviction
     ASSERT_EQ(filtered_entries.size(), 1);
     ASSERT_EQ(filtered_entries[0], &candidates[2]);
 }
