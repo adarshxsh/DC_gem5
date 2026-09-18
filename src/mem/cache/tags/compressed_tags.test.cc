@@ -317,10 +317,11 @@ TEST_F(SuperBlkTestFixture, SelectiveLRUNeighborEviction)
 
     // Calculate minimum required evictions
     uint8_t min_other_cf = superBlk.blks.size();
-    for (const auto& sub_blk : superBlk.blks) {
+    for (const auto &sub_blk : superBlk.blks) {
         if (sub_blk->isValid() && (&subBlks[3] != sub_blk)) {
-            CompressionBlk* cblk = static_cast<CompressionBlk*>(sub_blk);
-            uint8_t cf = superBlk.calculateCompressionFactor(cblk->getSizeBits());
+            CompressionBlk *cblk = static_cast<CompressionBlk *>(sub_blk);
+            uint8_t cf =
+                superBlk.calculateCompressionFactor(cblk->getSizeBits());
             if (cf < min_other_cf) {
                 min_other_cf = cf;
             }
@@ -332,20 +333,20 @@ TEST_F(SuperBlkTestFixture, SelectiveLRUNeighborEviction)
         (num_valid > target_cf) ? (num_valid - target_cf) : 0;
     ASSERT_EQ(num_evict, 2);
 
-    std::vector<SectorSubBlk*> candidates;
-    for (auto& sub_blk : superBlk.blks) {
+    std::vector<SectorSubBlk *> candidates;
+    for (auto &sub_blk : superBlk.blks) {
         if (sub_blk->isValid() && (&subBlks[3] != sub_blk)) {
             candidates.push_back(sub_blk);
         }
     }
 
     std::sort(candidates.begin(), candidates.end(),
-        [](const SectorSubBlk* a, const SectorSubBlk* b) {
-            if (a->getTickInserted() != b->getTickInserted()) {
-                return a->getTickInserted() < b->getTickInserted();
-            }
-            return a->getSectorOffset() < b->getSectorOffset();
-        });
+              [](const SectorSubBlk *a, const SectorSubBlk *b) {
+                  if (a->getTickInserted() != b->getTickInserted()) {
+                      return a->getTickInserted() < b->getTickInserted();
+                  }
+                  return a->getSectorOffset() < b->getSectorOffset();
+              });
 
     // Verify LRU ordering: subBlks[0] (tick 100), subBlks[1] (tick 200)
     ASSERT_EQ(candidates[0], &subBlks[0]);
@@ -360,7 +361,8 @@ TEST_F(SuperBlkTestFixture, SelectiveLRUNeighborEviction)
     // Now update expanding block's size
     subBlks[3].setSizeBits(new_size);
 
-    // Verify only subBlks[0] and subBlks[1] were evicted, while subBlks[2] remained!
+    // Verify only subBlks[0] and subBlks[1] were evicted, while subBlks[2]
+    // remained!
     ASSERT_FALSE(subBlks[0].isValid());
     ASSERT_FALSE(subBlks[1].isValid());
     ASSERT_TRUE(subBlks[2].isValid());
@@ -370,4 +372,3 @@ TEST_F(SuperBlkTestFixture, SelectiveLRUNeighborEviction)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 }
-
