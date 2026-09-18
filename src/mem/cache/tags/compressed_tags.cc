@@ -145,8 +145,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     const uint64_t offset = extractSectorOffset(key.address);
 
     // Check if the superblock this address belongs to has been allocated.
-    SuperBlk* matching_superblock = nullptr;
-    for (const auto& entry : superblock_entries) {
+    SuperBlk *matching_superblock = nullptr;
+    for (const auto &entry : superblock_entries) {
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key)) {
             matching_superblock = superblock;
@@ -156,25 +156,29 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
 
     if (matching_superblock) {
         if (!matching_superblock->blks[offset]->isValid()) {
-            // Matching superblock exists and sub-block at offset is invalid (Co-allocation)
+            // Matching superblock exists and sub-block at offset is invalid
+            // (Co-allocation)
             if (matching_superblock->isCompressed() &&
                 matching_superblock->canCoAllocate(compressed_size)) {
                 victim_superblock = matching_superblock;
                 is_co_allocation = true;
             }
         } else {
-            // Sub-block at offset is already valid. This occurs during data updates / expansions.
-            // Check if matching_superblock can keep this block at compressed_size.
+            // Sub-block at offset is already valid. This occurs during data
+            // updates / expansions. Check if matching_superblock can keep this
+            // block at compressed_size.
             uint8_t new_blk_cf =
-                matching_superblock->calculateCompressionFactor(compressed_size);
+                matching_superblock->calculateCompressionFactor(
+                    compressed_size);
             uint8_t hypothetical_cf = new_blk_cf;
             uint8_t num_valid = matching_superblock->getNumValid();
-            for (const auto& blk : matching_superblock->blks) {
+            for (const auto &blk : matching_superblock->blks) {
                 if (blk->isValid() && blk->getSectorOffset() != offset) {
-                    const CompressionBlk* cblk =
-                        static_cast<const CompressionBlk*>(blk);
-                    uint8_t cf = matching_superblock->calculateCompressionFactor(
-                        cblk->getSizeBits());
+                    const CompressionBlk *cblk =
+                        static_cast<const CompressionBlk *>(blk);
+                    uint8_t cf =
+                        matching_superblock->calculateCompressionFactor(
+                            cblk->getSizeBits());
                     if (cf < hypothetical_cf) {
                         hypothetical_cf = cf;
                     }
@@ -185,16 +189,18 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             if (num_valid == 1) {
                 can_fit_in_place = true;
             } else if (hypothetical_cf > 1 && num_valid <= hypothetical_cf &&
-                       compressed_size <= (blkSize * CHAR_BIT) / hypothetical_cf) {
+                       compressed_size <=
+                           (blkSize * CHAR_BIT) / hypothetical_cf) {
                 can_fit_in_place = true;
             }
 
             if (can_fit_in_place) {
                 victim_superblock = matching_superblock;
             } else {
-                // Cannot fit in place. Search for an available free superblock in the set for relocation.
-                for (const auto& entry : superblock_entries) {
-                    SuperBlk* superblock = static_cast<SuperBlk*>(entry);
+                // Cannot fit in place. Search for an available free superblock
+                // in the set for relocation.
+                for (const auto &entry : superblock_entries) {
+                    SuperBlk *superblock = static_cast<SuperBlk *>(entry);
                     if (!superblock->isValid()) {
                         victim_superblock = superblock;
                         break;
@@ -204,15 +210,16 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         }
     }
 
-    // If the superblock is not present or cannot be co-allocated / relocated in-place,
-    // a superblock must be replaced using the replacement policy
+    // If the superblock is not present or cannot be co-allocated / relocated
+    // in-place, a superblock must be replaced using the replacement policy
     if (victim_superblock == nullptr) {
         // Choose replacement victim from replacement candidates
         victim_superblock = static_cast<SuperBlk*>(
             replacementPolicy->getVictim(superblock_entries));
 
-        // The whole victim superblock must be evicted to make room for the new one
-        for (const auto& blk : victim_superblock->blks) {
+        // The whole victim superblock must be evicted to make room for the new
+        // one
+        for (const auto &blk : victim_superblock->blks) {
             if (blk->isValid()) {
                 evict_blks.push_back(blk);
             }
