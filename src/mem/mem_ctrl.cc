@@ -57,33 +57,42 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    lastWriteArrivalTick(0),
-    lastWriteQueueSize(0),
-    prevWriteArrivalTick(0),
-    prevWriteQueueSize(0),
-    highPressure(false),
-    leadTimeHorizon(p.lead_time_horizon),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      lastWriteArrivalTick(0),
+      lastWriteQueueSize(0),
+      prevWriteArrivalTick(0),
+      prevWriteQueueSize(0),
+      highPressure(false),
+      leadTimeHorizon(p.lead_time_horizon),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -410,9 +419,10 @@ MemCtrl::printQs() const
 }
 
 void
-MemCtrl::updateWriteArrivalTrack(MemInterface* mem_intr)
+MemCtrl::updateWriteArrivalTrack(MemInterface *mem_intr)
 {
-    uint32_t current_q = mem_intr ? mem_intr->writeQueueSize : totalWriteQueueSize;
+    uint32_t current_q =
+        mem_intr ? mem_intr->writeQueueSize : totalWriteQueueSize;
     if (curTick() > lastWriteArrivalTick) {
         prevWriteArrivalTick = lastWriteArrivalTick;
         prevWriteQueueSize = lastWriteQueueSize;
@@ -424,9 +434,10 @@ MemCtrl::updateWriteArrivalTrack(MemInterface* mem_intr)
 }
 
 uint32_t
-MemCtrl::getEffectiveWriteQueueSize(MemInterface* mem_intr) const
+MemCtrl::getEffectiveWriteQueueSize(MemInterface *mem_intr) const
 {
-    uint32_t current_q = mem_intr ? mem_intr->writeQueueSize : totalWriteQueueSize;
+    uint32_t current_q =
+        mem_intr ? mem_intr->writeQueueSize : totalWriteQueueSize;
 
     Tick dt = 0;
     int64_t dq = 0;
@@ -503,7 +514,8 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
             highPressure = (Q_eff >= writeHighThreshold);
             if (highPressure) {
                 DPRINTF(MemCtrl,
-                        "Predictive high pressure asserted: Q_eff=%d >= threshold=%d\n",
+                        "Predictive high pressure asserted: Q_eff=%d >= "
+                        "threshold=%d\n",
                         Q_eff, writeHighThreshold);
             }
 
@@ -1097,9 +1109,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             uint32_t Q_eff = getEffectiveWriteQueueSize(mem_intr);
             highPressure = (Q_eff >= writeHighThreshold);
             if ((Q_eff > writeHighThreshold) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 

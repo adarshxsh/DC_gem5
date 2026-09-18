@@ -3,8 +3,8 @@
  * All rights reserved.
  */
 
-#include <gtest/gtest.h>
 #include <cstdint>
+#include <gtest/gtest.h>
 
 namespace gem5
 {
@@ -19,12 +19,12 @@ class MemCtrlVelocityThresholdTest : public ::testing::Test
     uint64_t leadTimeHorizon = 20000; // 20ns = 20000 ps
     uint32_t writeHighThreshold = 32;
 
-    uint32_t calcEffectiveWriteQueueSize(uint32_t current_q,
-                                          uint64_t curTick,
-                                          uint64_t lastWriteArrivalTick,
-                                          uint32_t lastWriteQueueSize,
-                                          uint64_t prevWriteArrivalTick,
-                                          uint32_t prevWriteQueueSize) const
+    uint32_t
+    calcEffectiveWriteQueueSize(uint32_t current_q, uint64_t curTick,
+                                uint64_t lastWriteArrivalTick,
+                                uint32_t lastWriteQueueSize,
+                                uint64_t prevWriteArrivalTick,
+                                uint32_t prevWriteQueueSize) const
     {
         uint64_t dt = 0;
         int64_t dq = 0;
@@ -73,13 +73,12 @@ TEST_F(MemCtrlVelocityThresholdTest, HighVelocityWritebackBurst)
 
 TEST_F(MemCtrlVelocityThresholdTest, SameTickArrivalsHandling)
 {
-    // Multiple writes arriving in the same tick (curTick == lastWriteArrivalTick = 51000)
-    // prevWriteArrivalTick = 50000, prevWriteQueueSize = 6, Q_current = 12
-    // dt = 51000 - 50000 = 1000 ps
-    // dq = 12 - 6 = 6
-    // v_tau = (6 * 20000) / 1000 = 120
-    // Q_eff = 12 + 120 = 132
-    uint32_t Q_eff = calcEffectiveWriteQueueSize(12, 51000, 51000, 10, 50000, 6);
+    // Multiple writes arriving in the same tick (curTick ==
+    // lastWriteArrivalTick = 51000) prevWriteArrivalTick = 50000,
+    // prevWriteQueueSize = 6, Q_current = 12 dt = 51000 - 50000 = 1000 ps dq =
+    // 12 - 6 = 6 v_tau = (6 * 20000) / 1000 = 120 Q_eff = 12 + 120 = 132
+    uint32_t Q_eff =
+        calcEffectiveWriteQueueSize(12, 51000, 51000, 10, 50000, 6);
     EXPECT_EQ(Q_eff, 132);
     EXPECT_GE(Q_eff, writeHighThreshold);
 }

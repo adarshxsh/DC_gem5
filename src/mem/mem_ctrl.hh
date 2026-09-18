@@ -564,12 +564,13 @@ class MemCtrl : public qos::MemCtrl
     /**
      * Update write arrival tracking for velocity estimation
      */
-    void updateWriteArrivalTrack(MemInterface* mem_intr);
+    void updateWriteArrivalTrack(MemInterface *mem_intr);
 
     /**
-     * Calculate effective write queue occupancy Q_eff = Q_current + v * tau_lead
+     * Calculate effective write queue occupancy Q_eff = Q_current + v *
+     * tau_lead
      */
-    virtual uint32_t getEffectiveWriteQueueSize(MemInterface* mem_intr) const;
+    virtual uint32_t getEffectiveWriteQueueSize(MemInterface *mem_intr) const;
 
     /**
      * The soonest you have to start thinking about the next request
