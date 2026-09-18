@@ -18,36 +18,6 @@ namespace gem5
 namespace ruby
 {
 
-int
-MachineType_base_level(const MachineType &machine)
-{
-    return 0;
-}
-
-MachineType
-MachineType_from_base_level(int level)
-{
-    return MachineType_NUM;
-}
-
-MachineType &
-operator++(MachineType &m)
-{
-    return m;
-}
-
-int
-RubySystem::MachineType_base_count(const MachineType &machine)
-{
-    return 1;
-}
-
-int
-RubySystem::MachineType_base_number(const MachineType &machine)
-{
-    return 0;
-}
-
 } // namespace ruby
 } // namespace gem5
 
