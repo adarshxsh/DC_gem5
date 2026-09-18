@@ -527,7 +527,7 @@ class MemCtrl : public qos::MemCtrl
      * @param mem_intr The memory interface
      * @return P_read pressure ratio
      */
-    virtual double computeReadPressure(MemInterface* mem_intr) const;
+    virtual double computeReadPressure(MemInterface *mem_intr) const;
 
     /**
      * Calculate dynamic write drain target N_drain_target based on P_read.
@@ -535,7 +535,7 @@ class MemCtrl : public qos::MemCtrl
      * @param mem_intr The memory interface
      * @return Number of writes to schedule before allowing switch back to READ
      */
-    virtual uint32_t computeDrainTarget(MemInterface* mem_intr) const;
+    virtual uint32_t computeDrainTarget(MemInterface *mem_intr) const;
 
     /**
      * Memory controller configuration initialized based on parameter

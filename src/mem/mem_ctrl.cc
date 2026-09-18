@@ -57,29 +57,42 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    writeCriticalThreshold(std::min(writeBufferSize > 1 ? writeBufferSize - 1 : 1, std::max((uint32_t)(writeBufferSize * p.write_high_thresh_perc / 100.0), (uint32_t)(writeBufferSize * 0.90)))),
-    drainTarget(p.min_writes_per_switch),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      writeCriticalThreshold(
+          std::min(writeBufferSize > 1 ? writeBufferSize - 1 : 1,
+                   std::max((uint32_t)(writeBufferSize *
+                                       p.write_high_thresh_perc / 100.0),
+                            (uint32_t)(writeBufferSize * 0.90)))),
+      drainTarget(p.min_writes_per_switch),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -880,7 +893,7 @@ MemCtrl::nonDetermReads(MemInterface* mem_intr) {
 }
 
 double
-MemCtrl::computeReadPressure(MemInterface* mem_intr) const
+MemCtrl::computeReadPressure(MemInterface *mem_intr) const
 {
     uint32_t total_reads = mem_intr->readQueueSize;
     if (total_reads == 0 || readBufferSize == 0) {
@@ -888,15 +901,16 @@ MemCtrl::computeReadPressure(MemInterface* mem_intr) const
     }
 
     // 1. Occupancy pressure component
-    double occ_ratio = std::min(1.0, static_cast<double>(total_reads) / readBufferSize);
+    double occ_ratio =
+        std::min(1.0, static_cast<double>(total_reads) / readBufferSize);
 
     // 2. Wait time pressure component
     Tick total_wait_time = 0;
     Tick current_tick = curTick();
     uint32_t counted_pkts = 0;
 
-    for (const auto& queue : readQueue) {
-        for (const auto& pkt : queue) {
+    for (const auto &queue : readQueue) {
+        for (const auto &pkt : queue) {
             if (current_tick >= pkt->entryTime) {
                 total_wait_time += (current_tick - pkt->entryTime);
             }
@@ -907,24 +921,27 @@ MemCtrl::computeReadPressure(MemInterface* mem_intr) const
     double wait_ratio = 0.0;
     if (counted_pkts > 0) {
         Tick avg_wait = total_wait_time / counted_pkts;
-        Tick ref_latency = (frontendLatency + backendLatency > 0) ?
-            (frontendLatency + backendLatency) * 5 : 50000;
-        wait_ratio = std::min(1.0, static_cast<double>(avg_wait) / ref_latency);
+        Tick ref_latency = (frontendLatency + backendLatency > 0)
+                               ? (frontendLatency + backendLatency) * 5
+                               : 50000;
+        wait_ratio =
+            std::min(1.0, static_cast<double>(avg_wait) / ref_latency);
     }
 
     return std::min(1.0, std::max(0.0, 0.5 * occ_ratio + 0.5 * wait_ratio));
 }
 
 uint32_t
-MemCtrl::computeDrainTarget(MemInterface* mem_intr) const
+MemCtrl::computeDrainTarget(MemInterface *mem_intr) const
 {
     uint32_t curr_writes = mem_intr->writeQueueSize;
     if (curr_writes == 0) {
         return minWritesPerSwitch;
     }
 
-    uint32_t full_drain = (curr_writes > writeLowThreshold) ?
-                          (curr_writes - writeLowThreshold) : minWritesPerSwitch;
+    uint32_t full_drain = (curr_writes > writeLowThreshold)
+                              ? (curr_writes - writeLowThreshold)
+                              : minWritesPerSwitch;
 
     double p_read = computeReadPressure(mem_intr);
 
@@ -935,8 +952,9 @@ MemCtrl::computeDrainTarget(MemInterface* mem_intr) const
     uint32_t scaled_drain = static_cast<uint32_t>(full_drain * (1.0 - p_read));
     uint32_t target = std::max(minWritesPerSwitch, scaled_drain);
 
-    DPRINTF(MemCtrl, "Dynamic drain target computed: P_read=%.3f, curr_writes=%u, "
-                     "full_drain=%u -> target=%u\n",
+    DPRINTF(MemCtrl,
+            "Dynamic drain target computed: P_read=%.3f, curr_writes=%u, "
+            "full_drain=%u -> target=%u\n",
             p_read, curr_writes, full_drain, target);
 
     return target;
@@ -959,7 +977,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
     if (switched_cmd_type && mem_intr->busStateNext == WRITE) {
         drainTarget = computeDrainTarget(mem_intr);
-        DPRINTF(MemCtrl, "Entering WRITE mode: computed dynamic drainTarget = %u\n", drainTarget);
+        DPRINTF(MemCtrl,
+                "Entering WRITE mode: computed dynamic drainTarget = %u\n",
+                drainTarget);
     }
 
     // record stats
@@ -1108,13 +1128,14 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
             double p_read = computeReadPressure(mem_intr);
-            uint32_t trigger_thresh = (p_read > 0.5) ? writeCriticalThreshold : writeHighThreshold;
+            uint32_t trigger_thresh =
+                (p_read > 0.5) ? writeCriticalThreshold : writeHighThreshold;
 
             if (((mem_intr->writeQueueSize > trigger_thresh) ||
                  (mem_intr->writeQueueSize >= writeCriticalThreshold)) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 
@@ -1196,14 +1217,18 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // If we are interfacing to NVM and have filled the writeRespQueue,
         // with only NVM writes in Q, then switch to reads
         uint32_t curr_drain_target = computeDrainTarget(mem_intr);
-        bool below_low_threshold = (mem_intr->writeQueueSize < writeLowThreshold);
-        bool met_drain_target = (mem_intr->writesThisTime >= curr_drain_target) ||
-                                (mem_intr->writesThisTime >= drainTarget);
-        bool write_queue_critical = (mem_intr->writeQueueSize >= writeCriticalThreshold);
+        bool below_low_threshold =
+            (mem_intr->writeQueueSize < writeLowThreshold);
+        bool met_drain_target =
+            (mem_intr->writesThisTime >= curr_drain_target) ||
+            (mem_intr->writesThisTime >= drainTarget);
+        bool write_queue_critical =
+            (mem_intr->writeQueueSize >= writeCriticalThreshold);
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_low_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && met_drain_target && !write_queue_critical) ||
+            (mem_intr->readQueueSize && met_drain_target &&
+             !write_queue_critical) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again
