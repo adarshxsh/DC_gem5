@@ -167,18 +167,18 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
             return nullptr;
         }
 
-        std::vector<ReplaceableEntry*> victim_candidates;
+        std::vector<ReplaceableEntry *> victim_candidates;
         if (enableDensityAwareReplacement) {
             double min_density = std::numeric_limits<double>::max();
-            for (const auto& entry : superblock_entries) {
-                SuperBlk* sb = static_cast<SuperBlk*>(entry);
+            for (const auto &entry : superblock_entries) {
+                SuperBlk *sb = static_cast<SuperBlk *>(entry);
                 double density = sb->getDensity();
                 if (density < min_density) {
                     min_density = density;
                 }
             }
-            for (const auto& entry : superblock_entries) {
-                SuperBlk* sb = static_cast<SuperBlk*>(entry);
+            for (const auto &entry : superblock_entries) {
+                SuperBlk *sb = static_cast<SuperBlk *>(entry);
                 if (sb->getDensity() <= min_density) {
                     victim_candidates.push_back(entry);
                 }
@@ -188,7 +188,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         }
 
         // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
+        victim_superblock = static_cast<SuperBlk *>(
             replacementPolicy->getVictim(victim_candidates));
 
         // The whole superblock must be evicted to make room for the new one

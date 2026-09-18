@@ -1795,7 +1795,8 @@ BaseCache::writebackBlk(CacheBlk *blk)
     pkt->setDataFromBlock(blk->data, blkSize);
 
     // When a block is compressed, it must first be decompressed before being
-    // sent for writeback. Decompression latency is assigned to pre-send headerDelay.
+    // sent for writeback. Decompression latency is assigned to pre-send
+    // headerDelay.
     if (compressor) {
         CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
         if (comp_blk && comp_blk->isCompressed()) {
@@ -1804,7 +1805,8 @@ BaseCache::writebackBlk(CacheBlk *blk)
                 pkt->setCompressedSizeBits(comp_size_bits);
             }
         }
-        pkt->headerDelay += clockPeriod() * compressor->getDecompressionLatency(blk);
+        pkt->headerDelay +=
+            clockPeriod() * compressor->getDecompressionLatency(blk);
     }
 
     return pkt;
@@ -1847,7 +1849,8 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     pkt->setDataFromBlock(blk->data, blkSize);
 
     // When a block is compressed, it must first be decompressed before being
-    // sent for writeback. Decompression latency is assigned to pre-send headerDelay.
+    // sent for writeback. Decompression latency is assigned to pre-send
+    // headerDelay.
     if (compressor) {
         CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
         if (comp_blk && comp_blk->isCompressed()) {
@@ -1856,7 +1859,8 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
                 pkt->setCompressedSizeBits(comp_size_bits);
             }
         }
-        pkt->headerDelay += clockPeriod() * compressor->getDecompressionLatency(blk);
+        pkt->headerDelay +=
+            clockPeriod() * compressor->getDecompressionLatency(blk);
     }
 
     return pkt;
