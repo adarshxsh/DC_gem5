@@ -98,13 +98,22 @@ Queued::DeferredPacket::finish(const Fault &fault,
 }
 
 Queued::Queued(const QueuedPrefetcherParams &p)
-    : Base(p), queueSize(p.queue_size),
+    : Base(p),
+      queueSize(p.queue_size),
       missingTranslationQueueSize(
-        p.max_prefetch_requests_with_pending_translation),
-      latency(p.latency), queueSquash(p.queue_squash),
-      queueFilter(p.queue_filter), cacheSnoop(p.cache_snoop),
+          p.max_prefetch_requests_with_pending_translation),
+      latency(p.latency),
+      queueSquash(p.queue_squash),
+      queueFilter(p.queue_filter),
+      cacheSnoop(p.cache_snoop),
       tagPrefetch(p.tag_prefetch),
-      throttleControlPct(p.throttle_control_percentage), statsQueued(this)
+      throttleControlPct(p.throttle_control_percentage),
+      cht((name() + ".cht").c_str(), p.cht_entries, p.cht_assoc,
+          p.cht_replacement_policy, p.cht_indexing_policy,
+          CHTEntry(genTagExtractor(p.cht_indexing_policy))),
+      enableCHT(p.enable_cht),
+      chtMinCFThreshold(p.cht_min_cf_threshold),
+      statsQueued(this)
 {
 }
 
@@ -265,21 +274,24 @@ Queued::getPacket()
 
 Queued::QueuedStats::QueuedStats(statistics::Group *parent)
     : statistics::Group(parent),
-    ADD_STAT(pfIdentified, statistics::units::Count::get(),
-             "number of prefetch candidates identified"),
-    ADD_STAT(pfBufferHit, statistics::units::Count::get(),
-             "number of redundant prefetches already in prefetch queue"),
-    ADD_STAT(pfInCache, statistics::units::Count::get(),
-             "number of redundant prefetches already in cache/mshr dropped"),
-    ADD_STAT(pfRemovedDemand, statistics::units::Count::get(),
-             "number of prefetches dropped due to a demand for the same "
-             "address"),
-    ADD_STAT(pfRemovedFull, statistics::units::Count::get(),
-             "number of prefetches dropped due to prefetch queue size"),
-    ADD_STAT(pfSpanPage, statistics::units::Count::get(),
-             "number of prefetches that crossed the page"),
-    ADD_STAT(pfUsefulSpanPage, statistics::units::Count::get(),
-             "number of prefetches that is useful and crossed the page")
+      ADD_STAT(pfIdentified, statistics::units::Count::get(),
+               "number of prefetch candidates identified"),
+      ADD_STAT(pfBufferHit, statistics::units::Count::get(),
+               "number of redundant prefetches already in prefetch queue"),
+      ADD_STAT(pfInCache, statistics::units::Count::get(),
+               "number of redundant prefetches already in cache/mshr dropped"),
+      ADD_STAT(pfRemovedDemand, statistics::units::Count::get(),
+               "number of prefetches dropped due to a demand for the same "
+               "address"),
+      ADD_STAT(pfRemovedFull, statistics::units::Count::get(),
+               "number of prefetches dropped due to prefetch queue size"),
+      ADD_STAT(pfSpanPage, statistics::units::Count::get(),
+               "number of prefetches that crossed the page"),
+      ADD_STAT(pfUsefulSpanPage, statistics::units::Count::get(),
+               "number of prefetches that is useful and crossed the page"),
+      ADD_STAT(pfDroppedLowCompression, statistics::units::Count::get(),
+               "number of prefetch candidates dropped due to low compression "
+               "confidence filtering")
 {
 }
 
@@ -385,6 +397,65 @@ Queued::createPrefetchRequest(Addr addr, PrefetchInfo const &pfi,
 }
 
 void
+Queued::notifyFill(const CacheAccessProbeArg &acc)
+{
+    if (!enableCHT) {
+        return;
+    }
+
+    const PacketPtr pkt = acc.pkt;
+    if (!pkt || !pkt->req) {
+        return;
+    }
+
+    Addr pc =
+        pkt->req->hasPC() ? pkt->req->getPC() : blockAddress(pkt->getAddr());
+    uint8_t cf =
+        acc.cache.getCompressionFactor(pkt->getAddr(), pkt->isSecure());
+    updateCHT(pc, pkt->isSecure(), cf);
+}
+
+bool
+Queued::isLowCompression(Addr pc, bool secure)
+{
+    if (!enableCHT || pc == 0) {
+        return false;
+    }
+
+    const TaggedEntry::KeyType key{pc, secure};
+    CHTEntry *entry = cht.findEntry(key);
+    if (entry != nullptr) {
+        return (entry->counter < chtMinCFThreshold);
+    }
+    return false;
+}
+
+void
+Queued::updateCHT(Addr pc, bool secure, uint8_t cf)
+{
+    if (!enableCHT || pc == 0) {
+        return;
+    }
+
+    const TaggedEntry::KeyType key{pc, secure};
+    CHTEntry *entry = cht.findEntry(key);
+    if (entry != nullptr) {
+        cht.accessEntry(entry);
+    } else {
+        entry = cht.findVictim(key);
+        assert(entry != nullptr);
+        cht.insertEntry(key, entry);
+        entry->counter = SatCounter8(2, 2);
+    }
+
+    if (cf >= chtMinCFThreshold) {
+        entry->counter++;
+    } else {
+        entry->counter--;
+    }
+}
+
+void
 Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
                int32_t priority, const CacheAccessor &cache)
 {
@@ -395,6 +466,17 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
         if (alreadyInQueue(pfqMissingTranslation, new_pfi, priority)) {
             return;
         }
+    }
+
+    Addr pc =
+        new_pfi.hasPC() ? new_pfi.getPC() : blockAddress(new_pfi.getAddr());
+    if (isLowCompression(pc, new_pfi.isSecure())) {
+        statsQueued.pfDroppedLowCompression++;
+        DPRINTF(HWPrefetch,
+                "Dropping low-compression prefetch candidate "
+                "addr: %#x (PC: %#x)\n",
+                new_pfi.getAddr(), pc);
+        return;
     }
 
     /*
