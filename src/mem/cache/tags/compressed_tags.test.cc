@@ -158,6 +158,44 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     verifyInvariants(superBlk);
 }
 
+TEST_F(SuperBlkTestFixture, QoSGatedCoAllocation)
+{
+    // Insert high-priority block (qos = 5) at offset 0
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].setQoSValue(5);
+
+    ASSERT_EQ(superBlk.getMaxQoSValue(), 5);
+
+    // Low-priority (qos = 1) and un-prioritized (qos = 0) requests must be
+    // blocked
+    ASSERT_FALSE(superBlk.canCoAllocate(64, 1));
+    ASSERT_FALSE(superBlk.canCoAllocate(64, 0));
+
+    // Priority-compatible requests (qos >= 5) are allowed
+    ASSERT_TRUE(superBlk.canCoAllocate(64, 5));
+    ASSERT_TRUE(superBlk.canCoAllocate(64, 7));
+
+    // Co-allocate another high-priority block (qos = 5) at offset 1
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(64);
+    subBlks[1].setQoSValue(5);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getMaxQoSValue(), 5);
+
+    // Invalidate the high-priority blocks
+    subBlks[0].invalidate();
+    subBlks[1].invalidate();
+
+    ASSERT_EQ(superBlk.getNumValid(), 0);
+    ASSERT_EQ(superBlk.getMaxQoSValue(), 0);
+
+    // Un-prioritized request (qos = 0) can now co-allocate into
+    // empty/un-prioritized superblock
+    ASSERT_TRUE(superBlk.canCoAllocate(64, 0));
+}
+
 TEST_F(SuperBlkTestFixture, SubBlockMigration)
 {
     // Setup second superblock
