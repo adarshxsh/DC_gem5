@@ -186,13 +186,13 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 }
 
 static unsigned
-estimateCompressedPayloadSize(PacketPtr pkt, MemInterface* mem_intr)
+estimateCompressedPayloadSize(PacketPtr pkt, MemInterface *mem_intr)
 {
     if (pkt->isCompressed()) {
         return pkt->getCompressedSize();
     }
 
-    const uint8_t* data_ptr = nullptr;
+    const uint8_t *data_ptr = nullptr;
     if (pkt->hasData()) {
         data_ptr = pkt->getConstPtr<uint8_t>();
     } else if (mem_intr) {
@@ -208,7 +208,7 @@ estimateCompressedPayloadSize(PacketPtr pkt, MemInterface* mem_intr)
         return blk_size;
     }
 
-    const uint64_t* words = reinterpret_cast<const uint64_t*>(data_ptr);
+    const uint64_t *words = reinterpret_cast<const uint64_t *>(data_ptr);
     bool all_zero = true;
     for (int i = 0; i < 8; ++i) {
         if (words[i] != 0) {
@@ -226,7 +226,8 @@ estimateCompressedPayloadSize(PacketPtr pkt, MemInterface* mem_intr)
     bool fits_32 = true;
 
     for (int i = 1; i < 8; ++i) {
-        int64_t diff = static_cast<int64_t>(words[i]) - static_cast<int64_t>(base);
+        int64_t diff =
+            static_cast<int64_t>(words[i]) - static_cast<int64_t>(base);
         if (diff < -128 || diff > 127) {
             fits_8 = false;
         }
@@ -238,9 +239,15 @@ estimateCompressedPayloadSize(PacketPtr pkt, MemInterface* mem_intr)
         }
     }
 
-    if (fits_8) return 16;
-    if (fits_16) return 32;
-    if (fits_32) return 48;
+    if (fits_8) {
+        return 16;
+    }
+    if (fits_16) {
+        return 32;
+    }
+    if (fits_32) {
+        return 48;
+    }
 
     return blk_size;
 }
@@ -270,7 +277,8 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
-                        base_addr + pkt->getCompressedSize()) - addr;
+                                 base_addr + pkt->getCompressedSize()) -
+                        addr;
         stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
         stats.requestorReadAccesses[pkt->requestorId()]++;
@@ -376,7 +384,8 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
 
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
-                        base_addr + pkt->getCompressedSize()) - addr;
+                                 base_addr + pkt->getCompressedSize()) -
+                        addr;
         stats.writePktSize[ceilLog2(size)]++;
         stats.writeBursts++;
         stats.requestorWriteAccesses[pkt->requestorId()]++;
