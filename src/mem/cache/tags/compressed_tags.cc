@@ -132,8 +132,7 @@ CompressedTags::reserveSlot(const CacheBlk::KeyType &key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto &entry : superblock_entries) {
         SuperBlk *superblock = static_cast<SuperBlk *>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
             superblock->isCompressed()) {
             CompressionBlk *cblk =
                 static_cast<CompressionBlk *>(superblock->blks[offset]);
@@ -164,9 +163,10 @@ CompressedTags::releaseReservedSlot(const CacheBlk::KeyType &key)
                 static_cast<CompressionBlk *>(superblock->blks[offset]);
             if (cblk->isReserved()) {
                 cblk->clearReserved();
-                DPRINTF(CacheComp,
-                        "Released reserved slot offset %lu in %s for addr %#llx\n",
-                        offset, superblock->print(), key.address);
+                DPRINTF(
+                    CacheComp,
+                    "Released reserved slot offset %lu in %s for addr %#llx\n",
+                    offset, superblock->print(), key.address);
                 return;
             }
         }
@@ -196,10 +196,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
-            superblock->isCompressed())
-        {
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
+            superblock->isCompressed()) {
             CompressionBlk *cblk =
                 static_cast<CompressionBlk *>(superblock->blks[offset]);
             if (cblk->isReserved()) {
@@ -222,12 +220,14 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
                     victim_superblock = superblock;
                     is_co_allocation = true;
                     DPRINTF(CacheComp,
-                            "Utilizing reserved slot offset %lu in %s for addr %#llx\n",
+                            "Utilizing reserved slot offset %lu in %s for "
+                            "addr %#llx\n",
                             offset, superblock->print(), key.address);
                     break;
                 } else {
                     DPRINTF(CacheComp,
-                            "Releasing reserved slot offset %lu in %s for addr %#llx (size %llu exceeds prediction)\n",
+                            "Releasing reserved slot offset %lu in %s for "
+                            "addr %#llx (size %llu exceeds prediction)\n",
                             offset, superblock->print(), key.address,
                             compressed_size);
                 }

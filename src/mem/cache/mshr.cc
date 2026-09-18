@@ -157,8 +157,8 @@ MSHR::TargetList::updateWriteFlags(PacketPtr pkt)
 }
 
 inline void
-MSHR::TargetList::add(PacketPtr pkt, Tick readyTime,
-                      Counter order, Target::Source source, bool markPending,
+MSHR::TargetList::add(PacketPtr pkt, Tick readyTime, Counter order,
+                      Target::Source source, bool markPending,
                       bool alloc_on_fill, uint16_t estimated_compress_size)
 {
     updateFlags(pkt, source, alloc_on_fill);
@@ -295,7 +295,6 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
         ccprintf(os, "\n");
     }
 }
-
 
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,

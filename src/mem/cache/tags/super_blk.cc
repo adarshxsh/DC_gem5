@@ -43,8 +43,12 @@ namespace gem5
 {
 
 CompressionBlk::CompressionBlk()
-    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false),
-      _reserved(false), _reservedSize(0)
+    : SectorSubBlk(),
+      _size(0),
+      _decompressionLatency(0),
+      _compressed(false),
+      _reserved(false),
+      _reservedSize(0)
 {
 }
 
@@ -213,10 +217,10 @@ uint8_t
 SuperBlk::getNumReserved() const
 {
     uint8_t count = 0;
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk && !blk->isValid()) {
-            const CompressionBlk* cblk =
-                static_cast<const CompressionBlk*>(blk);
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
             if (cblk->isReserved()) {
                 count++;
             }
