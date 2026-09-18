@@ -331,10 +331,18 @@ class CacheBlk : public TaggedEntry
     }
 
     /** Get the tick on which the block was inserted or last touched. */
-    Tick getTickInserted() const { return _tickInserted; }
+    Tick
+    getTickInserted() const
+    {
+        return _tickInserted;
+    }
 
     /** Set the current tick as this block's insertion tick. */
-    void setTickInserted() { _tickInserted = curTick(); }
+    void
+    setTickInserted()
+    {
+        _tickInserted = curTick();
+    }
 
     /**
      * Set member variables when a block insertion occurs. Resets reference
