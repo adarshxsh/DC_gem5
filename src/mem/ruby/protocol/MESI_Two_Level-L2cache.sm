@@ -147,6 +147,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
     MachineID Exclusive,          desc="Exclusive holder of block";
     DataBlock DataBlk,       desc="data for the block";
     bool Dirty, default="false", desc="data is dirty";
+    WriteMask SubblockValidMask, desc="Validity bitmap for subblocks in cache entry";
   }
 
   // TBE fields
@@ -614,6 +615,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
       out_msg.Requestor := machineID;
       out_msg.Destination := cache_entry.Sharers;
       out_msg.MessageSize := MessageSizeType:Request_Control;
+      out_msg.InvalidationBitmap.fillMask();
     }
   }
 
@@ -626,6 +628,11 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
         out_msg.Requestor := in_msg.Requestor;
         out_msg.Destination := cache_entry.Sharers;
         out_msg.MessageSize := MessageSizeType:Request_Control;
+        if (in_msg.InvalidationBitmap.isEmpty()) {
+          out_msg.InvalidationBitmap.fillMask();
+        } else {
+          out_msg.InvalidationBitmap := in_msg.InvalidationBitmap;
+        }
       }
     }
   }
@@ -640,6 +647,11 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
         out_msg.Destination := cache_entry.Sharers;
         out_msg.Destination.remove(in_msg.Requestor);
         out_msg.MessageSize := MessageSizeType:Request_Control;
+        if (in_msg.InvalidationBitmap.isEmpty()) {
+          out_msg.InvalidationBitmap.fillMask();
+        } else {
+          out_msg.InvalidationBitmap := in_msg.InvalidationBitmap;
+        }
       }
     }
   }

@@ -85,6 +85,7 @@ structure(CoherenceMsg, desc="...", interface="Message") {
   DataBlock DataBlk,            desc="Data for the cache line (if PUTX)";
   bool Dirty, default="false",  desc="Dirty bit";
   PrefetchBit Prefetch,         desc="Is this a prefetch request";
+  WriteMask InvalidationBitmap, desc="Multi-subblock invalidation bitmap";
 
   bool functionalRead(Packet *pkt) {
     // Valid data block is only present in message with following types
