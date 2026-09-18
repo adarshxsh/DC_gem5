@@ -282,3 +282,150 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, IndirectSubBlockMappingResolution)
+{
+    // Map logical sector offset 3 to physical slot 0 (where logical offset !=
+    // physical slot index)
+    int p_slot = superBlk.mapLogicalToPhysical(3);
+    ASSERT_EQ(p_slot, 0);
+
+    // Verify indirect translation resolves logical offset 3 to physical
+    // subBlks[0]
+    ASSERT_EQ(superBlk.getSubBlk(3), &subBlks[0]);
+    ASSERT_EQ(superBlk.getPhysicalSlot(3), 0);
+
+    // Populate subBlks[0] as valid block for logical offset 3
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_TRUE(superBlk.isLogicalMapped(3));
+    ASSERT_FALSE(superBlk.isLogicalMapped(0));
+    ASSERT_EQ(superBlk.getSubBlk(3)->getSectorOffset(), 3);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, ImmediateRemappingOnInvalidationAndContraction)
+{
+    // Map logical offset 0 -> physical slot 0, logical offset 1 -> physical
+    // slot 1
+    int p0 = superBlk.mapLogicalToPhysical(0);
+    subBlks[p0].insert({0x5000, false});
+    subBlks[p0].setSizeBits(64);
+
+    int p1 = superBlk.mapLogicalToPhysical(1);
+    subBlks[p1].insert({0x5000, false});
+    subBlks[p1].setSizeBits(64);
+
+    ASSERT_TRUE(superBlk.isLogicalMapped(0));
+    ASSERT_TRUE(superBlk.isLogicalMapped(1));
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+
+    // Invalidate sub-block at logical offset 0
+    subBlks[p0].invalidate();
+
+    // Verify logical offset 0 is unmapped immediately and physical slot 0 is
+    // freed
+    ASSERT_FALSE(superBlk.isLogicalMapped(0));
+    ASSERT_TRUE(superBlk.hasFreePhysicalSlot());
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+
+    // Co-allocate a new sub-block with logical offset 2
+    int p2 = superBlk.mapLogicalToPhysical(2);
+    // Physical slot 0 should be reused for logical offset 2
+    ASSERT_EQ(p2, 0);
+    subBlks[p2].insert({0x5000, false});
+    subBlks[p2].setSizeBits(64);
+
+    ASSERT_TRUE(superBlk.isLogicalMapped(2));
+    ASSERT_EQ(superBlk.getSubBlk(2), &subBlks[0]);
+
+    // Verify valid sub-block at physical slot 1 (logical offset 1) remained
+    // stationary
+    ASSERT_TRUE(superBlk.isLogicalMapped(1));
+    ASSERT_EQ(superBlk.getSubBlk(1), &subBlks[1]);
+
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, CoAllocationFreedSlotReuseNonMatchingIndices)
+{
+    // Occupy physical slot 0 with logical offset 0, physical slot 1 with
+    // logical offset 1
+    superBlk.mapLogicalToPhysical(0);
+    subBlks[0].insert({0x6000, false});
+    subBlks[0].setSizeBits(64);
+
+    superBlk.mapLogicalToPhysical(1);
+    subBlks[1].insert({0x6000, false});
+    subBlks[1].setSizeBits(64);
+
+    // Invalidate logical offset 0 (freeing physical slot 0)
+    subBlks[0].invalidate();
+    ASSERT_FALSE(superBlk.isLogicalMapped(0));
+
+    // Request co-allocation for logical offset 5 (offset 5 != physical slot 0)
+    int assigned_p = superBlk.mapLogicalToPhysical(5);
+    ASSERT_EQ(assigned_p, 0);
+
+    subBlks[assigned_p].insert({0x6000, false});
+    subBlks[assigned_p].setSizeBits(64);
+
+    ASSERT_TRUE(superBlk.isLogicalMapped(5));
+    ASSERT_EQ(superBlk.getSubBlk(5), &subBlks[0]);
+
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, StationaryDataVerification)
+{
+    uint8_t dummyData[BlkSize] = {0xAB, 0xCD, 0xEF};
+
+    int p1 = superBlk.mapLogicalToPhysical(1);
+    subBlks[p1].data = dummyData;
+    subBlks[p1].insert({0x7000, false});
+    subBlks[p1].setSizeBits(64);
+
+    // Map and unmap another physical slot multiple times with different
+    // logical offsets
+    for (int l_offset = 2; l_offset < 6; ++l_offset) {
+        int p = superBlk.mapLogicalToPhysical(l_offset);
+        ASSERT_NE(p, p1);
+        subBlks[p].insert({0x7000, false});
+        subBlks[p].setSizeBits(64);
+
+        // Sub-block in physical slot p1 must stay in physical slot p1 with
+        // unchanged data pointer
+        ASSERT_EQ(subBlks[p1].data, dummyData);
+        ASSERT_EQ(subBlks[p1].data[0], 0xAB);
+        ASSERT_EQ(superBlk.getSubBlk(1), &subBlks[p1]);
+
+        subBlks[p].invalidate();
+    }
+
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, SectorGranularityEviction)
+{
+    // Populate multiple logical offsets
+    for (int l = 0; l < 4; ++l) {
+        int p = superBlk.mapLogicalToPhysical(l);
+        subBlks[p].insert({0x8000, false});
+        subBlks[p].setSizeBits(64);
+    }
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+
+    // Evict entire superblock at sector granularity
+    superBlk.invalidate();
+
+    ASSERT_FALSE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 0);
+    for (int l = 0; l < 4; ++l) {
+        ASSERT_FALSE(superBlk.isLogicalMapped(l));
+        ASSERT_EQ(superBlk.getSubBlk(l), nullptr);
+    }
+
+    verifyInvariants(superBlk);
+}
