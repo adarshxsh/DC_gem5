@@ -61,3 +61,50 @@ TEST(SuperBlkTest, SetUncompressedClearsCompressed)
     blk.setUncompressed();
     EXPECT_FALSE(blk.isCompressed());
 }
+
+TEST(SuperBlkTest, VariableSizedCoAllocation)
+{
+    SuperBlk super_blk;
+    constexpr std::size_t blk_size = 64; // 64 bytes = 512 bits
+    super_blk.setBlkSize(blk_size);
+
+    CompressionBlk sub_blks[4];
+    super_blk.blks.resize(4);
+    for (int i = 0; i < 4; ++i) {
+        super_blk.blks[i] = &sub_blks[i];
+        sub_blks[i].setSectorBlock(&super_blk);
+        sub_blks[i].setSectorOffset(i);
+        sub_blks[i].registerTagExtractor([](Addr addr) { return addr; });
+    }
+    super_blk.registerTagExtractor([](Addr addr) { return addr; });
+
+    // Initially 0 valid sub-blocks. Candidate of 256 bits should be accepted.
+    EXPECT_TRUE(super_blk.canCoAllocate(256));
+    // Candidate >= line size (512 bits) should be rejected as uncompressed.
+    EXPECT_FALSE(super_blk.canCoAllocate(512));
+
+    // Insert first block (256 bits)
+    sub_blks[0].insert({0x1000, false});
+    sub_blks[0].setSizeBits(256);
+
+    // Remaining capacity: 256 bits. Candidate of 128 bits fits (256 + 128 <=
+    // 512).
+    EXPECT_TRUE(super_blk.canCoAllocate(128));
+    // Candidate of 384 bits exceeds capacity (256 + 384 = 640 > 512).
+    EXPECT_FALSE(super_blk.canCoAllocate(384));
+
+    // Insert second block (128 bits)
+    sub_blks[1].insert({0x1000, false});
+    sub_blks[1].setSizeBits(128);
+
+    // Remaining capacity: 128 bits. Candidate of 128 bits fits (384 + 128 <=
+    // 512).
+    EXPECT_TRUE(super_blk.canCoAllocate(128));
+
+    // Insert third block (128 bits)
+    sub_blks[2].insert({0x1000, false});
+    sub_blks[2].setSizeBits(128);
+
+    // Capacity is now 512/512 bits. Candidate of 64 bits exceeds capacity.
+    EXPECT_FALSE(super_blk.canCoAllocate(64));
+}

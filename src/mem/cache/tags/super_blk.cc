@@ -44,18 +44,17 @@ namespace gem5
 
 CompressionBlk::CompressionBlk()
     : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false)
-{
-}
+{}
 
-CacheBlk&
-CompressionBlk::operator=(CacheBlk&& other)
+CacheBlk &
+CompressionBlk::operator=(CacheBlk &&other)
 {
-    operator=(std::move(static_cast<CompressionBlk&&>(other)));
+    operator=(std::move(static_cast<CompressionBlk &&>(other)));
     return *this;
 }
 
-CompressionBlk&
-CompressionBlk::operator=(CompressionBlk&& other)
+CompressionBlk &
+CompressionBlk::operator=(CompressionBlk &&other)
 {
     _size = other._size;
     setDecompressionLatency(other.getDecompressionLatency());
@@ -109,7 +108,7 @@ CompressionBlk::setSizeBits(const std::size_t size)
 {
     _size = size;
 
-    SuperBlk* superblock = static_cast<SuperBlk*>(getSectorBlock());
+    SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
         superblock->updateCompressionFactor();
 
@@ -164,12 +163,13 @@ CompressionBlk::checkExpansionContraction(const std::size_t size) const
     // or blkSize/2 to blkSize). A contraction happens when a block passes
     // from a less compressible state to a more compressible state (i.e., the
     // opposite of expansion)
-    const SuperBlk* superblock =
-        static_cast<const SuperBlk*>(getSectorBlock());
+    const SuperBlk *superblock =
+        static_cast<const SuperBlk *>(getSectorBlock());
     const uint8_t prev_cf = superblock->getCompressionFactor();
     const uint8_t new_cf = superblock->calculateCompressionFactor(size);
-    return (new_cf < prev_cf) ? DATA_EXPANSION :
-        ((new_cf > prev_cf) ? DATA_CONTRACTION : UNCHANGED);
+    return (new_cf < prev_cf)
+               ? DATA_EXPANSION
+               : ((new_cf > prev_cf) ? DATA_CONTRACTION : UNCHANGED);
 }
 
 std::string
@@ -180,10 +180,8 @@ CompressionBlk::print() const
                     getDecompressionLatency());
 }
 
-SuperBlk::SuperBlk()
-    : SectorBlk(), blkSize(0), compressionFactor(1)
-{
-}
+SuperBlk::SuperBlk() : SectorBlk(), blkSize(0), compressionFactor(1)
+{}
 
 void
 SuperBlk::invalidate()
@@ -193,9 +191,9 @@ SuperBlk::invalidate()
 }
 
 bool
-SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
+SuperBlk::isCompressed(const CompressionBlk *ignored_blk) const
 {
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk->isValid() && (blk != ignored_blk)) {
             if (!static_cast<CompressionBlk *>(blk)->isCompressed()) {
                 return false;
@@ -214,17 +212,25 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
-    if (new_blk_cf <= 1) {
+    const std::size_t line_capacity_bits = blkSize * CHAR_BIT;
+    if (compressed_size >= line_capacity_bits) {
         return false;
     }
 
-    const uint8_t target_cf =
-        (getNumValid() == 0) ? new_blk_cf
-                             : std::min(getCompressionFactor(), new_blk_cf);
+    if (getNumValid() >= blks.size()) {
+        return false;
+    }
 
-    return (target_cf > 1) && (getNumValid() < target_cf) &&
-           (compressed_size <= (blkSize * CHAR_BIT) / target_cf);
+    std::size_t total_bits = compressed_size;
+    for (const auto &blk : blks) {
+        if (blk->isValid()) {
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
+            total_bits += cblk->getSizeBits();
+        }
+    }
+
+    return total_bits <= line_capacity_bits;
 }
 
 void
@@ -241,9 +247,12 @@ SuperBlk::calculateCompressionFactor(const std::size_t size) const
     // If the compressed size is worse than the uncompressed size, we assume
     // the size is the uncompressed size, and thus the compression factor is 1
     const std::size_t blk_size_bits = CHAR_BIT * blkSize;
-    const std::size_t compression_factor = (size > blk_size_bits) ? 1 :
-        ((size == 0) ? blk_size_bits :
-        alignToPowerOfTwo(std::floor(double(blk_size_bits) / size)));
+    const std::size_t compression_factor =
+        (size > blk_size_bits)
+            ? 1
+            : ((size == 0) ? blk_size_bits
+                           : alignToPowerOfTwo(
+                                 std::floor(double(blk_size_bits) / size)));
     return std::min<std::size_t>(compression_factor, blks.size());
 }
 
