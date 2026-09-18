@@ -136,13 +136,16 @@ SwitchAllocator::arbitrate_inports()
                 if (make_request) {
                     flit *t_flit = input_unit->peekTopFlit(invc);
                     OutputUnit *out_unit = m_router->getOutputUnit(outport);
-                    bool decomp_busy = out_unit ? out_unit->is_decompression_busy() : false;
+                    bool decomp_busy =
+                        out_unit ? out_unit->is_decompression_busy() : false;
 
                     int prio = 1; // Default normal priority
                     if (decomp_busy) {
-                        prio = 0; // Deprioritize input buffers blocked on decompression
+                        prio = 0; // Deprioritize input buffers blocked on
+                                  // decompression
                     } else if (t_flit && t_flit->is_demand_request()) {
-                        prio = 2; // Priority boost for unblocked demand requests
+                        prio =
+                            2; // Priority boost for unblocked demand requests
                     }
 
                     if (prio > max_priority) {
@@ -205,7 +208,8 @@ SwitchAllocator::arbitrate_outports()
 
                 flit *t_flit = input_unit->peekTopFlit(invc);
                 OutputUnit *out_unit = m_router->getOutputUnit(outport);
-                bool decomp_busy = out_unit ? out_unit->is_decompression_busy() : false;
+                bool decomp_busy =
+                    out_unit ? out_unit->is_decompression_busy() : false;
 
                 int prio = 1; // Default normal priority
                 if (decomp_busy) {
@@ -224,8 +228,9 @@ SwitchAllocator::arbitrate_outports()
             }
 
             inport++;
-            if (inport >= m_num_inports)
+            if (inport >= m_num_inports) {
                 inport = 0;
+            }
         }
 
         if (best_inport != -1) {
@@ -245,19 +250,17 @@ SwitchAllocator::arbitrate_outports()
             // remove flit from Input VC
             flit *t_flit = input_unit->getTopFlit(invc);
 
-            DPRINTF(RubyNetwork, "SwitchAllocator at Router %d "
-                                 "granted outvc %d at outport %d "
-                                 "to invc %d at inport %d to flit %s at "
-                                 "cycle: %lld\n",
-                    m_router->get_id(), outvc,
-                    m_router->getPortDirectionName(
-                        output_unit->get_direction()),
-                    invc,
-                    m_router->getPortDirectionName(
-                        input_unit->get_direction()),
-                        *t_flit,
-                    m_router->curCycle());
-
+            DPRINTF(
+                RubyNetwork,
+                "SwitchAllocator at Router %d "
+                "granted outvc %d at outport %d "
+                "to invc %d at inport %d to flit %s at "
+                "cycle: %lld\n",
+                m_router->get_id(), outvc,
+                m_router->getPortDirectionName(output_unit->get_direction()),
+                invc,
+                m_router->getPortDirectionName(input_unit->get_direction()),
+                *t_flit, m_router->curCycle());
 
             // Update outport field in the flit since this is
             // used by CrossbarSwitch code to send it out of
@@ -301,16 +304,18 @@ SwitchAllocator::arbitrate_outports()
 
             // Update Round Robin pointer
             m_round_robin_inport[outport] = inport + 1;
-            if (m_round_robin_inport[outport] >= m_num_inports)
+            if (m_round_robin_inport[outport] >= m_num_inports) {
                 m_round_robin_inport[outport] = 0;
+            }
 
             // Update Round Robin pointer to the next VC
             // We do it here to keep it fair.
             // Only the VC which got switch traversal
             // is updated.
             m_round_robin_invc[inport] = invc + 1;
-            if (m_round_robin_invc[inport] >= m_num_vcs)
+            if (m_round_robin_invc[inport] >= m_num_vcs) {
                 m_round_robin_invc[inport] = 0;
+            }
         }
     }
 }
