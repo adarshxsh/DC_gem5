@@ -384,23 +384,24 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
     OutputPort *oPort = getOutportForVnet(vnet);
     assert(oPort);
 
-    int msg_byte_size = m_net_ptr->MessageSizeType_to_int(
-        net_msg_ptr->getMessageSize());
-    int header_size = m_net_ptr->MessageSizeType_to_int(
-        MessageSizeType_Control);
+    int msg_byte_size =
+        m_net_ptr->MessageSizeType_to_int(net_msg_ptr->getMessageSize());
+    int header_size =
+        m_net_ptr->MessageSizeType_to_int(MessageSizeType_Control);
 
     if (net_msg_ptr->getCompressedPayloadSize() >= 0 &&
         msg_byte_size > header_size) {
         int uncomp_payload = msg_byte_size - header_size;
-        int comp_payload = std::min(net_msg_ptr->getCompressedPayloadSize(),
-                                    uncomp_payload);
+        int comp_payload =
+            std::min(net_msg_ptr->getCompressedPayloadSize(), uncomp_payload);
         msg_byte_size = header_size + comp_payload;
     }
 
-    int num_flits = (int)divCeil((float) msg_byte_size, (float)oPort->bitWidth());
+    int num_flits =
+        (int)divCeil((float)msg_byte_size, (float)oPort->bitWidth());
 
     DPRINTF(RubyNetwork, "Message Size:%d vnet:%d bitWidth:%d\n",
-        msg_byte_size, vnet, oPort->bitWidth());
+            msg_byte_size, vnet, oPort->bitWidth());
 
     // loop to convert all multicast messages into unicast messages
     for (int ctr = 0; ctr < dest_nodes.size(); ctr++) {
@@ -460,10 +461,9 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
         int packet_id = m_net_ptr->getNextPacketID();
         for (int i = 0; i < num_flits; i++) {
             m_net_ptr->increment_injected_flits(vnet);
-            flit *fl = new flit(packet_id,
-                i, vc, vnet, route, num_flits, new_msg_ptr,
-                msg_byte_size,
-                oPort->bitWidth(), curTick());
+            flit *fl =
+                new flit(packet_id, i, vc, vnet, route, num_flits, new_msg_ptr,
+                         msg_byte_size, oPort->bitWidth(), curTick());
 
             fl->set_src_delay(curTick() - msg_ptr->getTime());
             niOutVcs[vc].insert(fl);
