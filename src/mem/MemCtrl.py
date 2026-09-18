@@ -79,6 +79,16 @@ class MemCtrl(QoSMemCtrl):
     # queue is empty
     write_low_thresh_perc = Param.Percent(50, "Threshold to start writes")
 
+    # Watermark thresholds for queue pressure state signaling
+    high_pressure_watermark = Param.Percent(
+        80,
+        "High pressure watermark percentage threshold for queue state signaling",
+    )
+    low_pressure_watermark = Param.Percent(
+        50,
+        "Low pressure watermark percentage threshold for queue state signaling",
+    )
+
     # minimum write bursts to schedule before switching back to reads
     min_writes_per_switch = Param.Unsigned(
         16, "Minimum write bursts before switching to reads"

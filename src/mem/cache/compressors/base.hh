@@ -137,6 +137,14 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether feedback-driven compression throttling under memory queue
+     * pressure is enabled. */
+    const bool enableQueuePressureThrottling;
+
+    /** Memory queue occupancy percentage threshold above which compression is
+     * throttled. */
+    const unsigned queuePressureThreshold;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -279,6 +287,20 @@ class Base : public SimObject
      * @param size_bits The block size.
      */
     static void setSizeBits(CacheBlk* blk, const std::size_t size_bits);
+
+    /** Check whether queue pressure throttling is enabled. */
+    bool
+    isQueuePressureThrottlingEnabled() const
+    {
+        return enableQueuePressureThrottling;
+    }
+
+    /** Get the queue pressure threshold percentage. */
+    unsigned
+    getQueuePressureThreshold() const
+    {
+        return queuePressureThreshold;
+    }
 };
 
 class Base::CompressionData

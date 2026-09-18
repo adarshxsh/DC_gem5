@@ -25,8 +25,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 // --- Exponential decay adaptive bypass unit tests ---
 
- * Copyright (c) 2026 gem5
- * All rights reserved.
+// Copyright (c) 2026 gem5
+// All rights reserved.
