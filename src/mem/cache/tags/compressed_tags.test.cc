@@ -282,3 +282,43 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
+TEST_F(SuperBlkTestFixture, ProvisionalCoAllocationUncompressedReadMiss)
+{
+    // Insert sub-block 0 at offset 0 with 64 bits (CF=8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_TRUE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_TRUE(superBlk.isCompressed());
+
+    // Standard canCoAllocate for 512 bits (uncompressed default size) is false
+    const std::size_t uncompressed_bits = BlkSize * 8; // 512 bits
+    ASSERT_FALSE(superBlk.canCoAllocate(uncompressed_bits));
+
+    // However, provisional co-allocation criteria:
+    // (1) target sub-block at offset 1 is invalid
+    // (2) superblock is compressed
+    // (3) getNumValid() < getCompressionFactor()
+    ASSERT_FALSE(subBlks[1].isValid());
+    ASSERT_TRUE(superBlk.getNumValid() < superBlk.getCompressionFactor());
+
+    // Now fill sub-blocks until superblock reaches full capacity under CF=4
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(128);
+    subBlks[2].insert({0x1000, false});
+    subBlks[2].setSizeBits(128);
+    subBlks[3].insert({0x1000, false});
+    subBlks[3].setSizeBits(128);
+
+    // Current CF is min(8, 4) = 4, getNumValid() is 4
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+
+    // At full capacity (getNumValid() == getCompressionFactor()), provisional
+    // co-allocation condition fails
+    ASSERT_FALSE(superBlk.getNumValid() < superBlk.getCompressionFactor());
+    verifyInvariants(superBlk);
+}
