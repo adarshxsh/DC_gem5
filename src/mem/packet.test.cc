@@ -39,7 +39,8 @@ static Tick mockTick = 0;
 class PacketTestFixture : public ::testing::Test
 {
   protected:
-    void SetUp() override
+    void
+    SetUp() override
     {
         Gem5Internal::_curTickPtr = &mockTick;
     }
@@ -113,12 +114,14 @@ TEST_F(PacketTestFixture, DecoupledDecompressionLatencyAndTransferTiming)
     // Set compressed size to 16 bytes (128 bits)
     pkt.setCompressedSize(16);
 
-    // Simulate writeback assigning decompression latency (e.g. 20 cycles) to headerDelay
+    // Simulate writeback assigning decompression latency (e.g. 20 cycles) to
+    // headerDelay
     pkt.headerDelay += 20;
 
     EXPECT_EQ(pkt.headerDelay, 20);
     EXPECT_EQ(pkt.payloadDelay, 0);
 
-    // Verify transfer size reflects compressed size (16 bytes) instead of full line (64 bytes)
+    // Verify transfer size reflects compressed size (16 bytes) instead of full
+    // line (64 bytes)
     EXPECT_EQ(pkt.getTransferSize(), 16);
 }
