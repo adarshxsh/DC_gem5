@@ -45,6 +45,7 @@
 
 #include "mem/xbar.hh"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 
@@ -65,8 +66,10 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
       headerLatency(p.header_latency),
       width(p.width),
       gotAddrRanges(p.port_default_connection_count +
-                          p.port_mem_side_ports_connection_count, false),
-      gotAllAddrRanges(false), defaultPortID(InvalidPortID),
+                        p.port_mem_side_ports_connection_count,
+                    false),
+      gotAllAddrRanges(false),
+      defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
 
       ADD_STAT(transDist, statistics::units::Count::get(),
@@ -75,16 +78,17 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
                "Packet count per connected requestor and responder"),
       ADD_STAT(pktSize, statistics::units::Byte::get(),
                "Cumulative packet size per connected requestor and responder")
-{
-}
+{}
 
 BaseXBar::~BaseXBar()
 {
-    for (auto port: memSidePorts)
+    for (auto port : memSidePorts) {
         delete port;
+    }
 
-    for (auto port: cpuSidePorts)
+    for (auto port : cpuSidePorts) {
         delete port;
+    }
 }
 
 Port &
@@ -94,7 +98,7 @@ BaseXBar::getPort(const std::string &if_name, PortID idx)
         // the memory-side ports index translates directly to the vector
         // position
         return *memSidePorts[idx];
-    } else  if (if_name == "default") {
+    } else if (if_name == "default") {
         return *memSidePorts[defaultPortID];
     } else if (if_name == "cpu_side_ports" && idx < cpuSidePorts.size()) {
         // the CPU-side ports index translates directly to the vector position
@@ -131,9 +135,8 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
         // deliver the payload of the packet, after the header delay,
         // we take the maximum since the payload delay could already
         // be longer than what this parcitular crossbar enforces.
-        pkt->payloadDelay = std::max<Tick>(pkt->payloadDelay,
-                                           divCeil(pkt->getSize(), width) *
-                                           clockPeriod());
+        pkt->payloadDelay = std::max<Tick>(
+            pkt->payloadDelay, divCeil(pkt->getSize(), width) * clockPeriod());
     }
 
     // the payload delay is not paying for the clock offset as that is
@@ -143,26 +146,33 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
 }
 
 template <typename SrcType, typename DstType>
-BaseXBar::Layer<SrcType, DstType>::Layer(DstType& _port, BaseXBar& _xbar,
-                                       const std::string& _name) :
-    statistics::Group(&_xbar, _name.c_str()),
-    port(_port), xbar(_xbar), _name(xbar.name() + "." + _name), state(IDLE),
-    waitingForPeer(NULL), releaseEvent([this]{ releaseLayer(); }, name()),
-    ADD_STAT(occupancy, statistics::units::Tick::get(), "Layer occupancy (ticks)"),
-    ADD_STAT(utilization, statistics::units::Ratio::get(), "Layer utilization")
+BaseXBar::Layer<SrcType, DstType>::Layer(DstType &_port, BaseXBar &_xbar,
+                                         const std::string &_name)
+    : statistics::Group(&_xbar, _name.c_str()),
+      port(_port),
+      xbar(_xbar),
+      _name(xbar.name() + "." + _name),
+      state(IDLE),
+      lowPriorityAgingCounter(0),
+      waitingForPeer(NULL),
+      waitingForPeerPriority(true),
+      waitingForPeerPayloadDelay(0),
+      releaseEvent([this] { releaseLayer(); }, name()),
+      ADD_STAT(occupancy, statistics::units::Tick::get(),
+               "Layer occupancy (ticks)"),
+      ADD_STAT(utilization, statistics::units::Ratio::get(),
+               "Layer utilization")
 {
-    occupancy
-        .flags(statistics::nozero);
+    occupancy.flags(statistics::nozero);
 
-    utilization
-        .precision(1)
-        .flags(statistics::nozero);
+    utilization.precision(1).flags(statistics::nozero);
 
     utilization = occupancy / simTicks;
 }
 
 template <typename SrcType, typename DstType>
-void BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
+void
+BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
 {
     // ensure the state is busy at this point, as the layer should
     // transition from idle as soon as it has decided to forward the
@@ -183,7 +193,7 @@ void BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
 
 template <typename SrcType, typename DstType>
 bool
-BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
+BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType *src_port, PacketPtr pkt)
 {
     // if we are in the retry state, we will not see anything but the
     // retrying port (or in the case of the snoop ports the snoop
@@ -196,14 +206,40 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
     // for a retry from the peer
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
-        assert(std::find(waitingForLayer.begin(), waitingForLayer.end(),
-                         src_port) == waitingForLayer.end());
+        [[maybe_unused]] auto in_high = std::find_if(
+            highPriorityWaiting.begin(), highPriorityWaiting.end(),
+            [src_port](const WaitingPort &w) { return w.port == src_port; });
+        [[maybe_unused]] auto in_low = std::find_if(
+            lowPriorityWaiting.begin(), lowPriorityWaiting.end(),
+            [src_port](const WaitingPort &w) { return w.port == src_port; });
+        [[maybe_unused]] auto in_old = std::find(
+            waitingForLayer.begin(), waitingForLayer.end(), src_port);
 
-        // put the port at the end of the retry list waiting for the
-        // layer to be freed up (and in the case of a busy peer, for
-        // that transaction to go through, and then the layer to free
-        // up)
-        waitingForLayer.push_back(src_port);
+        assert(in_high == highPriorityWaiting.end() &&
+               in_low == lowPriorityWaiting.end() &&
+               in_old == waitingForLayer.end());
+
+        bool is_high_priority = true;
+        if (pkt != nullptr) {
+            if (pkt->isWriteback() || pkt->isEviction() ||
+                (pkt->isWrite() &&
+                 (pkt->isEviction() || pkt->cmd == MemCmd::WriteClean))) {
+                is_high_priority = false;
+            } else if (pkt->isRead() || pkt->isDemand()) {
+                is_high_priority = true;
+            }
+        }
+
+        Tick payload_delay = pkt ? pkt->payloadDelay : 0;
+
+        if (is_high_priority) {
+            highPriorityWaiting.emplace_back(src_port, true, payload_delay,
+                                             curTick());
+        } else {
+            lowPriorityWaiting.emplace_back(src_port, false, payload_delay,
+                                            curTick());
+        }
+
         return false;
     }
 
@@ -226,8 +262,8 @@ BaseXBar::Layer<SrcType, DstType>::succeededTiming(Tick busy_time)
 
 template <typename SrcType, typename DstType>
 void
-BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType* src_port,
-                                              Tick busy_time)
+BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType *src_port,
+                                                Tick busy_time, PacketPtr pkt)
 {
     // ensure no one got in between and tried to send something to
     // this port
@@ -237,6 +273,18 @@ BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType* src_port,
     // failed in forwarding and should track that we are now waiting
     // for the peer to send a retry
     waitingForPeer = src_port;
+
+    waitingForPeerPriority = true;
+    if (pkt != nullptr) {
+        if (pkt->isWriteback() || pkt->isEviction() ||
+            (pkt->isWrite() &&
+             (pkt->isEviction() || pkt->cmd == MemCmd::WriteClean))) {
+            waitingForPeerPriority = false;
+        } else if (pkt->isRead() || pkt->isDemand()) {
+            waitingForPeerPriority = true;
+        }
+    }
+    waitingForPeerPayloadDelay = pkt ? pkt->payloadDelay : 0;
 
     // we should have gone from idle or retry to busy in the tryTiming
     // test
@@ -258,14 +306,16 @@ BaseXBar::Layer<SrcType, DstType>::releaseLayer()
     state = IDLE;
 
     // bus layer is now idle, so if someone is waiting we can retry
-    if (!waitingForLayer.empty()) {
+    if (hasWaiting()) {
         // there is no point in sending a retry if someone is still
         // waiting for the peer
-        if (waitingForPeer == NULL)
+        if (waitingForPeer == NULL) {
             retryWaiting();
-    } else if (waitingForPeer == NULL && drainState() == DrainState::Draining) {
+        }
+    } else if (waitingForPeer == NULL &&
+               drainState() == DrainState::Draining) {
         DPRINTF(Drain, "Crossbar done draining, signaling drain manager\n");
-        //If we weren't able to drain before, do it now.
+        // If we weren't able to drain before, do it now.
         signalDrainDone();
     }
 }
@@ -275,7 +325,7 @@ void
 BaseXBar::Layer<SrcType, DstType>::retryWaiting()
 {
     // this should never be called with no one waiting
-    assert(!waitingForLayer.empty());
+    assert(hasWaiting());
 
     // we always go to retrying from idle
     assert(state == IDLE);
@@ -283,10 +333,49 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     // update the state
     state = RETRY;
 
-    // set the retrying port to the front of the retry list and pop it
-    // off the list
-    SrcType* retryingPort = waitingForLayer.front();
-    waitingForLayer.pop_front();
+    SrcType *retryingPort = nullptr;
+
+    if (!waitingForLayer.empty()) {
+        retryingPort = waitingForLayer.front();
+        waitingForLayer.pop_front();
+    } else if (lowPriorityWaiting.empty()) {
+        retryingPort = highPriorityWaiting.front().port;
+        highPriorityWaiting.pop_front();
+        lowPriorityAgingCounter = 0;
+    } else if (highPriorityWaiting.empty()) {
+        size_t best_idx = 0;
+        for (size_t i = 1; i < lowPriorityWaiting.size(); ++i) {
+            if (lowPriorityWaiting[i].payloadDelay <
+                lowPriorityWaiting[best_idx].payloadDelay) {
+                best_idx = i;
+            }
+        }
+        retryingPort = lowPriorityWaiting[best_idx].port;
+        lowPriorityWaiting.erase(lowPriorityWaiting.begin() + best_idx);
+        lowPriorityAgingCounter = 0;
+    } else {
+        // Both high-priority and low-priority queues have waiting ports
+        if (lowPriorityAgingCounter >= AGING_THRESHOLD) {
+            // Anti-starvation threshold reached: grant layer to low-priority
+            size_t best_idx = 0;
+            for (size_t i = 1; i < lowPriorityWaiting.size(); ++i) {
+                if (lowPriorityWaiting[i].payloadDelay <
+                    lowPriorityWaiting[best_idx].payloadDelay) {
+                    best_idx = i;
+                }
+            }
+            retryingPort = lowPriorityWaiting[best_idx].port;
+            lowPriorityWaiting.erase(lowPriorityWaiting.begin() + best_idx);
+            lowPriorityAgingCounter = 0;
+        } else {
+            // Prioritize high-priority demand read over low-priority writeback
+            retryingPort = highPriorityWaiting.front().port;
+            highPriorityWaiting.pop_front();
+            lowPriorityAgingCounter++;
+        }
+    }
+
+    assert(retryingPort != nullptr);
 
     // tell the port to retry, which in some cases ends up calling the
     // layer again
@@ -316,7 +405,13 @@ BaseXBar::Layer<SrcType, DstType>::recvRetry()
     // add the port where the failed packet originated to the front of
     // the waiting ports for the layer, this allows us to call retry
     // on the port immediately if the crossbar layer is idle
-    waitingForLayer.push_front(waitingForPeer);
+    if (waitingForPeerPriority) {
+        highPriorityWaiting.emplace_front(
+            waitingForPeer, true, waitingForPeerPayloadDelay, curTick());
+    } else {
+        lowPriorityWaiting.emplace_front(
+            waitingForPeer, false, waitingForPeerPayloadDelay, curTick());
+    }
 
     // we are no longer waiting for the peer
     waitingForPeer = NULL;
@@ -351,8 +446,10 @@ BaseXBar::findPort(AddrRange addr_range, PacketPtr pkt)
             return defaultPortID;
         }
     } else if (defaultPortID != InvalidPortID) {
-        DPRINTF(AddrRanges, "Unable to find destination for %s, "
-                "will use default port\n", addr_range.to_string());
+        DPRINTF(AddrRanges,
+                "Unable to find destination for %s, "
+                "will use default port\n",
+                addr_range.to_string());
         return defaultPortID;
     }
 
@@ -362,14 +459,16 @@ BaseXBar::findPort(AddrRange addr_range, PacketPtr pkt)
     if (pkt) {
         std::shared_ptr<TracingExtension> ext =
             pkt->getExtension<TracingExtension>();
-        port_trace = ext ? ext->getTraceInString() :
-            "Use --debug-flags=PortTrace to see the port trace of the packet.";
+        port_trace = ext ? ext->getTraceInString()
+                         : "Use --debug-flags=PortTrace to see the port trace "
+                           "of the packet.";
     }
     fatal("Unable to find destination for %s on %s\n%s\n",
           addr_range.to_string(), name(), port_trace);
 }
 
-/** Function called by the port when the crossbar is receiving a range change.*/
+/** Function called by the port when the crossbar is receiving a range
+ * change.*/
 void
 BaseXBar::recvRangeChange(PortID mem_side_port_id)
 {
@@ -386,11 +485,12 @@ BaseXBar::recvRangeChange(PortID mem_side_port_id)
         // ranges from everyone
         gotAllAddrRanges = true;
         std::vector<bool>::const_iterator r = gotAddrRanges.begin();
-        while (gotAllAddrRanges &&  r != gotAddrRanges.end()) {
+        while (gotAllAddrRanges && r != gotAddrRanges.end()) {
             gotAllAddrRanges &= *r++;
         }
-        if (gotAllAddrRanges)
+        if (gotAllAddrRanges) {
             DPRINTF(AddrRanges, "Got address ranges from all responders\n");
+        }
     }
 
     // note that we could get the range from the default port at any
@@ -402,12 +502,13 @@ BaseXBar::recvRangeChange(PortID mem_side_port_id)
         // default port since the port might not have a valid range
         // otherwise
         if (useDefaultRange) {
-            AddrRangeList ranges = memSidePorts[mem_side_port_id]->
-                                   getAddrRanges();
+            AddrRangeList ranges =
+                memSidePorts[mem_side_port_id]->getAddrRanges();
 
-            if (ranges.size() != 1)
+            if (ranges.size() != 1) {
                 fatal("Crossbar %s may only have a single default range",
                       name());
+            }
 
             defaultRange = ranges.front();
         }
@@ -415,28 +516,27 @@ BaseXBar::recvRangeChange(PortID mem_side_port_id)
         // the ports are allowed to update their address ranges
         // dynamically, so remove any existing entries
         if (gotAddrRanges[mem_side_port_id]) {
-            for (auto p = portMap.begin(); p != portMap.end(); ) {
-                if (p->second == mem_side_port_id)
+            for (auto p = portMap.begin(); p != portMap.end();) {
+                if (p->second == mem_side_port_id) {
                     // erasing invalidates the iterator, so advance it
                     // before the deletion takes place
                     portMap.erase(p++);
-                else
+                } else {
                     p++;
+                }
             }
         }
 
-        AddrRangeList ranges = memSidePorts[mem_side_port_id]->
-                               getAddrRanges();
+        AddrRangeList ranges = memSidePorts[mem_side_port_id]->getAddrRanges();
 
-        for (const auto& r: ranges) {
-            DPRINTF(AddrRanges, "Adding range %s for id %d\n",
-                    r.to_string(), mem_side_port_id);
+        for (const auto &r : ranges) {
+            DPRINTF(AddrRanges, "Adding range %s for id %d\n", r.to_string(),
+                    mem_side_port_id);
             if (portMap.insert(r, mem_side_port_id) == portMap.end()) {
                 PortID conflict_id = portMap.intersects(r)->second;
                 fatal("%s has two ports responding within range "
                       "%s:\n\t%s\n\t%s\n",
-                      name(),
-                      r.to_string(),
+                      name(), r.to_string(),
                       memSidePorts[mem_side_port_id]->getPeer(),
                       memSidePorts[conflict_id]->getPeer());
             }
@@ -452,9 +552,10 @@ BaseXBar::recvRangeChange(PortID mem_side_port_id)
 
         // start out with the default range
         if (useDefaultRange) {
-            if (!gotAddrRanges[defaultPortID])
+            if (!gotAddrRanges[defaultPortID]) {
                 fatal("Crossbar %s uses default range, but none provided",
                       name());
+            }
 
             xbarRanges.push_back(defaultRange);
             DPRINTF(AddrRanges, "-- Adding default %s\n",
@@ -464,7 +565,7 @@ BaseXBar::recvRangeChange(PortID mem_side_port_id)
         // merge all interleaved ranges and add any range that is not
         // a subset of the default range
         std::vector<AddrRange> intlv_ranges;
-        for (const auto& r: portMap) {
+        for (const auto &r : portMap) {
             // if the range is interleaved then save it for now
             if (r.first.interleaved()) {
                 // if we already got interleaved ranges that are not
@@ -487,8 +588,7 @@ BaseXBar::recvRangeChange(PortID mem_side_port_id)
                 intlv_ranges.push_back(r.first);
             } else {
                 // keep the current range if not a subset of the default
-                if (!(useDefaultRange &&
-                      r.first.isSubset(defaultRange))) {
+                if (!(useDefaultRange && r.first.isSubset(defaultRange))) {
                     xbarRanges.push_back(r.first);
                     DPRINTF(AddrRanges, "-- Adding range %s\n",
                             r.first.to_string());
@@ -514,21 +614,23 @@ BaseXBar::recvRangeChange(PortID mem_side_port_id)
         // as there are no guarantees for when the default range is
         // update with respect to the other ones
         if (useDefaultRange) {
-            for (const auto& r: xbarRanges) {
+            for (const auto &r : xbarRanges) {
                 // see if the new range is partially
                 // overlapping the default range
-                if (r.intersects(defaultRange) &&
-                    !r.isSubset(defaultRange))
-                    fatal("Range %s intersects the "                    \
-                          "default range of %s but is not a "           \
-                          "subset\n", r.to_string(), name());
+                if (r.intersects(defaultRange) && !r.isSubset(defaultRange)) {
+                    fatal("Range %s intersects the "
+                          "default range of %s but is not a "
+                          "subset\n",
+                          r.to_string(), name());
+                }
             }
         }
 
         // tell all our neighbouring memory-side ports that our address
         // ranges have changed
-        for (const auto& port: cpuSidePorts)
+        for (const auto &port : cpuSidePorts) {
             port->sendRangeChange();
+        }
     }
 }
 
@@ -557,9 +659,7 @@ BaseXBar::regStats()
 
     using namespace statistics;
 
-    transDist
-        .init(MemCmd::NUM_MEM_CMDS)
-        .flags(nozero);
+    transDist.init(MemCmd::NUM_MEM_CMDS).flags(nozero);
 
     // get the string representation of the commands
     for (int i = 0; i < MemCmd::NUM_MEM_CMDS; i++) {
@@ -568,12 +668,10 @@ BaseXBar::regStats()
         transDist.subname(i, cstr);
     }
 
-    pktCount
-        .init(cpuSidePorts.size(), memSidePorts.size())
+    pktCount.init(cpuSidePorts.size(), memSidePorts.size())
         .flags(total | nozero | nonan);
 
-    pktSize
-        .init(cpuSidePorts.size(), memSidePorts.size())
+    pktSize.init(cpuSidePorts.size(), memSidePorts.size())
         .flags(total | nozero | nonan);
 
     // both the packet count and total size are two-dimensional
@@ -597,9 +695,9 @@ template <typename SrcType, typename DstType>
 DrainState
 BaseXBar::Layer<SrcType, DstType>::drain()
 {
-    //We should check that we're not "doing" anything, and that noone is
-    //waiting. We might be idle but have someone waiting if the device we
-    //contacted for a retry didn't actually retry.
+    // We should check that we're not "doing" anything, and that noone is
+    // waiting. We might be idle but have someone waiting if the device we
+    // contacted for a retry didn't actually retry.
     if (state != IDLE) {
         DPRINTF(Drain, "Crossbar not drained\n");
         return DrainState::Draining;
