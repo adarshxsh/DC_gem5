@@ -45,6 +45,8 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <climits>
+
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -212,21 +214,24 @@ CompressedTags::checkInvariants() const
     SectorTags::checkInvariants();
     for (const auto &super_blk : superBlks) {
         if (super_blk.isValid()) {
-            uint8_t num_valid = super_blk.getNumValid();
-            uint8_t cf = super_blk.getCompressionFactor();
-            assert(num_valid <= cf);
+            [[maybe_unused]] uint8_t num_valid = super_blk.getNumValid();
+            [[maybe_unused]] uint8_t cf = super_blk.getCompressionFactor();
             if (num_valid > 1) {
                 assert(super_blk.isCompressed());
             }
+            [[maybe_unused]] std::size_t total_bits = 0;
             for (const auto &blk : super_blk.blks) {
                 if (blk->isValid()) {
                     const CompressionBlk *cblk =
                         static_cast<const CompressionBlk *>(blk);
-                    uint8_t blk_cf = super_blk.calculateCompressionFactor(
-                        cblk->getSizeBits());
+                    total_bits += cblk->getSizeBits();
+                    [[maybe_unused]] uint8_t blk_cf =
+                        super_blk.calculateCompressionFactor(
+                            cblk->getSizeBits());
                     assert(blk_cf >= cf);
                 }
             }
+            assert(total_bits <= blkSize * CHAR_BIT);
         } else {
             assert(super_blk.getCompressionFactor() == 1);
         }
