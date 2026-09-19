@@ -149,6 +149,9 @@ class Base : public SimObject
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
+    /** Current memory queue pressure level (0 = None, 1 = Low, 2 = Moderate, 3 = High, 4 = Critical). */
+    uint8_t memoryQueuePressureLevel = 0;
+
     struct BaseStats : public statistics::Group
     {
         const Base& compressor;
@@ -243,6 +246,11 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Update memory queue pressure state. */
+    void setMemoryQueuePressure(uint8_t level) { memoryQueuePressureLevel = level; }
+    uint8_t getMemoryQueuePressure() const { return memoryQueuePressureLevel; }
+    bool isMemoryPressureHigh() const { return memoryQueuePressureLevel >= 3; }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

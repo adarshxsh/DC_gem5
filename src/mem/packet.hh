@@ -304,7 +304,7 @@ class Packet : public Printable, public Extensible<Packet>
         COPY_FLAGS             = 0x000000FF,
 
         // Flags that are used to create reponse packets
-        RESPONDER_FLAGS        = 0x00000009,
+        RESPONDER_FLAGS        = 0x00000009 | 0x001E0000,
 
         // Does this packet have sharers (which means it should not be
         // considered writable) or not. See setHasSharers below.
@@ -360,7 +360,14 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Memory queue pressure signaling flags
+        QUEUE_PRESSURE_LOW      = 0x00020000,
+        QUEUE_PRESSURE_MODERATE = 0x00040000,
+        QUEUE_PRESSURE_HIGH     = 0x00080000,
+        QUEUE_PRESSURE_CRITICAL = 0x00100000,
+        QUEUE_PRESSURE_MASK     = 0x001E0000
     };
 
     Flags flags;
@@ -727,6 +734,48 @@ class Packet : public Printable, public Extensible<Packet>
      * @pkt The packet that we will copy flags from
      */
     void copyResponderFlags(const PacketPtr pkt);
+
+    /**
+     * Memory queue pressure accessors.
+     */
+    void setQueuePressure(uint8_t level)
+    {
+        flags.clear(QUEUE_PRESSURE_MASK);
+        if (level == 1) {
+            flags.set(QUEUE_PRESSURE_LOW);
+        } else if (level == 2) {
+            flags.set(QUEUE_PRESSURE_MODERATE);
+        } else if (level == 3) {
+            flags.set(QUEUE_PRESSURE_HIGH);
+        } else if (level >= 4) {
+            flags.set(QUEUE_PRESSURE_CRITICAL);
+        }
+    }
+
+    uint8_t getQueuePressure() const
+    {
+        if (flags.isSet(QUEUE_PRESSURE_CRITICAL)) return 4;
+        if (flags.isSet(QUEUE_PRESSURE_HIGH)) return 3;
+        if (flags.isSet(QUEUE_PRESSURE_MODERATE)) return 2;
+        if (flags.isSet(QUEUE_PRESSURE_LOW)) return 1;
+        return 0;
+    }
+
+    bool hasQueuePressure() const
+    {
+        return (flags.get() & QUEUE_PRESSURE_MASK) != 0;
+    }
+
+    bool isQueuePressureHigh() const
+    {
+        return flags.isSet(QUEUE_PRESSURE_HIGH) ||
+               flags.isSet(QUEUE_PRESSURE_CRITICAL);
+    }
+
+    bool isQueuePressureCritical() const
+    {
+        return flags.isSet(QUEUE_PRESSURE_CRITICAL);
+    }
 
     /**
      * A writeback/writeclean cmd gets propagated further downstream

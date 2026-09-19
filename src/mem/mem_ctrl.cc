@@ -618,6 +618,31 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
     return std::make_pair(selected_pkt_it, col_allowed_at);
 }
 
+uint8_t
+MemCtrl::getQueuePressureLevel() const
+{
+    uint32_t total_occupancy = 0;
+    for (auto* intr : drams) {
+        if (intr) {
+            total_occupancy += intr->readQueueSize + intr->writeQueueSize;
+        }
+    }
+    uint32_t total_capacity = readBufferSize + writeBufferSize;
+    if (total_capacity == 0) return 0;
+
+    double ratio = static_cast<double>(total_occupancy) / total_capacity;
+    if (ratio >= 0.85) {
+        return 4;
+    } else if (ratio >= 0.65) {
+        return 3;
+    } else if (ratio >= 0.40) {
+        return 2;
+    } else if (ratio >= 0.20) {
+        return 1;
+    }
+    return 0;
+}
+
 void
 MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
                                                 MemInterface* mem_intr)
@@ -635,6 +660,10 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
     if (needsResponse) {
         // access already turned the packet into a response
         assert(pkt->isResponse());
+
+        // Tag response packet with memory queue pressure telemetry
+        pkt->setQueuePressure(getQueuePressureLevel());
+
         // response_time consumes the static latency and is charged also
         // with headerDelay that takes into account the delay provided by
         // the xbar and also the payloadDelay that takes into account the

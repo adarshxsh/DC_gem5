@@ -265,9 +265,16 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     const CompressionBlk* comp_blk = static_cast<const CompressionBlk*>(blk);
 
     // If block is compressed and has a size strictly less than an uncompressed
-    // line, return its decompression latency
+    // line, return its decompression latency unless memory queue pressure is high
     if (comp_blk && comp_blk->isCompressed() &&
         (comp_blk->getSizeBits() < blkSize * CHAR_BIT)) {
+        if (isMemoryPressureHigh()) {
+            stats.bypassedDecompressions += 1;
+            DPRINTF(CacheComp,
+                    "Bypassing decompression latency due to high memory queue pressure\n");
+            return Cycles(0);
+        }
+
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
         DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
                 comp_blk->print(), decomp_lat);
