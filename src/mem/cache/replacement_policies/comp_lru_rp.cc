@@ -30,6 +30,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <limits>
 #include <memory>
 
 #include "mem/cache/tags/super_blk.hh"
@@ -61,7 +62,7 @@ CompLRU::getVictim(const ReplacementCandidates &candidates) const
     assert(candidates.size() > 0);
 
     ReplaceableEntry *victim = candidates[0];
-    uint64_t min_score = UINT64_MAX;
+    uint64_t min_score = std::numeric_limits<uint64_t>::max();
 
     for (const auto &candidate : candidates) {
         std::shared_ptr<CompLRUReplData> data =
