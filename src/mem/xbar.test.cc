@@ -49,17 +49,43 @@ TEST(XBarPressureTest, PacketQueuePressureFlags)
 class TestResponsePort : public ResponsePort
 {
     float pressure;
+
   public:
     TestResponsePort(const std::string &name, float p)
-        : ResponsePort(name), pressure(p) {}
-    AddrRangeList getAddrRanges() const override { return AddrRangeList(); }
-    float getQueuePressure() const override { return pressure; }
-    void setPressure(float p) { pressure = p; }
+        : ResponsePort(name), pressure(p)
+    {}
+    AddrRangeList
+    getAddrRanges() const override
+    {
+        return AddrRangeList();
+    }
+    float
+    getQueuePressure() const override
+    {
+        return pressure;
+    }
+    void
+    setPressure(float p)
+    {
+        pressure = p;
+    }
 
-    Tick recvAtomic(PacketPtr pkt) override { return 0; }
-    bool recvTimingReq(PacketPtr pkt) override { return true; }
-    void recvRespRetry() override {}
-    void recvFunctional(PacketPtr pkt) override {}
+    Tick
+    recvAtomic(PacketPtr pkt) override
+    {
+        return 0;
+    }
+    bool
+    recvTimingReq(PacketPtr pkt) override
+    {
+        return true;
+    }
+    void
+    recvRespRetry() override
+    {}
+    void
+    recvFunctional(PacketPtr pkt) override
+    {}
 };
 
 class TestRequestPort : public RequestPort
@@ -67,8 +93,14 @@ class TestRequestPort : public RequestPort
   public:
     TestRequestPort(const std::string &name) : RequestPort(name) {}
 
-    bool recvTimingResp(PacketPtr pkt) override { return true; }
-    void recvReqRetry() override {}
+    bool
+    recvTimingResp(PacketPtr pkt) override
+    {
+        return true;
+    }
+    void
+    recvReqRetry() override
+    {}
 };
 
 TEST(XBarPressureTest, PortQueuePressureInterface)

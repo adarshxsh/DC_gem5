@@ -154,7 +154,7 @@ class BaseXBar : public ClockedObject
         /**
          * Select the next waiting port to retry.
          */
-        virtual SrcType* selectNextRetryPort();
+        virtual SrcType *selectNextRetryPort();
 
         /**
          * Send a retry to the port at the head of waitingForLayer. The

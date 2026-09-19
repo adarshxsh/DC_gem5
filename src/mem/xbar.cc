@@ -271,13 +271,13 @@ BaseXBar::Layer<SrcType, DstType>::releaseLayer()
 }
 
 template <typename SrcType, typename DstType>
-SrcType*
+SrcType *
 BaseXBar::Layer<SrcType, DstType>::selectNextRetryPort()
 {
     assert(!waitingForLayer.empty());
 
     if (waitingForLayer.size() == 1) {
-        SrcType* ret = waitingForLayer.front();
+        SrcType *ret = waitingForLayer.front();
         waitingForLayer.pop_front();
         return ret;
     }
@@ -287,7 +287,8 @@ BaseXBar::Layer<SrcType, DstType>::selectNextRetryPort()
 
     auto best_it = waitingForLayer.begin();
 
-    for (auto it = waitingForLayer.begin(); it != waitingForLayer.end(); ++it) {
+    for (auto it = waitingForLayer.begin(); it != waitingForLayer.end();
+         ++it) {
         // If downstream path is not saturated, select candidate
         if (downstream_pressure < 0.90f) {
             best_it = it;
@@ -295,7 +296,7 @@ BaseXBar::Layer<SrcType, DstType>::selectNextRetryPort()
         }
     }
 
-    SrcType* selectedPort = *best_it;
+    SrcType *selectedPort = *best_it;
     waitingForLayer.erase(best_it);
     return selectedPort;
 }
@@ -314,7 +315,7 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     state = RETRY;
 
     // set the retrying port using pressure-aware selection
-    SrcType* retryingPort = selectNextRetryPort();
+    SrcType *retryingPort = selectNextRetryPort();
 
     // tell the port to retry, which in some cases ends up calling the
     // layer again
@@ -624,7 +625,8 @@ BaseXBar::regStats()
 float
 BaseXBar::getPortQueuePressure(PortID mem_side_port_id) const
 {
-    if (mem_side_port_id < memSidePorts.size() && memSidePorts[mem_side_port_id]) {
+    if (mem_side_port_id < memSidePorts.size() &&
+        memSidePorts[mem_side_port_id]) {
         return memSidePorts[mem_side_port_id]->getPeerQueuePressure();
     }
     return 0.0f;
