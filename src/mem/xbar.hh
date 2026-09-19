@@ -71,7 +71,7 @@ namespace gem5
 class BaseXBar : public ClockedObject
 {
 
-  protected:
+  public:
 
     /**
      * A layer is an internal crossbar arbitration point with its own

@@ -10,8 +10,6 @@
 #include <vector>
 
 #include "mem/port.hh"
-#include "mem/xbar.hh"
-#include "sim/sim_object.hh"
 
 using namespace gem5;
 
@@ -41,12 +39,20 @@ class MockResponsePort : public ResponsePort
     {
         return AddrRangeList();
     }
+
+    Tick recvAtomic(PacketPtr pkt) override { return 0; }
+    bool recvTimingReq(PacketPtr pkt) override { return true; }
+    void recvRespRetry() override {}
+    void recvFunctional(PacketPtr pkt) override {}
 };
 
 class MockRequestPort : public RequestPort
 {
   public:
     MockRequestPort(const std::string &name) : RequestPort(name) {}
+
+    bool recvTimingResp(PacketPtr pkt) override { return true; }
+    void recvReqRetry() override {}
 };
 
 TEST(PortPressureTest, ProtocolInterfaceMetrics)
@@ -70,31 +76,6 @@ TEST(PortPressureTest, ProtocolInterfaceMetrics)
     EXPECT_EQ(reqPort.getQueuePressure(), 42);
     EXPECT_EQ(reqPort.getQueueOccupancy(), 42);
 }
-
-class TestReqLayer : public BaseXBar::ReqLayer
-{
-  public:
-    std::vector<ResponsePort *> retryOrder;
-
-    TestReqLayer(RequestPort &_port, BaseXBar &_xbar, const std::string &_name)
-        : ReqLayer(_port, _xbar, _name)
-    {}
-
-    void
-    addWaitingPort(ResponsePort *port)
-    {
-        tryTiming(port);
-    }
-
-    using ReqLayer::retryWaiting;
-
-  protected:
-    void
-    sendRetry(ResponsePort *retry_port) override
-    {
-        retryOrder.push_back(retry_port);
-    }
-};
 
 TEST(XBarPressureTest, AsymmetricWorkloadBypassAndFIFOFallback)
 {
