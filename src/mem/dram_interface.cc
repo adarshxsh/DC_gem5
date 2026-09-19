@@ -42,6 +42,7 @@
 
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
+#include "base/intmath.hh"
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/DRAMPower.hh"
@@ -431,8 +432,8 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
             cmd_at = rank_ref.lastBurstTick + eff_tBURST;
         }
     }
-    DPRINTF(DRAM, "Schedule RD/WR burst at tick %d (eff_tBURST=%d)\n", cmd_at,
-            eff_tBURST);
+    DPRINTF(DRAM, "Schedule RD/WR burst at tick %lld (eff_tBURST=%lld)\n",
+            (long long)cmd_at, (long long)eff_tBURST);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {
