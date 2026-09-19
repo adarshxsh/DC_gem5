@@ -124,12 +124,14 @@ CompressedTags::tagsInit()
 }
 
 void
-CompressedTags::updateSuperBlockReplacementData(SuperBlk* superblock)
+CompressedTags::updateSuperBlockReplacementData(SuperBlk *superblock)
 {
-    if (!superblock || !superblock->replacementData)
+    if (!superblock || !superblock->replacementData) {
         return;
+    }
 
-    auto dw_data = std::dynamic_pointer_cast<replacement_policy::WeightedLRU::WeightedLRUReplData>(
+    auto dw_data = std::dynamic_pointer_cast<
+        replacement_policy::WeightedLRU::WeightedLRUReplData>(
         superblock->replacementData);
     if (dw_data) {
         dw_data->validSubBlocks = superblock->getNumValid();
@@ -143,19 +145,21 @@ CompressedTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {
     SectorTags::insertBlock(pkt, blk);
     if (blk) {
-        SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
-        SuperBlk* superblock = static_cast<SuperBlk*>(sub_blk->getSectorBlock());
+        SectorSubBlk *sub_blk = static_cast<SectorSubBlk *>(blk);
+        SuperBlk *superblock =
+            static_cast<SuperBlk *>(sub_blk->getSectorBlock());
         updateSuperBlockReplacementData(superblock);
     }
 }
 
-CacheBlk*
+CacheBlk *
 CompressedTags::accessBlock(const PacketPtr pkt, Cycles &lat)
 {
     CacheBlk *blk = SectorTags::accessBlock(pkt, lat);
     if (blk) {
-        SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
-        SuperBlk* superblock = static_cast<SuperBlk*>(sub_blk->getSectorBlock());
+        SectorSubBlk *sub_blk = static_cast<SectorSubBlk *>(blk);
+        SuperBlk *superblock =
+            static_cast<SuperBlk *>(sub_blk->getSectorBlock());
         updateSuperBlockReplacementData(superblock);
     }
     return blk;
@@ -165,8 +169,9 @@ void
 CompressedTags::invalidate(CacheBlk *blk)
 {
     if (blk) {
-        SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
-        SuperBlk* superblock = static_cast<SuperBlk*>(sub_blk->getSectorBlock());
+        SectorSubBlk *sub_blk = static_cast<SectorSubBlk *>(blk);
+        SuperBlk *superblock =
+            static_cast<SuperBlk *>(sub_blk->getSectorBlock());
         SectorTags::invalidate(blk);
         updateSuperBlockReplacementData(superblock);
     } else {
@@ -179,12 +184,14 @@ CompressedTags::moveBlock(CacheBlk *src_blk, CacheBlk *dest_blk)
 {
     SectorTags::moveBlock(src_blk, dest_blk);
     if (src_blk) {
-        SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(src_blk);
-        updateSuperBlockReplacementData(static_cast<SuperBlk*>(sub_blk->getSectorBlock()));
+        SectorSubBlk *sub_blk = static_cast<SectorSubBlk *>(src_blk);
+        updateSuperBlockReplacementData(
+            static_cast<SuperBlk *>(sub_blk->getSectorBlock()));
     }
     if (dest_blk) {
-        SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(dest_blk);
-        updateSuperBlockReplacementData(static_cast<SuperBlk*>(sub_blk->getSectorBlock()));
+        SectorSubBlk *sub_blk = static_cast<SectorSubBlk *>(dest_blk);
+        updateSuperBlockReplacementData(
+            static_cast<SuperBlk *>(sub_blk->getSectorBlock()));
     }
 }
 
