@@ -51,7 +51,8 @@ class TestCompressor : public Base
     TestCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles& comp_lat, Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         auto comp_data = std::make_unique<CompressionData>();
         comp_data->setSizeBits(256);
@@ -61,7 +62,7 @@ class TestCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* cache_line) override
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
     {
         std::memset(cache_line, 0, blkSize);
     }
@@ -74,7 +75,8 @@ class MockProbeProducer : public SimObject
 
     MockProbeProducer(const SimObjectParams &p) : SimObject(p)
     {
-        ppQueuePressure = new ProbePointArg<double>(getProbeManager(), "ppQueuePressure");
+        ppQueuePressure =
+            new ProbePointArg<double>(getProbeManager(), "ppQueuePressure");
     }
 };
 

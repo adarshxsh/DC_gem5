@@ -298,17 +298,25 @@ class Base : public SimObject
     {
       private:
         Base &compressor;
+
       public:
         QueuePressureListener(Base &_compressor, std::string name)
-            : ProbeListenerArgBase<double>(std::move(name)), compressor(_compressor)
+            : ProbeListenerArgBase<double>(std::move(name)),
+              compressor(_compressor)
         {}
-        void notify(const double &pressure) override {
+        void
+        notify(const double &pressure) override
+        {
             compressor.updateQueuePressure(pressure);
         }
     };
 
     void updateQueuePressure(double pressure);
-    double getQueuePressure() const { return queuePressure; }
+    double
+    getQueuePressure() const
+    {
+        return queuePressure;
+    }
     double getEffectiveBreakevenThreshold() const;
     void registerQueuePressureProbe(SimObject *obj);
     void regProbeListeners() override;

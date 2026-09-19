@@ -1547,20 +1547,26 @@ void
 MemCtrl::regProbePoints()
 {
     qos::MemCtrl::regProbePoints();
-    ppQueuePressure = new ProbePointArg<double>(getProbeManager(), "ppQueuePressure");
+    ppQueuePressure =
+        new ProbePointArg<double>(getProbeManager(), "ppQueuePressure");
 }
 
 double
 MemCtrl::getWriteQueuePressure() const
 {
-    return (writeBufferSize > 0) ? std::clamp(static_cast<double>(totalWriteQueueSize) / static_cast<double>(writeBufferSize), 0.0, 1.0) : 0.0;
+    return (writeBufferSize > 0)
+               ? std::clamp(static_cast<double>(totalWriteQueueSize) /
+                                static_cast<double>(writeBufferSize),
+                            0.0, 1.0)
+               : 0.0;
 }
 
 void
 MemCtrl::updateQueuePressure()
 {
-    if (!ppQueuePressure || writeBufferSize == 0)
+    if (!ppQueuePressure || writeBufferSize == 0) {
         return;
+    }
 
     double currentPressure = getWriteQueuePressure();
     constexpr double HysteresisDelta = 0.05;

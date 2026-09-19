@@ -327,8 +327,11 @@ Base::getEffectiveBreakevenThreshold() const
 {
     double effectiveThreshold = latencyBreakevenThreshold;
     if (pressureSensitivity != 0.0) {
-        effectiveThreshold = latencyBreakevenThreshold * (1.0 - pressureSensitivity * queuePressure);
-        effectiveThreshold = std::clamp(effectiveThreshold, 0.0, static_cast<double>(maxPressureThreshold));
+        effectiveThreshold = latencyBreakevenThreshold *
+                             (1.0 - pressureSensitivity * queuePressure);
+        effectiveThreshold =
+            std::clamp(effectiveThreshold, 0.0,
+                       static_cast<double>(maxPressureThreshold));
     }
     return effectiveThreshold;
 }
@@ -339,7 +342,8 @@ Base::registerQueuePressureProbe(SimObject *obj)
     if (obj) {
         ProbeManager *pm = obj->getProbeManager();
         if (pm) {
-            queuePressureListeners.push_back(pm->connect<QueuePressureListener>(*this, "ppQueuePressure"));
+            queuePressureListeners.push_back(
+                pm->connect<QueuePressureListener>(*this, "ppQueuePressure"));
         }
     }
 }
