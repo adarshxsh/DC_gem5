@@ -3,6 +3,7 @@
  * All rights reserved.
  */
 
+#include <algorithm>
 #include <cstdint>
 #include <gtest/gtest.h>
 
@@ -20,7 +21,7 @@ class MemCtrlVelocityThresholdTest : public ::testing::Test
     uint32_t writeHighThreshold = 32;
 
     uint32_t
-    calcEffectiveWriteQueueSize(uint32_t current_q, uint64_t curTick,
+    calcEffectiveWriteQueueSize(uint32_t current_q, uint64_t cur_tick,
                                 uint64_t lastWriteArrivalTick,
                                 uint32_t lastWriteQueueSize,
                                 uint64_t prevWriteArrivalTick,
@@ -29,14 +30,14 @@ class MemCtrlVelocityThresholdTest : public ::testing::Test
         uint64_t dt = 0;
         int64_t dq = 0;
 
-        if (curTick > lastWriteArrivalTick) {
+        if (cur_tick > lastWriteArrivalTick) {
             if (lastWriteArrivalTick > 0) {
-                dt = curTick - lastWriteArrivalTick;
+                dt = cur_tick - lastWriteArrivalTick;
                 dq = (int64_t)current_q - (int64_t)lastWriteQueueSize;
             }
-        } else if (curTick == lastWriteArrivalTick) {
-            if (prevWriteArrivalTick > 0 && curTick > prevWriteArrivalTick) {
-                dt = curTick - prevWriteArrivalTick;
+        } else if (cur_tick == lastWriteArrivalTick) {
+            if (prevWriteArrivalTick > 0 && cur_tick > prevWriteArrivalTick) {
+                dt = cur_tick - prevWriteArrivalTick;
                 dq = (int64_t)current_q - (int64_t)prevWriteQueueSize;
             }
         }
@@ -56,7 +57,7 @@ TEST_F(MemCtrlVelocityThresholdTest, SteadyStateLowVelocity)
     // Q_current = 5, last_q = 4, dt = 50000 ps
     // v_tau = (1 * 20000) / 50000 = 0
     uint32_t Q_eff = calcEffectiveWriteQueueSize(5, 100000, 50000, 4, 0, 0);
-    EXPECT_EQ(Q_eff, 5);
+    EXPECT_EQ(Q_eff, 5u);
     EXPECT_LT(Q_eff, writeHighThreshold);
 }
 
@@ -67,7 +68,7 @@ TEST_F(MemCtrlVelocityThresholdTest, HighVelocityWritebackBurst)
     // v_tau = (4 * 20000) / 1000 = 80
     // Q_eff = 10 + 80 = 90
     uint32_t Q_eff = calcEffectiveWriteQueueSize(10, 51000, 50000, 6, 0, 0);
-    EXPECT_EQ(Q_eff, 90);
+    EXPECT_EQ(Q_eff, 90u);
     EXPECT_GE(Q_eff, writeHighThreshold);
 }
 
@@ -79,7 +80,7 @@ TEST_F(MemCtrlVelocityThresholdTest, SameTickArrivalsHandling)
     // 12 - 6 = 6 v_tau = (6 * 20000) / 1000 = 120 Q_eff = 12 + 120 = 132
     uint32_t Q_eff =
         calcEffectiveWriteQueueSize(12, 51000, 51000, 10, 50000, 6);
-    EXPECT_EQ(Q_eff, 132);
+    EXPECT_EQ(Q_eff, 132u);
     EXPECT_GE(Q_eff, writeHighThreshold);
 }
 
@@ -89,7 +90,7 @@ TEST_F(MemCtrlVelocityThresholdTest, QueueDrainNegativeDeltaClamping)
     // dq = 4 - 12 = -8 <= 0
     // Velocity must be clamped to 0, Q_eff = Q_current = 4
     uint32_t Q_eff = calcEffectiveWriteQueueSize(4, 52000, 50000, 12, 0, 0);
-    EXPECT_EQ(Q_eff, 4);
+    EXPECT_EQ(Q_eff, 4u);
     EXPECT_LT(Q_eff, writeHighThreshold);
 }
 
@@ -98,7 +99,7 @@ TEST_F(MemCtrlVelocityThresholdTest, ZeroDeltaTickSafety)
     // First write arrival (lastWriteArrivalTick = 0, prevWriteArrivalTick = 0)
     // dt = 0, should safely return current_q without divide-by-zero
     uint32_t Q_eff = calcEffectiveWriteQueueSize(1, 1000, 0, 0, 0, 0);
-    EXPECT_EQ(Q_eff, 1);
+    EXPECT_EQ(Q_eff, 1u);
 }
 
 } // namespace memory
