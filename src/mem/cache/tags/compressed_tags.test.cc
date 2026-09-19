@@ -284,8 +284,6 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
-
-<<<<<<< HEAD
 TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
 {
     // Co-allocate two 64-bit sub-blocks (CF=8)
@@ -561,7 +559,8 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     ASSERT_TRUE(replacement_candidates.empty());
 }
 
-TEST_F(SuperBlkTestFixture, DensityAwareVictimSelection_PrioritizesSparseSuperblocks)
+TEST_F(SuperBlkTestFixture,
+       DensityAwareVictimSelection_PrioritizesSparseSuperblocks)
 {
     // Create candidate superblocks with different valid sub-block densities
     constexpr int NumCandidates = 4;
@@ -606,21 +605,21 @@ TEST_F(SuperBlkTestFixture, DensityAwareVictimSelection_PrioritizesSparseSuperbl
     ASSERT_EQ(candidates[2].getNumValid(), 3);
     ASSERT_EQ(candidates[3].getNumValid(), 2);
 
-    std::vector<ReplaceableEntry*> entries;
+    std::vector<ReplaceableEntry *> entries;
     for (int i = 0; i < NumCandidates; ++i) {
         entries.push_back(&candidates[i]);
     }
 
     // Density-aware evaluation
     uint8_t min_valid_count = std::numeric_limits<uint8_t>::max();
-    for (const auto& entry : entries) {
-        SuperBlk* sb = static_cast<SuperBlk*>(entry);
+    for (const auto &entry : entries) {
+        SuperBlk *sb = static_cast<SuperBlk *>(entry);
         min_valid_count = std::min(min_valid_count, sb->getNumValid());
     }
 
-    std::vector<ReplaceableEntry*> filtered;
-    for (const auto& entry : entries) {
-        SuperBlk* sb = static_cast<SuperBlk*>(entry);
+    std::vector<ReplaceableEntry *> filtered;
+    for (const auto &entry : entries) {
+        SuperBlk *sb = static_cast<SuperBlk *>(entry);
         if (sb->getNumValid() == min_valid_count) {
             filtered.push_back(entry);
         }
@@ -650,7 +649,8 @@ TEST_F(SuperBlkTestFixture, DensityAwareVictimSelection_EqualDensityFallback)
         }
         candidates[i].registerTagExtractor([](Addr addr) { return addr; });
 
-        // Populate all superblocks with equal density (2 valid sub-blocks each)
+        // Populate all superblocks with equal density (2 valid sub-blocks
+        // each)
         for (int k = 0; k < 2; ++k) {
             cblks[i][k].insert({Addr(0x1000 * (i + 1)), false});
             cblks[i][k].setSizeBits(64);
@@ -658,20 +658,20 @@ TEST_F(SuperBlkTestFixture, DensityAwareVictimSelection_EqualDensityFallback)
         ASSERT_EQ(candidates[i].getNumValid(), 2);
     }
 
-    std::vector<ReplaceableEntry*> entries;
+    std::vector<ReplaceableEntry *> entries;
     for (int i = 0; i < NumCandidates; ++i) {
         entries.push_back(&candidates[i]);
     }
 
     uint8_t min_valid_count = std::numeric_limits<uint8_t>::max();
-    for (const auto& entry : entries) {
-        SuperBlk* sb = static_cast<SuperBlk*>(entry);
+    for (const auto &entry : entries) {
+        SuperBlk *sb = static_cast<SuperBlk *>(entry);
         min_valid_count = std::min(min_valid_count, sb->getNumValid());
     }
 
-    std::vector<ReplaceableEntry*> filtered;
-    for (const auto& entry : entries) {
-        SuperBlk* sb = static_cast<SuperBlk*>(entry);
+    std::vector<ReplaceableEntry *> filtered;
+    for (const auto &entry : entries) {
+        SuperBlk *sb = static_cast<SuperBlk *>(entry);
         if (sb->getNumValid() == min_valid_count) {
             filtered.push_back(entry);
         }
@@ -682,7 +682,8 @@ TEST_F(SuperBlkTestFixture, DensityAwareVictimSelection_EqualDensityFallback)
     ASSERT_EQ(filtered.size(), NumCandidates);
 }
 
-TEST_F(SuperBlkTestFixture, DensityAwareVictimSelection_MultipleSparseCandidates)
+TEST_F(SuperBlkTestFixture,
+       DensityAwareVictimSelection_MultipleSparseCandidates)
 {
     constexpr int NumCandidates = 4;
     SuperBlk candidates[NumCandidates];
@@ -719,20 +720,20 @@ TEST_F(SuperBlkTestFixture, DensityAwareVictimSelection_MultipleSparseCandidates
     cblks[3][0].insert({0x4000, false});
     cblks[3][0].setSizeBits(64);
 
-    std::vector<ReplaceableEntry*> entries;
+    std::vector<ReplaceableEntry *> entries;
     for (int i = 0; i < NumCandidates; ++i) {
         entries.push_back(&candidates[i]);
     }
 
     uint8_t min_valid_count = std::numeric_limits<uint8_t>::max();
-    for (const auto& entry : entries) {
-        SuperBlk* sb = static_cast<SuperBlk*>(entry);
+    for (const auto &entry : entries) {
+        SuperBlk *sb = static_cast<SuperBlk *>(entry);
         min_valid_count = std::min(min_valid_count, sb->getNumValid());
     }
 
-    std::vector<ReplaceableEntry*> filtered;
-    for (const auto& entry : entries) {
-        SuperBlk* sb = static_cast<SuperBlk*>(entry);
+    std::vector<ReplaceableEntry *> filtered;
+    for (const auto &entry : entries) {
+        SuperBlk *sb = static_cast<SuperBlk *>(entry);
         if (sb->getNumValid() == min_valid_count) {
             filtered.push_back(entry);
         }
