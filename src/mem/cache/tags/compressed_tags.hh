@@ -125,15 +125,16 @@ class CompressedTags : public SectorTags
                          bool is_prefetch = false) override;
 
     /**
-     * Get an estimated compressed size for a block allocation when payload data
-     * is not available (e.g., read miss allocation).
+     * Get an estimated compressed size for a block allocation when payload
+     * data is not available (e.g., read miss allocation).
      *
      * @param key The block key (address and secure bit).
      * @param default_size Default uncompressed block size in bits.
      * @return Estimated block size in bits.
      */
-    std::size_t getEstimatedCompressedSize(
-        const CacheBlk::KeyType &key, std::size_t default_size) const override;
+    std::size_t
+    getEstimatedCompressedSize(const CacheBlk::KeyType &key,
+                               std::size_t default_size) const override;
 
     /**
      * Find if any of the sub-blocks satisfies a condition.

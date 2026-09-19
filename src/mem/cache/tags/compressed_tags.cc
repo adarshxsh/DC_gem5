@@ -225,19 +225,17 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
 }
 
 std::size_t
-CompressedTags::getEstimatedCompressedSize(const CacheBlk::KeyType& key,
+CompressedTags::getEstimatedCompressedSize(const CacheBlk::KeyType &key,
                                            std::size_t default_size) const
 {
-    std::vector<ReplaceableEntry*> superblock_entries =
+    std::vector<ReplaceableEntry *> superblock_entries =
         indexingPolicy->getPossibleEntries(key);
 
     const uint64_t offset = extractSectorOffset(key.address);
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
-            superblock->isCompressed())
-        {
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
+            superblock->isCompressed()) {
             uint8_t cf = superblock->getCompressionFactor();
             if (cf > 1) {
                 std::size_t est_size = (blkSize * CHAR_BIT) / cf;
