@@ -45,6 +45,8 @@
 
 #include "mem/cache/base.hh"
 
+#include <algorithm>
+
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
@@ -1074,7 +1076,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // must be evicted to make room for the expanded/contracted block
     std::vector<CacheBlk*> evict_blks;
     if (is_data_expansion || is_data_contraction) {
-        std::vector<CacheBlk*> evict_blks;
+        std::vector<CacheBlk *> evict_blks;
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
@@ -1103,7 +1105,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
         } else {
             // If we do not move the expanded block, we must make room for
             // the expansion to happen, so evict every co-allocated block
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(
                 compression_blk->getSectorBlock());
             for (auto& sub_blk : superblock->blks) {
                 if (sub_blk->isValid() && (blk != sub_blk)) {
