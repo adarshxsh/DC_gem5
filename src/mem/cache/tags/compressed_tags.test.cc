@@ -132,7 +132,8 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_TRUE(superBlk.canCoAllocate(64));
     ASSERT_TRUE(superBlk.canCoAllocate(
         128)); // target_cf = min(8, 4) = 4, 1 < 4, 128 <= 128
-    ASSERT_TRUE(superBlk.canCoAllocate(512)); // payloadless fallback to active cf (8)
+    ASSERT_TRUE(
+        superBlk.canCoAllocate(512)); // payloadless fallback to active cf (8)
 
     // Co-allocate block 1 at offset 1 (size 128 bits -> CF=4)
     subBlks[1].insert({0x1000, false});
@@ -284,6 +285,7 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         }
     }
 }
+
 TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
 {
     // Co-allocate two 64-bit sub-blocks (CF=8)
@@ -570,7 +572,8 @@ TEST_F(SuperBlkTestFixture, PayloadlessCoAllocationFallback)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     ASSERT_EQ(superBlk.getNumValid(), 1);
 
-    // With 1 valid sub-block under CF=2, payloadless allocation (512 bits) can co-allocate
+    // With 1 valid sub-block under CF=2, payloadless allocation (512 bits) can
+    // co-allocate
     ASSERT_TRUE(superBlk.canCoAllocate(512));
 
     // Fill second slot
@@ -578,7 +581,8 @@ TEST_F(SuperBlkTestFixture, PayloadlessCoAllocationFallback)
     subBlks[1].setSizeBits(256);
     ASSERT_EQ(superBlk.getNumValid(), 2);
 
-    // Superblock is now full for CF=2: payloadless allocation cannot co-allocate
+    // Superblock is now full for CF=2: payloadless allocation cannot
+    // co-allocate
     ASSERT_FALSE(superBlk.canCoAllocate(512));
 
     // 3. Uncompressed superblock: cannot co-allocate
