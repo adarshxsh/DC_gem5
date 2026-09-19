@@ -216,7 +216,11 @@ class SuperBlk : public SectorBlk
      *
      * @return The uncompressed block size.
      */
-    std::size_t getBlkSize() const { return blkSize; }
+    std::size_t
+    getBlkSize() const
+    {
+        return blkSize;
+    }
 
     /**
      * Set block size. Should be called only once, when initializing blocks.
