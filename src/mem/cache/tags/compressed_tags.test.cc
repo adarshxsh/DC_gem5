@@ -287,7 +287,6 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
     }
 }
 
-<<<<<<< HEAD
 TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
 {
     // Co-allocate two 64-bit sub-blocks (CF=8)
