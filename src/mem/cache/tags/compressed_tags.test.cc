@@ -60,9 +60,10 @@ class SuperBlkTestFixture : public ::testing::Test
             superBlk.blks[k] = &subBlks[k];
             subBlks[k].setSectorBlock(&superBlk);
             subBlks[k].setSectorOffset(k);
-            subBlks[k].registerTagExtractor([](Addr addr) { return addr; });
+            subBlks[k].registerTagExtractor(
+                [](Addr addr) { return addr & ~0xFF; });
         }
-        superBlk.registerTagExtractor([](Addr addr) { return addr; });
+        superBlk.registerTagExtractor([](Addr addr) { return addr & ~0xFF; });
     }
 
     void
@@ -169,9 +170,10 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
         superBlkB.blks[k] = &subBlksB[k];
         subBlksB[k].setSectorBlock(&superBlkB);
         subBlksB[k].setSectorOffset(k);
-        subBlksB[k].registerTagExtractor([](Addr addr) { return addr; });
+        subBlksB[k].registerTagExtractor(
+            [](Addr addr) { return addr & ~0xFF; });
     }
-    superBlkB.registerTagExtractor([](Addr addr) { return addr; });
+    superBlkB.registerTagExtractor([](Addr addr) { return addr & ~0xFF; });
 
     // Populate superBlk (A) with 2 blocks
     subBlks[0].insert({0x2000, false});
@@ -198,6 +200,36 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
 
     verifyInvariants(superBlk);
     verifyInvariants(superBlkB);
+}
+
+TEST_F(SuperBlkTestFixture, CompactedSectorOffsetTagLookup)
+{
+    // Populate 3 sub-blocks (CF=4)
+    Addr base_addr = 0x3000;
+    for (int k = 0; k < 3; ++k) {
+        subBlks[k].insert({base_addr + k * BlkSize, false});
+        subBlks[k].setSizeBits(128);
+    }
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    EXPECT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+    EXPECT_EQ(superBlk.blks[1]->getSectorOffset(), 1);
+    EXPECT_EQ(superBlk.blks[2]->getSectorOffset(), 2);
+
+    // Invalidate middle sub-block (slot 1, sector offset 1)
+    subBlks[1].invalidate();
+
+    // Compaction should move subBlks[2] (sector offset 2) into physical slot 1
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    EXPECT_TRUE(superBlk.blks[0]->isValid());
+    EXPECT_TRUE(superBlk.blks[1]->isValid());
+    EXPECT_FALSE(superBlk.blks[2]->isValid());
+
+    EXPECT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+    EXPECT_EQ(superBlk.blks[1]->getSectorOffset(), 2);
+
+    verifyInvariants(superBlk);
 }
 
 TEST_F(SuperBlkTestFixture, ExpansionContractionCheck)
@@ -238,9 +270,10 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
             sblks[i].blks[k] = &cblks[i][k];
             cblks[i][k].setSectorBlock(&sblks[i]);
             cblks[i][k].setSectorOffset(k);
-            cblks[i][k].registerTagExtractor([](Addr addr) { return addr; });
+            cblks[i][k].registerTagExtractor(
+                [](Addr addr) { return addr & ~0xFF; });
         }
-        sblks[i].registerTagExtractor([](Addr addr) { return addr; });
+        sblks[i].registerTagExtractor([](Addr addr) { return addr & ~0xFF; });
     }
 
     const std::size_t sizes[] = {32, 64, 128, 256};
@@ -254,23 +287,25 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         if (!cblks[sb_idx][sub_idx].isValid()) {
             Addr tag = tag_base + (sb_idx * 0x1000);
             if (!sblks[sb_idx].isValid() || sblks[sb_idx].getTag() == tag) {
-                cblks[sb_idx][sub_idx].insert({tag, false});
-                cblks[sb_idx][sub_idx].setSizeBits(sz);
+                if (sblks[sb_idx].canCoAllocate(sz)) {
+                    unsigned free_idx = sblks[sb_idx].getNumValid();
+                    cblks[sb_idx][free_idx].insert({tag, false});
+                    cblks[sb_idx][free_idx].setSizeBits(sz);
+                }
             }
         } else if (iter % 3 == 0) {
             // Invalidate/evict
             cblks[sb_idx][sub_idx].invalidate();
         } else if (iter % 5 == 0) {
-            // Migrate to next superblock if target sub-block is invalid
-            // and destination superblock tag matches or is invalid
+            // Migrate to next superblock if target superblock can co-allocate
             int target_sb = (sb_idx + 1) % NumSuperBlks;
-            int target_sub = sub_idx;
-            if (!cblks[target_sb][target_sub].isValid() &&
+            std::size_t blk_sz = cblks[sb_idx][sub_idx].getSizeBits();
+            if (sblks[target_sb].canCoAllocate(blk_sz) &&
                 (!sblks[target_sb].isValid() ||
                  sblks[target_sb].getTag() ==
                      cblks[sb_idx][sub_idx].getTag())) {
-                cblks[target_sb][target_sub] =
-                    std::move(cblks[sb_idx][sub_idx]);
+                unsigned free_idx = sblks[target_sb].getNumValid();
+                cblks[target_sb][free_idx] = std::move(cblks[sb_idx][sub_idx]);
             }
         } else {
             // Update size (expansion / contraction)
@@ -321,21 +356,22 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
 
 TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
 {
-    // Insert 4 sub-blocks with distinct insertion ticks
+    // Insert 4 sub-blocks with distinct insertion ticks and sector offsets
+    Addr base_addr = 0x5000;
     mockTick = 10;
-    subBlks[0].insert({0x5000, false});
+    subBlks[0].insert({base_addr, false});
     subBlks[0].setSizeBits(64);
 
     mockTick = 20;
-    subBlks[1].insert({0x5000, false});
+    subBlks[1].insert({base_addr + BlkSize, false});
     subBlks[1].setSizeBits(64);
 
     mockTick = 30;
-    subBlks[2].insert({0x5000, false});
+    subBlks[2].insert({base_addr + 2 * BlkSize, false});
     subBlks[2].setSizeBits(64);
 
     mockTick = 40;
-    subBlks[3].insert({0x5000, false});
+    subBlks[3].insert({base_addr + 3 * BlkSize, false});
     subBlks[3].setSizeBits(64);
 
     ASSERT_EQ(superBlk.getNumValid(), 4);
@@ -393,21 +429,49 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     ASSERT_EQ(evict_blks[0], &subBlks[0]);
     ASSERT_EQ(evict_blks[1], &subBlks[1]);
 
+    // Sort evict_blks descending by physical slot index so higher-indexed
+    // sub-blocks are invalidated first, preventing shift-corruption of
+    // remaining eviction candidates during in-place compaction.
+    auto get_slot_index = [](const CacheBlk *blk) -> int {
+        const auto *sblk = static_cast<const SectorSubBlk *>(blk);
+        const auto *sblk_super =
+            static_cast<const SuperBlk *>(sblk->getSectorBlock());
+        if (sblk_super) {
+            for (int k = 0; k < sblk_super->blks.size(); ++k) {
+                if (sblk_super->blks[k] == sblk) {
+                    return k;
+                }
+            }
+        }
+        return -1;
+    };
+
+    std::sort(evict_blks.begin(), evict_blks.end(),
+              [&get_slot_index](const CacheBlk *a, const CacheBlk *b) {
+                  return get_slot_index(a) > get_slot_index(b);
+              });
+
     // Perform selective eviction
     for (auto *evict_blk : evict_blks) {
         evict_blk->invalidate();
     }
 
-    // Update expansion sub-block size
-    subBlks[3].setSizeBits(expansion_size);
+    // Update expansion sub-block size on the active sub-block holding
+    // expansion block (sector offset 3, now compacted into superBlk.blks[1])
+    static_cast<CompressionBlk *>(superBlk.blks[1])
+        ->setSizeBits(expansion_size);
 
-    // Verify subBlks[2] and subBlks[3] are preserved, subBlks[0] and
-    // subBlks[1] evicted
-    ASSERT_FALSE(subBlks[0].isValid());
-    ASSERT_FALSE(subBlks[1].isValid());
-    ASSERT_TRUE(subBlks[2].isValid());
-    ASSERT_TRUE(subBlks[3].isValid());
-    ASSERT_EQ(superBlk.getNumValid(), 2);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    // Verify compacted layout: valid sub-blocks occupy slots [0..1],
+    // slots [2..3] are invalid.
+    EXPECT_TRUE(superBlk.blks[0]->isValid());
+    EXPECT_TRUE(superBlk.blks[1]->isValid());
+    EXPECT_FALSE(superBlk.blks[2]->isValid());
+    EXPECT_FALSE(superBlk.blks[3]->isValid());
+    EXPECT_EQ(
+        static_cast<SectorSubBlk *>(superBlk.blks[0])->getSectorOffset(), 2);
+    EXPECT_EQ(
+        static_cast<SectorSubBlk *>(superBlk.blks[1])->getSectorOffset(), 3);
+    EXPECT_EQ(superBlk.getNumValid(), 2);
+    EXPECT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 }

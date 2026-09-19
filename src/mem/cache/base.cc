@@ -1143,6 +1143,28 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                 evict_blks.push_back(co_blks.front());
                 co_blks.erase(co_blks.begin());
             }
+
+            // Sort evict_blks descending by physical slot index so higher-indexed
+            // sub-blocks are invalidated first, preventing shift-corruption of
+            // remaining eviction candidates during in-place compaction.
+            auto get_slot_index = [](const CacheBlk *blk) -> int {
+                const auto *sblk = static_cast<const SectorSubBlk *>(blk);
+                const auto *sblk_super =
+                    static_cast<const SuperBlk *>(sblk->getSectorBlock());
+                if (sblk_super) {
+                    for (int k = 0; k < sblk_super->blks.size(); ++k) {
+                        if (sblk_super->blks[k] == sblk) {
+                            return k;
+                        }
+                    }
+                }
+                return -1;
+            };
+
+            std::sort(evict_blks.begin(), evict_blks.end(),
+                      [&get_slot_index](const CacheBlk *a, const CacheBlk *b) {
+                          return get_slot_index(a) > get_slot_index(b);
+                      });
         }
 
         // Try to evict blocks; if it fails, give up on update
