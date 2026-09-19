@@ -278,9 +278,9 @@ SectorTags::findBlock(const CacheBlk::KeyType &key) const
 
     // Search for block using stored sector offset metadata
     for (const auto& sector : entries) {
-        SectorBlk* sec_blk = static_cast<SectorBlk*>(sector);
+        SectorBlk *sec_blk = static_cast<SectorBlk *>(sector);
         if (sec_blk->match(key)) {
-            for (const auto& blk : sec_blk->blks) {
+            for (const auto &blk : sec_blk->blks) {
                 if (blk->isValid() && blk->getSectorOffset() == offset) {
                     return blk;
                 }

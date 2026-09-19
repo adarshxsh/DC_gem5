@@ -150,7 +150,8 @@ TEST_F(CanCoAllocateTest, InPlaceSuperblockCompaction)
     // Invalidate sub-block at physical index 1 (sector offset 1)
     subBlks[1].invalidate();
 
-    // Verify remaining active sub-blocks are compacted to contiguous lower indices 0, 1, 2
+    // Verify remaining active sub-blocks are compacted to contiguous lower
+    // indices 0, 1, 2
     ASSERT_EQ(superBlk.getNumValid(), 3);
     ASSERT_TRUE(superBlk.blks[0]->isValid());
     ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 0);

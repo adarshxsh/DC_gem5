@@ -183,14 +183,13 @@ CompressionBlk::print() const
 
 SuperBlk::SuperBlk()
     : SectorBlk(), blkSize(0), compressionFactor(1), isCompacting(false)
-{
-}
+{}
 
 void
 SuperBlk::compactSlots()
 {
     std::stable_partition(blks.begin(), blks.end(),
-        [](const SectorSubBlk* b) { return b->isValid(); });
+                          [](const SectorSubBlk *b) { return b->isValid(); });
     updateCompressionFactor();
 }
 

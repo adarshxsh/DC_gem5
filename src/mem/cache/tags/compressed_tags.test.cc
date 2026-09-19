@@ -588,9 +588,10 @@ TEST_F(SuperBlkTestFixture, DynamicSlotRemappingCompaction)
     ASSERT_FALSE(superBlk.blks[3]->isValid());
     verifyInvariants(superBlk);
 
-    // Co-allocate a new sub-block with sector offset 1 into the free slot at index 3
+    // Co-allocate a new sub-block with sector offset 1 into the free slot at
+    // index 3
     superBlk.blks[3]->insert({0x7000, false});
-    static_cast<CompressionBlk*>(superBlk.blks[3])->setSizeBits(64);
+    static_cast<CompressionBlk *>(superBlk.blks[3])->setSizeBits(64);
     superBlk.blks[3]->setSectorOffset(1);
 
     ASSERT_EQ(superBlk.getNumValid(), 4);
