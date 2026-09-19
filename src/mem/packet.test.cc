@@ -15,7 +15,8 @@ class PacketTest : public ::testing::Test
   protected:
     Tick testTick = 0;
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         Gem5Internal::_curTickPtr = &testTick;
     }

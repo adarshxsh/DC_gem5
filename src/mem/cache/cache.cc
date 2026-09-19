@@ -893,7 +893,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 tgt_pkt->copyResponderFlags(pkt);
                 CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
                 if (comp_blk && comp_blk->isCompressed()) {
-                    tgt_pkt->setCompressedSize(divCeil(comp_blk->getSizeBits(), 8));
+                    tgt_pkt->setCompressedSize(
+                        divCeil(comp_blk->getSizeBits(), 8));
                 }
             }
             tgt_pkt->makeTimingResponse();
