@@ -143,12 +143,13 @@ class Base : public SimObject
     const unsigned decayShift;
 
     /** Pointer to downstream memory controller for pressure throttling. */
-    memory::MemCtrl* memCtrl;
+    memory::MemCtrl *memCtrl;
 
     /** Whether queue pressure throttling is enabled. */
     const bool enableQueuePressureThrottling;
 
-    /** Queue pressure threshold percentage above which compression is bypassed. */
+    /** Queue pressure threshold percentage above which compression is
+     * bypassed. */
     const int memoryQueuePressureThreshold;
 
     /** Total number of compression requests. */

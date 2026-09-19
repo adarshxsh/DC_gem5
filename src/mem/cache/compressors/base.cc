@@ -177,9 +177,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         enableQueuePressureThrottling && (memCtrl != nullptr) &&
         (memCtrl->getQueuePressure() >= memoryQueuePressureThreshold);
 
-    bool shouldBypass =
-        (enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold)) ||
-        isQueuePressureBypassed;
+    bool shouldBypass = (enableAdaptiveBypass &&
+                         (observedRatio < latencyBreakevenThreshold)) ||
+                        isQueuePressureBypassed;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -190,17 +190,17 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 
         stats.bypassedCompressions++;
         if (isQueuePressureBypassed) {
-            DPRINTF(
-                CacheComp,
-                "Queue pressure bypass active (pressure: %.2f%% >= threshold: %d%%). "
-                "Bypassing compression.\n",
-                memCtrl->getQueuePressure(), memoryQueuePressureThreshold);
+            DPRINTF(CacheComp,
+                    "Queue pressure bypass active (pressure: %.2f%% >= "
+                    "threshold: %d%%). "
+                    "Bypassing compression.\n",
+                    memCtrl->getQueuePressure(), memoryQueuePressureThreshold);
         } else {
-            DPRINTF(
-                CacheComp,
-                "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-                "Bypassing compression.\n",
-                observedRatio, latencyBreakevenThreshold);
+            DPRINTF(CacheComp,
+                    "Adaptive bypass active (observed ratio: %.4f < "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    observedRatio, latencyBreakevenThreshold);
         }
         return comp_data;
     }
@@ -255,8 +255,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         comp_data->setSizeBits(blkSize * CHAR_BIT);
         stats.bypassedCompressions++;
         if (isQueuePressureBypassed) {
-            DPRINTF(CacheComp, "Queue pressure bypass active (sampled request). "
-                               "Bypassing compression.\n");
+            DPRINTF(CacheComp,
+                    "Queue pressure bypass active (sampled request). "
+                    "Bypassing compression.\n");
         } else {
             DPRINTF(CacheComp, "Adaptive bypass active (sampled request). "
                                "Bypassing compression.\n");
