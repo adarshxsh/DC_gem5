@@ -1886,6 +1886,17 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            pkt->setCompressedSize((cblk->getSizeBits() + 7) / 8);
+        } else if (pkt->hasData()) {
+            Cycles comp_lat, decomp_lat;
+            const auto comp_data = compressor->compress(
+                pkt->getConstPtr<uint64_t>(), comp_lat, decomp_lat);
+            if (comp_data) {
+                pkt->setCompressedSize((comp_data->getSizeBits() + 7) / 8);
+            }
+        }
     }
 
     return pkt;
@@ -1931,6 +1942,17 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            pkt->setCompressedSize((cblk->getSizeBits() + 7) / 8);
+        } else if (pkt->hasData()) {
+            Cycles comp_lat, decomp_lat;
+            const auto comp_data = compressor->compress(
+                pkt->getConstPtr<uint64_t>(), comp_lat, decomp_lat);
+            if (comp_data) {
+                pkt->setCompressedSize((comp_data->getSizeBits() + 7) / 8);
+            }
+        }
     }
 
     return pkt;

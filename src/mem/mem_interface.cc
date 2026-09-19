@@ -56,6 +56,7 @@ MemInterface::MemInterface(const MemInterfaceParams &_p)
       addrMapping(_p.addr_mapping),
       burstSize((_p.devices_per_rank * _p.burst_length *
                  _p.device_bus_width) / 8),
+      burstLength(_p.burst_length),
       deviceSize(_p.device_size),
       deviceRowBufferSize(_p.device_rowbuffer_size),
       devicesPerRank(_p.devices_per_rank),

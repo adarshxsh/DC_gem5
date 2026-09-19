@@ -343,12 +343,42 @@ DRAMInterface::prechargeBank(Rank& rank_ref, Bank& bank, Tick pre_tick,
     }
 }
 
+Tick
+DRAMInterface::getBurstTime(const MemPacket* mem_pkt) const
+{
+    unsigned int c = mem_pkt->getCompressedSize();
+    if (c == 0 || c >= burstSize) {
+        return tBURST;
+    }
+
+    uint32_t bl = burstLength ? burstLength : 8;
+    uint32_t bytes_per_beat = burstSize / bl;
+    if (bytes_per_beat == 0) {
+        return tBURST;
+    }
+
+    uint32_t beats = (c + bytes_per_beat - 1) / bytes_per_beat;
+    if (beats < 2) {
+        beats = 2;
+    } else if (beats % 2 != 0) {
+        beats++;
+    }
+    if (beats > bl) {
+        beats = bl;
+    }
+
+    return (tBURST * beats) / bl;
+}
+
 std::pair<Tick, Tick>
 DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                              const std::vector<MemPacketQueue>& queue)
 {
     DPRINTF(DRAM, "Timing access to addr %#x, rank/bank/row %d %d %d\n",
             mem_pkt->addr, mem_pkt->rank, mem_pkt->bank, mem_pkt->row);
+
+    // compute packet-specific DRAM burst timing based on compressed size
+    Tick pkt_tBURST = getBurstTime(mem_pkt);
 
     // get the rank
     Rank& rank_ref = *ranks[mem_pkt->rank];
@@ -408,26 +438,28 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     // if we are interleaving bursts, ensure that
     // 1) we don't double interleave on next burst issue
     // 2) we are at an interleave boundary; if not, shift to next boundary
-    Tick burst_gap = tBURST_MIN;
+    Tick burst_gap = std::min(tBURST_MIN, pkt_tBURST);
     if (burstInterleave) {
         if (cmd_at == (rank_ref.lastBurstTick + tBURST_MIN)) {
             // already interleaving, push next command to end of full burst
-            burst_gap = tBURST;
-        } else if (cmd_at < (rank_ref.lastBurstTick + tBURST)) {
+            burst_gap = pkt_tBURST;
+        } else if (cmd_at < (rank_ref.lastBurstTick + pkt_tBURST)) {
             // not at an interleave boundary after bandwidth check
             // Shift command to tBURST boundary to avoid data contention
             // Command will remain in the same burst window given that
             // tBURST is less than tBURST_MAX
-            cmd_at = rank_ref.lastBurstTick + tBURST;
+            cmd_at = rank_ref.lastBurstTick + pkt_tBURST;
         }
+    } else {
+        burst_gap = pkt_tBURST;
     }
     DPRINTF(DRAM, "Schedule RD/WR burst at tick %d\n", cmd_at);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {
-        mem_pkt->readyTime = cmd_at + tRL + tBURST;
+        mem_pkt->readyTime = cmd_at + tRL + pkt_tBURST;
     } else {
-        mem_pkt->readyTime = cmd_at + tWL + tBURST;
+        mem_pkt->readyTime = cmd_at + tWL + pkt_tBURST;
     }
 
     rank_ref.lastBurstTick = cmd_at;
@@ -484,7 +516,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                                  mem_pkt->readyTime + tWR);
 
     // increment the bytes accessed and the accesses per row
-    bank_ref.bytesAccessed += burstSize;
+    bank_ref.bytesAccessed += mem_pkt->getCompressedSize();
     ++bank_ref.rowAccesses;
 
     // if we reached the max, then issue with an auto-precharge
@@ -579,13 +611,13 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.readBursts++;
         if (row_hit)
             stats.readRowHits++;
-        stats.dramBytesRead += burstSize;
+        stats.dramBytesRead += mem_pkt->getCompressedSize();
         stats.perBankRdBursts[mem_pkt->bankId]++;
 
         // Update latency stats
         stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
         stats.totQLat += cmd_at - mem_pkt->entryTime;
-        stats.totBusLat += tBURST;
+        stats.totBusLat += pkt_tBURST;
     } else {
         // Schedule write done event to decrement event count
         // after the readyTime has been reached
@@ -608,7 +640,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         stats.writeBursts++;
         if (row_hit)
             stats.writeRowHits++;
-        stats.dramBytesWritten += burstSize;
+        stats.dramBytesWritten += mem_pkt->getCompressedSize();
         stats.perBankWrBursts[mem_pkt->bankId]++;
 
     }
