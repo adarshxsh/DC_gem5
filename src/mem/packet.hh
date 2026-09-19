@@ -49,6 +49,7 @@
 
 #include <bitset>
 #include <cassert>
+#include <cstddef>
 #include <initializer_list>
 #include <list>
 
@@ -840,7 +841,7 @@ class Packet : public Printable, public Extensible<Packet>
     setCompressedSizeBits(std::size_t bits)
     {
         _compressedSizeBits = bits;
-        _compressedSize = divCeil(bits, 8);
+        _compressedSize = static_cast<unsigned>(divCeil(bits, std::size_t(8)));
         flags.set(IS_COMPRESSED);
     }
 
@@ -851,7 +852,7 @@ class Packet : public Printable, public Extensible<Packet>
     setCompressedSize(unsigned size_bytes)
     {
         _compressedSize = size_bytes;
-        _compressedSizeBits = size_bytes * 8;
+        _compressedSizeBits = static_cast<std::size_t>(size_bytes) * 8;
         flags.set(IS_COMPRESSED);
     }
 
