@@ -45,6 +45,8 @@
 
 #include "mem/cache/base.hh"
 
+#include <algorithm>
+
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
@@ -1107,7 +1109,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             const uint8_t new_blk_cf =
                 superblock->calculateCompressionFactor(compression_size);
 
-            uint8_t min_other_cf = superblock->blks.size();
+            uint8_t min_other_cf =
+                static_cast<uint8_t>(superblock->blks.size());
             for (const auto &sub_blk : superblock->blks) {
                 if (sub_blk->isValid() && (blk != sub_blk)) {
                     CompressionBlk *cblk =

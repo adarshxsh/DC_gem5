@@ -34,6 +34,7 @@
 
 #include "mem/cache/tags/super_blk.hh"
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 
@@ -219,7 +220,7 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    uint8_t min_valid_cf = blks.size();
+    uint8_t min_valid_cf = static_cast<uint8_t>(blks.size());
     if (getNumValid() > 0) {
         for (const auto &blk : blks) {
             if (blk->isValid()) {

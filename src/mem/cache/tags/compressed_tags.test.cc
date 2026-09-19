@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -316,7 +317,7 @@ TEST_F(SuperBlkTestFixture, SelectiveLRUNeighborEviction)
     ASSERT_EQ(new_blk_cf, 2);
 
     // Calculate minimum required evictions
-    uint8_t min_other_cf = superBlk.blks.size();
+    uint8_t min_other_cf = static_cast<uint8_t>(superBlk.blks.size());
     for (const auto &sub_blk : superBlk.blks) {
         if (sub_blk->isValid() && (&subBlks[3] != sub_blk)) {
             CompressionBlk *cblk = static_cast<CompressionBlk *>(sub_blk);
