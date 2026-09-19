@@ -579,4 +579,3 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFilterChecks)
     // active compressed superblock.
     ASSERT_FALSE(superBlk.canCoAllocate(512));
 }
-}
