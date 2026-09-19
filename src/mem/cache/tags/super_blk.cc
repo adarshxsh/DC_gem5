@@ -198,7 +198,7 @@ SuperBlk::getSlot(int sector_offset) const
     if (sectorOffsetToSlot.size() != blks.size()) {
         const_cast<SuperBlk *>(this)->compact();
     }
-    if (sector_offset < sectorOffsetToSlot.size()) {
+    if (static_cast<std::size_t>(sector_offset) < sectorOffsetToSlot.size()) {
         return sectorOffsetToSlot[sector_offset];
     }
     return -1;
@@ -210,7 +210,8 @@ SuperBlk::mapOffset(int sector_offset, int slot)
     if (sectorOffsetToSlot.size() != blks.size()) {
         sectorOffsetToSlot.resize(blks.size(), -1);
     }
-    if (sector_offset >= 0 && sector_offset < sectorOffsetToSlot.size()) {
+    if (sector_offset >= 0 &&
+        static_cast<std::size_t>(sector_offset) < sectorOffsetToSlot.size()) {
         sectorOffsetToSlot[sector_offset] = slot;
     }
 }
@@ -218,7 +219,8 @@ SuperBlk::mapOffset(int sector_offset, int slot)
 void
 SuperBlk::unmapOffset(int sector_offset)
 {
-    if (sector_offset >= 0 && sector_offset < sectorOffsetToSlot.size()) {
+    if (sector_offset >= 0 &&
+        static_cast<std::size_t>(sector_offset) < sectorOffsetToSlot.size()) {
         sectorOffsetToSlot[sector_offset] = -1;
     }
 }
@@ -227,7 +229,7 @@ CompressionBlk *
 SuperBlk::getBlkByOffset(int sector_offset) const
 {
     int slot = getSlot(sector_offset);
-    if (slot != -1 && slot < blks.size()) {
+    if (slot != -1 && static_cast<std::size_t>(slot) < blks.size()) {
         return static_cast<CompressionBlk *>(blks[slot]);
     }
     return nullptr;
@@ -261,7 +263,8 @@ SuperBlk::compact()
                 dest_cblk->setSectorOffset(sec_off);
             }
 
-            if (sec_off >= 0 && sec_off < sectorOffsetToSlot.size()) {
+            if (sec_off >= 0 && static_cast<std::size_t>(sec_off) <
+                                    sectorOffsetToSlot.size()) {
                 sectorOffsetToSlot[sec_off] = dest_idx;
             }
             dest_idx++;

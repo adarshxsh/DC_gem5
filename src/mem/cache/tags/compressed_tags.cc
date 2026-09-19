@@ -123,7 +123,7 @@ CompressedTags::tagsInit()
 CacheBlk *
 CompressedTags::findBlock(const CacheBlk::KeyType &key) const
 {
-    const Addr offset = extractSectorOffset(key.address);
+    const int offset = extractSectorOffset(key.address);
     const std::vector<ReplaceableEntry *> entries =
         indexingPolicy->getPossibleEntries(key);
 
@@ -131,7 +131,8 @@ CompressedTags::findBlock(const CacheBlk::KeyType &key) const
         const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         if (superblock->match(key)) {
             int slot = superblock->getSlot(offset);
-            if (slot != -1 && slot < superblock->blks.size()) {
+            if (slot != -1 &&
+                static_cast<std::size_t>(slot) < superblock->blks.size()) {
                 auto blk = superblock->blks[slot];
                 if (blk->match(key)) {
                     return blk;
@@ -163,7 +164,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     // so, try co-allocating
     SuperBlk* victim_superblock = nullptr;
     bool is_co_allocation = false;
-    const uint64_t offset = extractSectorOffset(key.address);
+    const int offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) && superblock->isCompressed() &&
@@ -201,7 +202,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     // slots, so the next available slot for allocation is at slot index
     // numValid.
     int target_slot = victim_superblock->getNumValid();
-    assert(target_slot < victim_superblock->blks.size());
+    assert(target_slot >= 0 && static_cast<std::size_t>(target_slot) <
+                                   victim_superblock->blks.size());
     SectorSubBlk *victim = victim_superblock->blks[target_slot];
 
     victim->setSectorOffset(offset);
@@ -251,11 +253,11 @@ CompressedTags::checkInvariants() const
             for (int k = 0; k < num_valid; ++k) {
                 assert(super_blk.blks[k]->isValid());
             }
-            for (int k = num_valid; k < super_blk.blks.size(); ++k) {
+            for (std::size_t k = num_valid; k < super_blk.blks.size(); ++k) {
                 assert(!super_blk.blks[k]->isValid());
             }
 
-            for (int slot = 0; slot < super_blk.blks.size(); ++slot) {
+            for (std::size_t slot = 0; slot < super_blk.blks.size(); ++slot) {
                 const auto &blk = super_blk.blks[slot];
                 if (blk->isValid()) {
                     const CompressionBlk *cblk =
@@ -265,8 +267,10 @@ CompressedTags::checkInvariants() const
                     assert(blk_cf >= cf);
 
                     int sec_off = cblk->getSectorOffset();
-                    assert(sec_off >= 0 && sec_off < super_blk.blks.size());
-                    assert(super_blk.getSlot(sec_off) == slot);
+                    assert(sec_off >= 0 && static_cast<std::size_t>(sec_off) <
+                                               super_blk.blks.size());
+                    assert(super_blk.getSlot(sec_off) ==
+                           static_cast<int>(slot));
                 }
             }
         } else {
