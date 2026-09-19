@@ -91,22 +91,26 @@ class MemCtrl(QoSMemCtrl):
 
     # enable first-derivative (dQ/dt) arrival rate calculation for queue monitoring
     enable_arrival_rate_tracking = Param.Bool(
-        True, "Enable first-derivative (dQ/dt) arrival rate calculation for queue monitoring"
+        True,
+        "Enable first-derivative (dQ/dt) arrival rate calculation for queue monitoring",
     )
 
     # lead-time horizon in ticks for predictive queue occupancy calculation
     lead_time_horizon = Param.Tick(
-        5000, "Lead-time horizon in ticks for predictive queue occupancy calculation"
+        5000,
+        "Lead-time horizon in ticks for predictive queue occupancy calculation",
     )
 
     # exponential moving average factor for dQ/dt arrival rate calculation
     write_arrival_alpha = Param.Float(
-        0.1, "Exponential moving average factor for write queue dQ/dt arrival rate"
+        0.1,
+        "Exponential moving average factor for write queue dQ/dt arrival rate",
     )
 
     # enable predictive bus turnaround using effective queue occupancy
     enable_predictive_turnaround = Param.Bool(
-        True, "Enable predictive bus turnaround using effective queue occupancy"
+        True,
+        "Enable predictive bus turnaround using effective queue occupancy",
     )
 
     # scheduler, address map and page policy
