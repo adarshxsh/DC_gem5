@@ -91,6 +91,9 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       compressor(p.compressor),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
+      downstreamMemPressure(0.0f),
+      pfPressureThreshold(p.pf_pressure_threshold),
+      compPressureThreshold(p.comp_pressure_threshold),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
@@ -541,6 +544,10 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
 
+    if (pkt->getMemPressure() > 0.0f) {
+        downstreamMemPressure = std::max(downstreamMemPressure * 0.8f, pkt->getMemPressure());
+    }
+
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above
     panic_if(pkt->headerDelay != 0 && pkt->cmd != MemCmd::HardPFResp,
@@ -659,7 +666,8 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
             // Request the bus for a prefetch if this deallocation freed enough
             // MSHRs for a prefetch to take place
-            if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+            if (prefetcher && mshrQueue.canPrefetch() && !isBlocked() &&
+                downstreamMemPressure < pfPressureThreshold) {
                 Tick next_pf_time = std::max(
                     prefetcher->nextPrefetchReadyTime(), clockEdge());
                 if (next_pf_time != MaxTick)
@@ -953,7 +961,8 @@ BaseCache::getNextQueueEntry()
 
     // fall through... no pending requests.  Try a prefetch.
     assert(!miss_mshr && !wq_entry);
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked() &&
+        downstreamMemPressure < pfPressureThreshold) {
         // If we have a miss queue slot, we can try a prefetch
         PacketPtr pkt = prefetcher->getPacket();
         if (pkt) {
@@ -2006,7 +2015,8 @@ BaseCache::nextQueueReadyTime() const
 
     // Don't signal prefetch ready time if no MSHRs available
     // Will signal once enoguh MSHRs are deallocated
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked() &&
+        downstreamMemPressure < pfPressureThreshold) {
         nextReady = std::min(nextReady,
                              prefetcher->nextPrefetchReadyTime());
     }
