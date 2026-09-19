@@ -18,28 +18,28 @@ namespace gem5
 namespace ruby
 {
 
-int
+__attribute__((weak)) int
 MachineType_base_level(const MachineType &machine)
 {
     return 0;
 }
-MachineType
+__attribute__((weak)) MachineType
 MachineType_from_base_level(int level)
 {
     return MachineType_NUM;
 }
-MachineType &
+__attribute__((weak)) MachineType &
 operator++(MachineType &m)
 {
     return m;
 }
 
-int
+__attribute__((weak)) int
 RubySystem::MachineType_base_count(const MachineType &machine)
 {
     return 1;
 }
-int
+__attribute__((weak)) int
 RubySystem::MachineType_base_number(const MachineType &machine)
 {
     return 0;
