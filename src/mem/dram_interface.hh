@@ -71,14 +71,14 @@ class DRAMInterface : public MemInterface
      */
     struct Command
     {
-       Data::MemCommand::cmds type;
-       uint8_t bank;
-       Tick timeStamp;
+        Data::MemCommand::cmds type;
+        uint8_t bank;
+        Tick timeStamp;
 
-       constexpr Command(Data::MemCommand::cmds _type, uint8_t _bank,
-                         Tick time_stamp)
+        constexpr Command(Data::MemCommand::cmds _type, uint8_t _bank,
+                          Tick time_stamp)
             : type(_type), bank(_bank), timeStamp(time_stamp)
-        { }
+        {}
     };
 
     /**
@@ -229,11 +229,10 @@ class DRAMInterface : public MemInterface
     class Rank : public EventManager
     {
       private:
-
         /**
          * A reference to the parent DRAMInterface instance
          */
-        DRAMInterface& dram;
+        DRAMInterface &dram;
 
         /**
          * Since we are taking decisions out of order, we need to keep
@@ -271,13 +270,12 @@ class DRAMInterface : public MemInterface
         void schedulePowerEvent(PowerState pwr_state, Tick tick);
 
       public:
-
         /**
          * Current power state.
          */
         PowerState pwrState;
 
-       /**
+        /**
          * current refresh state
          */
         RefreshState refreshState;
@@ -292,12 +290,12 @@ class DRAMInterface : public MemInterface
          */
         uint8_t rank;
 
-       /**
+        /**
          * Track number of packets in read queue going to this rank
          */
         uint32_t readEntries;
 
-       /**
+        /**
          * Track number of packets in write queue going to this rank
          */
         uint32_t writeEntries;
@@ -347,8 +345,7 @@ class DRAMInterface : public MemInterface
          */
         Tick lastBurstTick;
 
-        Rank(const DRAMInterfaceParams &_p, int _rank,
-             DRAMInterface& _dram);
+        Rank(const DRAMInterfaceParams &_p, int _rank, DRAMInterface &_dram);
 
         const std::string
         name() const
@@ -375,7 +372,11 @@ class DRAMInterface : public MemInterface
          *
          * @param Return true if the rank is idle from a refresh point of view
          */
-        bool inRefIdleState() const { return refreshState == REF_IDLE; }
+        bool
+        inRefIdleState() const
+        {
+            return refreshState == REF_IDLE;
+        }
 
         /**
          * Check if the current rank has all banks closed and is not
@@ -418,6 +419,14 @@ class DRAMInterface : public MemInterface
         bool isQueueEmpty() const;
 
         /**
+         * Check if there are active row buffer write hits queued for this rank
+         *
+         * @return true if there is at least one write packet targeting an open
+         * row
+         */
+        bool hasWriteToOpenRow() const;
+
+        /**
          * Let the rank check if it was waiting for requests to drain
          * to allow it to transition states.
          */
@@ -449,7 +458,7 @@ class DRAMInterface : public MemInterface
          */
         void powerDownSleep(PowerState pwr_state, Tick tick);
 
-       /**
+        /**
          * schedule and event to wake-up from power-down or self-refresh
          * and update bank timing parameters
          *
@@ -488,7 +497,7 @@ class DRAMInterface : public MemInterface
      * @return true if timeStamp of Command 1 < timeStamp of Command 2
      */
     static bool
-    sortTime(const Command& cmd, const Command& cmd_next)
+    sortTime(const Command &cmd, const Command &cmd_next)
     {
         return cmd.timeStamp < cmd_next.timeStamp;
     }
@@ -531,7 +540,6 @@ class DRAMInterface : public MemInterface
     const Tick wrToRdDlySameBG;
     const Tick rdToWrDlySameBG;
 
-
     enums::PageManage pageMgmt;
     /**
      * Max column accesses (read and write) per row, before forefully
@@ -562,7 +570,7 @@ class DRAMInterface : public MemInterface
      * @param act_tick Time when the activation takes place
      * @param row Index of the row
      */
-    void activateBank(Rank& rank_ref, Bank& bank_ref, Tick act_tick,
+    void activateBank(Rank &rank_ref, Bank &bank_ref, Tick act_tick,
                       uint32_t row);
 
     /**
@@ -576,9 +584,8 @@ class DRAMInterface : public MemInterface
      * @param auto_or_preall Is this an auto-precharge or precharge all command
      * @param trace Is this an auto precharge then do not add to trace
      */
-    void prechargeBank(Rank& rank_ref, Bank& bank_ref,
-                       Tick pre_tick, bool auto_or_preall = false,
-                       bool trace = true);
+    void prechargeBank(Rank &rank_ref, Bank &bank_ref, Tick pre_tick,
+                       bool auto_or_preall = false, bool trace = true);
 
     struct DRAMStats : public statistics::Group
     {
@@ -631,14 +638,18 @@ class DRAMInterface : public MemInterface
     DRAMStats stats;
 
     /**
-      * Vector of dram ranks
-      */
-    std::vector<Rank*> ranks;
+     * Vector of dram ranks
+     */
+    std::vector<Rank *> ranks;
 
     /*
      * @return delay between write and read commands
      */
-    Tick writeToReadDelay() const override { return tBURST + tWTR + tWL; }
+    Tick
+    writeToReadDelay() const override
+    {
+        return tBURST + tWTR + tWL;
+    }
 
     /**
      * Find which are the earliest banks ready to issue an activate
@@ -651,7 +662,7 @@ class DRAMInterface : public MemInterface
      * @return boolean indicating burst can issue seamlessly, with no gaps
      */
     std::pair<std::vector<uint32_t>, bool>
-    minBankPrep(const MemPacketQueue& queue, Tick min_col_at) const;
+    minBankPrep(const MemPacketQueue &queue, Tick min_col_at) const;
 
     /*
      * @return time to send a burst of data without gaps
@@ -681,9 +692,9 @@ class DRAMInterface : public MemInterface
      */
     void setupRank(const uint8_t rank, const bool is_read) override;
 
-    MemPacket* decodePacket(const PacketPtr pkt, Addr pkt_addr,
-                           unsigned int size, bool is_read,
-                           uint8_t pseudo_channel = 0) override;
+    MemPacket *decodePacket(const PacketPtr pkt, Addr pkt_addr,
+                            unsigned int size, bool is_read,
+                            uint8_t pseudo_channel = 0) override;
 
     /**
      * Iterate through dram ranks to exit self-refresh in order to drain
@@ -709,7 +720,8 @@ class DRAMInterface : public MemInterface
     /*
      * @return time to offset next command
      */
-    Tick commandOffset() const override
+    Tick
+    commandOffset() const override
     {
         return (tRP + std::max(tRCD_RD, tRCD_WR));
     }
@@ -717,7 +729,11 @@ class DRAMInterface : public MemInterface
     /*
      * Function to calulate unloaded, closed bank access latency
      */
-    Tick accessLatency() const override { return (tRP + tRCD_RD + tRL); }
+    Tick
+    accessLatency() const override
+    {
+        return (tRP + tRCD_RD + tRL);
+    }
 
     /**
      * For FR-FCFS policy, find first DRAM command that can issue
@@ -728,7 +744,7 @@ class DRAMInterface : public MemInterface
      * @return the tick when the packet selected will issue
      */
     std::pair<MemPacketQueue::iterator, Tick>
-    chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const override;
+    chooseNextFRFCFS(MemPacketQueue &queue, Tick min_col_at) const override;
 
     /**
      * Actually do the burst - figure out the latency it
@@ -745,8 +761,8 @@ class DRAMInterface : public MemInterface
      *               tick when next burst can issue
      */
     std::pair<Tick, Tick>
-    doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
-                  const std::vector<MemPacketQueue>& queue) override;
+    doBurstAccess(MemPacket *mem_pkt, Tick next_burst_at,
+                  const std::vector<MemPacketQueue> &queue) override;
 
     /**
      * Check if a burst operation can be issued to the DRAM
@@ -756,7 +772,7 @@ class DRAMInterface : public MemInterface
      *                    REF IDLE state
      */
     bool
-    burstReady(MemPacket* pkt) const override
+    burstReady(MemPacket *pkt) const override
     {
         return ranks[pkt->rank]->inRefIdleState();
     }
@@ -800,9 +816,19 @@ class DRAMInterface : public MemInterface
     /**
      * The next three functions are NVM-specific and will be ignored by DRAM.
      */
-    bool readsWaitingToIssue() const override { return false;}
-    void chooseRead(MemPacketQueue& queue) override { }
-    bool writeRespQueueFull() const override { return false;}
+    bool
+    readsWaitingToIssue() const override
+    {
+        return false;
+    }
+    void
+    chooseRead(MemPacketQueue &queue) override
+    {}
+    bool
+    writeRespQueueFull() const override
+    {
+        return false;
+    }
 
     DRAMInterface(const DRAMInterfaceParams &_p);
 };
