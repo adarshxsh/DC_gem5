@@ -411,9 +411,9 @@ SectorTags::anyBlk(std::function<bool(CacheBlk &)> visitor)
 bool
 SectorTags::checkInvariants() const
 {
-    int valid_sectors = 0;
+    [[maybe_unused]] int valid_sectors = 0;
     for (const auto &sec_blk : secBlks) {
-        int count_valid_sub = 0;
+        [[maybe_unused]] int count_valid_sub = 0;
         for (const auto &sub_blk : sec_blk.blks) {
             if (sub_blk->isValid()) {
                 count_valid_sub++;

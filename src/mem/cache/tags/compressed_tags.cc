@@ -214,8 +214,8 @@ CompressedTags::checkInvariants() const
     SectorTags::checkInvariants();
     for (const auto &super_blk : superBlks) {
         if (super_blk.isValid()) {
-            uint8_t num_valid = super_blk.getNumValid();
-            uint8_t cf = super_blk.getCompressionFactor();
+            [[maybe_unused]] uint8_t num_valid = super_blk.getNumValid();
+            [[maybe_unused]] uint8_t cf = super_blk.getCompressionFactor();
             assert(num_valid <= cf);
             if (num_valid > 1) {
                 assert(super_blk.isCompressed());
@@ -224,8 +224,9 @@ CompressedTags::checkInvariants() const
                 if (blk->isValid()) {
                     const CompressionBlk *cblk =
                         static_cast<const CompressionBlk *>(blk);
-                    uint8_t blk_cf = super_blk.calculateCompressionFactor(
-                        cblk->getSizeBits());
+                    [[maybe_unused]] uint8_t blk_cf =
+                        super_blk.calculateCompressionFactor(
+                            cblk->getSizeBits());
                     assert(blk_cf >= cf);
                 }
             }
