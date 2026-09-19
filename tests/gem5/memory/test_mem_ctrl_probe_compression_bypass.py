@@ -63,8 +63,7 @@ system.l2c = L2Cache(clk_domain=system.cpu_clk_domain, size="64KiB", assoc=8)
 
 # Configure BDI compression with MemCtrl probe listener and low pressure threshold
 system.l2c.compressor = BDI(
-    mem_pressure_threshold=0.001,
-    mem_ctrl=[system.mem_ctrl]
+    mem_pressure_threshold=0.001, mem_ctrl=[system.mem_ctrl]
 )
 system.l2c.tags = CompressedTags()
 
