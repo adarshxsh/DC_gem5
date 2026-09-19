@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       writeBufferHighWatermark(p.write_buffer_high_watermark),
@@ -100,7 +100,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -943,7 +943,8 @@ BaseCache::getNextQueueEntry()
             // @todo Note that we ignore the ready time of the conflict here
         }
 
-        // Check if writeback should be throttled due to downstream L2 backpressure
+        // Check if writeback should be throttled due to downstream L2
+        // backpressure
         bool is_dirty_writeback = wq_entry->getTarget() &&
                                   wq_entry->getTarget()->pkt &&
                                   wq_entry->getTarget()->pkt->isWriteback();
@@ -952,14 +953,18 @@ BaseCache::getNextQueueEntry()
                            conflict_mshr != nullptr;
 
         Tick watchdog_ticks = clockPeriod() * writebackWatchdogThreshold;
-        bool watchdog_expired = (curTick() - wq_entry->readyTime > watchdog_ticks) ||
-                                (l2BackpressureStartTick > 0 && curTick() - l2BackpressureStartTick > watchdog_ticks);
+        bool watchdog_expired =
+            (curTick() - wq_entry->readyTime > watchdog_ticks) ||
+            (l2BackpressureStartTick > 0 &&
+             curTick() - l2BackpressureStartTick > watchdog_ticks);
 
-        if (l2Backpressure && is_dirty_writeback && !is_critical && !watchdog_expired) {
+        if (l2Backpressure && is_dirty_writeback && !is_critical &&
+            !watchdog_expired) {
             Tick throttle_ticks = clockPeriod() * writebackThrottleInterval;
             if (curTick() < lastWritebackTick + throttle_ticks) {
                 if (miss_mshr) {
-                    WriteQueueEntry *conflict_mshr_write = writeBuffer.findPending(miss_mshr);
+                    WriteQueueEntry *conflict_mshr_write =
+                        writeBuffer.findPending(miss_mshr);
                     if (!conflict_mshr_write) {
                         return miss_mshr;
                     }

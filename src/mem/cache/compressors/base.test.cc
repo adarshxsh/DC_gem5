@@ -243,8 +243,7 @@ namespace gem5
 
 TEST(PacketTest, CompressionBackpressureFlags)
 {
-    RequestPtr req = std::make_shared<Request>(
-        0x1000, 64, 0, 0);
+    RequestPtr req = std::make_shared<Request>(0x1000, 64, 0, 0);
     Packet pkt(req, MemCmd::ReadReq);
 
     EXPECT_FALSE(pkt.isCompressionBackpressure());
