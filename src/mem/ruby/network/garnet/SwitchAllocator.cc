@@ -260,7 +260,7 @@ SwitchAllocator::arbitrate_outports()
                 m_router->getPortDirectionName(output_unit->get_direction()),
                 invc,
                 m_router->getPortDirectionName(input_unit->get_direction()),
-                *t_flit, m_router->curCycle());
+                *t_flit, (unsigned long long)m_router->curCycle());
 
             // Update outport field in the flit since this is
             // used by CrossbarSwitch code to send it out of

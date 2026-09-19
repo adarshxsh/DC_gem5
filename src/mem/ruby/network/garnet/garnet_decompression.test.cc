@@ -47,12 +47,6 @@ operator++(MachineType &type)
 
 namespace garnet
 {
-std::string
-Router::getPortDirectionName(PortDirection direction)
-{
-    return direction;
-}
-
 class GarnetDecompressionTest : public ::testing::Test
 {
   protected:

@@ -40,6 +40,7 @@
 #include "mem/ruby/network/garnet/CommonTypes.hh"
 #include "mem/ruby/network/garnet/NetworkLink.hh"
 #include "mem/ruby/network/garnet/OutVcState.hh"
+#include "sim/cur_tick.hh"
 
 namespace gem5
 {
