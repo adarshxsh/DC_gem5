@@ -109,17 +109,26 @@ class CompressedTags : public SectorTags
     /**
      * Set write queue pressure guard state.
      */
-    void setWriteQueuePressure(bool pressure) { writeQueuePressure = pressure; }
+    void
+    setWriteQueuePressure(bool pressure)
+    {
+        writeQueuePressure = pressure;
+    }
 
     /**
      * Get write queue pressure guard state.
      */
-    bool isWriteQueueUnderPressure() const { return writeQueuePressure; }
+    bool
+    isWriteQueueUnderPressure() const
+    {
+        return writeQueuePressure;
+    }
 
     /**
      * Get write queue pressure threshold.
      */
-    unsigned getWriteQueuePressureThreshold() const
+    unsigned
+    getWriteQueuePressureThreshold() const
     {
         return writeQueuePressureThreshold;
     }

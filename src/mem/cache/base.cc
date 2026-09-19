@@ -278,8 +278,8 @@ BaseCache::updateWriteQueuePressure()
     CompressedTags *comp_tags = dynamic_cast<CompressedTags *>(tags);
     if (comp_tags) {
         double threshold = comp_tags->getWriteQueuePressureThreshold() / 100.0;
-        bool pressure =
-            (writeBuffer.occupancyRatio() >= threshold) || writeBuffer.isFull();
+        bool pressure = (writeBuffer.occupancyRatio() >= threshold) ||
+                        writeBuffer.isFull();
         comp_tags->setWriteQueuePressure(pressure);
     }
 }
@@ -1160,12 +1160,15 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                 }
             }
 
-            // Order candidate sub-blocks by clean-first then age when write queue is under pressure
-            CompressedTags *comp_tags = dynamic_cast<CompressedTags*>(tags);
-            bool wq_pressure = comp_tags && comp_tags->isWriteQueueUnderPressure();
+            // Order candidate sub-blocks by clean-first then age when write
+            // queue is under pressure
+            CompressedTags *comp_tags = dynamic_cast<CompressedTags *>(tags);
+            bool wq_pressure =
+                comp_tags && comp_tags->isWriteQueueUnderPressure();
 
             std::sort(co_blks.begin(), co_blks.end(),
-                      [wq_pressure](const CompressionBlk *a, const CompressionBlk *b) {
+                      [wq_pressure](const CompressionBlk *a,
+                                    const CompressionBlk *b) {
                           if (wq_pressure) {
                               bool a_dirty = a->isSet(CacheBlk::DirtyBit);
                               bool b_dirty = b->isSet(CacheBlk::DirtyBit);

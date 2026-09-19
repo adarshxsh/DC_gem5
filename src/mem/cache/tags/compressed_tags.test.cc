@@ -578,11 +578,13 @@ TEST_F(SuperBlkTestFixture, WriteQueuePressureGuardCoAllocationAndVictimFilter)
     // Co-allocation capacity physically allows 128 + 256 = 384 <= 512 bits
     ASSERT_TRUE(superBlk.canCoAllocate(new_size));
 
-    // Under write queue pressure, degradation (new_cf < current_cf) is rejected
+    // Under write queue pressure, degradation (new_cf < current_cf) is
+    // rejected
     bool writeQueuePressure = true;
     bool co_alloc_allowed_under_pressure =
         superBlk.canCoAllocate(new_size) &&
-        !writeQueuePressure; // or !(writeQueuePressure && (new_cf < current_cf))
+        !writeQueuePressure; // or !(writeQueuePressure && (new_cf <
+                             // current_cf))
 
     ASSERT_FALSE(co_alloc_allowed_under_pressure);
 
@@ -626,9 +628,11 @@ TEST_F(SuperBlkTestFixture, WriteQueuePressureGuardCoAllocationAndVictimFilter)
     blk_full1.insert({0x4000, false});
     blk_partial0.insert({0x5000, false});
 
-    std::vector<SuperBlk *> superblock_entries = {&sb_full, &sb_partial, &sb_empty};
+    std::vector<SuperBlk *> superblock_entries = {&sb_full, &sb_partial,
+                                                  &sb_empty};
 
-    // Under write queue pressure, filter replacement candidates to prefer empty/invalid superblocks
+    // Under write queue pressure, filter replacement candidates to prefer
+    // empty/invalid superblocks
     std::vector<SuperBlk *> replacement_candidates;
     writeQueuePressure = true;
 
@@ -643,7 +647,8 @@ TEST_F(SuperBlkTestFixture, WriteQueuePressureGuardCoAllocationAndVictimFilter)
     ASSERT_EQ(replacement_candidates.size(), 1);
     ASSERT_EQ(replacement_candidates[0], &sb_empty);
 
-    // If no empty superblocks, filter to candidates with minimal valid sub-blocks
+    // If no empty superblocks, filter to candidates with minimal valid
+    // sub-blocks
     superblock_entries = {&sb_full, &sb_partial};
     replacement_candidates.clear();
 
@@ -669,4 +674,3 @@ TEST_F(SuperBlkTestFixture, WriteQueuePressureGuardCoAllocationAndVictimFilter)
     ASSERT_EQ(replacement_candidates.size(), 1);
     ASSERT_EQ(replacement_candidates[0], &sb_partial);
 }
-

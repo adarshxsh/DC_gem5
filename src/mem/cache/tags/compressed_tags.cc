@@ -152,7 +152,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
             superblock->isCompressed() &&
             superblock->canCoAllocate(compressed_size))
         {
-            if ((is_prefetch && superblock->hasValidDemand()) || writeQueuePressure) {
+            if ((is_prefetch && superblock->hasValidDemand()) ||
+                writeQueuePressure) {
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);
                 const uint8_t current_cf = superblock->getCompressionFactor();
@@ -201,7 +202,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
                 size_t min_valid = numBlocksPerSector;
                 for (const auto &entry : superblock_entries) {
                     SuperBlk *superblock = static_cast<SuperBlk *>(entry);
-                    min_valid = std::min(min_valid, (size_t)superblock->getNumValid());
+                    min_valid =
+                        std::min(min_valid, (size_t)superblock->getNumValid());
                 }
                 for (const auto &entry : superblock_entries) {
                     SuperBlk *superblock = static_cast<SuperBlk *>(entry);
