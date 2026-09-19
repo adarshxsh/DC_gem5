@@ -641,4 +641,3 @@ TEST_F(SuperBlkTestFixture, ConcurrentFillCoAllocationWithReservation)
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
     verifyInvariants(superBlk);
 }
-}
