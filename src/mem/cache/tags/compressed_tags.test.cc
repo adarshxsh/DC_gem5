@@ -423,20 +423,31 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     ASSERT_EQ(evict_blks[0], &subBlks[0]);
     ASSERT_EQ(evict_blks[1], &subBlks[1]);
 
-    // Perform selective eviction
+    // Perform selective eviction by sector offset
+    std::vector<int> evict_offsets;
     for (auto *evict_blk : evict_blks) {
-        evict_blk->invalidate();
+        evict_offsets.push_back(
+            static_cast<SectorSubBlk *>(evict_blk)->getSectorOffset());
+    }
+    for (int offset : evict_offsets) {
+        int slot = superBlk.getSlotForOffset(offset);
+        superBlk.blks[slot]->invalidate();
     }
 
-    // Update expansion sub-block size
-    subBlks[3].setSizeBits(expansion_size);
+    // Update expansion sub-block size for offset 3
+    int slot3 = superBlk.getSlotForOffset(3);
+    static_cast<CompressionBlk *>(superBlk.blks[slot3])
+        ->setSizeBits(expansion_size);
 
-    // Verify subBlks[2] and subBlks[3] are preserved, subBlks[0] and
-    // subBlks[1] evicted
-    ASSERT_FALSE(subBlks[0].isValid());
-    ASSERT_FALSE(subBlks[1].isValid());
-    ASSERT_TRUE(subBlks[2].isValid());
-    ASSERT_TRUE(subBlks[3].isValid());
+    // Verify subBlks at offsets 2 and 3 are preserved, offsets 0 and 1 evicted
+    int slot0 = superBlk.getSlotForOffset(0);
+    int slot1 = superBlk.getSlotForOffset(1);
+    int slot2 = superBlk.getSlotForOffset(2);
+
+    ASSERT_FALSE(superBlk.blks[slot0]->isValid());
+    ASSERT_FALSE(superBlk.blks[slot1]->isValid());
+    ASSERT_TRUE(superBlk.blks[slot2]->isValid());
+    ASSERT_TRUE(superBlk.blks[slot3]->isValid());
     ASSERT_EQ(superBlk.getNumValid(), 2);
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
