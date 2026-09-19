@@ -82,22 +82,24 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
-      mshrCompressionBypassHighThreshold(p.mshr_compression_bypass_high_threshold),
-      mshrCompressionBypassLowThreshold(p.mshr_compression_bypass_low_threshold),
+      mshrCompressionBypassHighThreshold(
+          p.mshr_compression_bypass_high_threshold),
+      mshrCompressionBypassLowThreshold(
+          p.mshr_compression_bypass_low_threshold),
       mshrCompressionBypassed(false),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1659,28 +1661,37 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
 void
 BaseCache::updateMSHRCompressionBypass()
 {
-    if (!compressor)
+    if (!compressor) {
         return;
+    }
 
     const int current_occupancy = mshrQueue.occupancy();
     const int total_capacity = mshrQueue.capacity();
 
-    if (total_capacity <= 0)
+    if (total_capacity <= 0) {
         return;
+    }
 
-    const double occupancy_pct = ((double)current_occupancy / total_capacity) * 100.0;
+    const double occupancy_pct =
+        ((double)current_occupancy / total_capacity) * 100.0;
 
     if (!mshrCompressionBypassed) {
         if (occupancy_pct >= mshrCompressionBypassHighThreshold) {
             mshrCompressionBypassed = true;
-            DPRINTF(CacheComp, "MSHR occupancy (%.1f%%, %d/%d) reached high threshold (%u%%). Bypassing compression.\n",
-                    occupancy_pct, current_occupancy, total_capacity, mshrCompressionBypassHighThreshold);
+            DPRINTF(CacheComp,
+                    "MSHR occupancy (%.1f%%, %d/%d) reached high threshold "
+                    "(%u%%). Bypassing compression.\n",
+                    occupancy_pct, current_occupancy, total_capacity,
+                    mshrCompressionBypassHighThreshold);
         }
     } else {
         if (occupancy_pct < mshrCompressionBypassLowThreshold) {
             mshrCompressionBypassed = false;
-            DPRINTF(CacheComp, "MSHR occupancy (%.1f%%, %d/%d) dropped below low threshold (%u%%). Resuming compression.\n",
-                    occupancy_pct, current_occupancy, total_capacity, mshrCompressionBypassLowThreshold);
+            DPRINTF(CacheComp,
+                    "MSHR occupancy (%.1f%%, %d/%d) dropped below low "
+                    "threshold (%u%%). Resuming compression.\n",
+                    occupancy_pct, current_occupancy, total_capacity,
+                    mshrCompressionBypassLowThreshold);
         }
     }
 }
@@ -1816,11 +1827,14 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
             decompression_lat = Cycles(0);
             pkt->payloadDelay = 0;
             stats.mshrCompressionBypasses++;
-            DPRINTF(CacheComp, "Bypassing compression on block fill for address %#llx due to high MSHR occupancy (%d/%d)\n",
+            DPRINTF(CacheComp,
+                    "Bypassing compression on block fill for address %#llx "
+                    "due to high MSHR occupancy (%d/%d)\n",
                     addr, mshrQueue.occupancy(), mshrQueue.capacity());
         } else {
-            const auto comp_data = compressor->compress(
-                pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
+            const auto comp_data =
+                compressor->compress(pkt->getConstPtr<uint64_t>(),
+                                     compression_lat, decompression_lat);
             blk_size_bits = comp_data->getSizeBits();
         }
     }

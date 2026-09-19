@@ -2,33 +2,56 @@
  * Unit test for MSHR threshold-aware cache compression bypass logic.
  */
 
-#include <gtest/gtest.h>
 #include <cstdint>
+#include <gtest/gtest.h>
 #include <list>
 #include <string>
 
 #include "mem/cache/queue.hh"
 #include "mem/cache/queue_entry.hh"
 
-namespace gem5 {
+namespace gem5
+{
 
 class DummyQueueEntry : public QueueEntry
 {
   public:
-    using List = std::list<DummyQueueEntry*>;
+    using List = std::list<DummyQueueEntry *>;
     using Iterator = List::iterator;
 
     List::iterator allocIter;
     List::iterator readyIter;
 
     DummyQueueEntry(const std::string &name = "dummy") : QueueEntry(name) {}
-    bool matchBlockAddr(Addr addr, bool is_secure) const override { return false; }
-    bool matchBlockAddr(const PacketPtr pkt) const override { return false; }
-    bool conflictAddr(const QueueEntry *entry) const override { return false; }
-    void deallocate() {}
+    bool
+    matchBlockAddr(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    matchBlockAddr(const PacketPtr pkt) const override
+    {
+        return false;
+    }
+    bool
+    conflictAddr(const QueueEntry *entry) const override
+    {
+        return false;
+    }
+    void
+    deallocate()
+    {}
 
-    bool sendPacket(BaseCache &cache) override { return false; }
-    Target* getTarget() override { return nullptr; }
+    bool
+    sendPacket(BaseCache &cache) override
+    {
+        return false;
+    }
+    Target *
+    getTarget() override
+    {
+        return nullptr;
+    }
 };
 
 TEST(MSHRCompressionBypassTest, QueueOccupancyAndCapacity)
@@ -47,7 +70,8 @@ TEST(MSHRCompressionBypassTest, QueueCapacityWithReserve)
 {
     // Queue with reserve entries: num_entries = 16, reserve = 4
     // Capacity should be 16 (numEntries - numReserve)
-    Queue<DummyQueueEntry> queue("TestReserveQueue", 16, 4, "test_reserve_queue");
+    Queue<DummyQueueEntry> queue("TestReserveQueue", 16, 4,
+                                 "test_reserve_queue");
 
     EXPECT_EQ(queue.capacity(), 16);
     EXPECT_EQ(queue.occupancy(), 0);
@@ -70,7 +94,8 @@ TEST(MSHRCompressionBypassTest, HysteresisLogic)
     bool mshrCompressionBypassed = false;
 
     auto updateBypassState = [&](int currentOccupancy) {
-        double occupancyPct = ((double)currentOccupancy / totalCapacity) * 100.0;
+        double occupancyPct =
+            ((double)currentOccupancy / totalCapacity) * 100.0;
         if (!mshrCompressionBypassed) {
             if (occupancyPct >= highThreshold) {
                 mshrCompressionBypassed = true;
@@ -102,11 +127,13 @@ TEST(MSHRCompressionBypassTest, HysteresisLogic)
     updateBypassState(18);
     EXPECT_TRUE(mshrCompressionBypassed);
 
-    // Occupancy decreases to 60% (12 MSHRs) -> bypass remains ACTIVATED (hysteresis)
+    // Occupancy decreases to 60% (12 MSHRs) -> bypass remains ACTIVATED
+    // (hysteresis)
     updateBypassState(12);
     EXPECT_TRUE(mshrCompressionBypassed);
 
-    // Occupancy decreases to 50% (10 MSHRs) -> bypass remains ACTIVATED (hysteresis)
+    // Occupancy decreases to 50% (10 MSHRs) -> bypass remains ACTIVATED
+    // (hysteresis)
     updateBypassState(10);
     EXPECT_TRUE(mshrCompressionBypassed);
 

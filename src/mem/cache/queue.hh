@@ -156,7 +156,8 @@ class Queue : public Drainable, public Named
      * Get the number of currently allocated entries in the queue.
      * @return Number of allocated entries.
      */
-    int occupancy() const
+    int
+    occupancy() const
     {
         return allocated;
     }
@@ -165,7 +166,8 @@ class Queue : public Drainable, public Named
      * Get the effective total capacity of the queue (excluding reserve space).
      * @return Total capacity available for standard allocations.
      */
-    int capacity() const
+    int
+    capacity() const
     {
         return numEntries - numReserve;
     }
