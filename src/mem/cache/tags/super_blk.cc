@@ -276,8 +276,7 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
 
     std::size_t bit_sum = 0;
     for (const auto &blk : blks) {
-        const CompressionBlk *cblk =
-            static_cast<const CompressionBlk *>(blk);
+        const CompressionBlk *cblk = static_cast<const CompressionBlk *>(blk);
         if (blk->isValid() || cblk->isReserved()) {
             bit_sum += cblk->getSizeBits();
         }
