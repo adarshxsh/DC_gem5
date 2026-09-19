@@ -400,7 +400,7 @@ class Packet : public Printable, public Extensible<Packet>
     unsigned _payloadSize;
 
     /// Endpoint decompression delay (in ticks).
-    uint32_t _decompressionDelay;
+    Tick _decompressionDelay;
 
     /**
      * Track the bytes found that satisfy a functional read.
@@ -834,11 +834,11 @@ class Packet : public Printable, public Extensible<Packet>
     }
 
     void
-    setDecompressionDelay(uint32_t delay)
+    setDecompressionDelay(Tick delay)
     {
         _decompressionDelay = delay;
     }
-    uint32_t
+    Tick
     getDecompressionDelay() const
     {
         return _decompressionDelay;
@@ -959,6 +959,7 @@ class Packet : public Printable, public Extensible<Packet>
           data(nullptr),
           addr(0),
           _isSecure(false),
+          size(0),
           _payloadSize(0),
           _decompressionDelay(0),
           _qosValue(0),
