@@ -124,10 +124,11 @@ class BaseXBar : public ClockedObject
          * updated accordingly.
          *
          * @param port Source port presenting the packet
+         * @param pkt Packet presenting the request (optional)
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port);
+        bool tryTiming(SrcType* src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -205,10 +206,24 @@ class BaseXBar : public ClockedObject
         State state;
 
         /**
+         * Structure representing a waiting port in the layer's retry queue,
+         * tracking whether the pending request is high priority.
+         */
+        struct WaitingPort
+        {
+            SrcType* port;
+            bool highPriority;
+
+            WaitingPort(SrcType* _port, bool _hp)
+                : port(_port), highPriority(_hp)
+            {}
+        };
+
+        /**
          * A deque of ports that retry should be called on because
          * the original send was delayed due to a busy layer.
          */
-        std::deque<SrcType*> waitingForLayer;
+        std::deque<WaitingPort> waitingForLayer;
 
         /**
          * Track who is waiting for the retry when receiving it from a
@@ -361,6 +376,15 @@ class BaseXBar : public ClockedObject
      * @return a list of non-overlapping address ranges
      */
     AddrRangeList getAddrRanges() const;
+
+    /**
+     * Calculate physical interconnect payload transfer latency, strictly
+     * based on bus width and clock period, excluding endpoint decompression.
+     *
+     * @param pkt Packet to compute physical payload delay for
+     * @return Physical transmission delay in ticks
+     */
+    Tick calcPayloadTransmissionDelay(PacketPtr pkt) const;
 
     /**
      * Calculate the timing parameters for the packet. Updates the
