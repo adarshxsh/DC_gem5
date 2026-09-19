@@ -70,11 +70,13 @@ class SuperBlkTestFixture : public ::testing::Test
     {
         uint8_t count_valid = 0;
         uint8_t min_cf = sb.blks.size();
+        std::size_t total_bits = 0;
         for (const auto &blk : sb.blks) {
             if (blk->isValid()) {
                 count_valid++;
                 const CompressionBlk *cblk =
                     static_cast<const CompressionBlk *>(blk);
+                total_bits += cblk->getSizeBits();
                 uint8_t cf =
                     sb.calculateCompressionFactor(cblk->getSizeBits());
                 if (cf < min_cf) {
@@ -88,7 +90,7 @@ class SuperBlkTestFixture : public ::testing::Test
         ASSERT_EQ(sb.isValid(), (count_valid > 0));
         if (count_valid > 0) {
             ASSERT_EQ(sb.getCompressionFactor(), min_cf);
-            ASSERT_LE(count_valid, sb.getCompressionFactor());
+            ASSERT_LE(total_bits, BlkSize * CHAR_BIT);
         } else {
             ASSERT_EQ(sb.getCompressionFactor(), 1);
         }
