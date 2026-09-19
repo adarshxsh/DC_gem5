@@ -37,6 +37,7 @@
 #define __MEM_CACHE_COMPRESSORS_BASE_HH__
 
 #include <cstdint>
+#include <vector>
 
 #include "base/compiler.hh"
 #include "base/statistics.hh"
