@@ -77,9 +77,9 @@ CompressionBlk::operator=(CompressionBlk&& other)
     }
     if (dest_super) {
         dest_super->unmapSubBlk(this);
-        for (int i = 0; i < dest_super->blks.size(); ++i) {
+        for (std::size_t i = 0; i < dest_super->blks.size(); ++i) {
             if (dest_super->blks[i] == this) {
-                dest_super->mapLogicalToPhysical(offset, i);
+                dest_super->mapLogicalToPhysical(offset, static_cast<int>(i));
                 break;
             }
         }
@@ -206,7 +206,8 @@ SuperBlk::initIndirectMap(std::size_t num_sub_blks)
 int
 SuperBlk::getPhysicalSlot(int logical_offset) const
 {
-    if (logical_offset >= 0 && logical_offset < indirectMap.size()) {
+    if (logical_offset >= 0 &&
+        static_cast<std::size_t>(logical_offset) < indirectMap.size()) {
         return indirectMap[logical_offset];
     }
     return InvalidSlot;
@@ -219,7 +220,8 @@ SuperBlk::getSubBlk(int logical_offset) const
         const_cast<SuperBlk *>(this)->initIndirectMap(blks.size());
     }
     int p_idx = getPhysicalSlot(logical_offset);
-    if (p_idx != InvalidSlot && p_idx >= 0 && p_idx < blks.size()) {
+    if (p_idx != InvalidSlot && p_idx >= 0 &&
+        static_cast<std::size_t>(p_idx) < blks.size()) {
         return blks[p_idx];
     }
     return nullptr;
@@ -232,7 +234,8 @@ SuperBlk::isLogicalMapped(int logical_offset) const
         const_cast<SuperBlk *>(this)->initIndirectMap(blks.size());
     }
     int p_idx = getPhysicalSlot(logical_offset);
-    return (p_idx != InvalidSlot && p_idx >= 0 && p_idx < blks.size() &&
+    return (p_idx != InvalidSlot && p_idx >= 0 &&
+            static_cast<std::size_t>(p_idx) < blks.size() &&
             blks[p_idx]->isValid());
 }
 
@@ -253,27 +256,28 @@ SuperBlk::mapLogicalToPhysical(int logical_offset)
     if (indirectMap.size() != blks.size()) {
         initIndirectMap(blks.size());
     }
-    if (logical_offset < 0 || logical_offset >= blks.size()) {
+    if (logical_offset < 0 ||
+        static_cast<std::size_t>(logical_offset) >= blks.size()) {
         return InvalidSlot;
     }
 
     int existing_slot = indirectMap[logical_offset];
     if (existing_slot != InvalidSlot && existing_slot >= 0 &&
-        existing_slot < blks.size()) {
+        static_cast<std::size_t>(existing_slot) < blks.size()) {
         blks[existing_slot]->setSectorOffset(logical_offset);
         return existing_slot;
     }
 
-    for (int p_idx = 0; p_idx < blks.size(); ++p_idx) {
+    for (std::size_t p_idx = 0; p_idx < blks.size(); ++p_idx) {
         if (!blks[p_idx]->isValid()) {
-            unmapPhysical(p_idx);
-            indirectMap[logical_offset] = p_idx;
+            unmapPhysical(static_cast<int>(p_idx));
+            indirectMap[logical_offset] = static_cast<int>(p_idx);
             blks[p_idx]->setSectorOffset(logical_offset);
-            return p_idx;
+            return static_cast<int>(p_idx);
         }
     }
 
-    int p_idx = logical_offset % blks.size();
+    int p_idx = logical_offset % static_cast<int>(blks.size());
     unmapPhysical(p_idx);
     indirectMap[logical_offset] = p_idx;
     blks[p_idx]->setSectorOffset(logical_offset);
@@ -286,8 +290,10 @@ SuperBlk::mapLogicalToPhysical(int logical_offset, int physical_slot)
     if (indirectMap.size() != blks.size()) {
         initIndirectMap(blks.size());
     }
-    if (logical_offset >= 0 && logical_offset < indirectMap.size() &&
-        physical_slot >= 0 && physical_slot < blks.size()) {
+    if (logical_offset >= 0 &&
+        static_cast<std::size_t>(logical_offset) < indirectMap.size() &&
+        physical_slot >= 0 &&
+        static_cast<std::size_t>(physical_slot) < blks.size()) {
         unmapPhysical(physical_slot);
         unmapLogical(logical_offset);
         indirectMap[logical_offset] = physical_slot;
@@ -298,7 +304,8 @@ SuperBlk::mapLogicalToPhysical(int logical_offset, int physical_slot)
 void
 SuperBlk::unmapLogical(int logical_offset)
 {
-    if (logical_offset >= 0 && logical_offset < indirectMap.size()) {
+    if (logical_offset >= 0 &&
+        static_cast<std::size_t>(logical_offset) < indirectMap.size()) {
         indirectMap[logical_offset] = InvalidSlot;
     }
 }
@@ -316,9 +323,9 @@ SuperBlk::unmapPhysical(int physical_slot)
 void
 SuperBlk::unmapSubBlk(const SectorSubBlk *sub_blk)
 {
-    for (int i = 0; i < blks.size(); ++i) {
+    for (std::size_t i = 0; i < blks.size(); ++i) {
         if (blks[i] == sub_blk) {
-            unmapPhysical(i);
+            unmapPhysical(static_cast<int>(i));
             break;
         }
     }

@@ -141,7 +141,8 @@ SectorBlk::SectorBlk()
 SectorSubBlk *
 SectorBlk::getSubBlk(int logical_offset) const
 {
-    if (logical_offset >= 0 && logical_offset < blks.size()) {
+    if (logical_offset >= 0 &&
+        static_cast<std::size_t>(logical_offset) < blks.size()) {
         return blks[logical_offset];
     }
     return nullptr;
