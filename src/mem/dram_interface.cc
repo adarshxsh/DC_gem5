@@ -40,6 +40,8 @@
 
 #include "mem/dram_interface.hh"
 
+#include <algorithm>
+
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
 #include "base/trace.hh"
