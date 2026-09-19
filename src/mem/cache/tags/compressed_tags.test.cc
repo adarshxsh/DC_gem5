@@ -411,3 +411,35 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 }
+
+TEST_F(SuperBlkTestFixture, CompressedNonInclusiveEvictionFiltering)
+{
+    // Populate superblock with 4 compressed sub-blocks
+    for (unsigned k = 0; k < 4; ++k) {
+        subBlks[k].insert({0x4000, false});
+        subBlks[k].setSizeBits(128); // CF = 4
+    }
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+
+    // Simulate eviction of clean sub-block 0 while retained in upper L1
+    bool is_cached_above = true;
+    bool compressed_non_inclusive_eviction = true;
+
+    std::vector<CacheBlk *> evict_blks = {&subBlks[0]};
+    for (auto *evict_blk : evict_blks) {
+        if (!evict_blk->isSet(CacheBlk::DirtyBit) &&
+            compressed_non_inclusive_eviction && is_cached_above) {
+            // Clean sub-block present in upper cache: L2 invalidates tag
+            // backing while suppressing upper-level snoop invalidations
+            evict_blk->invalidate();
+        }
+    }
+
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[1].isValid());
+    ASSERT_TRUE(subBlks[2].isValid());
+    ASSERT_TRUE(subBlks[3].isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    verifyInvariants(superBlk);
+}

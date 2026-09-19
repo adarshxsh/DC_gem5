@@ -155,7 +155,8 @@ class Cache : public BaseCache
      * Send up a snoop request and find cached copies. If cached copies are
      * found, set the BLOCK_CACHED flag in pkt.
      */
-    bool isCachedAbove(PacketPtr pkt, bool is_timing = true);
+    bool isCachedAbove(PacketPtr pkt, bool is_timing = true,
+                       bool invalidate = false);
 
   public:
     /** Instantiates a basic cache object. */
