@@ -132,7 +132,8 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_TRUE(superBlk.canCoAllocate(64));
     ASSERT_TRUE(superBlk.canCoAllocate(
         128)); // target_cf = min(8, 4) = 4, 1 < 4, 128 <= 128
-    ASSERT_FALSE(superBlk.canCoAllocate(512)); // target_cf = 1 -> uncompressed
+    ASSERT_TRUE(
+        superBlk.canCoAllocate(512)); // payloadless fallback to active cf (8)
 
     // Co-allocate block 1 at offset 1 (size 128 bits -> CF=4)
     subBlks[1].insert({0x1000, false});
@@ -558,4 +559,37 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, PayloadlessCoAllocationFallback)
+{
+    // 1. Empty superblock: cannot co-allocate uncompressed 512-bit request
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
+
+    // 2. Insert sub-block with CF=2 (256 bits)
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(256);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+
+    // With 1 valid sub-block under CF=2, payloadless allocation (512 bits) can
+    // co-allocate
+    ASSERT_TRUE(superBlk.canCoAllocate(512));
+
+    // Fill second slot
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(256);
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+
+    // Superblock is now full for CF=2: payloadless allocation cannot
+    // co-allocate
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
+
+    // 3. Uncompressed superblock: cannot co-allocate
+    subBlks[0].invalidate();
+    subBlks[1].invalidate();
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(512); // uncompressed
+    ASSERT_FALSE(superBlk.isCompressed());
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
 }
