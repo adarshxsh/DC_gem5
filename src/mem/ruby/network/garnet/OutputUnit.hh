@@ -40,6 +40,7 @@
 #include "mem/ruby/network/garnet/CommonTypes.hh"
 #include "mem/ruby/network/garnet/NetworkLink.hh"
 #include "mem/ruby/network/garnet/OutVcState.hh"
+#include "sim/cur_tick.hh"
 
 namespace gem5
 {
@@ -107,6 +108,28 @@ class OutputUnit : public Consumer
     bool functionalRead(Packet *pkt, WriteMask &mask);
     uint32_t functionalWrite(Packet *pkt);
 
+    bool
+    is_decompression_busy() const
+    {
+        return m_decompression_busy ||
+               (curTick() < m_decompression_finish_time);
+    }
+    void
+    set_decompression_busy(bool busy)
+    {
+        m_decompression_busy = busy;
+    }
+    void
+    set_decompression_busy_until(Tick finish_time)
+    {
+        m_decompression_finish_time = finish_time;
+    }
+    Tick
+    get_decompression_finish_time() const
+    {
+        return m_decompression_finish_time;
+    }
+
   private:
     Router *m_router;
     GEM5_CLASS_VAR_USED int m_id;
@@ -114,6 +137,9 @@ class OutputUnit : public Consumer
     int m_vc_per_vnet;
     NetworkLink *m_out_link;
     CreditLink *m_credit_link;
+
+    bool m_decompression_busy = false;
+    Tick m_decompression_finish_time = 0;
 
     // This is for the network link to consume
     flitBuffer outBuffer;

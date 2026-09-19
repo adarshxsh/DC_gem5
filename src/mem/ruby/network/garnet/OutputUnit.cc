@@ -51,10 +51,12 @@ OutputUnit::OutputUnit(int id, PortDirection direction, Router *router,
   : Consumer(router), m_router(router), m_id(id), m_direction(direction),
     m_vc_per_vnet(consumerVcs)
 {
-    const int m_num_vcs = consumerVcs * m_router->get_num_vnets();
+    const int m_num_vcs =
+        consumerVcs * (m_router ? m_router->get_num_vnets() : 1);
     outVcState.reserve(m_num_vcs);
     for (int i = 0; i < m_num_vcs; i++) {
-        outVcState.emplace_back(i, m_router->get_net_ptr(), consumerVcs);
+        outVcState.emplace_back(
+            i, m_router ? m_router->get_net_ptr() : nullptr, consumerVcs);
     }
 }
 

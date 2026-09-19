@@ -54,10 +54,13 @@ OutVcState::OutVcState(int id, GarnetNetwork *network_ptr,
      */
     int vnet = floor(id/consumerVcs);
 
-    if (network_ptr->get_vnet_type(vnet) == DATA_VNET_)
+    if (network_ptr && network_ptr->get_vnet_type(vnet) == DATA_VNET_) {
         m_max_credit_count = network_ptr->getBuffersPerDataVC();
-    else
+    } else if (network_ptr) {
         m_max_credit_count = network_ptr->getBuffersPerCtrlVC();
+    } else {
+        m_max_credit_count = 1;
+    }
 
     m_credit_count = m_max_credit_count;
     assert(m_credit_count >= 1);

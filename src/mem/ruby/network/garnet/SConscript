@@ -53,3 +53,9 @@ Source('flitBuffer.cc')
 Source('flit.cc')
 Source('Credit.cc')
 Source('NetworkBridge.cc')
+
+GTest('garnet_decompression.test', 'garnet_decompression.test.cc',
+      'OutputUnit.cc', 'flit.cc', 'flitBuffer.cc', 'OutVcState.cc',
+      '#src/mem/ruby/common/Consumer.cc', '#src/mem/ruby/common/NetDest.cc',
+      '#src/mem/ruby/common/WriteMask.cc', '#src/base/types.cc',
+      with_tag('gem5 simobject'))

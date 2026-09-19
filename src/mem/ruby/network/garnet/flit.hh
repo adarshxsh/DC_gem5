@@ -71,6 +71,17 @@ class flit
     std::pair<flit_stage, Tick> get_stage() { return m_stage; }
     Tick get_src_delay() { return src_delay; }
 
+    bool
+    is_demand_request() const
+    {
+        return m_is_demand_request;
+    }
+    void
+    set_demand_request(bool is_demand)
+    {
+        m_is_demand_request = is_demand;
+    }
+
     void set_outport(int port) { m_outport = port; }
     void set_time(Tick time) { m_time = time; }
     void set_vc(int vc) { m_vc = vc; }
@@ -129,6 +140,7 @@ class flit
     int m_outport;
     Tick src_delay;
     std::pair<flit_stage, Tick> m_stage;
+    bool m_is_demand_request = false;
 };
 
 inline std::ostream&
