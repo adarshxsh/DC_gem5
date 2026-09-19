@@ -174,9 +174,9 @@ class SuperBlk : public SectorBlk
     std::size_t blkSize;
 
     /**
-     * Superblock's compression factor. It is aligned to be a power of two,
-     * limited by the maximum compression ratio, and calculated as:
-     *   compressionFactor = uncompressedSize/compressedSize
+     * Superblock's compression factor, limited by the maximum compression
+     * ratio, and calculated as: compressionFactor =
+     * floor(uncompressedSize/compressedSize)
      */
     uint8_t compressionFactor;
 
@@ -212,12 +212,8 @@ class SuperBlk : public SectorBlk
 
     /**
      * Calculate the compression factor (cf) given a compressed size and the
-     * maximum compression ratio. Therefore cf is:
-     *  1 if comp_size > blk_size/2,
-     *  2 if comp_size > blk_size/4,
-     *  4 if comp_size > blk_size/8,
-     *  8 if comp_size > blk_size/16,
-     * and so on.
+     * maximum compression ratio as an exact linear integer value:
+     *   cf = floor(blk_size_bits / size)
      *
      * @param size The compressed size.
      * @return Compression factor corresponding to the size.
