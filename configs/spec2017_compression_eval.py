@@ -173,7 +173,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._decay_shift = decay_shift
-        self._enable_density_aware_replacement = enable_density_aware_replacement
+        self._enable_density_aware_replacement = (
+            enable_density_aware_replacement
+        )
         self._enable_compressed_transport = enable_compressed_transport
         self.membus = membus if membus else self._get_default_membus()
         if self._use_compression and self._enable_compressed_transport:
