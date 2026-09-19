@@ -149,8 +149,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
             static_cast<CompressionBlk *>(superblock->blks[offset]);
         if (superblock->match(key) && !cblk->isValid() &&
             !cblk->isReserved() && superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+            superblock->canCoAllocate(compressed_size)) {
             if (is_prefetch && superblock->hasValidDemand()) {
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);
