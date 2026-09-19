@@ -356,21 +356,22 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
 
 TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
 {
-    // Insert 4 sub-blocks with distinct insertion ticks
+    // Insert 4 sub-blocks with distinct insertion ticks and sector offsets
+    Addr base_addr = 0x5000;
     mockTick = 10;
-    subBlks[0].insert({0x5000, false});
+    subBlks[0].insert({base_addr, false});
     subBlks[0].setSizeBits(64);
 
     mockTick = 20;
-    subBlks[1].insert({0x5000, false});
+    subBlks[1].insert({base_addr + BlkSize, false});
     subBlks[1].setSizeBits(64);
 
     mockTick = 30;
-    subBlks[2].insert({0x5000, false});
+    subBlks[2].insert({base_addr + 2 * BlkSize, false});
     subBlks[2].setSizeBits(64);
 
     mockTick = 40;
-    subBlks[3].insert({0x5000, false});
+    subBlks[3].insert({base_addr + 3 * BlkSize, false});
     subBlks[3].setSizeBits(64);
 
     ASSERT_EQ(superBlk.getNumValid(), 4);
@@ -428,21 +429,49 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     ASSERT_EQ(evict_blks[0], &subBlks[0]);
     ASSERT_EQ(evict_blks[1], &subBlks[1]);
 
+    // Sort evict_blks descending by physical slot index so higher-indexed
+    // sub-blocks are invalidated first, preventing shift-corruption of
+    // remaining eviction candidates during in-place compaction.
+    auto get_slot_index = [](const CacheBlk *blk) -> int {
+        const auto *sblk = static_cast<const SectorSubBlk *>(blk);
+        const auto *sblk_super =
+            static_cast<const SuperBlk *>(sblk->getSectorBlock());
+        if (sblk_super) {
+            for (int k = 0; k < sblk_super->blks.size(); ++k) {
+                if (sblk_super->blks[k] == sblk) {
+                    return k;
+                }
+            }
+        }
+        return -1;
+    };
+
+    std::sort(evict_blks.begin(), evict_blks.end(),
+              [&get_slot_index](const CacheBlk *a, const CacheBlk *b) {
+                  return get_slot_index(a) > get_slot_index(b);
+              });
+
     // Perform selective eviction
     for (auto *evict_blk : evict_blks) {
         evict_blk->invalidate();
     }
 
-    // Update expansion sub-block size
-    subBlks[3].setSizeBits(expansion_size);
+    // Update expansion sub-block size on the active sub-block holding
+    // expansion block (sector offset 3, now compacted into superBlk.blks[1])
+    static_cast<CompressionBlk *>(superBlk.blks[1])
+        ->setSizeBits(expansion_size);
 
-    // Verify subBlks[2] and subBlks[3] are preserved, subBlks[0] and
-    // subBlks[1] evicted
-    ASSERT_FALSE(subBlks[0].isValid());
-    ASSERT_FALSE(subBlks[1].isValid());
-    ASSERT_TRUE(subBlks[2].isValid());
-    ASSERT_TRUE(subBlks[3].isValid());
-    ASSERT_EQ(superBlk.getNumValid(), 2);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    // Verify compacted layout: valid sub-blocks occupy slots [0..1],
+    // slots [2..3] are invalid.
+    EXPECT_TRUE(superBlk.blks[0]->isValid());
+    EXPECT_TRUE(superBlk.blks[1]->isValid());
+    EXPECT_FALSE(superBlk.blks[2]->isValid());
+    EXPECT_FALSE(superBlk.blks[3]->isValid());
+    EXPECT_EQ(
+        static_cast<SectorSubBlk *>(superBlk.blks[0])->getSectorOffset(), 2);
+    EXPECT_EQ(
+        static_cast<SectorSubBlk *>(superBlk.blks[1])->getSectorOffset(), 3);
+    EXPECT_EQ(superBlk.getNumValid(), 2);
+    EXPECT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 }
