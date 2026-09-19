@@ -208,8 +208,17 @@ Queued::notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi)
     std::vector<AddrPriority> addresses;
     calculatePrefetch(pfi, addresses, cache);
 
-    // Get the maximu number of prefetches that we are allowed to generate
+    // Get the maximum number of prefetches that we are allowed to generate
     size_t max_pfs = getMaxPermittedPrefetches(addresses.size());
+
+    // Dynamically throttle prefetch issuance under memory queue pressure
+    if (pkt && pkt->isQueuePressureHigh()) {
+        if (pkt->isQueuePressureCritical()) {
+            max_pfs = 0;
+        } else {
+            max_pfs = std::max<size_t>(1, max_pfs / 2);
+        }
+    }
 
     // Queue up generated prefetches
     size_t num_pfs = 0;

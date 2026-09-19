@@ -274,6 +274,8 @@ class MemCtrl : public qos::MemCtrl
 
         AddrRangeList getAddrRanges() const override;
 
+        float getQueuePressure() const override { return ctrl.getQueuePressure(); }
+
     };
 
     /**
@@ -685,6 +687,23 @@ class MemCtrl : public qos::MemCtrl
     virtual bool allIntfDrained() const;
 
     DrainState drain() override;
+
+    float getWriteQueuePressure() const
+    {
+        return writeBufferSize > 0 ? (float)totalWriteQueueSize / (float)writeBufferSize : 0.0f;
+    }
+
+    float getReadQueuePressure() const
+    {
+        return readBufferSize > 0 ? (float)(totalReadQueueSize + respQueue.size()) / (float)readBufferSize : 0.0f;
+    }
+
+    float getQueuePressure() const
+    {
+        uint32_t totalCap = readBufferSize + writeBufferSize;
+        if (totalCap == 0) return 0.0f;
+        return (float)(totalReadQueueSize + respQueue.size() + totalWriteQueueSize) / (float)totalCap;
+    }
 
     /**
      * Check for command bus contention for single cycle command.

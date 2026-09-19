@@ -301,10 +301,10 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x001E00FF,
 
         // Flags that are used to create reponse packets
-        RESPONDER_FLAGS        = 0x00000009,
+        RESPONDER_FLAGS        = 0x001E0009,
 
         // Does this packet have sharers (which means it should not be
         // considered writable) or not. See setHasSharers below.
@@ -360,7 +360,14 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Downstream memory controller queue pressure signaling flags
+        QUEUE_PRESSURE_LOW      = 0x00020000,
+        QUEUE_PRESSURE_MODERATE = 0x00040000,
+        QUEUE_PRESSURE_HIGH     = 0x00080000,
+        QUEUE_PRESSURE_CRITICAL = 0x00100000,
+        QUEUE_PRESSURE_MASK     = 0x001E0000
     };
 
     Flags flags;
@@ -685,6 +692,25 @@ class Packet : public Printable, public Extensible<Packet>
     void setHasSharers()    { flags.set(HAS_SHARERS); }
     bool hasSharers() const { return flags.isSet(HAS_SHARERS); }
     //@}
+
+    void setQueuePressure(float pressure)
+    {
+        flags.clear(QUEUE_PRESSURE_MASK);
+        if (pressure >= 0.90f) {
+            flags.set(QUEUE_PRESSURE_CRITICAL);
+        } else if (pressure >= 0.75f) {
+            flags.set(QUEUE_PRESSURE_HIGH);
+        } else if (pressure >= 0.50f) {
+            flags.set(QUEUE_PRESSURE_MODERATE);
+        } else if (pressure >= 0.25f) {
+            flags.set(QUEUE_PRESSURE_LOW);
+        }
+    }
+    bool isQueuePressureCritical() const { return flags.isSet(QUEUE_PRESSURE_CRITICAL); }
+    bool isQueuePressureHigh() const { return flags.isSet(QUEUE_PRESSURE_HIGH) || flags.isSet(QUEUE_PRESSURE_CRITICAL); }
+    bool isQueuePressureModerate() const { return flags.isSet(QUEUE_PRESSURE_MODERATE); }
+    bool isQueuePressureLow() const { return flags.isSet(QUEUE_PRESSURE_LOW); }
+    FlagsType getQueuePressureFlags() const { return ((FlagsType)flags) & QUEUE_PRESSURE_MASK; }
 
     /**
      * The express snoop flag is used for two purposes. Firstly, it is

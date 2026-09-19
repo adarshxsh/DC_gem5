@@ -113,6 +113,9 @@ class Port
     /** Get the port id. */
     PortID getId() const { return id; }
 
+    /** Get downstream queue pressure if supported (ratio in range [0, 1]). */
+    virtual float getQueuePressure() const { return 0.0f; }
+
     /** Attach to a peer port. */
     virtual void
     bind(Port &peer)

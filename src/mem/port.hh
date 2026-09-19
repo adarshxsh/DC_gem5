@@ -180,6 +180,11 @@ class RequestPort: public Port, public AtomicRequestProtocol,
     AddrRangeList getAddrRanges() const;
 
     /**
+     * Get the downstream memory queue pressure from the connected peer responder.
+     */
+    float getPeerQueuePressure() const;
+
+    /**
      * Inject a PrintReq for the given address to print the state of
      * that address throughout the memory system.  For debugging.
      */
@@ -641,6 +646,12 @@ RequestPort::sendRetryResp()
     } catch (UnboundPortException) {
         reportUnbound();
     }
+}
+
+inline float
+RequestPort::getPeerQueuePressure() const
+{
+    return _responsePort ? _responsePort->getQueuePressure() : (_peer ? _peer->getQueuePressure() : 0.0f);
 }
 
 } // namespace gem5
