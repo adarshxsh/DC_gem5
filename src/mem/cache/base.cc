@@ -47,6 +47,7 @@
 #include <algorithm>
 
 #include "base/compiler.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
 #include "debug/CacheComp.hh"
