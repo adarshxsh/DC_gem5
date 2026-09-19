@@ -219,7 +219,7 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    if (getNumValid() >= blks.size()) {
+    if (static_cast<std::size_t>(getNumValid()) >= blks.size()) {
         return false;
     }
 
