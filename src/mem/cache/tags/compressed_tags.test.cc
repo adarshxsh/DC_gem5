@@ -602,7 +602,7 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateRanking)
 
     // Evaluate candidates by required secondary evictions and free bit space
     std::size_t best_evictions = std::numeric_limits<std::size_t>::max();
-    ssize_t best_net_space = std::numeric_limits<ssize_t>::lowest();
+    int64_t best_net_space = std::numeric_limits<int64_t>::lowest();
     int best_candidate_idx = -1;
 
     for (int i = 0; i < NumCandidates; ++i) {
@@ -617,8 +617,8 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateRanking)
         std::size_t total_cap = candidates[i].getBlkSizeBits();
         std::size_t free_cap =
             (total_cap > used_bits) ? (total_cap - used_bits) : 0;
-        ssize_t net_space = static_cast<ssize_t>(free_cap) -
-                            static_cast<ssize_t>(expanding_size);
+        int64_t net_space = static_cast<int64_t>(free_cap) -
+                            static_cast<int64_t>(expanding_size);
 
         bool can_coalloc = false;
         if (!candidates[i].isValid() || valid_cnt == 0) {
