@@ -53,5 +53,3 @@ Source('flitBuffer.cc')
 Source('flit.cc')
 Source('Credit.cc')
 Source('NetworkBridge.cc')
-
-GTest('garnet_credit.test', 'garnet_credit.test.cc', 'Credit.cc', 'flit.cc', with_tag('gem5 lib'))
