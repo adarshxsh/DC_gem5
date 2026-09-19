@@ -545,6 +545,11 @@ class MemCtrl : public qos::MemCtrl
     const Tick commandWindow;
 
     /**
+     * Flag to enable compressed payload transport
+     */
+    const bool enableCompressedTransport;
+
+    /**
      * Till when must we wait before issuing next RD/WR burst?
      */
     Tick nextBurstAt;

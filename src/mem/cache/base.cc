@@ -46,7 +46,10 @@
 #include "mem/cache/base.hh"
 #include <algorithm>
 
+#include <algorithm>
+
 #include "base/compiler.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
 #include "debug/CacheComp.hh"
@@ -1830,6 +1833,11 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            unsigned comp_size = divCeil(cblk->getSizeBits(), 8);
+            pkt->setCompressedSize(comp_size);
+        }
     }
 
     return pkt;
@@ -1875,6 +1883,11 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            unsigned comp_size = divCeil(cblk->getSizeBits(), 8);
+            pkt->setCompressedSize(comp_size);
+        }
     }
 
     return pkt;
