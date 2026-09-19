@@ -89,7 +89,8 @@ class SuperBlkTestFixture : public ::testing::Test
         ASSERT_EQ(sb.isValid(), (count_valid > 0));
         if (count_valid > 0) {
             ASSERT_DOUBLE_EQ(sb.getCompressionFactor(), min_cf);
-            ASSERT_LE(static_cast<double>(count_valid), sb.getCompressionFactor());
+            ASSERT_LE(static_cast<double>(count_valid),
+                      sb.getCompressionFactor());
             ASSERT_LE(total_bits, BlkSize * CHAR_BIT);
         } else {
             ASSERT_DOUBLE_EQ(sb.getCompressionFactor(), 1.0);
