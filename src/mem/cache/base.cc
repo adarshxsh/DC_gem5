@@ -2912,6 +2912,7 @@ BaseCache::getCompressionFactor(Addr addr, bool is_secure) const
         }
     }
     return 1;
+}
 
 bool
 BaseCache::isBusCongested(float threshold) const
@@ -2922,23 +2923,20 @@ BaseCache::isBusCongested(float threshold) const
 float
 BaseCache::getBusUtilization() const
 {
-    float mshrUtil =
-        (mshrQueue.totalEntries() > 0)
-            ? (float)mshrQueue.allocatedEntries() /
-                  (float)mshrQueue.totalEntries()
-            : 0.0f;
-    float wbUtil =
-        (writeBuffer.totalEntries() > 0)
-            ? (float)writeBuffer.allocatedEntries() /
-                  (float)writeBuffer.totalEntries()
-            : 0.0f;
+    float mshrUtil = (mshrQueue.totalEntries() > 0)
+                         ? (float)mshrQueue.allocatedEntries() /
+                               (float)mshrQueue.totalEntries()
+                         : 0.0f;
+    float wbUtil = (writeBuffer.totalEntries() > 0)
+                       ? (float)writeBuffer.allocatedEntries() /
+                             (float)writeBuffer.totalEntries()
+                       : 0.0f;
 
     float congestion = std::max(mshrUtil, wbUtil);
     if (memSidePort.isConnected() && isBlocked()) {
         congestion = std::max(congestion, 0.8f);
     }
     return congestion;
-
 }
 
 } // namespace gem5

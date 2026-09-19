@@ -157,12 +157,14 @@ class Queue : public Drainable, public Named
         return _numInService;
     }
 
-    int totalEntries() const
+    int
+    totalEntries() const
     {
         return numEntries;
     }
 
-    int allocatedEntries() const
+    int
+    allocatedEntries() const
     {
         return allocated;
     }
