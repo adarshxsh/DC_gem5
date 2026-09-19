@@ -173,7 +173,9 @@ Queued::getMaxPermittedPrefetches(size_t total,
         max_pfs = max_pfs / 2;
     } else if (write_occ > 0.5f) {
         float scale = 1.0f - (write_occ - 0.5f) / 0.5f;
-        if (scale < 0.0f) scale = 0.0f;
+        if (scale < 0.0f) {
+            scale = 0.0f;
+        }
         max_pfs = static_cast<size_t>(max_pfs * scale);
     }
     return max_pfs;
@@ -294,9 +296,10 @@ Queued::QueuedStats::QueuedStats(statistics::Group *parent)
       ADD_STAT(pfDroppedLowCompression, statistics::units::Count::get(),
                "number of prefetch candidates dropped due to low compression "
                "confidence filtering"),
-      ADD_STAT(pfDroppedQueuePressure, statistics::units::Count::get(),
-               "number of prefetch candidates dropped due to write queue/memory "
-               "pressure")
+      ADD_STAT(
+          pfDroppedQueuePressure, statistics::units::Count::get(),
+          "number of prefetch candidates dropped due to write queue/memory "
+          "pressure")
 {
 }
 
@@ -488,10 +491,11 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
     bool mem_pressure = cache.getMemoryPressure();
     if ((mem_pressure || write_occ >= 0.8f) && priority <= 0) {
         statsQueued.pfDroppedQueuePressure++;
-        DPRINTF(HWPrefetch,
-                "Dropping low-priority prefetch candidate due to queue pressure "
-                "addr: %#x priority: %d\n",
-                new_pfi.getAddr(), priority);
+        DPRINTF(
+            HWPrefetch,
+            "Dropping low-priority prefetch candidate due to queue pressure "
+            "addr: %#x priority: %d\n",
+            new_pfi.getAddr(), priority);
         return;
     }
 
