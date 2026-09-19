@@ -122,7 +122,7 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
     def _get_default_membus(self) -> SystemXBar:
         from m5.objects import NULL
 
-        membus = SystemXBar(width=64)
+        membus = SystemXBar(width=16)
         membus.snoop_filter = NULL
         membus.badaddr_responder = BadAddr()
         membus.default = membus.badaddr_responder.pio
