@@ -47,6 +47,7 @@
 #include <algorithm>
 
 #include "base/compiler.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
 #include "debug/CacheComp.hh"
@@ -332,6 +333,11 @@ BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
         // These delays should have been consumed by now
         assert(pkt->headerDelay == 0);
         assert(pkt->payloadDelay == 0);
+
+        CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
+        if (comp_blk && comp_blk->isCompressed()) {
+            pkt->setCompressedSize(divCeil(comp_blk->getSizeBits(), 8));
+        }
 
         pkt->makeTimingResponse();
 
@@ -1882,10 +1888,15 @@ BaseCache::writebackBlk(CacheBlk *blk)
     pkt->allocate();
     pkt->setDataFromBlock(blk->data, blkSize);
 
+    CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
+    if (comp_blk && comp_blk->isCompressed()) {
+        pkt->setCompressedSize(divCeil(comp_blk->getSizeBits(), 8));
+    }
+
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->headerDelay += compressor->getDecompressionLatency(blk);
     }
 
     return pkt;
@@ -1927,10 +1938,15 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     pkt->allocate();
     pkt->setDataFromBlock(blk->data, blkSize);
 
+    CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
+    if (comp_blk && comp_blk->isCompressed()) {
+        pkt->setCompressedSize(divCeil(comp_blk->getSizeBits(), 8));
+    }
+
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->headerDelay += compressor->getDecompressionLatency(blk);
     }
 
     return pkt;

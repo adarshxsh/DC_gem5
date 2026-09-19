@@ -439,6 +439,11 @@ class Packet : public Printable, public Extensible<Packet>
     uint32_t snoopDelay;
 
     /**
+     * Compressed payload size in bytes. Defaults to 0 (uncompressed).
+     */
+    unsigned _compressedSize;
+
+    /**
      * The extra pipelining delay from seeing the packet until the end of
      * payload is transmitted by the component that provided it (if
      * any). This includes the header delay. Similar to the header
@@ -817,6 +822,19 @@ class Packet : public Printable, public Extensible<Packet>
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
 
     /**
+     * Compressed payload byte size accessors.
+     */
+    void setCompressedSize(unsigned _size) { _compressedSize = _size; }
+    unsigned getCompressedSize() const
+    {
+        return (_compressedSize > 0) ? _compressedSize : getSize();
+    }
+    bool isCompressed() const
+    {
+        return _compressedSize > 0 && _compressedSize < getSize();
+    }
+
+    /**
      * Get address range to which this packet belongs.
      *
      * @return Address range of this packet.
@@ -881,6 +899,7 @@ class Packet : public Printable, public Extensible<Packet>
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0), snoopDelay(0),
+           _compressedSize(0),
            payloadDelay(0), senderState(NULL)
     {
         flags.clear();
@@ -922,7 +941,8 @@ class Packet : public Printable, public Extensible<Packet>
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0),
-           snoopDelay(0), payloadDelay(0), senderState(NULL)
+           snoopDelay(0), _compressedSize(0),
+           payloadDelay(0), senderState(NULL)
     {
         flags.clear();
         if (req->hasPaddr()) {
@@ -952,6 +972,7 @@ class Packet : public Printable, public Extensible<Packet>
            htmTransactionUid(0),
            headerDelay(pkt->headerDelay),
            snoopDelay(0),
+           _compressedSize(pkt->_compressedSize),
            payloadDelay(pkt->payloadDelay),
            senderState(pkt->senderState)
     {
