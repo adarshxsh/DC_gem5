@@ -394,7 +394,7 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
             m_net_ptr->MessageSizeType_to_int(net_msg_ptr->getMessageSize());
     }
 
-    int num_flits = (int)divCeil((float)msg_size, (float)oPort->bitWidth());
+    int num_flits = divCeil(msg_size, (int)oPort->bitWidth());
 
     DPRINTF(RubyNetwork, "Message Size:%d vnet:%d bitWidth:%d\n", msg_size,
             vnet, oPort->bitWidth());
