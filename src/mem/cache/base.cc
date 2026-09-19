@@ -44,6 +44,7 @@
  */
 
 #include "mem/cache/base.hh"
+#include <algorithm>
 
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -634,7 +635,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
         }
     }
 
-    serviceMSHRTargets(mshr, pkt, blk);
+    serviceMSHRTargets(mshr, pkt, blk, writebacks);
     // We are stopping servicing targets early for the Locked RMW Read until
     // the write comes.
     if (!mshr->hasLockedRMWReadTarget()) {
@@ -1021,7 +1022,40 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
         // Evict valid blocks associated to this victim block
         for (auto& blk : evict_blks) {
             if (blk->isValid()) {
-                evictBlock(blk, writebacks);
+                // Requirement 3: Dirty sub-blocks must continue to be written
+                // back safely.
+                if (blk->isSet(CacheBlk::DirtyBit)) {
+                    evictBlock(blk, writebacks);
+                } else {
+                    // Requirement 1: BaseCache::handleEvictions must check L1
+                    // clean state before issuing snoop invalidation.
+                    RequestPtr req = std::make_shared<Request>(
+                        regenerateBlkAddr(blk), blkSize, 0,
+                        Request::wbRequestorId);
+                    if (blk->isSecure()) {
+                        req->setFlags(Request::SECURE);
+                    }
+                    req->taskId(blk->getTaskId());
+                    PacketPtr probe_pkt = new Packet(req, MemCmd::CleanEvict);
+                    probe_pkt->allocate();
+
+                    bool is_cached_in_l1 = isCachedAbove(probe_pkt);
+                    delete probe_pkt;
+
+                    if (is_cached_in_l1) {
+                        // Clean L1 line preserved! Do NOT issue snoop
+                        // invalidation. Requirement 2: Non-inclusive tag state
+                        // must track detached L1 clean sub-blocks.
+                        Addr blk_addr = regenerateBlkAddr(blk);
+                        trackDetachedL1CleanBlock(blk_addr, blk->isSecure());
+                        blk->setDetachedL1Clean();
+                        stats.detachedL1CleanPreserved++;
+
+                        invalidateBlock(blk);
+                    } else {
+                        evictBlock(blk, writebacks);
+                    }
+                }
             }
         }
     }
@@ -1074,13 +1108,12 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // must be evicted to make room for the expanded/contracted block
     std::vector<CacheBlk*> evict_blks;
     if (is_data_expansion || is_data_contraction) {
-        std::vector<CacheBlk*> evict_blks;
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
             victim = tags->findVictim(
                 {regenerateBlkAddr(blk), blk->isSecure()}, compression_size,
-                evict_blks, blk->getPartitionId(), blk->wasPrefetched());
+                evict_blks, blk->getPartitionId());
 
             // It is valid to return nullptr if there is no victim
             if (!victim) {
@@ -1100,14 +1133,47 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             DPRINTF(CacheRepl, "Data %s replacement victim: %s\n",
                 op_name, victim->print());
         } else {
-            // If we do not move the expanded block, we must make room for
-            // the expansion to happen, so evict every co-allocated block
+            // Evaluate post-expansion superblock capacity before evicting
+            // co-allocated sub-blocks. Evict only as many sub-blocks as
+            // necessary to fit the expanded block within capacity limits.
             const SuperBlk* superblock = static_cast<const SuperBlk*>(
                 compression_blk->getSectorBlock());
+
+            std::vector<CompressionBlk *> co_blks;
             for (auto& sub_blk : superblock->blks) {
                 if (sub_blk->isValid() && (blk != sub_blk)) {
-                    evict_blks.push_back(sub_blk);
+                    co_blks.push_back(static_cast<CompressionBlk *>(sub_blk));
                 }
+            }
+
+            // Order candidate sub-blocks by age (oldest/LRU first)
+            std::sort(co_blks.begin(), co_blks.end(),
+                      [](const CompressionBlk *a, const CompressionBlk *b) {
+                          return a->getAge() > b->getAge();
+                      });
+
+            const uint8_t new_blk_cf =
+                superblock->calculateCompressionFactor(compression_size);
+            const std::size_t max_bits = blkSize * CHAR_BIT;
+
+            auto fits_capacity =
+                [&](const std::vector<CompressionBlk *> &sub_list) {
+                    uint8_t target_cf = new_blk_cf;
+                    std::size_t total_bits = compression_size;
+                    for (const auto *sblk : sub_list) {
+                        uint8_t scf = superblock->calculateCompressionFactor(
+                            sblk->getSizeBits());
+                        target_cf = std::min(target_cf, scf);
+                        total_bits += sblk->getSizeBits();
+                    }
+                    std::size_t total_count = 1 + sub_list.size();
+                    return (target_cf > 1) && (total_count <= target_cf) &&
+                           (total_bits <= max_bits);
+                };
+
+            while (!co_blks.empty() && !fits_capacity(co_blks)) {
+                evict_blks.push_back(co_blks.front());
+                co_blks.erase(co_blks.begin());
             }
         }
 
@@ -1142,7 +1208,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 }
 
 void
-BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
+BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                          bool, bool)
 {
     assert(pkt->isRequest());
 
@@ -1192,6 +1259,14 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         } else {
             cmpAndSwap(blk, pkt);
         }
+
+        if (compressor) {
+            if (!updateCompressionData(
+                    blk, reinterpret_cast<const uint64_t *>(blk->data),
+                    writebacks)) {
+                invalidateBlock(blk);
+            }
+        }
     } else if (pkt->isWrite()) {
         // we have the block in a writable state and can go ahead,
         // note that the line may be also be considered writable in
@@ -1208,6 +1283,14 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         // this cache before knowing the store will fail.
         blk->setCoherenceBits(CacheBlk::DirtyBit);
         DPRINTF(CacheVerbose, "%s for %s (write)\n", __func__, pkt->print());
+
+        if (compressor) {
+            if (!updateCompressionData(
+                    blk, reinterpret_cast<const uint64_t *>(blk->data),
+                    writebacks)) {
+                invalidateBlock(blk);
+            }
+        }
     } else if (pkt->isRead()) {
         if (pkt->isLLSC()) {
             blk->trackLoadLocked(pkt);
@@ -1528,11 +1611,14 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             if (compressor) {
                 lat += compressor->getDecompressionLatency(blk);
             }
+        } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
+            lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
+                  compressor->getDecompressionLatency(blk);
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
 
-        satisfyRequest(pkt, blk);
+        satisfyRequest(pkt, blk, writebacks);
         maintainClusivity(pkt->fromCache(), blk);
 
         return true;
@@ -1696,7 +1782,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim =
         tags->findVictim({addr, is_secure}, blk_size_bits, evict_blks,
-                         partition_id, pkt->cmd.isPrefetch());
+                         partition_id, pkt->isPrefetch());
 
     // It is valid to return nullptr if there is no victim
     if (!victim)
@@ -1712,6 +1798,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
     // Insert new block at victimized entry
     tags->insertBlock(pkt, victim);
+    clearDetachedL1CleanBlock(addr, is_secure);
 
     // If using a compressor, set compression data. This must be done after
     // insertion, as the compression bit may be set.
@@ -1737,6 +1824,7 @@ BaseCache::invalidateBlock(CacheBlk *blk)
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {
+        clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
         tags->invalidate(blk);
     } else {
         tempBlock->invalidate();
@@ -2260,83 +2348,93 @@ BaseCache::CacheCmdStats::regStatsFromParent()
 }
 
 BaseCache::CacheStats::CacheStats(BaseCache &c)
-    : statistics::Group(&c), cache(c),
+    : statistics::Group(&c),
+      cache(c),
 
-    ADD_STAT(demandHits, statistics::units::Count::get(),
-             "number of demand (read+write) hits"),
-    ADD_STAT(overallHits, statistics::units::Count::get(),
-             "number of overall hits"),
-    ADD_STAT(demandHitLatency, statistics::units::Tick::get(),
-             "number of demand (read+write) hit ticks"),
-    ADD_STAT(overallHitLatency, statistics::units::Tick::get(),
-            "number of overall hit ticks"),
-    ADD_STAT(demandMisses, statistics::units::Count::get(),
-             "number of demand (read+write) misses"),
-    ADD_STAT(overallMisses, statistics::units::Count::get(),
-             "number of overall misses"),
-    ADD_STAT(demandMissLatency, statistics::units::Tick::get(),
-             "number of demand (read+write) miss ticks"),
-    ADD_STAT(overallMissLatency, statistics::units::Tick::get(),
-             "number of overall miss ticks"),
-    ADD_STAT(demandAccesses, statistics::units::Count::get(),
-             "number of demand (read+write) accesses"),
-    ADD_STAT(overallAccesses, statistics::units::Count::get(),
-             "number of overall (read+write) accesses"),
-    ADD_STAT(demandMissRate, statistics::units::Ratio::get(),
-             "miss rate for demand accesses"),
-    ADD_STAT(overallMissRate, statistics::units::Ratio::get(),
-             "miss rate for overall accesses"),
-    ADD_STAT(demandAvgMissLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall miss latency in ticks"),
-    ADD_STAT(overallAvgMissLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall miss latency"),
-    ADD_STAT(blockedCycles, statistics::units::Cycle::get(),
-            "number of cycles access was blocked"),
-    ADD_STAT(blockedCauses, statistics::units::Count::get(),
-            "number of times access was blocked"),
-    ADD_STAT(avgBlocked, statistics::units::Rate<
-                statistics::units::Cycle, statistics::units::Count>::get(),
-             "average number of cycles each access was blocked"),
-    ADD_STAT(writebacks, statistics::units::Count::get(),
-             "number of writebacks"),
-    ADD_STAT(demandMshrHits, statistics::units::Count::get(),
-             "number of demand (read+write) MSHR hits"),
-    ADD_STAT(overallMshrHits, statistics::units::Count::get(),
-             "number of overall MSHR hits"),
-    ADD_STAT(demandMshrMisses, statistics::units::Count::get(),
-             "number of demand (read+write) MSHR misses"),
-    ADD_STAT(overallMshrMisses, statistics::units::Count::get(),
-            "number of overall MSHR misses"),
-    ADD_STAT(overallMshrUncacheable, statistics::units::Count::get(),
-             "number of overall MSHR uncacheable misses"),
-    ADD_STAT(demandMshrMissLatency, statistics::units::Tick::get(),
-             "number of demand (read+write) MSHR miss ticks"),
-    ADD_STAT(overallMshrMissLatency, statistics::units::Tick::get(),
-             "number of overall MSHR miss ticks"),
-    ADD_STAT(overallMshrUncacheableLatency, statistics::units::Tick::get(),
-             "number of overall MSHR uncacheable ticks"),
-    ADD_STAT(demandMshrMissRate, statistics::units::Ratio::get(),
-             "mshr miss ratio for demand accesses"),
-    ADD_STAT(overallMshrMissRate, statistics::units::Ratio::get(),
-             "mshr miss ratio for overall accesses"),
-    ADD_STAT(demandAvgMshrMissLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall mshr miss latency"),
-    ADD_STAT(overallAvgMshrMissLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall mshr miss latency"),
-    ADD_STAT(overallAvgMshrUncacheableLatency, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "average overall mshr uncacheable latency"),
-    ADD_STAT(replacements, statistics::units::Count::get(),
-             "number of replacements"),
-    ADD_STAT(dataExpansions, statistics::units::Count::get(),
-             "number of data expansions"),
-    ADD_STAT(dataContractions, statistics::units::Count::get(),
-             "number of data contractions"),
-    cmd(MemCmd::NUM_MEM_CMDS)
+      ADD_STAT(demandHits, statistics::units::Count::get(),
+               "number of demand (read+write) hits"),
+      ADD_STAT(overallHits, statistics::units::Count::get(),
+               "number of overall hits"),
+      ADD_STAT(demandHitLatency, statistics::units::Tick::get(),
+               "number of demand (read+write) hit ticks"),
+      ADD_STAT(overallHitLatency, statistics::units::Tick::get(),
+               "number of overall hit ticks"),
+      ADD_STAT(demandMisses, statistics::units::Count::get(),
+               "number of demand (read+write) misses"),
+      ADD_STAT(overallMisses, statistics::units::Count::get(),
+               "number of overall misses"),
+      ADD_STAT(demandMissLatency, statistics::units::Tick::get(),
+               "number of demand (read+write) miss ticks"),
+      ADD_STAT(overallMissLatency, statistics::units::Tick::get(),
+               "number of overall miss ticks"),
+      ADD_STAT(demandAccesses, statistics::units::Count::get(),
+               "number of demand (read+write) accesses"),
+      ADD_STAT(overallAccesses, statistics::units::Count::get(),
+               "number of overall (read+write) accesses"),
+      ADD_STAT(demandMissRate, statistics::units::Ratio::get(),
+               "miss rate for demand accesses"),
+      ADD_STAT(overallMissRate, statistics::units::Ratio::get(),
+               "miss rate for overall accesses"),
+      ADD_STAT(demandAvgMissLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall miss latency in ticks"),
+      ADD_STAT(overallAvgMissLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall miss latency"),
+      ADD_STAT(blockedCycles, statistics::units::Cycle::get(),
+               "number of cycles access was blocked"),
+      ADD_STAT(blockedCauses, statistics::units::Count::get(),
+               "number of times access was blocked"),
+      ADD_STAT(avgBlocked,
+               statistics::units::Rate<statistics::units::Cycle,
+                                       statistics::units::Count>::get(),
+               "average number of cycles each access was blocked"),
+      ADD_STAT(writebacks, statistics::units::Count::get(),
+               "number of writebacks"),
+      ADD_STAT(demandMshrHits, statistics::units::Count::get(),
+               "number of demand (read+write) MSHR hits"),
+      ADD_STAT(overallMshrHits, statistics::units::Count::get(),
+               "number of overall MSHR hits"),
+      ADD_STAT(demandMshrMisses, statistics::units::Count::get(),
+               "number of demand (read+write) MSHR misses"),
+      ADD_STAT(overallMshrMisses, statistics::units::Count::get(),
+               "number of overall MSHR misses"),
+      ADD_STAT(overallMshrUncacheable, statistics::units::Count::get(),
+               "number of overall MSHR uncacheable misses"),
+      ADD_STAT(demandMshrMissLatency, statistics::units::Tick::get(),
+               "number of demand (read+write) MSHR miss ticks"),
+      ADD_STAT(overallMshrMissLatency, statistics::units::Tick::get(),
+               "number of overall MSHR miss ticks"),
+      ADD_STAT(overallMshrUncacheableLatency, statistics::units::Tick::get(),
+               "number of overall MSHR uncacheable ticks"),
+      ADD_STAT(demandMshrMissRate, statistics::units::Ratio::get(),
+               "mshr miss ratio for demand accesses"),
+      ADD_STAT(overallMshrMissRate, statistics::units::Ratio::get(),
+               "mshr miss ratio for overall accesses"),
+      ADD_STAT(demandAvgMshrMissLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall mshr miss latency"),
+      ADD_STAT(overallAvgMshrMissLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall mshr miss latency"),
+      ADD_STAT(overallAvgMshrUncacheableLatency,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "average overall mshr uncacheable latency"),
+      ADD_STAT(replacements, statistics::units::Count::get(),
+               "number of replacements"),
+      ADD_STAT(detachedL1CleanPreserved, statistics::units::Count::get(),
+               "number of detached clean L1 lines preserved during L2 "
+               "superblock eviction"),
+      ADD_STAT(dataExpansions, statistics::units::Count::get(),
+               "number of data expansions"),
+      ADD_STAT(dataContractions, statistics::units::Count::get(),
+               "number of data contractions"),
+      cmd(MemCmd::NUM_MEM_CMDS)
 {
     for (int idx = 0; idx < MemCmd::NUM_MEM_CMDS; ++idx)
         cmd[idx].reset(new CacheCmdStats(c, MemCmd(idx).toString()));
@@ -2566,6 +2664,7 @@ BaseCache::CacheStats::regStats()
             system->getRequestorName(i));
     }
 
+    detachedL1CleanPreserved.flags(nozero | nonan);
     dataExpansions.flags(nozero | nonan);
     dataContractions.flags(nozero | nonan);
 }

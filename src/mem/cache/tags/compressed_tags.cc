@@ -45,6 +45,8 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <climits>
+
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -141,24 +143,26 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     SuperBlk* victim_superblock = nullptr;
     bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
-    SuperBlk *matching_superblock = nullptr;
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key)) {
-            matching_superblock = superblock;
-            if (!superblock->blks[offset]->isValid() &&
-                superblock->isCompressed() &&
-                superblock->canCoAllocate(compressed_size, is_prefetch)) {
-                victim_superblock = superblock;
-                is_co_allocation = true;
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
+            superblock->isCompressed() &&
+            superblock->canCoAllocate(compressed_size)) {
+            if (is_prefetch && superblock->hasValidDemand()) {
+                const uint8_t new_blk_cf =
+                    superblock->calculateCompressionFactor(compressed_size);
+                const uint8_t current_cf = superblock->getCompressionFactor();
+                const uint8_t new_cf = (superblock->getNumValid() == 0)
+                                           ? new_blk_cf
+                                           : std::min(current_cf, new_blk_cf);
+                if (new_cf < current_cf) {
+                    continue;
+                }
             }
+            victim_superblock = superblock;
+            is_co_allocation = true;
             break;
         }
-    }
-
-    if (is_prefetch && matching_superblock &&
-        matching_superblock->hasValidDemand() && !is_co_allocation) {
-        return nullptr;
     }
 
     // If the superblock is not present or cannot be co-allocated a
@@ -171,9 +175,25 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
             return nullptr;
         }
 
+        std::vector<ReplaceableEntry *> replacement_candidates;
+        if (is_prefetch) {
+            for (const auto &entry : superblock_entries) {
+                SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+                if (!superblock->hasValidDemand()) {
+                    replacement_candidates.push_back(entry);
+                }
+            }
+        } else {
+            replacement_candidates = superblock_entries;
+        }
+
+        if (replacement_candidates.empty()) {
+            return nullptr;
+        }
+
         // Choose replacement victim from replacement candidates
-        victim_superblock = static_cast<SuperBlk*>(
-            replacementPolicy->getVictim(superblock_entries));
+        victim_superblock = static_cast<SuperBlk *>(
+            replacementPolicy->getVictim(replacement_candidates));
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){
@@ -221,18 +241,20 @@ CompressedTags::checkInvariants() const
         if (super_blk.isValid()) {
             uint8_t num_valid = super_blk.getNumValid();
             uint8_t cf = super_blk.getCompressionFactor();
-            assert(num_valid <= cf);
-            if (num_valid > 1) {
-                assert(super_blk.isCompressed());
-            }
+            std::size_t total_bits = 0;
             for (const auto &blk : super_blk.blks) {
                 if (blk->isValid()) {
                     const CompressionBlk *cblk =
                         static_cast<const CompressionBlk *>(blk);
+                    total_bits += cblk->getSizeBits();
                     uint8_t blk_cf = super_blk.calculateCompressionFactor(
                         cblk->getSizeBits());
                     assert(blk_cf >= cf);
                 }
+            }
+            assert(total_bits <= blkSize * CHAR_BIT);
+            if (num_valid > 1) {
+                assert(super_blk.isCompressed());
             }
         } else {
             assert(super_blk.getCompressionFactor() == 1);

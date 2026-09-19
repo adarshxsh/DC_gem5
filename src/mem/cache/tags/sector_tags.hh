@@ -183,6 +183,7 @@ class SectorTags : public BaseTags
      * @param size Size, in bits, of new block to allocate.
      * @param evict_blks Cache blocks to be evicted.
      * @param partition_id Partition ID for resource management.
+     * @param is_prefetch True if request is a prefetch.
      * @return Cache block to be replaced.
      */
     CacheBlk *findVictim(const CacheBlk::KeyType &key, const std::size_t size,
