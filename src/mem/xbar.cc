@@ -203,6 +203,7 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
         // layer to be freed up (and in the case of a busy peer, for
         // that transaction to go through, and then the layer to free
         // up)
+        targetPorts[src_port] = &port;
         waitingForLayer.push_back(src_port);
         return false;
     }
@@ -237,6 +238,7 @@ BaseXBar::Layer<SrcType, DstType>::failedTiming(SrcType* src_port,
     // failed in forwarding and should track that we are now waiting
     // for the peer to send a retry
     waitingForPeer = src_port;
+    targetPorts[src_port] = &port;
 
     // we should have gone from idle or retry to busy in the tryTiming
     // test
@@ -283,10 +285,25 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     // update the state
     state = RETRY;
 
-    // set the retrying port to the front of the retry list and pop it
-    // off the list
-    SrcType* retryingPort = waitingForLayer.front();
-    waitingForLayer.pop_front();
+    // Evaluate downstream queue pressure before selecting the next port
+    size_t best_idx = 0;
+    uint64_t min_pressure = getPortPressure(waitingForLayer[0]);
+
+    for (size_t i = 1; i < waitingForLayer.size(); ++i) {
+        uint64_t p = getPortPressure(waitingForLayer[i]);
+        if (p < min_pressure) {
+            min_pressure = p;
+            best_idx = i;
+        }
+    }
+
+    SrcType *retryingPort = waitingForLayer[best_idx];
+    if (best_idx == 0) {
+        waitingForLayer.pop_front();
+    } else {
+        waitingForLayer.erase(waitingForLayer.begin() + best_idx);
+    }
+    targetPorts.erase(retryingPort);
 
     // tell the port to retry, which in some cases ends up calling the
     // layer again
@@ -316,6 +333,7 @@ BaseXBar::Layer<SrcType, DstType>::recvRetry()
     // add the port where the failed packet originated to the front of
     // the waiting ports for the layer, this allows us to call retry
     // on the port immediately if the crossbar layer is idle
+    targetPorts[waitingForPeer] = &port;
     waitingForLayer.push_front(waitingForPeer);
 
     // we are no longer waiting for the peer

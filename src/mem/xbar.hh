@@ -71,7 +71,7 @@ namespace gem5
 class BaseXBar : public ClockedObject
 {
 
-  protected:
+  public:
 
     /**
      * A layer is an internal crossbar arbitration point with its own
@@ -209,6 +209,30 @@ class BaseXBar : public ClockedObject
          * the original send was delayed due to a busy layer.
          */
         std::deque<SrcType*> waitingForLayer;
+
+        /**
+         * Map tracking destination ports for waiting source ports.
+         */
+        std::unordered_map<SrcType *, DstType *> targetPorts;
+
+        /**
+         * Helper method to query real-time queue pressure for a source port.
+         */
+        uint64_t
+        getPortPressure(SrcType *src_port) const
+        {
+            if (src_port) {
+                uint64_t p = src_port->getQueuePressure();
+                if (p > 0) {
+                    return p;
+                }
+                auto it = targetPorts.find(src_port);
+                if (it != targetPorts.end() && it->second) {
+                    return it->second->getQueuePressure();
+                }
+            }
+            return port.getQueuePressure();
+        }
 
         /**
          * Track who is waiting for the retry when receiving it from a

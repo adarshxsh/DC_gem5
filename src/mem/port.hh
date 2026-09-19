@@ -286,6 +286,16 @@ class RequestPort: public Port, public AtomicRequestProtocol,
      */
     virtual void sendRetryResp();
 
+    /**
+     * Get real-time queue pressure/occupancy metrics from connected responder.
+     */
+    uint64_t getQueuePressure() const;
+    uint64_t
+    getQueueOccupancy() const
+    {
+        return getQueuePressure();
+    }
+
   protected:
     /**
      * Called to receive an address range change from the peer response
@@ -387,6 +397,23 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      * @return a list of ranges responded to
      */
     virtual AddrRangeList getAddrRanges() const = 0;
+
+    /**
+     * Get real-time queue pressure/occupancy metrics from downstream
+     * responder.
+     *
+     * @return Current queue occupancy/pressure metric
+     */
+    virtual uint64_t
+    getQueuePressure() const
+    {
+        return 0;
+    }
+    virtual uint64_t
+    getQueueOccupancy() const
+    {
+        return getQueuePressure();
+    }
 
     /**
      * We let the request port do the work, so these don't do anything.
@@ -641,6 +668,12 @@ RequestPort::sendRetryResp()
     } catch (UnboundPortException) {
         reportUnbound();
     }
+}
+
+inline uint64_t
+RequestPort::getQueuePressure() const
+{
+    return _responsePort ? _responsePort->getQueuePressure() : 0;
 }
 
 } // namespace gem5

@@ -274,6 +274,11 @@ class MemCtrl : public qos::MemCtrl
 
         AddrRangeList getAddrRanges() const override;
 
+        uint64_t
+        getQueuePressure() const override
+        {
+            return ctrl.getQueuePressure();
+        }
     };
 
     /**
@@ -311,6 +316,15 @@ class MemCtrl : public qos::MemCtrl
                         EventFunctionWrapper& resp_event,
                         bool& retry_rd_req);
     EventFunctionWrapper respondEvent;
+
+    /**
+     * Get real-time queue pressure/occupancy of the memory controller
+     */
+    uint64_t
+    getQueuePressure() const
+    {
+        return totalReadQueueSize + totalWriteQueueSize + respQueue.size();
+    }
 
     /**
      * Check if the read queue has room for more entries
