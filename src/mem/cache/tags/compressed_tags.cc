@@ -45,6 +45,7 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <cstdint>
 #include <limits>
 
 #include "base/trace.hh"
@@ -147,7 +148,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     SuperBlk *best_superblock = nullptr;
     bool best_is_co_allocation = false;
     std::size_t min_evictions = std::numeric_limits<std::size_t>::max();
-    ssize_t max_net_space = std::numeric_limits<ssize_t>::lowest();
+    int64_t max_net_space = std::numeric_limits<int64_t>::lowest();
     std::size_t min_valid_count = std::numeric_limits<std::size_t>::max();
     std::vector<ReplaceableEntry *> tied_candidates;
 
@@ -183,8 +184,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         std::size_t total_capacity = superblock->getBlkSizeBits();
         std::size_t free_bit_capacity =
             (total_capacity > used_bits) ? (total_capacity - used_bits) : 0;
-        ssize_t net_available_space = static_cast<ssize_t>(free_bit_capacity) -
-                                      static_cast<ssize_t>(compressed_size);
+        int64_t net_available_space = static_cast<int64_t>(free_bit_capacity) -
+                                      static_cast<int64_t>(compressed_size);
 
         // Determine if co-allocation is possible without secondary evictions
         bool can_coallocate = false;
