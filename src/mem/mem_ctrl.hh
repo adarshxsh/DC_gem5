@@ -630,7 +630,6 @@ class MemCtrl : public qos::MemCtrl
     virtual void pruneBurstTick();
 
   public:
-
     /**
      * Select either the read or write queue
      *
