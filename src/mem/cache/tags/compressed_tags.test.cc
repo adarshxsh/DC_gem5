@@ -69,7 +69,7 @@ class SuperBlkTestFixture : public ::testing::Test
     verifyInvariants(const SuperBlk &sb)
     {
         uint8_t count_valid = 0;
-        double min_cf = sb.blks.size();
+        double min_cf = static_cast<double>(sb.blks.size());
         for (const auto &blk : sb.blks) {
             if (blk->isValid()) {
                 count_valid++;
@@ -87,7 +87,7 @@ class SuperBlkTestFixture : public ::testing::Test
         ASSERT_EQ(sb.isValid(), (count_valid > 0));
         if (count_valid > 0) {
             ASSERT_DOUBLE_EQ(sb.getCompressionFactor(), min_cf);
-            ASSERT_LE(count_valid, sb.getCompressionFactor());
+            ASSERT_LE(static_cast<double>(count_valid), sb.getCompressionFactor());
         } else {
             ASSERT_DOUBLE_EQ(sb.getCompressionFactor(), 1.0);
         }
@@ -147,7 +147,7 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
 
     ASSERT_TRUE(superBlk.isValid());
     ASSERT_EQ(superBlk.getNumValid(), 1);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 8.0);
     verifyInvariants(superBlk);
 
     // Check co-allocation possibilities
@@ -161,7 +161,7 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     subBlks[1].setSizeBits(128);
 
     ASSERT_EQ(superBlk.getNumValid(), 2);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 4.0);
     verifyInvariants(superBlk);
 
     // Invalidate block 1 (free sub-block capacity)
@@ -169,7 +169,7 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
 
     ASSERT_EQ(superBlk.getNumValid(), 1);
     // Capacity freed: compression factor should recover to 8!
-    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 8.0);
     verifyInvariants(superBlk);
 
     // Freed capacity can now co-allocate another 64-bit block
@@ -178,7 +178,7 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     subBlks[2].setSizeBits(64);
 
     ASSERT_EQ(superBlk.getNumValid(), 2);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 8.0);
     verifyInvariants(superBlk);
 }
 
@@ -203,7 +203,7 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
     subBlks[1].insert({0x2000, false});
     subBlks[1].setSizeBits(128); // CF=4
 
-    ASSERT_EQ(superBlk.getCompressionFactor(), 4);
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 4.0);
     verifyInvariants(superBlk);
 
     // Move subBlks[1] (128 bits) to subBlksB[1] in superBlkB
@@ -213,12 +213,12 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
     ASSERT_TRUE(subBlksB[1].isValid());
     ASSERT_EQ(subBlksB[1].getSizeBits(), 128);
     ASSERT_EQ(superBlkB.getNumValid(), 1);
-    ASSERT_EQ(superBlkB.getCompressionFactor(), 4);
+    ASSERT_DOUBLE_EQ(superBlkB.getCompressionFactor(), 4.0);
 
     // Verify superBlk (A) lost subBlks[1], so its CF recovered to 8
     ASSERT_FALSE(subBlks[1].isValid());
     ASSERT_EQ(superBlk.getNumValid(), 1);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 8.0);
 
     verifyInvariants(superBlk);
     verifyInvariants(superBlkB);
@@ -239,7 +239,7 @@ TEST_F(SuperBlkTestFixture, ExpansionContractionCheck)
 
     // Modify size to 256 bits (CF=2)
     subBlks[0].setSizeBits(256);
-    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    ASSERT_DOUBLE_EQ(superBlk.getCompressionFactor(), 2.0);
 
     // Contraction when new size has better CF (64 bits -> CF=8 > 2)
     ASSERT_EQ(subBlks[0].checkExpansionContraction(64),

@@ -222,8 +222,10 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         (getNumValid() == 0) ? new_blk_cf
                              : std::min(getCompressionFactor(), new_blk_cf);
 
-    return (target_cf > 1.0) && (getNumValid() + 1 <= target_cf) &&
-           (compressed_size <= (blkSize * CHAR_BIT) / target_cf + 1e-9);
+    return (target_cf > 1.0) &&
+           (static_cast<double>(getNumValid() + 1) <= target_cf) &&
+           (static_cast<double>(compressed_size) <=
+            static_cast<double>(blkSize * CHAR_BIT) / target_cf + 1e-9);
 }
 
 void

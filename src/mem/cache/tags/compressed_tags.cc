@@ -214,7 +214,7 @@ CompressedTags::checkInvariants() const
         if (super_blk.isValid()) {
             uint8_t num_valid = super_blk.getNumValid();
             double cf = super_blk.getCompressionFactor();
-            assert(num_valid <= cf);
+            assert(static_cast<double>(num_valid) <= cf);
             if (num_valid > 1) {
                 assert(super_blk.isCompressed());
             }
