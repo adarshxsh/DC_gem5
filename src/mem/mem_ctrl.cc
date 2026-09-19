@@ -917,6 +917,7 @@ MemCtrl::dynamicWriteHighThreshold(double read_pressure,
     uint32_t min_thresh = std::max((uint32_t)1, writeLowThreshold);
     uint32_t max_thresh =
         writeBufferSize > 0 ? writeBufferSize - 1 : writeHighThreshold;
+    max_thresh = std::max(min_thresh, max_thresh);
 
     uint32_t res = static_cast<uint32_t>(std::round(high_thresh));
     return std::clamp(res, min_thresh, max_thresh);
@@ -943,6 +944,7 @@ MemCtrl::dynamicWriteLowThreshold(double read_pressure,
 
     uint32_t min_thresh = 1;
     uint32_t max_thresh = writeHighThreshold > 1 ? writeHighThreshold - 1 : 1;
+    max_thresh = std::max(min_thresh, max_thresh);
 
     uint32_t res = static_cast<uint32_t>(std::round(low_thresh));
     return std::clamp(res, min_thresh, max_thresh);
