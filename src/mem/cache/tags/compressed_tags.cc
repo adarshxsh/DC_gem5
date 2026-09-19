@@ -122,6 +122,37 @@ CompressedTags::tagsInit()
     }
 }
 
+CacheBlk*
+CompressedTags::findBlock(const CacheBlk::KeyType &key) const
+{
+    const Addr offset = extractSectorOffset(key.address);
+    const std::vector<ReplaceableEntry*> entries =
+        indexingPolicy->getPossibleEntries(key);
+
+    for (const auto& sector : entries) {
+        SuperBlk* superblock = static_cast<SuperBlk*>(sector);
+        if (superblock->match(key)) {
+            SectorSubBlk* blk = superblock->findSubBlk(offset);
+            if (blk && blk->match(key)) {
+                return blk;
+            }
+        }
+    }
+    return nullptr;
+}
+
+void
+CompressedTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
+{
+    SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
+    sub_blk->setSectorOffset(extractSectorOffset(pkt->getAddr()));
+    SectorTags::insertBlock(pkt, blk);
+    SuperBlk* superblock = static_cast<SuperBlk*>(sub_blk->getSectorBlock());
+    if (superblock) {
+        superblock->updateOffsetMap();
+    }
+}
+
 CacheBlk *
 CompressedTags::findVictim(const CacheBlk::KeyType &key,
                            const std::size_t compressed_size,
@@ -146,7 +177,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+            !superblock->findSubBlk(offset) &&
             superblock->isCompressed() &&
             superblock->canCoAllocate(compressed_size))
         {
@@ -206,16 +237,22 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = victim_superblock->blks[offset];
-
-    // It would be a hit if victim was valid in a co-allocation, and upgrades
-    // do not call findVictim, so it cannot happen
-    if (is_co_allocation){
+    SectorSubBlk* victim = nullptr;
+    if (is_co_allocation) {
+        assert(victim_superblock->getNumValid() < victim_superblock->blks.size());
+        victim = victim_superblock->blks[victim_superblock->getNumValid()];
         assert(!victim->isValid());
 
         // Print all co-allocated blocks
-        DPRINTF(CacheComp, "Co-Allocation: offset %d of %s\n", offset,
+        DPRINTF(CacheComp, "Co-Allocation: slot %d (offset %d) of %s\n",
+                victim_superblock->getNumValid(), offset,
                 victim_superblock->print());
+    } else {
+        if (victim_superblock->match(key)) {
+            victim = victim_superblock->blks[victim_superblock->getNumValid()];
+        } else {
+            victim = victim_superblock->blks[0];
+        }
     }
 
     // Update number of sub-blocks evicted due to a replacement
