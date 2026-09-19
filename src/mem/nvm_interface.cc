@@ -42,6 +42,7 @@
 
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
+#include "base/intmath.hh"
 #include "base/trace.hh"
 #include "debug/NVM.hh"
 #include "sim/system.hh"
