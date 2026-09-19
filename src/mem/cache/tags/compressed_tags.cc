@@ -140,7 +140,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
     // so, try co-allocating
     SuperBlk* victim_superblock = nullptr;
     bool is_co_allocation = false;
-    const uint64_t offset = extractSectorOffset(key.address);
+    const int offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) && superblock->isCompressed() &&
@@ -197,7 +197,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
 CacheBlk *
 CompressedTags::findBlock(const CacheBlk::KeyType &key) const
 {
-    const Addr offset = extractSectorOffset(key.address);
+    const int offset = extractSectorOffset(key.address);
     const std::vector<ReplaceableEntry *> entries =
         indexingPolicy->getPossibleEntries(key);
 
