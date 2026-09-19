@@ -515,6 +515,9 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    bool enableQueuePressureSignaling;
+    uint32_t pressureHighThreshold;
+    uint32_t pressureLowThreshold;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 

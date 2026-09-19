@@ -137,6 +137,12 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether queue pressure-driven compression throttling is enabled. */
+    const bool enablePressureThrottling;
+
+    /** Queue pressure threshold percentage to throttle compression. */
+    const unsigned pressureThrottleThresholdPerc;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
