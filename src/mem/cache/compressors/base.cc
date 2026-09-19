@@ -277,8 +277,8 @@ Base::getDecompressionLatency(const CacheBlk* blk)
             return Cycles(0);
         }
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
-        DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
-                comp_blk->print(), decomp_lat);
+        DPRINTF(CacheComp, "Decompressing block: %s (%llu cycles)\n",
+                comp_blk->print(), (unsigned long long)decomp_lat);
         stats.decompressions += 1;
         return decomp_lat;
     }
