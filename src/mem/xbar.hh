@@ -394,6 +394,7 @@ class BaseXBar : public ClockedObject
        range will cause a fatal error.  If false, just send all
        addresses not handled by another port to default device. */
     const bool useDefaultRange;
+    const bool pointToPointCompression;
 
     BaseXBar(const BaseXBarParams &p);
 

@@ -296,6 +296,14 @@ SuperBlk::updateCompressionFactor()
     setCompressionFactor(has_valid ? min_cf : 1);
 }
 
+double
+SuperBlk::getDensity() const
+{
+    uint8_t cf = getCompressionFactor();
+    int max_blks = cf > 0 ? cf : 1;
+    return static_cast<double>(getNumValid()) / max_blks;
+}
+
 std::string
 SuperBlk::print() const
 {

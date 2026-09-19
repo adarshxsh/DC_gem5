@@ -57,6 +57,7 @@
 #include "base/compiler.hh"
 #include "base/extensible.hh"
 #include "base/flags.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/printable.hh"
 #include "base/types.hh"
@@ -301,7 +302,7 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
         RESPONDER_FLAGS        = 0x00000009,
@@ -360,7 +361,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        /// Payload holds compressed data
+        IS_COMPRESSED         = 0x00020000
     };
 
     Flags flags;
@@ -403,6 +407,9 @@ class Packet : public Printable, public Extensible<Packet>
 
     // Quality of Service priority value
     uint8_t _qosValue;
+
+    /// Size in bits of compressed payload
+    std::size_t _compressedSizeBits;
 
     // hardware transactional memory
 
@@ -816,6 +823,52 @@ class Packet : public Printable, public Extensible<Packet>
 
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
 
+    void setCompressedSizeBits(std::size_t bits)
+    {
+        _compressedSizeBits = bits;
+        if (bits > 0 && bits < size * 8) {
+            flags.set(IS_COMPRESSED);
+        } else {
+            flags.clear(IS_COMPRESSED);
+        }
+    }
+
+    std::size_t getCompressedSizeBits() const
+    {
+        return (isCompressed() && _compressedSizeBits > 0) ?
+            _compressedSizeBits : (size * 8);
+    }
+
+    void setCompressedSize(std::size_t bytes)
+    {
+        setCompressedSizeBits(bytes * 8);
+    }
+
+    std::size_t getCompressedSize() const
+    {
+        return divCeil(getCompressedSizeBits(), 8);
+    }
+
+    bool isCompressed() const
+    {
+        return flags.isSet(IS_COMPRESSED) ||
+            (_compressedSizeBits > 0 && _compressedSizeBits < size * 8);
+    }
+
+    std::size_t getTransferSize() const
+    {
+        if (isCompressed() && _compressedSizeBits > 0) {
+            return divCeil(_compressedSizeBits, 8);
+        }
+        return getSize();
+    }
+
+    double getCompressionRatio() const
+    {
+        if (size == 0) return 1.0;
+        return static_cast<double>(size) / getTransferSize();
+    }
+
     /**
      * Get address range to which this packet belongs.
      *
@@ -877,7 +930,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd)
         :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false), size(0),
-           _qosValue(0),
+           _qosValue(0), _compressedSizeBits(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0), snoopDelay(0),
@@ -918,7 +971,7 @@ class Packet : public Printable, public Extensible<Packet>
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
         :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
            data(nullptr), addr(0), _isSecure(false),
-           _qosValue(0),
+           _qosValue(0), _compressedSizeBits(0),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(0),
@@ -947,7 +1000,7 @@ class Packet : public Printable, public Extensible<Packet>
            data(nullptr),
            addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
            bytesValid(pkt->bytesValid),
-           _qosValue(pkt->qosValue()),
+           _qosValue(pkt->qosValue()), _compressedSizeBits(pkt->_compressedSizeBits),
            htmReturnReason(HtmCacheFailure::NO_FAIL),
            htmTransactionUid(0),
            headerDelay(pkt->headerDelay),

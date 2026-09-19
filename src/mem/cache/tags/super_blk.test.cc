@@ -133,3 +133,21 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
 }
+
+TEST_F(CanCoAllocateTest, SuperBlkDensityCalculation)
+{
+    // Initially 0 valid sub-blocks out of CF=1 -> density 0.0
+    EXPECT_DOUBLE_EQ(superBlk.getDensity(), 0.0);
+
+    // Insert 1 sub-block (256 bits, CF=2)
+    subBlks[0].insert({0x2000, false});
+    subBlks[0].setSizeBits(256);
+    // 1 valid sub-block out of CF=2 -> density 0.5
+    EXPECT_DOUBLE_EQ(superBlk.getDensity(), 0.5);
+
+    // Insert 2nd sub-block (256 bits, CF=2)
+    subBlks[1].insert({0x2000, false});
+    subBlks[1].setSizeBits(256);
+    // 2 valid sub-blocks out of CF=2 -> density 1.0
+    EXPECT_DOUBLE_EQ(superBlk.getDensity(), 1.0);
+}

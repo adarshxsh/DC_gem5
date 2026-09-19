@@ -68,6 +68,7 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
                           p.port_mem_side_ports_connection_count, false),
       gotAllAddrRanges(false), defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
+      pointToPointCompression(p.point_to_point_compression),
 
       ADD_STAT(transDist, statistics::units::Count::get(),
                "Transaction distribution"),
@@ -131,8 +132,11 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
         // deliver the payload of the packet, after the header delay,
         // we take the maximum since the payload delay could already
         // be longer than what this parcitular crossbar enforces.
+        std::size_t transfer_size =
+            (pointToPointCompression || pkt->isCompressed()) ?
+            pkt->getTransferSize() : pkt->getSize();
         pkt->payloadDelay = std::max<Tick>(pkt->payloadDelay,
-                                           divCeil(pkt->getSize(), width) *
+                                           divCeil(transfer_size, width) *
                                            clockPeriod());
     }
 

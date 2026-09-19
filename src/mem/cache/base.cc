@@ -1607,10 +1607,19 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         if (pkt->isRead()) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
 
-            // When a block is compressed, it must first be decompressed
-            // before being read. This adds to the access latency.
+            // When a block is compressed, set compressed payload metadata
+            // and pipeline decompression latency with header routing.
             if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
+                CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+                if (cblk && cblk->isCompressed()) {
+                    pkt->setCompressedSizeBits(cblk->getSizeBits());
+                }
+
+                Cycles decomp_lat = compressor->getDecompressionLatency(blk);
+                Tick decomp_ticks = cyclesToTicks(decomp_lat);
+                if (pkt->headerDelay < decomp_ticks) {
+                    lat += ticksToCycles(decomp_ticks - pkt->headerDelay);
+                }
             }
         } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
