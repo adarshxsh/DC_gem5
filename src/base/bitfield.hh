@@ -459,7 +459,7 @@ alignToPowerOfTwo(uint64_t val)
     val++;
 
     return val;
-};
+}
 
 /**
  * Round a number down to the nearest power of two.
@@ -480,7 +480,7 @@ powerOf2Floor(uint64_t val)
     val |= val >> 16;
     val |= val >> 32;
     return val - (val >> 1);
-};
+}
 
 /**
  * Count trailing zeros in a 32-bit value.
