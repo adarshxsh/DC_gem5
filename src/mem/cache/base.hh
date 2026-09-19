@@ -270,6 +270,14 @@ class BaseCache : public ClockedObject
 
         bool isBlocked() const { return blocked; }
 
+        void schedTimingResp(PacketPtr pkt, Tick when)
+        {
+            if (cache.isBackpressured()) {
+                pkt->setBackpressure();
+            }
+            QueuedResponsePort::schedTimingResp(pkt, when);
+        }
+
       protected:
 
         CacheResponsePort(const std::string &_name, BaseCache& _cache,
@@ -376,6 +384,9 @@ class BaseCache : public ClockedObject
 
     /** Prefetcher */
     prefetch::Base *prefetcher;
+
+    /** Backpressure state flag. */
+    bool backpressured;
 
     /** To probe when a cache hit occurs */
     ProbePointArg<CacheAccessProbeArg> *ppHit;
@@ -569,6 +580,12 @@ class BaseCache : public ClockedObject
      */
     virtual void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
                                     CacheBlk *blk, PacketList &writebacks) = 0;
+
+    /**
+     * Set/get memory backpressure state.
+     */
+    virtual void setBackpressure(bool active);
+    bool isBackpressured() const { return backpressured; }
 
     /**
      * Handles a response (cache line fill/write ack) from the bus.

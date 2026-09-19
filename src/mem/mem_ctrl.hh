@@ -329,6 +329,16 @@ class MemCtrl : public qos::MemCtrl
     bool writeQueueFull(unsigned int pkt_count) const;
 
     /**
+     * Check if memory controller queues are under high pressure.
+     * Returns true if write queue size exceeds writeHighThreshold or total queue occupancy is high.
+     */
+    virtual bool isBackpressured() const
+    {
+        return (totalWriteQueueSize >= writeHighThreshold) ||
+               (totalWriteQueueSize + totalReadQueueSize >= (writeBufferSize + readBufferSize) * 3 / 4);
+    }
+
+    /**
      * When a new read comes in, first check if the write q has a
      * pending request to the same address.\ If not, decode the
      * address to populate rank/bank/row, create one or mutliple

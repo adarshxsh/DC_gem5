@@ -365,6 +365,9 @@ class Base : public ClockedObject
          * in the Write Buffer (WB). */
         statistics::Scalar pfHitInWB;
 
+        /** The number of times a HW-prefetch is inhibited by memory backpressure. */
+        statistics::Scalar pfInhibitedByBackpressure;
+
         /** The number of times a HW-prefetch is late
          * (hit in cache, MSHR, WB). */
         statistics::Formula pfLate;
@@ -378,9 +381,18 @@ class Base : public ClockedObject
     /** Registered mmu for address translations */
     BaseMMU * mmu;
 
+    /** Backpressure signal state from memory/L2 */
+    bool backpressured;
+
   public:
     Base(const BasePrefetcherParams &p);
     virtual ~Base() = default;
+
+    /** Set backpressure status. */
+    virtual void setBackpressure(bool bp) { backpressured = bp; }
+
+    /** Get backpressure status. */
+    bool isBackpressured() const { return backpressured; }
 
     virtual void
     setParentInfo(System *sys, ProbeManager *pm, unsigned blk_size);

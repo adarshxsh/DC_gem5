@@ -146,6 +146,9 @@ class Base : public SimObject
     /** Total compressed bits of sampled blocks. */
     uint64_t sampledCompressedBits;
 
+    /** Backpressure signal state from memory queues or lower level cache. */
+    bool backpressured;
+
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
@@ -177,6 +180,9 @@ class Base : public SimObject
 
         /** Number of compressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedCompressions;
+
+        /** Number of compressions bypassed due to memory backpressure. */
+        statistics::Scalar bypassedCompressionsBackpressure;
 
         /** Number of decompressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedDecompressions;
@@ -243,6 +249,12 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Set backpressure status. */
+    virtual void setBackpressure(bool bp) { backpressured = bp; }
+
+    /** Get backpressure status. */
+    bool isBackpressured() const { return backpressured; }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

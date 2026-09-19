@@ -459,6 +459,15 @@ void
 Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
                int32_t priority, const CacheAccessor &cache)
 {
+    if (isBackpressured()) {
+        prefetchStats.pfInhibitedByBackpressure++;
+        DPRINTF(HWPrefetch,
+                "Dropping prefetch candidate due to memory backpressure "
+                "addr: %#x\n",
+                new_pfi.getAddr());
+        return;
+    }
+
     if (queueFilter) {
         if (alreadyInQueue(pfq, new_pfi, priority)) {
             return;

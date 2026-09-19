@@ -109,7 +109,8 @@ Base::Base(const BasePrefetcherParams &p)
       prefetchOnPfHit(p.prefetch_on_pf_hit),
       useVirtualAddresses(p.use_virtual_addresses),
       prefetchStats(this), issuedPrefetches(0),
-      usefulPrefetches(0), mmu(nullptr)
+      usefulPrefetches(0), mmu(nullptr),
+      backpressured(false)
 {
 }
 
@@ -147,6 +148,8 @@ Base::StatGroup::StatGroup(statistics::Group *parent)
         "number of prefetches hitting in a MSHR"),
     ADD_STAT(pfHitInWB, statistics::units::Count::get(),
         "number of prefetches hit in the Write Buffer"),
+    ADD_STAT(pfInhibitedByBackpressure, statistics::units::Count::get(),
+        "number of prefetches inhibited by backpressure"),
     ADD_STAT(pfLate, statistics::units::Count::get(),
         "number of late prefetches (hitting in cache, MSHR or WB)")
 {

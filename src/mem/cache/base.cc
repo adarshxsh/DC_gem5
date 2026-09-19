@@ -91,6 +91,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       compressor(p.compressor),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
+      backpressured(false),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
@@ -454,6 +455,10 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
 void
 BaseCache::recvTimingReq(PacketPtr pkt)
 {
+    if (writeBuffer.allocated() >= writeBuffer.numEntries * 3 / 4) {
+        setBackpressure(true);
+    }
+
     // anything that is merely forwarded pays for the forward latency and
     // the delay provided by the crossbar
     Tick forward_time = clockEdge(forwardLatency) + pkt->headerDelay;
@@ -537,9 +542,36 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
 }
 
 void
+BaseCache::setBackpressure(bool active)
+{
+    if (backpressured == active)
+        return;
+
+    backpressured = active;
+    if (compressor) {
+        compressor->setBackpressure(active);
+    }
+    if (prefetcher) {
+        prefetcher->setBackpressure(active);
+    }
+    DPRINTF(Cache, "Cache %s backpressure state changed to %d\n",
+            name(), active);
+}
+
+void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
+
+    if (pkt->isBackpressured()) {
+        setBackpressure(true);
+    } else if (writeBuffer.allocated() < writeBuffer.numEntries / 2) {
+        setBackpressure(false);
+    }
+
+    if (writeBuffer.allocated() >= writeBuffer.numEntries * 3 / 4) {
+        setBackpressure(true);
+    }
 
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above

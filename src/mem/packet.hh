@@ -301,10 +301,10 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
-        RESPONDER_FLAGS        = 0x00000009,
+        RESPONDER_FLAGS        = 0x00020009,
 
         // Does this packet have sharers (which means it should not be
         // considered writable) or not. See setHasSharers below.
@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Memory backpressure notification signal flag
+        BACKPRESSURE_SIGNAL    = 0x00020000
     };
 
     Flags flags;
@@ -718,6 +721,13 @@ class Packet : public Printable, public Extensible<Packet>
     }
     bool responderHadWritable() const
     { return flags.isSet(RESPONDER_HAD_WRITABLE); }
+
+    /**
+     * Set, clear, and check backpressure notification signal.
+     */
+    void setBackpressure()   { flags.set(BACKPRESSURE_SIGNAL); }
+    void clearBackpressure() { flags.clear(BACKPRESSURE_SIGNAL); }
+    bool isBackpressured() const { return flags.isSet(BACKPRESSURE_SIGNAL); }
 
     /**
      * Copy the reponse flags from an input packet to this packet. The

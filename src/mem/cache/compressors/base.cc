@@ -97,6 +97,7 @@ Base::Base(const Params &p)
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
+      backpressured(false),
       cache(nullptr),
       stats(*this)
 {
@@ -160,6 +161,20 @@ std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
     totalCompressionRequests++;
+
+    if (backpressured) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.bypassedCompressions++;
+        stats.bypassedCompressionsBackpressure++;
+        DPRINTF(CacheComp,
+                "Memory backpressure active. Bypassing compression.\n");
+        return comp_data;
+    }
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
@@ -329,6 +344,9 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of decompressions"),
       ADD_STAT(bypassedCompressions, statistics::units::Count::get(),
                "Total number of bypassed compressions"),
+      ADD_STAT(bypassedCompressionsBackpressure,
+               statistics::units::Count::get(),
+               "Total number of compressions bypassed due to backpressure"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),
