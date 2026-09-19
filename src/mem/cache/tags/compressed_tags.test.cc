@@ -88,9 +88,10 @@ class SuperBlkTestFixture : public ::testing::Test
         }
         ASSERT_EQ(sb.getNumValid(), count_valid);
         ASSERT_EQ(sb.isValid(), (count_valid > 0));
+        ASSERT_LE(total_bits, BlkSize * CHAR_BIT);
         if (count_valid > 0) {
             ASSERT_EQ(sb.getCompressionFactor(), min_cf);
-            ASSERT_LE(total_bits, BlkSize * CHAR_BIT);
+            ASSERT_LE(count_valid, sb.blks.size());
         } else {
             ASSERT_EQ(sb.getCompressionFactor(), 1);
         }
@@ -558,4 +559,46 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, VariableSizedCoAllocationCumulativeBits)
+{
+    // Line capacity is 64 bytes = 512 bits.
+    // Insert sub-block 0: size 256 bits (CF = 2).
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(256);
+
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+
+    // With 256 bits remaining, candidate of 128 bits should be co-allocatable
+    ASSERT_TRUE(superBlk.canCoAllocate(128));
+
+    // Co-allocate sub-block 1: size 128 bits (CF = 4)
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(128);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+
+    // Under discrete count cap, numValid (2) == compressionFactor (2) would
+    // reject further co-allocations.
+    // Under cumulative bit occupancy, 128 bits remaining capacity allows
+    // another 128-bit block (total bits = 384 + 128 = 512 <= 512).
+    ASSERT_TRUE(superBlk.canCoAllocate(128));
+
+    // Co-allocate sub-block 2: size 128 bits
+    subBlks[2].insert({0x4000, false});
+    subBlks[2].setSizeBits(128);
+
+    // Count of valid sub-blocks (3) exceeds the minimum compression factor (2)
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+
+    // Physical capacity (512 bits) is fully occupied.
+    ASSERT_FALSE(superBlk.canCoAllocate(64));
+    ASSERT_FALSE(superBlk.canCoAllocate(128));
 }
