@@ -64,9 +64,11 @@ class Message
   public:
     Message(Tick curTime, int block_size, const RubySystem *rs)
         : m_block_size(block_size),
+          m_payload_size(-1),
           m_time(curTime),
           m_LastEnqueueTime(curTime),
-          m_DelayedTicks(0), m_msg_counter(0)
+          m_DelayedTicks(0),
+          m_msg_counter(0)
     { }
 
     Message(const Message &other) = default;
@@ -80,6 +82,21 @@ class Message
     { panic("MessageSizeType() called on wrong message!"); }
     virtual MessageSizeType& getMessageSize()
     { panic("MessageSizeType() called on wrong message!"); }
+
+    /**
+     * Query / Set actual byte size of the payload data.
+     * Returns -1 if no payload size is specified or not implemented.
+     */
+    virtual int
+    getPayloadSize() const
+    {
+        return m_payload_size;
+    }
+    virtual void
+    setPayloadSize(int size)
+    {
+        m_payload_size = size;
+    }
 
     /**
      * The two functions below are used for reading / writing the message
@@ -124,6 +141,7 @@ class Message
 
   protected:
     int m_block_size = 0;
+    int m_payload_size = -1;
 
   private:
     Tick m_time;
