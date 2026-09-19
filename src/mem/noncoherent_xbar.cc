@@ -123,7 +123,7 @@ NoncoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
 
     // store size and command as they might be modified when
     // forwarding the packet
-    unsigned int pkt_size = pkt->hasData() ? pkt->getSize() : 0;
+    unsigned int pkt_size = pkt->hasData() ? pkt->getCompressedSize() : 0;
     unsigned int pkt_cmd = pkt->cmdToIndex();
 
     // store the old header delay so we can restore it if needed
@@ -202,7 +202,7 @@ NoncoherentXBar::recvTimingResp(PacketPtr pkt, PortID mem_side_port_id)
 
     // store size and command as they might be modified when
     // forwarding the packet
-    unsigned int pkt_size = pkt->hasData() ? pkt->getSize() : 0;
+    unsigned int pkt_size = pkt->hasData() ? pkt->getCompressedSize() : 0;
     unsigned int pkt_cmd = pkt->cmdToIndex();
 
     // a response sees the response latency
@@ -251,7 +251,7 @@ NoncoherentXBar::recvAtomicBackdoor(PacketPtr pkt, PortID cpu_side_port_id,
             cpuSidePorts[cpu_side_port_id]->name(), pkt->getAddr(),
             pkt->cmdString());
 
-    unsigned int pkt_size = pkt->hasData() ? pkt->getSize() : 0;
+    unsigned int pkt_size = pkt->hasData() ? pkt->getCompressedSize() : 0;
     unsigned int pkt_cmd = pkt->cmdToIndex();
 
     // determine the destination port
@@ -270,7 +270,7 @@ NoncoherentXBar::recvAtomicBackdoor(PacketPtr pkt, PortID cpu_side_port_id,
 
     // add the response data
     if (pkt->isResponse()) {
-        pkt_size = pkt->hasData() ? pkt->getSize() : 0;
+        pkt_size = pkt->hasData() ? pkt->getCompressedSize() : 0;
         pkt_cmd = pkt->cmdToIndex();
 
         // stats updates
