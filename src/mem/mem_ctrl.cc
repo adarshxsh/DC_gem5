@@ -70,6 +70,9 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeBufferSize(dram->writeBufferSize),
     writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+    enableQueuePressureSignaling(p.enable_queue_pressure_signaling),
+    pressureHighThreshold(writeBufferSize * p.pressure_high_threshold_perc / 100.0),
+    pressureLowThreshold(writeBufferSize * p.pressure_low_threshold_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),
@@ -91,6 +94,11 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
         fatal("Write buffer low threshold %d must be smaller than the "
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
+    if (p.enable_queue_pressure_signaling &&
+        p.pressure_low_threshold_perc >= p.pressure_high_threshold_perc)
+        fatal("Queue pressure low threshold %d must be smaller than the "
+              "high threshold %d\n", p.pressure_low_threshold_perc,
+              p.pressure_high_threshold_perc);
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
