@@ -254,7 +254,8 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         if (!cblks[sb_idx][sub_idx].isValid()) {
             Addr tag = tag_base + (sb_idx * 0x1000);
             if (!sblks[sb_idx].isValid() || sblks[sb_idx].getTag() == tag) {
-                if (!sblks[sb_idx].isValid() || sblks[sb_idx].canCoAllocate(sz)) {
+                if (!sblks[sb_idx].isValid() ||
+                    sblks[sb_idx].canCoAllocate(sz)) {
                     cblks[sb_idx][sub_idx].insert({tag, false});
                     cblks[sb_idx][sub_idx].setSizeBits(sz);
                 }
@@ -272,14 +273,16 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
                  sblks[target_sb].getTag() ==
                      cblks[sb_idx][sub_idx].getTag())) {
                 if (!sblks[target_sb].isValid() ||
-                    sblks[target_sb].canCoAllocate(cblks[sb_idx][sub_idx].getSizeBits())) {
+                    sblks[target_sb].canCoAllocate(
+                        cblks[sb_idx][sub_idx].getSizeBits())) {
                     cblks[target_sb][target_sub] =
                         std::move(cblks[sb_idx][sub_idx]);
                 }
             }
         } else {
             // Update size (expansion / contraction)
-            if (sblks[sb_idx].calculateCompressionFactor(sz) >= sblks[sb_idx].getNumValid()) {
+            if (sblks[sb_idx].calculateCompressionFactor(sz) >=
+                sblks[sb_idx].getNumValid()) {
                 cblks[sb_idx][sub_idx].setSizeBits(sz);
             }
         }
@@ -407,8 +410,8 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     // Update expansion sub-block size on active sub-block at sector offset 3
     superBlk.findSubBlk(3)->setSizeBits(expansion_size);
 
-    // After eager compaction, remaining valid sub-blocks (sector offsets 2 and 3)
-    // are left-packed into physical slots 0 and 1
+    // After eager compaction, remaining valid sub-blocks (sector offsets 2 and
+    // 3) are left-packed into physical slots 0 and 1
     ASSERT_TRUE(superBlk.blks[0]->isValid());
     ASSERT_TRUE(superBlk.blks[1]->isValid());
     ASSERT_FALSE(superBlk.blks[2]->isValid());
@@ -442,7 +445,8 @@ TEST_F(SuperBlkTestFixture, EagerInPlaceCompactionOnInvalidation)
     // Invalidate intermediate sub-block at sector offset 1 (slot 1)
     superBlk.findSubBlk(1)->invalidate();
 
-    // Verify eager compaction left-packs remaining valid sub-blocks into slots 0, 1, 2
+    // Verify eager compaction left-packs remaining valid sub-blocks into slots
+    // 0, 1, 2
     ASSERT_EQ(superBlk.getNumValid(), 3);
     ASSERT_TRUE(superBlk.blks[0]->isValid());
     ASSERT_TRUE(superBlk.blks[1]->isValid());
@@ -475,8 +479,8 @@ TEST_F(SuperBlkTestFixture, EagerInPlaceCompactionOnInvalidation)
 
     // Verify co-allocation into first free slot (slot 2)
     ASSERT_TRUE(superBlk.canCoAllocate(64));
-    CompressionBlk* free_slot = static_cast<CompressionBlk*>(
-        superBlk.blks[superBlk.getNumValid()]);
+    CompressionBlk *free_slot =
+        static_cast<CompressionBlk *>(superBlk.blks[superBlk.getNumValid()]);
     ASSERT_EQ(free_slot, superBlk.blks[2]);
     free_slot->insert({0x6000, false});
     free_slot->setSectorOffset(1);
