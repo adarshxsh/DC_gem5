@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include "base/gtest/cur_tick_fake.hh"
 #include "mem/mem_ctrl.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
@@ -35,14 +36,10 @@
 using namespace gem5;
 using namespace gem5::memory;
 
-namespace gem5
+namespace
 {
-namespace Gem5Internal
-{
-Tick _curTick = 0;
-__thread Tick *_curTickPtr = &_curTick;
-} // namespace Gem5Internal
-} // namespace gem5
+GTestTickHandler tickHandler;
+}
 
 TEST(PacketCompressionTest, DefaultUncompressed)
 {
