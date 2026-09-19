@@ -81,6 +81,27 @@ class BaseCacheCompressor(SimObject):
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
 
+    enable_queue_pressure_throttling = Param.Bool(
+        False,
+        "Enable compression throttling under high memory queue pressure",
+    )
+    queue_pressure_threshold = Param.Percent(
+        85,
+        "Memory queue pressure threshold percentage to trigger backpressure throttling",
+    )
+    decay_factor = Param.Float(
+        0.8,
+        "Decay factor for exponential moving average pressure tracking",
+    )
+    ewma_alpha = Param.Float(
+        0.05,
+        "EWMA smoothing factor alpha for pressure tracking",
+    )
+    hysteresis_margin_perc = Param.Percent(
+        5,
+        "Hysteresis margin percentage for pressure threshold state transitions",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"
