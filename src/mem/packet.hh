@@ -51,6 +51,7 @@
 #include <cassert>
 #include <initializer_list>
 #include <list>
+#include <vector>
 
 #include "base/addr_range.hh"
 #include "base/cast.hh"
