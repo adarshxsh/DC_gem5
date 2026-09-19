@@ -176,7 +176,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._enable_crossbar_compression = enable_crossbar_compression
         self._density_replacement_weight = density_replacement_weight
         self.membus = membus if membus else self._get_default_membus()
-        self.membus.enable_crossbar_compression = self._enable_crossbar_compression
+        self.membus.enable_crossbar_compression = (
+            self._enable_crossbar_compression
+        )
 
     @overrides(AbstractClassicCacheHierarchy)
     def get_mem_side_port(self) -> Port:
