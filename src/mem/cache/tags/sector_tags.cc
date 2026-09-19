@@ -269,19 +269,22 @@ SectorTags::moveBlock(CacheBlk *src_blk, CacheBlk *dest_blk)
 CacheBlk*
 SectorTags::findBlock(const CacheBlk::KeyType &key) const
 {
-    // The address can only be mapped to a specific location of a sector
-    // due to sectors being composed of contiguous-address entries
+    // Extract logical sector offset from key
     const Addr offset = extractSectorOffset(key.address);
 
     // Find all possible sector entries that may contain the given address
     const std::vector<ReplaceableEntry*> entries =
         indexingPolicy->getPossibleEntries(key);
 
-    // Search for block
+    // Search for block using stored sector offset metadata
     for (const auto& sector : entries) {
-        auto blk = static_cast<SectorBlk*>(sector)->blks[offset];
-        if (blk->match(key)) {
-            return blk;
+        SectorBlk* sec_blk = static_cast<SectorBlk*>(sector);
+        if (sec_blk->match(key)) {
+            for (const auto& blk : sec_blk->blks) {
+                if (blk->isValid() && blk->getSectorOffset() == offset) {
+                    return blk;
+                }
+            }
         }
     }
 

@@ -100,6 +100,8 @@ SectorSubBlk::operator=(SectorSubBlk&& other)
         _sectorBlk->copyTagsFrom(other);
     }
 
+    setSectorOffset(other.getSectorOffset());
+
     CacheBlk::operator=(std::move(other));
     return *this;
 }

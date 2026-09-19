@@ -180,11 +180,20 @@ class SuperBlk : public SectorBlk
      */
     uint8_t compressionFactor;
 
+    /** Guard flag to prevent recursive compaction during sub-block moves. */
+    bool isCompacting;
+
   public:
     SuperBlk();
     SuperBlk(const SuperBlk&) = delete;
     SuperBlk& operator=(const SuperBlk&) = delete;
     ~SuperBlk() {};
+
+    /**
+     * Compacts active valid sub-blocks towards lower contiguous array indices
+     * and updates compression factors.
+     */
+    void compactSlots();
 
     /**
      * Returns whether the superblock contains compressed blocks or not. By
