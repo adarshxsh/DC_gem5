@@ -596,9 +596,10 @@ class BaseCache : public ClockedObject
      * @param mshr The MSHR that corresponds to the reponse
      * @param pkt The response packet
      * @param blk The reference block
+     * @param writebacks List of writebacks generated
      */
     virtual void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                                    CacheBlk *blk) = 0;
+                                    CacheBlk *blk, PacketList &writebacks) = 0;
 
     /**
      * Handles a response (cache line fill/write ack) from the bus.
@@ -783,10 +784,12 @@ class BaseCache : public ClockedObject
      *
      * @param pkt Request packet from upstream that hit a block
      * @param blk Cache block that the packet hit
+     * @param writebacks List of writebacks generated
      * @param deferred_response Whether this request originally missed
      * @param pending_downgrade Whether the writable flag is to be removed
      */
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+                                PacketList &writebacks,
                                 bool deferred_response = false,
                                 bool pending_downgrade = false);
 
@@ -1182,6 +1185,10 @@ class BaseCache : public ClockedObject
         /** Number of replacements of valid blocks. */
         statistics::Scalar replacements;
 
+        /** Number of detached clean L1 lines preserved during L2 superblock
+         * eviction. */
+        statistics::Scalar detachedL1CleanPreserved;
+
         /** Number of data expansions. */
         statistics::Scalar dataExpansions;
 
@@ -1323,6 +1330,39 @@ class BaseCache : public ClockedObject
         CacheBlk *block = tags->findBlock({addr, is_secure});
         return block && block->wasPrefetched() &&
                (block->getSrcRequestorId() == requestor);
+    }
+
+    /**
+     * Query whether a block is cached in upper level caches.
+     * Overridden in Cache class.
+     */
+    virtual bool
+    isCachedAbove(PacketPtr pkt, bool is_timing = true)
+    {
+        return false;
+    }
+
+  protected:
+    /** Non-inclusive tag state tracking for detached L1 clean sub-blocks. */
+    std::unordered_set<Addr> detachedL1CleanAddrs;
+
+  public:
+    void
+    trackDetachedL1CleanBlock(Addr addr, bool is_secure)
+    {
+        detachedL1CleanAddrs.insert(addr);
+    }
+
+    bool
+    isDetachedL1CleanBlock(Addr addr, bool is_secure) const
+    {
+        return detachedL1CleanAddrs.find(addr) != detachedL1CleanAddrs.end();
+    }
+
+    void
+    clearDetachedL1CleanBlock(Addr addr, bool is_secure)
+    {
+        detachedL1CleanAddrs.erase(addr);
     }
 
     bool
