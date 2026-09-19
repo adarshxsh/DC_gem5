@@ -46,6 +46,7 @@
 #ifndef __MEM_XBAR_HH__
 #define __MEM_XBAR_HH__
 
+#include <algorithm>
 #include <deque>
 #include <unordered_map>
 
