@@ -166,7 +166,11 @@ CompressionBlk::checkExpansionContraction(const std::size_t size) const
     // opposite of expansion)
     const SuperBlk* superblock =
         static_cast<const SuperBlk*>(getSectorBlock());
-    const uint8_t prev_cf = superblock->getCompressionFactor();
+    if (!superblock) {
+        return UNCHANGED;
+    }
+    const uint8_t prev_cf =
+        superblock->calculateCompressionFactor(getSizeBits());
     const uint8_t new_cf = superblock->calculateCompressionFactor(size);
     return (new_cf < prev_cf) ? DATA_EXPANSION :
         ((new_cf > prev_cf) ? DATA_CONTRACTION : UNCHANGED);
