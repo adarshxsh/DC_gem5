@@ -1153,26 +1153,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                           return a->getAge() > b->getAge();
                       });
 
-            const uint8_t new_blk_cf =
-                superblock->calculateCompressionFactor(compression_size);
-            const std::size_t max_bits = blkSize * CHAR_BIT;
-
-            auto fits_capacity =
-                [&](const std::vector<CompressionBlk *> &sub_list) {
-                    uint8_t target_cf = new_blk_cf;
-                    std::size_t total_bits = compression_size;
-                    for (const auto *sblk : sub_list) {
-                        uint8_t scf = superblock->calculateCompressionFactor(
-                            sblk->getSizeBits());
-                        target_cf = std::min(target_cf, scf);
-                        total_bits += sblk->getSizeBits();
-                    }
-                    std::size_t total_count = 1 + sub_list.size();
-                    return (target_cf > 1) && (total_count <= target_cf) &&
-                           (total_bits <= max_bits);
-                };
-
-            while (!co_blks.empty() && !fits_capacity(co_blks)) {
+            while (!co_blks.empty() &&
+                   !superblock->canCoAllocate(compression_size, co_blks)) {
                 evict_blks.push_back(co_blks.front());
                 co_blks.erase(co_blks.begin());
             }
