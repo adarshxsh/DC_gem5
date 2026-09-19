@@ -1886,7 +1886,8 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // sent for writeback.
     if (compressor) {
         pkt->headerDelay += compressor->getDecompressionLatency(blk);
-        const CompressionBlk *comp_blk = static_cast<const CompressionBlk *>(blk);
+        const CompressionBlk *comp_blk =
+            static_cast<const CompressionBlk *>(blk);
         if (comp_blk && comp_blk->isCompressed()) {
             pkt->setCompressedSize((comp_blk->getSizeBits() + 7) / 8);
         }
@@ -1935,7 +1936,8 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // sent for writeback.
     if (compressor) {
         pkt->headerDelay += compressor->getDecompressionLatency(blk);
-        const CompressionBlk *comp_blk = static_cast<const CompressionBlk *>(blk);
+        const CompressionBlk *comp_blk =
+            static_cast<const CompressionBlk *>(blk);
         if (comp_blk && comp_blk->isCompressed()) {
             pkt->setCompressedSize((comp_blk->getSizeBits() + 7) / 8);
         }
