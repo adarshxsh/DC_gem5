@@ -283,6 +283,31 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
     }
 }
 
+TEST_F(SuperBlkTestFixture, NonInclusiveSuperblockEvictionAndExpansion)
+{
+    // Insert sub-blocks 0 and 1 into superblock with tag 0x5000
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(64); // CF=8
+    subBlks[1].insert({0x5000, false});
+    subBlks[1].setSizeBits(64); // CF=8
+
+    ASSERT_TRUE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Simulate clean eviction of sub-block 0 from L2
+    // Under non-inclusive protocol, sub-block 0 is invalidated in L2
+    // while sub-block 1 remains valid in L2 and L1 retains sub-block 0.
+    subBlks[0].invalidate();
+
+    ASSERT_TRUE(superBlk.isValid());
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[1].isValid());
+    verifyInvariants(superBlk);
+}
+
 TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
 {
     // Co-allocate two 64-bit sub-blocks (CF=8)
