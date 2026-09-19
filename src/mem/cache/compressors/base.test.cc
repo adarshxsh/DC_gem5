@@ -99,6 +99,7 @@ class CompressorLatencyTest : public testing::Test
 
     CompressorLatencyTest()
     {
+        params.eventq_index = 0;
         params.block_size = 64;
         params.chunk_size_bits = 32;
         params.size_threshold_percentage = 100;
@@ -134,7 +135,8 @@ TEST_F(CompressorLatencyTest, BlockWithUncompressedSizeReturnsZeroLatency)
     blk.setCompressed();
     blk.setDecompressionLatency(Cycles(4));
 
-    // Even if marked compressed, size equal to 64 bytes (512 bits) means uncompressed payload.
+    // Even if marked compressed, size equal to 64 bytes (512 bits) means
+    // uncompressed payload.
     EXPECT_EQ(compressor->getDecompressionLatency(&blk), Cycles(0));
 }
 
@@ -167,9 +169,21 @@ class TestBaseCompressor : public Zero
 
     TestBaseCompressor(const ZeroCompressorParams &p) : Zero(p) {}
 
-    uint64_t getSampledUncompressedBits() const { return sampledUncompressedBits; }
-    uint64_t getSampledCompressedBits() const { return sampledCompressedBits; }
-    uint64_t getTotalCompressionRequests() const { return totalCompressionRequests; }
+    uint64_t
+    getSampledUncompressedBits() const
+    {
+        return sampledUncompressedBits;
+    }
+    uint64_t
+    getSampledCompressedBits() const
+    {
+        return sampledCompressedBits;
+    }
+    uint64_t
+    getTotalCompressionRequests() const
+    {
+        return totalCompressionRequests;
+    }
 };
 
 class BaseCompressorTest : public ::testing::Test
@@ -178,7 +192,8 @@ class BaseCompressorTest : public ::testing::Test
     uint64_t zeroLine[8];
     uint64_t randomLine[8];
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         std::memset(zeroLine, 0, sizeof(zeroLine));
 
@@ -192,8 +207,9 @@ class BaseCompressorTest : public ::testing::Test
         randomLine[7] = 0x9F8E7D6C5B4A3928ULL;
     }
 
-    ZeroCompressorParams createParams(bool enableBypass, float threshold,
-                                     unsigned sampling, unsigned decayShift)
+    ZeroCompressorParams
+    createParams(bool enableBypass, float threshold, unsigned sampling,
+                 unsigned decayShift)
     {
         ZeroCompressorParams p;
         p.name = "test_base_compressor";
@@ -299,7 +315,8 @@ TEST_F(BaseCompressorTest, AdaptToCompressiblePhaseWithin20Samples)
 }
 
 /**
- * Test that counter decay does NOT alter behavior when enableAdaptiveBypass is false.
+ * Test that counter decay does NOT alter behavior when enableAdaptiveBypass is
+ * false.
  */
 TEST_F(BaseCompressorTest, DisabledBypassNoDecay)
 {
@@ -343,7 +360,7 @@ TEST_F(BaseCompressorTest, NumericalStabilityNearZero)
 TEST(BaseCompressorTest, HysteresisBypassEvaluation)
 {
     BaseCacheCompressorParams params;
-    std::memset(&params, 0, sizeof(params));
+    params.eventq_index = 0;
     params.block_size = 64;
     params.chunk_size_bits = 64;
     params.size_threshold_percentage = 100;

@@ -275,6 +275,14 @@ BaseCache::markInService(WriteQueueEntry *entry)
     }
 }
 
+bool
+BaseCache::hasCompressionBackpressure() const
+{
+    bool comp_bypass = compressor && compressor->isBypassing();
+    bool queue_press = writeBuffer.getOccupancyRatio() > 0.70;
+    return comp_bypass || queue_press;
+}
+
 void
 BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
 {
@@ -946,7 +954,7 @@ BaseCache::getNextQueueEntry()
                            conflict_mshr != nullptr;
 
         if (l2Backpressure && is_dirty_writeback && !is_critical) {
-            Tick throttle_ticks = clockPeriod() * writebackThrottleInterval;
+            Tick throttle_ticks = cyclesToTicks(writebackThrottleInterval);
             if (curTick() < lastWritebackTick + throttle_ticks) {
                 if (miss_mshr) {
                     WriteQueueEntry *conflict_mshr_write =
