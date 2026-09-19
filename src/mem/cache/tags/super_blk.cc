@@ -205,8 +205,10 @@ SuperBlk::compact()
     for (uint8_t read_idx = 0; read_idx < blks.size(); ++read_idx) {
         if (blks[read_idx]->isValid()) {
             if (write_idx != read_idx) {
-                CompressionBlk* dest = static_cast<CompressionBlk*>(blks[write_idx]);
-                CompressionBlk* src = static_cast<CompressionBlk*>(blks[read_idx]);
+                CompressionBlk *dest =
+                    static_cast<CompressionBlk *>(blks[write_idx]);
+                CompressionBlk *src =
+                    static_cast<CompressionBlk *>(blks[read_idx]);
                 *dest = std::move(*src);
             }
             write_idx++;
@@ -232,14 +234,15 @@ SuperBlk::updateOffsetMap()
     for (uint8_t slot = 0; slot < blks.size(); ++slot) {
         if (blks[slot]->isValid()) {
             int offset = blks[slot]->getSectorOffset();
-            if (offset >= 0 && offset < static_cast<int>(sectorOffsetToSlot.size())) {
+            if (offset >= 0 &&
+                offset < static_cast<int>(sectorOffsetToSlot.size())) {
                 sectorOffsetToSlot[offset] = slot;
             }
         }
     }
 }
 
-CompressionBlk*
+CompressionBlk *
 SuperBlk::findSubBlk(int sector_offset) const
 {
     if (sector_offset >= 0 &&
@@ -247,12 +250,12 @@ SuperBlk::findSubBlk(int sector_offset) const
         int slot = sectorOffsetToSlot[sector_offset];
         if (slot >= 0 && slot < static_cast<int>(blks.size()) &&
             blks[slot]->isValid()) {
-            return static_cast<CompressionBlk*>(blks[slot]);
+            return static_cast<CompressionBlk *>(blks[slot]);
         }
     }
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk->isValid() && blk->getSectorOffset() == sector_offset) {
-            return static_cast<CompressionBlk*>(blk);
+            return static_cast<CompressionBlk *>(blk);
         }
     }
     return nullptr;

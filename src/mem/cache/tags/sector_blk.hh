@@ -155,7 +155,11 @@ class SectorBlk : public TaggedEntry
      *
      * @return Block size in bytes.
      */
-    virtual std::size_t getBlkSize() const { return 0; }
+    virtual std::size_t
+    getBlkSize() const
+    {
+        return 0;
+    }
 
     /**
      * Checks that a sector block is valid.

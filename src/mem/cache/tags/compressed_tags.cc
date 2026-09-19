@@ -122,17 +122,17 @@ CompressedTags::tagsInit()
     }
 }
 
-CacheBlk*
+CacheBlk *
 CompressedTags::findBlock(const CacheBlk::KeyType &key) const
 {
     const Addr offset = extractSectorOffset(key.address);
-    const std::vector<ReplaceableEntry*> entries =
+    const std::vector<ReplaceableEntry *> entries =
         indexingPolicy->getPossibleEntries(key);
 
-    for (const auto& sector : entries) {
-        SuperBlk* superblock = static_cast<SuperBlk*>(sector);
+    for (const auto &sector : entries) {
+        SuperBlk *superblock = static_cast<SuperBlk *>(sector);
         if (superblock->match(key)) {
-            SectorSubBlk* blk = superblock->findSubBlk(offset);
+            SectorSubBlk *blk = superblock->findSubBlk(offset);
             if (blk && blk->match(key)) {
                 return blk;
             }
@@ -144,10 +144,10 @@ CompressedTags::findBlock(const CacheBlk::KeyType &key) const
 void
 CompressedTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {
-    SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
+    SectorSubBlk *sub_blk = static_cast<SectorSubBlk *>(blk);
     sub_blk->setSectorOffset(extractSectorOffset(pkt->getAddr()));
     SectorTags::insertBlock(pkt, blk);
-    SuperBlk* superblock = static_cast<SuperBlk*>(sub_blk->getSectorBlock());
+    SuperBlk *superblock = static_cast<SuperBlk *>(sub_blk->getSectorBlock());
     if (superblock) {
         superblock->updateOffsetMap();
     }
@@ -176,11 +176,9 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->findSubBlk(offset) &&
+        if (superblock->match(key) && !superblock->findSubBlk(offset) &&
             superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+            superblock->canCoAllocate(compressed_size)) {
             if (is_prefetch && superblock->hasValidDemand()) {
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);
@@ -237,9 +235,10 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = nullptr;
+    SectorSubBlk *victim = nullptr;
     if (is_co_allocation) {
-        assert(victim_superblock->getNumValid() < victim_superblock->blks.size());
+        assert(victim_superblock->getNumValid() <
+               victim_superblock->blks.size());
         victim = victim_superblock->blks[victim_superblock->getNumValid()];
         assert(!victim->isValid());
 
