@@ -156,7 +156,7 @@ class Cache : public BaseCache
      * found, set the BLOCK_CACHED flag in pkt.
      */
     bool isCachedAbove(PacketPtr pkt, bool is_timing = true,
-                        bool invalidate = false);
+                       bool invalidate = false);
 
   public:
     /** Instantiates a basic cache object. */
