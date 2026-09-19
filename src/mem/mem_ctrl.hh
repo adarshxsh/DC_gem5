@@ -46,6 +46,7 @@
 #ifndef __MEM_CTRL_HH__
 #define __MEM_CTRL_HH__
 
+#include <algorithm>
 #include <deque>
 #include <string>
 #include <unordered_set>
@@ -515,8 +516,27 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    uint32_t writeCriticalThreshold;
+    uint32_t drainTarget;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
+
+    /**
+     * Compute dynamic read-pressure metric P_read in range [0.0, 1.0].
+     * Based on read queue size and request wait times in readQueue.
+     *
+     * @param mem_intr The memory interface
+     * @return P_read pressure ratio
+     */
+    virtual double computeReadPressure(MemInterface *mem_intr) const;
+
+    /**
+     * Calculate dynamic write drain target N_drain_target based on P_read.
+     *
+     * @param mem_intr The memory interface
+     * @return Number of writes to schedule before allowing switch back to READ
+     */
+    virtual uint32_t computeDrainTarget(MemInterface *mem_intr) const;
 
     /**
      * Memory controller configuration initialized based on parameter
