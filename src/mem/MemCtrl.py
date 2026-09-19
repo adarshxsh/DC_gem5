@@ -102,6 +102,16 @@ class MemCtrl(QoSMemCtrl):
     command_window = Param.Latency("10ns", "Static backend latency")
     disable_sanity_check = Param.Bool(False, "Disable port resp Q size check")
 
+    enable_queue_pressure_signaling = Param.Bool(
+        False, "Enable memory queue pressure signaling"
+    )
+    pressure_high_threshold_perc = Param.Percent(
+        80, "Write queue high pressure threshold percentage"
+    )
+    pressure_low_threshold_perc = Param.Percent(
+        50, "Write queue low pressure threshold percentage"
+    )
+
 
 add_citation(
     MemCtrl,
