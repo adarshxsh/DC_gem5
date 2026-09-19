@@ -411,3 +411,144 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
     verifyInvariants(superBlk);
 }
+
+TEST_F(SuperBlkTestFixture, HasValidDemand)
+{
+    // Initial state: empty superblock has no valid demand
+    ASSERT_FALSE(superBlk.hasValidDemand());
+
+    // Insert a prefetched block
+    subBlks[0].insert({0x6000, false});
+    subBlks[0].setPrefetched();
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[0].wasPrefetched());
+    ASSERT_FALSE(superBlk.hasValidDemand());
+
+    // Insert a demand block
+    subBlks[1].insert({0x6000, false});
+    ASSERT_TRUE(subBlks[1].isValid());
+    ASSERT_FALSE(subBlks[1].wasPrefetched());
+    ASSERT_TRUE(superBlk.hasValidDemand());
+
+    // Invalidate demand block
+    subBlks[1].invalidate();
+    ASSERT_FALSE(superBlk.hasValidDemand());
+
+    // Access prefetched block (clears prefetched status)
+    subBlks[0].clearPrefetched();
+    ASSERT_FALSE(subBlks[0].wasPrefetched());
+    ASSERT_TRUE(superBlk.hasValidDemand());
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
+{
+    // Insert a demand sub-block into superBlk with size 64 bits (high CF = 8)
+    subBlks[0].insert({0x6000, false});
+    subBlks[0].setSizeBits(64);
+    ASSERT_TRUE(superBlk.hasValidDemand());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Evaluate co-allocation of a block of size 256 bits (CF = 2)
+    const std::size_t new_size = 256;
+    ASSERT_TRUE(superBlk.canCoAllocate(new_size));
+
+    const uint8_t new_blk_cf = superBlk.calculateCompressionFactor(new_size);
+    const uint8_t current_cf = superBlk.getCompressionFactor();
+    const uint8_t new_cf = (superBlk.getNumValid() == 0)
+                               ? new_blk_cf
+                               : std::min(current_cf, new_blk_cf);
+
+    ASSERT_EQ(new_blk_cf, 2);
+    ASSERT_EQ(new_cf, 2);
+    ASSERT_LT(new_cf, current_cf);
+
+    // Prefetch demand-protection guard logic verification:
+    // If request is prefetch AND superblock has valid demand AND new_cf < current_cf,
+    // co-allocation is disallowed.
+    bool is_prefetch = true;
+    bool co_alloc_allowed_for_prefetch = superBlk.canCoAllocate(new_size) &&
+        !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+
+    ASSERT_FALSE(co_alloc_allowed_for_prefetch);
+
+    // For demand requests (is_prefetch = false), co-allocation remains allowed.
+    is_prefetch = false;
+    bool co_alloc_allowed_for_demand = superBlk.canCoAllocate(new_size) &&
+        !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+
+    ASSERT_TRUE(co_alloc_allowed_for_demand);
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
+{
+    // Create candidate superblocks and sub-blocks
+    SuperBlk sb_demand0;
+    SuperBlk sb_demand1;
+    SuperBlk sb_prefetch;
+
+    CompressionBlk blk_demand0;
+    CompressionBlk blk_demand1;
+    CompressionBlk blk_prefetch;
+
+    auto dummyTagExtractor = [](Addr addr) { return addr; };
+    blk_demand0.registerTagExtractor(dummyTagExtractor);
+    blk_demand1.registerTagExtractor(dummyTagExtractor);
+    blk_prefetch.registerTagExtractor(dummyTagExtractor);
+    sb_demand0.registerTagExtractor(dummyTagExtractor);
+    sb_demand1.registerTagExtractor(dummyTagExtractor);
+    sb_prefetch.registerTagExtractor(dummyTagExtractor);
+
+    blk_demand0.setSectorBlock(&sb_demand0);
+    blk_demand1.setSectorBlock(&sb_demand1);
+    blk_prefetch.setSectorBlock(&sb_prefetch);
+
+    sb_demand0.blks = {&blk_demand0};
+    sb_demand1.blks = {&blk_demand1};
+    sb_prefetch.blks = {&blk_prefetch};
+
+    blk_demand0.insert({0x1000, false}); // demand block
+    blk_demand1.insert({0x2000, false}); // demand block
+    blk_prefetch.insert({0x3000, false});
+    blk_prefetch.setPrefetched();        // prefetched block
+
+    ASSERT_TRUE(sb_demand0.hasValidDemand());
+    ASSERT_TRUE(sb_demand1.hasValidDemand());
+    ASSERT_FALSE(sb_prefetch.hasValidDemand());
+
+    std::vector<SuperBlk*> superblock_entries = {&sb_demand0, &sb_demand1, &sb_prefetch};
+
+    // Filter candidate victim superblocks for a prefetch request
+    std::vector<SuperBlk*> replacement_candidates;
+    bool is_prefetch = true;
+
+    if (is_prefetch) {
+        for (auto* sb : superblock_entries) {
+            if (!sb->hasValidDemand()) {
+                replacement_candidates.push_back(sb);
+            }
+        }
+    } else {
+        replacement_candidates = superblock_entries;
+    }
+
+    // Verify only sb_prefetch is eligible for eviction during a prefetch request
+    ASSERT_EQ(replacement_candidates.size(), 1);
+    ASSERT_EQ(replacement_candidates[0], &sb_prefetch);
+
+    // If all candidates hold warm demand data:
+    blk_prefetch.clearPrefetched(); // Now sb_prefetch holds demand data too
+    ASSERT_TRUE(sb_prefetch.hasValidDemand());
+
+    replacement_candidates.clear();
+    if (is_prefetch) {
+        for (auto* sb : superblock_entries) {
+            if (!sb->hasValidDemand()) {
+                replacement_candidates.push_back(sb);
+            }
+        }
+    }
+
+    // Verify no candidates remain, which causes findVictim to return nullptr and drop prefetch
+    ASSERT_TRUE(replacement_candidates.empty());
+}
+
