@@ -48,7 +48,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <deque>
+#include <limits>
 #include <string>
 #include <unordered_set>
 #include <utility>
