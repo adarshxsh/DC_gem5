@@ -74,7 +74,10 @@ qos_test_configs = [
     ("baseline", []),
     ("compression_aware", ["--compression-aware"]),
     ("pressure_gradient", ["--pressure-gradient"]),
-    ("unified_qos", ["--compression-aware", "--pressure-gradient", "--q-policy=cp"]),
+    (
+        "unified_qos",
+        ["--compression-aware", "--pressure-gradient", "--q-policy=cp"],
+    ),
 ]
 
 for qos_name, qos_args in qos_test_configs:
