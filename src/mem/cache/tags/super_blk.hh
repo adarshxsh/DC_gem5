@@ -180,11 +180,44 @@ class SuperBlk : public SectorBlk
      */
     uint8_t compressionFactor;
 
+    /**
+     * Explicit dynamic mapping table from logical sector offset to physical slot index.
+     * Maps logical sector offset -> physical slot index in blks vector (-1 if invalid).
+     */
+    std::vector<int> sectorOffsetToSlot;
+
+    /** Guard flag to prevent recursive compaction re-entry during move assignment. */
+    bool _compacting = false;
+
   public:
     SuperBlk();
     SuperBlk(const SuperBlk&) = delete;
     SuperBlk& operator=(const SuperBlk&) = delete;
     ~SuperBlk() {};
+
+    std::size_t getBlkSize() const override { return blkSize; }
+
+    /** Check if compaction is currently executing. */
+    bool isCompacting() const { return _compacting; }
+
+    /**
+     * Perform eager in-place compaction of active sub-blocks, left-packing
+     * all valid sub-blocks into contiguous low-index slots (0 to getNumValid()-1).
+     */
+    void compact();
+
+    /**
+     * Update explicit dynamic mapping table (sectorOffsetToSlot).
+     */
+    void updateOffsetMap();
+
+    /**
+     * Locate active sub-block by logical sector offset.
+     *
+     * @param sector_offset The logical sector offset.
+     * @return Pointer to sub-block if present and valid, nullptr otherwise.
+     */
+    CompressionBlk* findSubBlk(int sector_offset) const;
 
     /**
      * Returns whether the superblock contains compressed blocks or not. By

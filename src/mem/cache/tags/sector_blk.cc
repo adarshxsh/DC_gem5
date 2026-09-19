@@ -34,6 +34,7 @@
 #include "mem/cache/tags/sector_blk.hh"
 
 #include <cassert>
+#include <cstring>
 
 #include "base/cprintf.hh"
 #include "base/logging.hh"
@@ -98,6 +99,15 @@ SectorSubBlk::operator=(SectorSubBlk&& other)
     // If the destination sector is not valid, set its tag from the source
     if (_sectorBlk && !_sectorBlk->isValid()) {
         _sectorBlk->copyTagsFrom(other);
+    }
+
+    _sectorOffset = other._sectorOffset;
+
+    if (data && other.data && _sectorBlk) {
+        std::size_t bsize = _sectorBlk->getBlkSize();
+        if (bsize > 0) {
+            std::memcpy(data, other.data, bsize);
+        }
     }
 
     CacheBlk::operator=(std::move(other));
