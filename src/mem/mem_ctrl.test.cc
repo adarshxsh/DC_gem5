@@ -67,6 +67,7 @@ class TestMemCtrl
         uint32_t min_thresh = std::max((uint32_t)1, writeLowThreshold);
         uint32_t max_thresh =
             writeBufferSize > 0 ? writeBufferSize - 1 : writeHighThreshold;
+        max_thresh = std::max(min_thresh, max_thresh);
 
         uint32_t res = static_cast<uint32_t>(std::round(high_thresh));
         return std::clamp(res, min_thresh, max_thresh);
@@ -76,7 +77,6 @@ class TestMemCtrl
     calculateDynamicWriteLowThreshold(bool enableAdaptiveTurnaround,
                                       uint32_t writeHighThreshold,
                                       uint32_t writeLowThreshold,
-                                      uint32_t writeBufferSize,
                                       double read_pressure,
                                       double write_pressure)
     {
@@ -98,6 +98,7 @@ class TestMemCtrl
         uint32_t min_thresh = 1;
         uint32_t max_thresh =
             writeHighThreshold > 1 ? writeHighThreshold - 1 : 1;
+        max_thresh = std::max(min_thresh, max_thresh);
 
         uint32_t res = static_cast<uint32_t>(std::round(low_thresh));
         return std::clamp(res, min_thresh, max_thresh);
@@ -163,8 +164,7 @@ TEST(MemCtrlAdaptiveTest, BaselineDisabledMode)
         false, writeHighThreshold, writeLowThreshold, writeBufferSize, 0.8,
         0.2);
     uint32_t effLow = TestMemCtrl::calculateDynamicWriteLowThreshold(
-        false, writeHighThreshold, writeLowThreshold, writeBufferSize, 0.8,
-        0.2);
+        false, writeHighThreshold, writeLowThreshold, 0.8, 0.2);
     uint32_t effWrites = TestMemCtrl::calculateDynamicMinWritesPerSwitch(
         false, minWritesPerSwitch, 0.8, 0.2);
     uint32_t effReads = TestMemCtrl::calculateDynamicMinReadsPerSwitch(
@@ -189,8 +189,7 @@ TEST(MemCtrlAdaptiveTest, WritePressureBurst)
         true, writeHighThreshold, writeLowThreshold, writeBufferSize, 0.1,
         0.9);
     uint32_t effLow = TestMemCtrl::calculateDynamicWriteLowThreshold(
-        true, writeHighThreshold, writeLowThreshold, writeBufferSize, 0.1,
-        0.9);
+        true, writeHighThreshold, writeLowThreshold, 0.1, 0.9);
     uint32_t effWrites = TestMemCtrl::calculateDynamicMinWritesPerSwitch(
         true, minWritesPerSwitch, 0.1, 0.9);
     uint32_t effReads = TestMemCtrl::calculateDynamicMinReadsPerSwitch(
@@ -200,6 +199,10 @@ TEST(MemCtrlAdaptiveTest, WritePressureBurst)
     // earlier
     EXPECT_LT(effHigh, writeHighThreshold);
     EXPECT_GE(effHigh, writeLowThreshold);
+
+    // Dynamic write low threshold should drop proportionally
+    EXPECT_LT(effLow, writeLowThreshold);
+    EXPECT_GE(effLow, 1U);
 
     // Min writes per switch should increase
     EXPECT_GT(effWrites, minWritesPerSwitch);
@@ -221,8 +224,7 @@ TEST(MemCtrlAdaptiveTest, ReadPressureBacklog)
         true, writeHighThreshold, writeLowThreshold, writeBufferSize, 0.9,
         0.1);
     uint32_t effLow = TestMemCtrl::calculateDynamicWriteLowThreshold(
-        true, writeHighThreshold, writeLowThreshold, writeBufferSize, 0.9,
-        0.1);
+        true, writeHighThreshold, writeLowThreshold, 0.9, 0.1);
     uint32_t effWrites = TestMemCtrl::calculateDynamicMinWritesPerSwitch(
         true, minWritesPerSwitch, 0.9, 0.1);
     uint32_t effReads = TestMemCtrl::calculateDynamicMinReadsPerSwitch(
@@ -232,6 +234,10 @@ TEST(MemCtrlAdaptiveTest, ReadPressureBacklog)
     // prioritize reads
     EXPECT_GT(effHigh, writeHighThreshold);
     EXPECT_LE(effHigh, writeBufferSize - 1);
+
+    // Dynamic write low threshold should increase proportionally
+    EXPECT_GT(effLow, writeLowThreshold);
+    EXPECT_LE(effLow, effHigh - 1);
 
     // Min reads per switch should increase
     EXPECT_GT(effReads, minReadsPerSwitch);
@@ -251,8 +257,7 @@ TEST(MemCtrlAdaptiveTest, PhysicalBoundsAndInvariants)
         true, writeHighThreshold, writeLowThreshold, writeBufferSize, 0.0,
         1.0);
     uint32_t effLow = TestMemCtrl::calculateDynamicWriteLowThreshold(
-        true, writeHighThreshold, writeLowThreshold, writeBufferSize, 0.0,
-        1.0);
+        true, writeHighThreshold, writeLowThreshold, 0.0, 1.0);
 
     EXPECT_GE(effHigh, writeLowThreshold);
     EXPECT_LE(effHigh, writeBufferSize - 1);
