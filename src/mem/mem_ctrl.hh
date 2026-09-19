@@ -59,6 +59,7 @@
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
+#include "sim/probe/probe.hh"
 
 namespace gem5
 {
@@ -778,6 +779,13 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
+    void regProbePoints() override;
+
+    /** Queue pressure probe point and calculation */
+    ProbePointArg<double> *ppQueuePressure = nullptr;
+    double lastReportedPressure = -1.0;
+    double getWriteQueuePressure() const;
+    void updateQueuePressure();
 
   protected:
 

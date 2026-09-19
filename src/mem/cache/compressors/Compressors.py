@@ -80,6 +80,14 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    pressure_sensitivity = Param.Float(
+        0.0,
+        "Sensitivity factor for scaling compression breakeven threshold based on memory queue pressure",
+    )
+    max_pressure_threshold = Param.Float(
+        2.0,
+        "Maximum allowable scaled breakeven threshold under write queue pressure",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
