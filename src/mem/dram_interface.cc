@@ -431,8 +431,8 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     } else {
         burst_gap = effective_tBURST;
     }
-    DPRINTF(DRAM, "Schedule RD/WR burst at tick %d (effective_tBURST=%d)\n",
-            cmd_at, effective_tBURST);
+    DPRINTF(DRAM, "Schedule RD/WR burst at tick %lld (effective_tBURST=%lld)\n",
+            (long long)cmd_at, (long long)effective_tBURST);
 
     // update the packet ready time
     if (mem_pkt->isRead()) {

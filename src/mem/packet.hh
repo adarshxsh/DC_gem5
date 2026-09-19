@@ -47,6 +47,7 @@
 #ifndef __MEM_PACKET_HH__
 #define __MEM_PACKET_HH__
 
+#include <algorithm>
 #include <bitset>
 #include <cassert>
 #include <initializer_list>
