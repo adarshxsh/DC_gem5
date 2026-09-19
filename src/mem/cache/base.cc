@@ -1770,10 +1770,14 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // compressor is used, the compression/decompression methods are called to
     // calculate the amount of extra cycles needed to read or write compressed
     // blocks.
-    if (compressor && pkt->hasData()) {
-        const auto comp_data = compressor->compress(
-            pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
-        blk_size_bits = comp_data->getSizeBits();
+    if (compressor) {
+        if (pkt->hasData()) {
+            const auto comp_data = compressor->compress(
+                pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
+            blk_size_bits = comp_data->getSizeBits();
+        } else {
+            blk_size_bits = (blkSize * 8) / 2;
+        }
     }
 
     // get partitionId from Packet
