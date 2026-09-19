@@ -96,7 +96,8 @@ class BaseCompressorTest : public ::testing::Test
  */
 TEST_F(BaseCompressorTest, WindowedAdaptiveBypassTransition)
 {
-    // Enable adaptive bypass with window size = 5, sampling interval = 1, breakeven threshold = 1.5
+    // Enable adaptive bypass with window size = 5, sampling interval = 1,
+    // breakeven threshold = 1.5
     auto compressor = createZeroCompressor(true, 1.5f, 1, 5);
 
     Cycles comp_lat(0);
@@ -118,13 +119,15 @@ TEST_F(BaseCompressorTest, WindowedAdaptiveBypassTransition)
         compressor->compress(randomLine, comp_lat, decomp_lat);
     }
 
-    // After 5 uncompressible samples in window of size 5, window contains only random lines.
-    // Observed ratio in window drops to 512 / 512 = 1.0 < 1.5.
+    // After 5 uncompressible samples in window of size 5, window contains only
+    // random lines. Observed ratio in window drops to 512 / 512 = 1.0 < 1.5.
     ASSERT_LT(compressor->getObservedRatio(), 1.5);
 
-    // Non-sampled request in bypass state returns uncompressed size (512) and 0 latencies
-    // Next request when sampling interval = 1 is sampled; but bypass is active on non-sampled/bypassed requests.
-    auto comp_data_bpassed = compressor->compress(randomLine, comp_lat, decomp_lat);
+    // Non-sampled request in bypass state returns uncompressed size (512) and
+    // 0 latencies Next request when sampling interval = 1 is sampled; but
+    // bypass is active on non-sampled/bypassed requests.
+    auto comp_data_bpassed =
+        compressor->compress(randomLine, comp_lat, decomp_lat);
     ASSERT_EQ(comp_data_bpassed->getSizeBits(), 512);
 
     // Phase 3: Transition back to compressible phase (5 zero lines)
@@ -132,13 +135,14 @@ TEST_F(BaseCompressorTest, WindowedAdaptiveBypassTransition)
         compressor->compress(zeroLine, comp_lat, decomp_lat);
     }
 
-    // Window has purged old uncompressible samples and now contains zero lines.
-    // Observed ratio rises back above threshold.
+    // Window has purged old uncompressible samples and now contains zero
+    // lines. Observed ratio rises back above threshold.
     ASSERT_GE(compressor->getObservedRatio(), 1.5);
 }
 
 /**
- * Test that cumulative statistics track total simulation counts independently of window pops.
+ * Test that cumulative statistics track total simulation counts independently
+ * of window pops.
  */
 TEST_F(BaseCompressorTest, CumulativeStatsIndependence)
 {
@@ -158,9 +162,9 @@ TEST_F(BaseCompressorTest, CumulativeStatsIndependence)
     // Window size is 3, so active window has only 3 samples.
     // But overall cumulative sampled compressions must equal 10.
     // Total sampled uncompressed bits = 10 * 512 = 5120 bits.
-    // (5 zero lines @ 0 bits + 5 random lines @ 512 bits = 2560 compressed bits total).
-    // Let's verify via getObservedRatio() vs cumulative statistics logic.
-    // The window has 3 samples of randomLine (ratio 1.0), whereas cumulative total is 5120 / 2560 = 2.0x ratio.
+    // (5 zero lines @ 0 bits + 5 random lines @ 512 bits = 2560 compressed
+    // bits total). Let's verify via getObservedRatio() vs cumulative
+    // statistics logic. The window has 3 samples of randomLine (ratio 1.0),
+    // whereas cumulative total is 5120 / 2560 = 2.0x ratio.
     ASSERT_DOUBLE_EQ(compressor->getObservedRatio(), 1.0);
 }
->>>>>>> cd2d75a (mem-cache,configs: Refactor adaptive bypass window)
