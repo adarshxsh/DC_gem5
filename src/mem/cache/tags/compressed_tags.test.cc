@@ -555,4 +555,3 @@ TEST_F(SuperBlkTestFixture, TwoStageCandidateFilteringEqualValid)
         verifyInvariants(candidates[i]);
     }
 }
-}
