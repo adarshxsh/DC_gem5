@@ -673,7 +673,13 @@ class MemCtrl : public qos::MemCtrl
     selQueue(bool is_read)
     {
         return (is_read ? readQueue : writeQueue);
-    };
+    }
+
+    const std::vector<MemPacketQueue> &
+    selQueue(bool is_read) const
+    {
+        return (is_read ? readQueue : writeQueue);
+    }
 
     virtual bool
     respQEmpty()
