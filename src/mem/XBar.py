@@ -81,6 +81,11 @@ class BaseXBar(ClockedObject):
     # Width governing the throughput of the crossbar
     width = Param.Unsigned("Datapath width per port (bytes)")
 
+    # Starvation threshold for crossbar layer arbitration aging counter
+    starvation_threshold = Param.Unsigned(
+        16, "Starvation threshold for crossbar layer arbitration aging counter"
+    )
+
     # The default port can be left unconnected, or be used to connect
     # a default response port
     default = RequestPort("Port for connecting an optional default responder")
