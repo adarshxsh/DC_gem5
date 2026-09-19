@@ -440,6 +440,11 @@ class BaseCache : public ClockedObject
     void markInService(WriteQueueEntry *entry);
 
     /**
+     * Update write queue pressure state on tag store.
+     */
+    void updateWriteQueuePressure();
+
+    /**
      * Determine whether we should allocate on a fill or not. If this
      * cache is mostly inclusive with regards to the upstream cache(s)
      * we always allocate (for any non-forwarded and cacheable

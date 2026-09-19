@@ -87,6 +87,11 @@ class CompressedTags : public SectorTags
     /** The cache superblocks. */
     std::vector<SuperBlk> superBlks;
 
+    /** Write queue pressure threshold (percentage 0-100). */
+    unsigned writeQueuePressureThreshold;
+    /** Write queue pressure guard state. */
+    bool writeQueuePressure;
+
   public:
     /** Convenience typedef. */
      typedef CompressedTagsParams Params;
@@ -100,6 +105,24 @@ class CompressedTags : public SectorTags
      * Destructor.
      */
     virtual ~CompressedTags() {};
+
+    /**
+     * Set write queue pressure guard state.
+     */
+    void setWriteQueuePressure(bool pressure) { writeQueuePressure = pressure; }
+
+    /**
+     * Get write queue pressure guard state.
+     */
+    bool isWriteQueueUnderPressure() const { return writeQueuePressure; }
+
+    /**
+     * Get write queue pressure threshold.
+     */
+    unsigned getWriteQueuePressureThreshold() const
+    {
+        return writeQueuePressureThreshold;
+    }
 
     /**
      * Initialize blocks as SuperBlk and CompressionBlk instances.

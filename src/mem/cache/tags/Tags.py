@@ -154,6 +154,11 @@ class CompressedTags(SectorTags):
         2, "Maximum number of compressed blocks per tag."
     )
 
+    write_queue_pressure_threshold = Param.Percent(
+        80,
+        "Write queue occupancy threshold percentage to trigger pressure guard for superblock co-allocation",
+    )
+
     # We simulate superblock as sector blocks
     num_blocks_per_sector = Self.max_compression_ratio
 
