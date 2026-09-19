@@ -470,7 +470,8 @@ class MSHR : public QueueEntry, public Printable
      * Check if this MSHR services at least one demand target (non-prefetch).
      * @return true if any target source is not FromPrefetcher
      */
-    bool hasDemandTarget() const
+    bool
+    hasDemandTarget() const
     {
         for (const auto &t : targets) {
             if (t.source != Target::FromPrefetcher) {

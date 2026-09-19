@@ -249,7 +249,11 @@ class BaseCache : public ClockedObject
                     const std::string &_label);
 
         /** Get downstream request queue size */
-        size_t reqQueueSize() const { return _reqQueue.size(); }
+        size_t
+        reqQueueSize() const
+        {
+            return _reqQueue.size();
+        }
     };
 
     /**
@@ -360,8 +364,11 @@ class BaseCache : public ClockedObject
             return cache.getCompressionFactor(addr, is_secure);
         }
 
-        double getCongestionScore() const override
-        { return cache.getCongestionScore(); }
+        double
+        getCongestionScore() const override
+        {
+            return cache.getCongestionScore();
+        }
 
     } accessor;
 

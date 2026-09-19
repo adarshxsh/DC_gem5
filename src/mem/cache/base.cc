@@ -660,7 +660,8 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             // Request the bus for a prefetch if this deallocation freed enough
             // MSHRs for a prefetch to take place
             double congestion = getCongestionScore();
-            if (prefetcher && mshrQueue.canPrefetch(congestion) && !isBlocked()) {
+            if (prefetcher && mshrQueue.canPrefetch(congestion) &&
+                !isBlocked()) {
                 Tick next_pf_time = std::max(
                     prefetcher->nextPrefetchReadyTime(), clockEdge());
                 if (next_pf_time != MaxTick)
@@ -2028,8 +2029,10 @@ BaseCache::updateCongestionMetrics(Cycles decomp_lat)
 {
     constexpr double alpha = 0.1;
     size_t cur_port_q = memSidePort.reqQueueSize();
-    portOccupancyEMA = (1.0 - alpha) * portOccupancyEMA + alpha * static_cast<double>(cur_port_q);
-    decompLatencyEMA = (1.0 - alpha) * decompLatencyEMA + alpha * static_cast<double>(decomp_lat);
+    portOccupancyEMA = (1.0 - alpha) * portOccupancyEMA +
+                       alpha * static_cast<double>(cur_port_q);
+    decompLatencyEMA = (1.0 - alpha) * decompLatencyEMA +
+                       alpha * static_cast<double>(decomp_lat);
 }
 
 double
@@ -2037,11 +2040,15 @@ BaseCache::getCongestionScore() const
 {
     constexpr double alpha = 0.05;
     size_t cur_port_q = memSidePort.reqQueueSize();
-    portOccupancyEMA = (1.0 - alpha) * portOccupancyEMA + alpha * static_cast<double>(cur_port_q);
+    portOccupancyEMA = (1.0 - alpha) * portOccupancyEMA +
+                       alpha * static_cast<double>(cur_port_q);
 
     int total_mshr_cap = mshrQueue.getCapacity();
-    double mshr_ratio = (total_mshr_cap > 0) ?
-        static_cast<double>(mshrQueue.getDemandAllocated()) / total_mshr_cap : 0.0;
+    double mshr_ratio =
+        (total_mshr_cap > 0)
+            ? static_cast<double>(mshrQueue.getDemandAllocated()) /
+                  total_mshr_cap
+            : 0.0;
 
     double port_ratio = std::min(1.0, portOccupancyEMA / 8.0);
     double comp_ratio = std::min(1.0, decompLatencyEMA / 10.0);
@@ -2052,7 +2059,6 @@ BaseCache::getCongestionScore() const
     double score = std::max(composite, max_metric);
     return std::clamp(score, 0.0, 1.0);
 }
-
 
 bool
 BaseCache::sendMSHRQueuePacket(MSHR* mshr)
