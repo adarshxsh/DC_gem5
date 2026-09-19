@@ -45,6 +45,7 @@
 
 #include "mem/xbar.hh"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 
