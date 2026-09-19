@@ -56,7 +56,8 @@ TEST_F(MSHRTestFixture, TargetCompressionMetadataInitialization)
     RequestPtr req = std::make_shared<Request>(0x1000, 64, 0, 0);
     Packet pkt(req, MemCmd::ReadReq);
 
-    MSHR::Target target1(&pkt, 0, 1, MSHR::Target::FromCPU, true, true, 256, 2);
+    MSHR::Target target1(&pkt, 0, 1, MSHR::Target::FromCPU, true, true, 256,
+                         2);
     EXPECT_EQ(target1.compressedSizeBits, 256);
     EXPECT_EQ(target1.compressionFactor, 2);
 
@@ -88,7 +89,8 @@ TEST_F(MSHRTestFixture, TargetListCompressionMerging)
 
     // Add second target requiring 384 bits (less compressed)
     targetList.add(&pkt2, 0, 2, MSHR::Target::FromCPU, true, true, 384, 1);
-    // Aggregate required size must accommodate the larger target size (384 bits)
+    // Aggregate required size must accommodate the larger target size (384
+    // bits)
     EXPECT_EQ(targetList.getCompressedSizeBits(), 384);
     EXPECT_EQ(targetList.getCompressionFactor(), 1);
 }

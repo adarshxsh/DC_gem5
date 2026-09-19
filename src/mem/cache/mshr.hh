@@ -162,13 +162,17 @@ class MSHR : public QueueEntry, public Printable
         std::size_t compressedSizeBits;
         uint8_t compressionFactor;
 
-        Target(PacketPtr _pkt, Tick _readyTime, Counter _order,
-               Source _source, bool _markedPending, bool alloc_on_fill,
-               std::size_t _compressedSizeBits = 0, uint8_t _compressionFactor = 1)
-            : QueueEntry::Target(_pkt, _readyTime, _order), source(_source),
-              markedPending(_markedPending), allocOnFill(alloc_on_fill),
-              compressedSizeBits(_compressedSizeBits ? _compressedSizeBits :
-                                 (_pkt ? _pkt->getSize() * 8 : 0)),
+        Target(PacketPtr _pkt, Tick _readyTime, Counter _order, Source _source,
+               bool _markedPending, bool alloc_on_fill,
+               std::size_t _compressedSizeBits = 0,
+               uint8_t _compressionFactor = 1)
+            : QueueEntry::Target(_pkt, _readyTime, _order),
+              source(_source),
+              markedPending(_markedPending),
+              allocOnFill(alloc_on_fill),
+              compressedSizeBits(_compressedSizeBits
+                                     ? _compressedSizeBits
+                                     : (_pkt ? _pkt->getSize() * 8 : 0)),
               compressionFactor(_compressionFactor)
         {}
     };
@@ -202,8 +206,7 @@ class MSHR : public QueueEntry, public Printable
          * @param comp_factor Compression factor
          */
         void updateFlags(PacketPtr pkt, Target::Source source,
-                         bool alloc_on_fill,
-                         std::size_t comp_size_bits = 0,
+                         bool alloc_on_fill, std::size_t comp_size_bits = 0,
                          uint8_t comp_factor = 1);
 
         /**
@@ -212,8 +215,16 @@ class MSHR : public QueueEntry, public Printable
         void updateCompressionFlags(std::size_t comp_size_bits,
                                     uint8_t comp_factor = 1);
 
-        std::size_t getCompressedSizeBits() const { return compressedSizeBits; }
-        uint8_t getCompressionFactor() const { return compressionFactor; }
+        std::size_t
+        getCompressedSizeBits() const
+        {
+            return compressedSizeBits;
+        }
+        uint8_t
+        getCompressionFactor() const
+        {
+            return compressionFactor;
+        }
 
         /**
          * Reset state
@@ -432,11 +443,15 @@ class MSHR : public QueueEntry, public Printable
         return targets.isWholeLineWrite();
     }
 
-    std::size_t getCompressedSizeBits() const {
+    std::size_t
+    getCompressedSizeBits() const
+    {
         return targets.getCompressedSizeBits();
     }
 
-    uint8_t getCompressionFactor() const {
+    uint8_t
+    getCompressionFactor() const
+    {
         return targets.getCompressionFactor();
     }
 
@@ -471,8 +486,7 @@ class MSHR : public QueueEntry, public Printable
      * @param comp_factor Compression factor
      */
     void allocateTarget(PacketPtr target, Tick when, Counter order,
-                        bool alloc_on_fill,
-                        std::size_t comp_size_bits = 0,
+                        bool alloc_on_fill, std::size_t comp_size_bits = 0,
                         uint8_t comp_factor = 1);
     bool handleSnoop(PacketPtr target, Counter order);
 

@@ -72,11 +72,9 @@ MSHR::TargetList::TargetList(const std::string &name)
       hasFromCache(false), canMergeWrites(true)
 {}
 
-
 void
 MSHR::TargetList::updateFlags(PacketPtr pkt, Target::Source source,
-                              bool alloc_on_fill,
-                              std::size_t comp_size_bits,
+                              bool alloc_on_fill, std::size_t comp_size_bits,
                               uint8_t comp_factor)
 {
     if (source != Target::FromSnoop) {
@@ -109,7 +107,9 @@ void
 MSHR::TargetList::updateCompressionFlags(std::size_t comp_size_bits,
                                          uint8_t comp_factor)
 {
-    if (comp_size_bits == 0) return;
+    if (comp_size_bits == 0) {
+        return;
+    }
     if (compressedSizeBits == 0 || compressedSizeBits == blkSize * 8) {
         compressedSizeBits = comp_size_bits;
         compressionFactor = comp_factor;
@@ -126,7 +126,8 @@ MSHR::TargetList::populateFlags()
 {
     resetFlags();
     for (auto& t: *this) {
-        updateFlags(t.pkt, t.source, t.allocOnFill, t.compressedSizeBits, t.compressionFactor);
+        updateFlags(t.pkt, t.source, t.allocOnFill, t.compressedSizeBits,
+                    t.compressionFactor);
     }
 }
 
@@ -177,10 +178,9 @@ MSHR::TargetList::updateWriteFlags(PacketPtr pkt)
 }
 
 inline void
-MSHR::TargetList::add(PacketPtr pkt, Tick readyTime,
-                      Counter order, Target::Source source, bool markPending,
-                      bool alloc_on_fill,
-                      std::size_t comp_size_bits,
+MSHR::TargetList::add(PacketPtr pkt, Tick readyTime, Counter order,
+                      Target::Source source, bool markPending,
+                      bool alloc_on_fill, std::size_t comp_size_bits,
                       uint8_t comp_factor)
 {
     updateFlags(pkt, source, alloc_on_fill, comp_size_bits, comp_factor);
@@ -318,7 +318,6 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
     }
 }
 
-
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
                Tick when_ready, Counter _order, bool alloc_on_fill,
@@ -396,8 +395,8 @@ MSHR::deallocate()
  */
 void
 MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
-                     bool alloc_on_fill,
-                     std::size_t comp_size_bits, uint8_t comp_factor)
+                     bool alloc_on_fill, std::size_t comp_size_bits,
+                     uint8_t comp_factor)
 {
     // assume we'd never issue a prefetch when we've got an
     // outstanding miss
