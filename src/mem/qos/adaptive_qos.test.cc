@@ -38,15 +38,6 @@
 namespace gem5
 {
 
-void
-setUintX(unsigned long, void *, unsigned long, gem5::ByteOrder)
-{}
-uint64_t
-getUintX(void const *, unsigned long, gem5::ByteOrder)
-{
-    return 0;
-}
-
 namespace sim_clock
 {
 namespace as_float

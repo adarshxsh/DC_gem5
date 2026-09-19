@@ -38,6 +38,7 @@
 #ifndef __MEM_QOS_MEM_CTRL_HH__
 #define __MEM_QOS_MEM_CTRL_HH__
 
+#include <algorithm>
 #include <cstdint>
 #include <deque>
 #include <memory>

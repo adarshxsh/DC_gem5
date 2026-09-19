@@ -99,8 +99,8 @@ AdaptiveCompressionQueuePressurePolicy::schedule(const PacketPtr pkt)
                                    comp_ratio >= compressionRatioThreshold)) {
                     boost = 1;
                 }
-                calculated_prio =
-                    std::min<uint8_t>(max_prio, base_prio + boost);
+                calculated_prio = std::min<uint8_t>(
+                    max_prio, static_cast<uint8_t>(base_prio + boost));
             }
         }
     } else if (pkt->isRead()) {
@@ -118,15 +118,17 @@ AdaptiveCompressionQueuePressurePolicy::schedule(const PacketPtr pkt)
                 (rd_fill >= readPressureThreshold || rd_grad > 0.0)) {
                 boost = 1;
             }
-            calculated_prio = std::min<uint8_t>(max_prio, base_prio + boost);
+            calculated_prio = std::min<uint8_t>(
+                max_prio, static_cast<uint8_t>(base_prio + boost));
         }
     }
 
     DPRINTF(QOS,
             "AdaptiveCompressionQueuePressurePolicy: pkt addr %#x type %s "
             "compRatio %.2f base_prio %d calculated_prio %d\n",
-            pkt->getAddr(), pkt->isWrite() ? "WRITE" : "READ",
-            pkt->getCompressionRatio(), base_prio, calculated_prio);
+            static_cast<uint64_t>(pkt->getAddr()),
+            pkt->isWrite() ? "WRITE" : "READ", pkt->getCompressionRatio(),
+            base_prio, calculated_prio);
 
     return std::min<uint8_t>(max_prio, calculated_prio);
 }

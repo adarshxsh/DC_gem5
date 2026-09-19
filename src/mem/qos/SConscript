@@ -55,5 +55,5 @@ Source('mem_sink.cc')
 
 GTest('adaptive_qos.test', 'adaptive_qos.test.cc',
       'policy.cc', 'policy_adaptive_compression.cc', 'q_policy.cc', 'mem_ctrl.cc',
-      '#src/mem/packet.cc',
+      '#src/mem/packet.cc', '#src/sim/bufval.cc',
       with_tag('gem5 simobject'))
