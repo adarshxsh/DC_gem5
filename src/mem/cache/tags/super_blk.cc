@@ -180,8 +180,7 @@ CompressionBlk::print() const
                     getDecompressionLatency());
 }
 
-SuperBlk::SuperBlk()
-    : SectorBlk(), blkSize(0), compressionFactor(1)
+SuperBlk::SuperBlk() : SectorBlk(), compressionFactor(1)
 {
 }
 
@@ -244,13 +243,6 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
     }
 
     return (bit_sum + compressed_size) <= (blkSize * CHAR_BIT);
-}
-
-void
-SuperBlk::setBlkSize(const std::size_t blk_size)
-{
-    assert(blkSize == 0);
-    blkSize = blk_size;
 }
 
 uint8_t

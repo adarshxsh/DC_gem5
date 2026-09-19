@@ -170,9 +170,6 @@ class CompressionBlk : public SectorSubBlk
 class SuperBlk : public SectorBlk
 {
   protected:
-    /** Block size, in bytes. */
-    std::size_t blkSize;
-
     /**
      * Superblock's compression factor. It is aligned to be a power of two,
      * limited by the maximum compression ratio, and calculated as:
@@ -210,13 +207,6 @@ class SuperBlk : public SectorBlk
      * @return True if block can be co-allocated in superblock.
      */
     bool canCoAllocate(const std::size_t compressed_size) const;
-
-    /**
-     * Set block size. Should be called only once, when initializing blocks.
-     *
-     * @param blk_size The uncompressed block size.
-     */
-    void setBlkSize(const std::size_t blk_size);
 
     /**
      * Calculate the compression factor (cf) given a compressed size and the

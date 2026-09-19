@@ -1137,7 +1137,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
             // Evaluate post-expansion superblock capacity before evicting
             // co-allocated sub-blocks. Evict only as many sub-blocks as
             // necessary to fit the expanded block within capacity limits.
-            const SuperBlk* superblock = static_cast<const SuperBlk*>(
+            const SuperBlk *superblock = static_cast<const SuperBlk *>(
                 compression_blk->getSectorBlock());
 
             std::vector<CompressionBlk *> co_blks;
