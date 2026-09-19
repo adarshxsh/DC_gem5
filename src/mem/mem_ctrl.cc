@@ -407,7 +407,9 @@ bool
 MemCtrl::recvTimingReq(PacketPtr pkt)
 {
     // This is where we enter from the outside world
-    DPRINTF(MemCtrl, "recvTimingReq: request %s addr %#x size %d (write queue size: %d, low thresh: %d, high thresh: %d)\n",
+    DPRINTF(MemCtrl,
+            "recvTimingReq: request %s addr %#x size %d (write queue size: "
+            "%d, low thresh: %d, high thresh: %d)\n",
             pkt->cmdString(), pkt->getAddr(), pkt->getSize(),
             totalWriteQueueSize, writeLowThreshold, writeHighThreshold);
 
@@ -625,11 +627,15 @@ MemCtrl::schedTimingResp(PacketPtr pkt, Tick when)
     if (totalWriteQueueSize >= writeHighThreshold) {
         pkt->setMemHighPressure();
         pkt->setMemCongested();
-        DPRINTF(MemCtrl, "Setting MEM_HIGH_PRESSURE and MEM_CONGESTED on response pkt %s (write queue size: %d, thresh: %d)\n",
+        DPRINTF(MemCtrl,
+                "Setting MEM_HIGH_PRESSURE and MEM_CONGESTED on response pkt "
+                "%s (write queue size: %d, thresh: %d)\n",
                 pkt->print(), totalWriteQueueSize, writeHighThreshold);
     } else if (totalWriteQueueSize >= writeLowThreshold) {
         pkt->setMemCongested();
-        DPRINTF(MemCtrl, "Setting MEM_CONGESTED on response pkt %s (write queue size: %d, thresh: %d)\n",
+        DPRINTF(MemCtrl,
+                "Setting MEM_CONGESTED on response pkt %s (write queue size: "
+                "%d, thresh: %d)\n",
                 pkt->print(), totalWriteQueueSize, writeLowThreshold);
     }
 
