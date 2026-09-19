@@ -52,16 +52,13 @@ namespace compression
 {
 
 // Uncomment this line if debugging compression
-//#define DEBUG_COMPRESSION
+// #define DEBUG_COMPRESSION
 
-Base::CompressionData::CompressionData()
-    : _size(0)
-{
-}
+Base::CompressionData::CompressionData() : _size(0)
+{}
 
 Base::CompressionData::~CompressionData()
-{
-}
+{}
 
 void
 Base::CompressionData::setSizeBits(std::size_t size)
@@ -78,7 +75,7 @@ Base::CompressionData::getSizeBits() const
 std::size_t
 Base::CompressionData::getSize() const
 {
-    return std::ceil(_size/(float)CHAR_BIT);
+    return std::ceil(_size / (float)CHAR_BIT);
 }
 
 Base::Base(const Params &p)
@@ -93,7 +90,6 @@ Base::Base(const Params &p)
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
-      decayShift(p.decay_shift),
       adaptiveWindowSize(p.adaptive_window_size),
       windowUncompressedBits(0),
       windowCompressedBits(0),
@@ -104,14 +100,14 @@ Base::Base(const Params &p)
       stats(*this)
 {
     fatal_if(64 % chunkSizeBits,
-        "64 must be a multiple of the chunk granularity.");
+             "64 must be a multiple of the chunk granularity.");
 
     fatal_if(((CHAR_BIT * blkSize) / chunkSizeBits) < compChunksPerCycle,
-        "Compressor processes more chunks per cycle than the number of "
-        "chunks in the input");
+             "Compressor processes more chunks per cycle than the number of "
+             "chunks in the input");
     fatal_if(((CHAR_BIT * blkSize) / chunkSizeBits) < decompChunksPerCycle,
-        "Decompressor processes more chunks per cycle than the number of "
-        "chunks in the input");
+             "Decompressor processes more chunks per cycle than the number of "
+             "chunks in the input");
 
     fatal_if(blkSize < sizeThreshold, "Compressed data must fit in a block");
 }
@@ -124,7 +120,7 @@ Base::setCache(BaseCache *_cache)
 }
 
 std::vector<Base::Chunk>
-Base::toChunks(const uint64_t* data) const
+Base::toChunks(const uint64_t *data) const
 {
     // Number of chunks in a 64-bit value
     const unsigned num_chunks_per_64 =
@@ -135,15 +131,15 @@ Base::toChunks(const uint64_t* data) const
     for (int i = 0; i < chunks.size(); i++) {
         const int index_64 = std::floor(i / (double)num_chunks_per_64);
         const unsigned start = i % num_chunks_per_64;
-        chunks[i] = bits(data[index_64],
-            (start + 1) * chunkSizeBits - 1, start * chunkSizeBits);
+        chunks[i] = bits(data[index_64], (start + 1) * chunkSizeBits - 1,
+                         start * chunkSizeBits);
     }
 
     return chunks;
 }
 
 void
-Base::fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const
+Base::fromChunks(const std::vector<Chunk> &chunks, uint64_t *data) const
 {
     // Number of chunks in a 64-bit value
     const unsigned num_chunks_per_64 =
@@ -155,7 +151,7 @@ Base::fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const
         const int index_64 = std::floor(i / (double)num_chunks_per_64);
         const unsigned start = i % num_chunks_per_64;
         replaceBits(data[index_64], (start + 1) * chunkSizeBits - 1,
-            start * chunkSizeBits, chunks[i]);
+                    start * chunkSizeBits, chunks[i]);
     }
 }
 
@@ -173,7 +169,7 @@ Base::getObservedRatio() const
 }
 
 std::unique_ptr<Base::CompressionData>
-Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
+Base::compress(const uint64_t *data, Cycles &comp_lat, Cycles &decomp_lat)
 {
     totalCompressionRequests++;
 
@@ -205,10 +201,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     std::unique_ptr<CompressionData> comp_data =
         compress(toChunks(data), comp_lat, decomp_lat);
 
-    // If we are in debug mode apply decompression just after the compression.
-    // If the results do not match, we've got an error
-    #ifdef DEBUG_COMPRESSION
-    uint64_t decomp_data[blkSize/8];
+// If we are in debug mode apply decompression just after the compression.
+// If the results do not match, we've got an error
+#ifdef DEBUG_COMPRESSION
+    uint64_t decomp_data[blkSize / 8];
 
     // Apply decompression
     decompress(comp_data.get(), decomp_data);
@@ -216,7 +212,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     // Check if decompressed line matches original cache line
     fatal_if(std::memcmp(data, decomp_data, blkSize),
              "Decompressed line does not match original line.");
-    #endif
+#endif
 
     // Get compression size. If compressed size is greater than the size
     // threshold, the compression is seen as unsuccessful
@@ -233,10 +229,6 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     }
 
     if (isSampled) {
-        if (enableAdaptiveBypass && (decayShift > 0)) {
-            sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
-            sampledCompressedBits -= (sampledCompressedBits >> decayShift);
-        }
         uint64_t uncomp_bits = blkSize * CHAR_BIT;
         sampledUncompressedBits += uncomp_bits;
         sampledCompressedBits += comp_size_bits;
@@ -286,9 +278,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 }
 
 Cycles
-Base::getDecompressionLatency(const CacheBlk* blk)
+Base::getDecompressionLatency(const CacheBlk *blk)
 {
-    const CompressionBlk* comp_blk = static_cast<const CompressionBlk*>(blk);
+    const CompressionBlk *comp_blk = static_cast<const CompressionBlk *>(blk);
 
     // If block is compressed and has a size strictly less than an uncompressed
     // line, return its decompression latency
@@ -313,23 +305,23 @@ Base::getDecompressionLatency(const CacheBlk* blk)
 }
 
 void
-Base::setDecompressionLatency(CacheBlk* blk, const Cycles lat)
+Base::setDecompressionLatency(CacheBlk *blk, const Cycles lat)
 {
     // Sanity check
     assert(blk != nullptr);
 
     // Assign latency
-    static_cast<CompressionBlk*>(blk)->setDecompressionLatency(lat);
+    static_cast<CompressionBlk *>(blk)->setDecompressionLatency(lat);
 }
 
 void
-Base::setSizeBits(CacheBlk* blk, const std::size_t size_bits)
+Base::setSizeBits(CacheBlk *blk, const std::size_t size_bits)
 {
     // Sanity check
     assert(blk != nullptr);
 
     // Assign size
-    static_cast<CompressionBlk*>(blk)->setSizeBits(size_bits);
+    static_cast<CompressionBlk *>(blk)->setSizeBits(size_bits);
 }
 
 Base::BaseStats::BaseStats(Base &_compressor)
@@ -362,8 +354,7 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total compressed bits of sampled blocks"),
       ADD_STAT(observedCompressionRatio, statistics::units::Ratio::get(),
                "Observed compression ratio from sampling")
-{
-}
+{}
 
 void
 Base::BaseStats::regStats()
@@ -371,19 +362,20 @@ Base::BaseStats::regStats()
     statistics::Group::regStats();
 
     // Values comprised are {0, 1, 2, 4, ..., blkSize}
-    compressionSize.init(std::log2(compressor.blkSize*8) + 2);
+    compressionSize.init(std::log2(compressor.blkSize * 8) + 2);
     compressionSize.subname(0, "0");
-    compressionSize.subdesc(0,
-        "Number of blocks that compressed to fit in 0 bits");
-    for (unsigned i = 0; i <= std::log2(compressor.blkSize*8); ++i) {
+    compressionSize.subdesc(
+        0, "Number of blocks that compressed to fit in 0 bits");
+    for (unsigned i = 0; i <= std::log2(compressor.blkSize * 8); ++i) {
         std::string str_i = std::to_string(1 << i);
-        compressionSize.subname(1+i, str_i);
-        compressionSize.subdesc(1+i,
-            "Number of blocks that compressed to fit in " + str_i + " bits");
+        compressionSize.subname(1 + i, str_i);
+        compressionSize.subdesc(1 + i,
+                                "Number of blocks that compressed to fit in " +
+                                    str_i + " bits");
     }
 
     avgCompressionSizeBits.flags(statistics::total | statistics::nozero |
-        statistics::nonan);
+                                 statistics::nonan);
     avgCompressionSizeBits = compressionSizeBits / compressions;
 
     observedCompressionRatio.flags(statistics::total | statistics::nozero |

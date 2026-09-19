@@ -139,7 +139,6 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
         adaptive_window_size: int = 1000,
-        decay_shift: int = 4,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -171,7 +170,6 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._adaptive_window_size = adaptive_window_size
-        self._decay_shift = decay_shift
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -201,7 +199,6 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
                 l2.compressor.adaptive_window_size = self._adaptive_window_size
-                l2.compressor.decay_shift = self._decay_shift
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
@@ -437,14 +434,6 @@ parser.add_argument(
     help="Window size in sampling intervals for calculating windowed compression ratio (default: 1000).",
 )
 
-parser.add_argument(
-    "--decay-shift",
-    type=int,
-    required=False,
-    default=4,
-    help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
-)
-
 args = parser.parse_args()
 
 
@@ -504,7 +493,6 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
     adaptive_window_size=args.adaptive_window_size,
-    decay_shift=args.decay_shift,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)

@@ -80,10 +80,6 @@ class BaseCacheCompressor(SimObject):
         1000,
         "Size of the window (in sampling intervals) to track compression efficiency",
     )
-    decay_shift = Param.Unsigned(
-        4,
-        "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
-    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
