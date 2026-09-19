@@ -241,23 +241,24 @@ CompressedTags::checkInvariants() const
     SectorTags::checkInvariants();
     for (const auto &super_blk : superBlks) {
         if (super_blk.isValid()) {
-            uint8_t num_valid = super_blk.getNumValid();
-            uint8_t cf = super_blk.getCompressionFactor();
-            std::size_t total_bits = 0;
+            [[maybe_unused]] uint8_t num_valid = super_blk.getNumValid();
+            [[maybe_unused]] uint8_t cf = super_blk.getCompressionFactor();
+            if (num_valid > 1) {
+                assert(super_blk.isCompressed());
+            }
+            [[maybe_unused]] std::size_t total_bits = 0;
             for (const auto &blk : super_blk.blks) {
                 if (blk->isValid()) {
                     const CompressionBlk *cblk =
                         static_cast<const CompressionBlk *>(blk);
                     total_bits += cblk->getSizeBits();
-                    uint8_t blk_cf = super_blk.calculateCompressionFactor(
-                        cblk->getSizeBits());
+                    [[maybe_unused]] uint8_t blk_cf =
+                        super_blk.calculateCompressionFactor(
+                            cblk->getSizeBits());
                     assert(blk_cf >= cf);
                 }
             }
             assert(total_bits <= blkSize * CHAR_BIT);
-            if (num_valid > 1) {
-                assert(super_blk.isCompressed());
-            }
         } else {
             assert(super_blk.getCompressionFactor() == 1);
         }
