@@ -459,7 +459,28 @@ alignToPowerOfTwo(uint64_t val)
     val++;
 
     return val;
-};
+}
+
+/**
+ * Round a number down to the nearest power of two.
+ * If 0 is passed in, 0 is returned.
+ *
+ * @ingroup api_bitfield
+ */
+constexpr uint64_t
+powerOf2Floor(uint64_t val)
+{
+    if (val == 0) {
+        return 0;
+    }
+    val |= val >> 1;
+    val |= val >> 2;
+    val |= val >> 4;
+    val |= val >> 8;
+    val |= val >> 16;
+    val |= val >> 32;
+    return val - (val >> 1);
+}
 
 /**
  * Count trailing zeros in a 32-bit value.
