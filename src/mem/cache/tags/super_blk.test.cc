@@ -62,7 +62,6 @@ TEST(SuperBlkTest, SetUncompressedClearsCompressed)
     EXPECT_FALSE(blk.isCompressed());
 }
 
-<<<<<<< HEAD
 class CanCoAllocateTest : public ::testing::Test
 {
   protected:
@@ -147,5 +146,4 @@ TEST(SuperBlkTest, FractionalCompressionFactor)
     EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(200), 2.56);
     EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(100), 5.12);
     EXPECT_DOUBLE_EQ(sb.calculateCompressionFactor(64), 8.0);
-}
 }
