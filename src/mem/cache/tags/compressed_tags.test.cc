@@ -283,6 +283,78 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
     }
 }
 
+TEST_F(SuperBlkTestFixture, SubBlockCompactionOnInvalidate)
+{
+    // Insert 4 sub-blocks into superBlk
+    // Slot 0: offset 0 (64 bits)
+    // Slot 1: offset 1 (64 bits)
+    // Slot 2: offset 2 (64 bits)
+    // Slot 3: offset 3 (64 bits)
+    for (int k = 0; k < 4; ++k) {
+        subBlks[k].insert({0x4000, false});
+        subBlks[k].setSizeBits(64);
+        subBlks[k].setSectorOffset(k);
+    }
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    verifyInvariants(superBlk);
+
+    // Invalidate sub-block at index 1 (sector offset 1)
+    superBlk.blks[1]->invalidate();
+
+    // After compaction, numValid should be 3
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+
+    // The remaining valid sub-blocks must be compacted in slots [0 .. 2]
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 2);
+
+    ASSERT_TRUE(superBlk.blks[2]->isValid());
+    ASSERT_EQ(superBlk.blks[2]->getSectorOffset(), 3);
+
+    // Slot 3 must be invalid (consolidated open slot)
+    ASSERT_FALSE(superBlk.blks[3]->isValid());
+
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, CoAllocationIntoConsolidatedFreeSlot)
+{
+    // Insert 2 sub-blocks: offset 0 and offset 2
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].setSectorOffset(0);
+
+    subBlks[1].insert({0x5000, false});
+    subBlks[1].setSizeBits(64);
+    subBlks[1].setSectorOffset(2);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 2);
+
+    // Verify co-allocation is possible
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+
+    // Co-allocate a new block into the consolidated open slot at index
+    // numValid = 2
+    CompressionBlk *open_slot =
+        static_cast<CompressionBlk *>(superBlk.blks[superBlk.getNumValid()]);
+    ASSERT_FALSE(open_slot->isValid());
+    open_slot->setSectorOffset(1); // new block for sector offset 1
+    open_slot->insert({0x5000, false});
+    open_slot->setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_TRUE(superBlk.blks[2]->isValid());
+    ASSERT_EQ(superBlk.blks[2]->getSectorOffset(), 1);
+
+    verifyInvariants(superBlk);
+}
+
 TEST_F(SuperBlkTestFixture, SelectiveEvictionSufficientCapacity)
 {
     // Co-allocate two 64-bit sub-blocks (CF=8)
