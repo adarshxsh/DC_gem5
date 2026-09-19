@@ -74,10 +74,9 @@ MSHR::TargetList::TargetList(const std::string &name)
       hasFromCache(false), canMergeWrites(true)
 {}
 
-
 void
 MSHR::TargetList::updateFlags(PacketPtr pkt, Target::Source source,
-                              bool alloc_on_fill, const BaseTags* tags)
+                              bool alloc_on_fill, const BaseTags *tags)
 {
     if (source != Target::FromSnoop) {
         if (pkt->needsWritable()) {
@@ -113,7 +112,7 @@ MSHR::TargetList::populateFlags()
 }
 
 void
-MSHR::TargetList::updateWriteFlags(PacketPtr pkt, const BaseTags* tags)
+MSHR::TargetList::updateWriteFlags(PacketPtr pkt, const BaseTags *tags)
 {
     if (isWholeLineWrite()) {
         // if we have already seen writes for the full block
@@ -145,19 +144,22 @@ MSHR::TargetList::updateWriteFlags(PacketPtr pkt, const BaseTags* tags)
             bool is_compressed_subblock = false;
             CacheBlk *blk = tags->findBlock({blkAddr, pkt->isSecure()});
             if (blk) {
-                CompressionBlk *cblk = dynamic_cast<CompressionBlk*>(blk);
+                CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
                 if (cblk) {
-                    SuperBlk *super_blk = dynamic_cast<SuperBlk*>(cblk->getSectorBlock());
-                    if (super_blk && (super_blk->isCompressed() || cblk->isCompressed())) {
+                    SuperBlk *super_blk =
+                        dynamic_cast<SuperBlk *>(cblk->getSectorBlock());
+                    if (super_blk &&
+                        (super_blk->isCompressed() || cblk->isCompressed())) {
                         is_compressed_subblock = true;
                     }
                 }
-            } else if (dynamic_cast<const CompressedTags*>(tags)) {
+            } else if (dynamic_cast<const CompressedTags *>(tags)) {
                 is_compressed_subblock = true;
             }
 
             if (is_compressed_subblock) {
-                bool is_partial_store = !pkt->isWholeLineWrite(blkSize) || !isWholeLineWrite();
+                bool is_partial_store =
+                    !pkt->isWholeLineWrite(blkSize) || !isWholeLineWrite();
                 if (is_partial_store) {
                     canMergeWrites = false;
                     return;
@@ -184,9 +186,9 @@ MSHR::TargetList::updateWriteFlags(PacketPtr pkt, const BaseTags* tags)
 }
 
 inline void
-MSHR::TargetList::add(PacketPtr pkt, Tick readyTime,
-                      Counter order, Target::Source source, bool markPending,
-                      bool alloc_on_fill, const BaseTags* tags)
+MSHR::TargetList::add(PacketPtr pkt, Tick readyTime, Counter order,
+                      Target::Source source, bool markPending,
+                      bool alloc_on_fill, const BaseTags *tags)
 {
     updateFlags(pkt, source, alloc_on_fill, tags);
     if (markPending) {
@@ -322,11 +324,10 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
     }
 }
 
-
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
                Tick when_ready, Counter _order, bool alloc_on_fill,
-               const BaseTags* tags)
+               const BaseTags *tags)
 {
     blkAddr = blk_addr;
     blkSize = blk_size;
@@ -399,7 +400,7 @@ MSHR::deallocate()
  */
 void
 MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
-                     bool alloc_on_fill, const BaseTags* tags)
+                     bool alloc_on_fill, const BaseTags *tags)
 {
     // assume we'd never issue a prefetch when we've got an
     // outstanding miss
