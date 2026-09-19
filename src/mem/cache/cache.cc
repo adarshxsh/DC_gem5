@@ -76,10 +76,11 @@ Cache::Cache(const CacheParams &p)
 }
 
 void
-Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool deferred_response, bool pending_downgrade)
 {
-    BaseCache::satisfyRequest(pkt, blk);
+    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
+                              pending_downgrade);
 
     if (pkt->isRead()) {
         // determine if this read is from a (coherent) cache or not
@@ -640,14 +641,14 @@ Cache::handleAtomicReqMiss(PacketPtr pkt, CacheBlk *&blk,
                 blk = handleFill(bus_pkt, blk, writebacks, allocate);
                 assert(blk != NULL);
                 is_invalidate = false;
-                satisfyRequest(pkt, blk);
+                satisfyRequest(pkt, blk, writebacks);
             } else if (bus_pkt->isRead() ||
                        bus_pkt->cmd == MemCmd::UpgradeResp) {
                 // we're updating cache state to allow us to
                 // satisfy the upstream request from the cache
                 blk = handleFill(bus_pkt, blk, writebacks,
                                  allocOnFill(pkt->cmd));
-                satisfyRequest(pkt, blk);
+                satisfyRequest(pkt, blk, writebacks);
                 maintainClusivity(pkt->fromCache(), blk);
             } else {
                 // we're satisfying the upstream request without
@@ -695,9 +696,9 @@ Cache::recvAtomic(PacketPtr pkt)
 //
 /////////////////////////////////////////////////////
 
-
 void
-Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
+Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
+                          PacketList &writebacks)
 {
     QueueEntry::Target *initial_tgt = mshr->getTarget();
     // First offset for critical word first calculations
@@ -796,7 +797,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
             // either); otherwise we use the packet data.
             if (blk && blk->isValid() &&
                 (!mshr->isForward || !pkt->hasData())) {
-                satisfyRequest(tgt_pkt, blk, true, mshr->hasPostDowngrade());
+                satisfyRequest(tgt_pkt, blk, writebacks, true,
+                               mshr->hasPostDowngrade());
 
                 // How many bytes past the first request is this one
                 int transfer_offset =
