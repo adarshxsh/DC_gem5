@@ -1241,7 +1241,7 @@ DRAMInterface::Rank::isQueueEmpty() const
 bool
 DRAMInterface::Rank::hasWriteToOpenRow() const
 {
-    if (writeEntries == 0) {
+    if (!dram.ctrl || writeEntries == 0) {
         return false;
     }
     const auto &write_queue = dram.ctrl->selQueue(false);
@@ -1269,7 +1269,11 @@ DRAMInterface::Rank::checkDrainDone()
             DPRINTF(DRAM, "Refresh deferral continuing in checkDrainDone\n");
             Tick deadline = refreshDueAt + dram.tREFI - dram.tRFC;
             if (deadline > curTick()) {
-                reschedule(refreshEvent, deadline);
+                if (refreshEvent.scheduled()) {
+                    reschedule(refreshEvent, deadline);
+                } else {
+                    schedule(refreshEvent, deadline);
+                }
             }
             return;
         }
@@ -1278,7 +1282,11 @@ DRAMInterface::Rank::checkDrainDone()
         refreshState = REF_PD_EXIT;
 
         // hand control back to the refresh event loop
-        reschedule(refreshEvent, curTick());
+        if (refreshEvent.scheduled()) {
+            reschedule(refreshEvent, curTick());
+        } else {
+            schedule(refreshEvent, curTick());
+        }
     }
 }
 
@@ -1402,7 +1410,11 @@ DRAMInterface::Rank::processRefreshEvent()
                     "Deferring refresh PREA due to open-row write hits\n");
             Tick deadline = refreshDueAt + dram.tREFI - dram.tRFC;
             if (deadline > curTick()) {
-                reschedule(refreshEvent, deadline);
+                if (refreshEvent.scheduled()) {
+                    reschedule(refreshEvent, deadline);
+                } else {
+                    schedule(refreshEvent, deadline);
+                }
             }
             return;
         } else {
