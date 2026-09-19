@@ -116,6 +116,10 @@ class BaseCache(ClockedObject):
     )
 
     compressor = Param.BaseCacheCompressor(NULL, "Cache compressor.")
+    compressed_non_inclusive_eviction = Param.Bool(
+        False,
+        "Enable non-inclusive eviction filtering for compressed superblocks",
+    )
     replace_expansions = Param.Bool(
         True,
         "Apply replacement policy to "

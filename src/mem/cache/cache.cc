@@ -195,9 +195,15 @@ Cache::doWritebacks(PacketList& writebacks, Tick forward_time)
         // We use forwardLatency here because we are copying writebacks to
         // write buffer.
 
+        // For compressed non-inclusive eviction mode, clean sub-blocks
+        // retain their upper-level L1 cached copies without invalidating snoops.
+        bool is_compressed_non_inc = compressedNonInclusiveEviction &&
+                                     (compressor != nullptr);
+        bool invalidate = !is_compressed_non_inc;
+
         // Call isCachedAbove for Writebacks, CleanEvicts and
         // WriteCleans to discover if the block is cached above.
-        if (isCachedAbove(wbPkt)) {
+        if (isCachedAbove(wbPkt, true, invalidate)) {
             if (wbPkt->cmd == MemCmd::CleanEvict) {
                 // Delete CleanEvict because cached copies exist above. The
                 // packet destructor will delete the request object because
@@ -234,10 +240,14 @@ Cache::doWritebacksAtomic(PacketList& writebacks)
 {
     while (!writebacks.empty()) {
         PacketPtr wbPkt = writebacks.front();
+        bool is_compressed_non_inc = compressedNonInclusiveEviction &&
+                                     (compressor != nullptr);
+        bool invalidate = !is_compressed_non_inc;
+
         // Call isCachedAbove for both Writebacks and CleanEvicts. If
         // isCachedAbove returns true we set BLOCK_CACHED flag in Writebacks
         // and discard CleanEvicts.
-        if (isCachedAbove(wbPkt, false)) {
+        if (isCachedAbove(wbPkt, false, invalidate)) {
             if (wbPkt->cmd == MemCmd::WritebackDirty ||
                 wbPkt->cmd == MemCmd::WriteClean) {
                 // Set BLOCK_CACHED flag in Writeback and send below,
@@ -1391,7 +1401,7 @@ Cache::recvAtomicSnoop(PacketPtr pkt)
 }
 
 bool
-Cache::isCachedAbove(PacketPtr pkt, bool is_timing)
+Cache::isCachedAbove(PacketPtr pkt, bool is_timing, bool invalidate)
 {
     if (!forwardSnoops)
         return false;
@@ -1401,7 +1411,7 @@ Cache::isCachedAbove(PacketPtr pkt, bool is_timing)
     // packet, the cache can inform the crossbar below of presence or absence
     // of the block.
     if (is_timing) {
-        Packet snoop_pkt(pkt, true, false);
+        Packet snoop_pkt(pkt, true, invalidate);
         snoop_pkt.setExpressSnoop();
         // Assert that packet is either Writeback or CleanEvict and not a
         // prefetch request because prefetch requests need an MSHR and may
@@ -1413,6 +1423,9 @@ Cache::isCachedAbove(PacketPtr pkt, bool is_timing)
         assert(!(snoop_pkt.cacheResponding()));
         return snoop_pkt.isBlockCached();
     } else {
+        if (invalidate) {
+            pkt->setInvalidate();
+        }
         cpuSidePort.sendAtomicSnoop(pkt);
         return pkt->isBlockCached();
     }

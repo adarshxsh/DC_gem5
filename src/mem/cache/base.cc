@@ -110,6 +110,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       isReadOnly(p.is_read_only),
       replaceExpansions(p.replace_expansions),
       moveContractions(p.move_contractions),
+      compressedNonInclusiveEviction(p.compressed_non_inclusive_eviction),
       blocked(0),
       order(0),
       noTargetMSHR(nullptr),
