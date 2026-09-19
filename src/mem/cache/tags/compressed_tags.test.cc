@@ -598,4 +598,3 @@ TEST_F(SuperBlkTestFixture,
     ASSERT_EQ(filtered[0], &candidates[1]);
     ASSERT_EQ(filtered[1], &candidates[3]);
 }
-}
