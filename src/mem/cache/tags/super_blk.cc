@@ -226,13 +226,6 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
            (compressed_size <= (blkSize * CHAR_BIT) / target_cf);
 }
 
-void
-SuperBlk::setBlkSize(const std::size_t blk_size)
-{
-    assert(blkSize == 0);
-    blkSize = blk_size;
-}
-
 uint8_t
 SuperBlk::calculateCompressionFactor(const std::size_t size) const
 {

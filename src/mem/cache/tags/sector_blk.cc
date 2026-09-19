@@ -145,6 +145,7 @@ SectorBlk::SectorBlk() : TaggedEntry(), _validCounter(0), blkSize(0)
 void
 SectorBlk::setBlkSize(const std::size_t blk_size)
 {
+    assert(blkSize == 0);
     blkSize = blk_size;
 }
 

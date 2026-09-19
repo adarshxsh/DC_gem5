@@ -424,7 +424,7 @@ SectorTags::checkInvariants() const
         }
         assert(sec_blk.getNumValid() == count_valid_sub);
         assert(sec_blk.isValid() == (count_valid_sub > 0));
-        for (int k = 0; k < sec_blk.blks.size(); ++k) {
+        for (std::size_t k = 0; k < sec_blk.blks.size(); ++k) {
             if (k < count_valid_sub) {
                 assert(sec_blk.blks[k]->isValid());
             } else {

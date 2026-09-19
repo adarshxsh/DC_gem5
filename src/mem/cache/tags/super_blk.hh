@@ -201,13 +201,6 @@ class SuperBlk : public SectorBlk
     bool canCoAllocate(const std::size_t compressed_size) const;
 
     /**
-     * Set block size. Should be called only once, when initializing blocks.
-     *
-     * @param blk_size The uncompressed block size.
-     */
-    void setBlkSize(const std::size_t blk_size);
-
-    /**
      * Calculate the compression factor (cf) given a compressed size and the
      * maximum compression ratio. Therefore cf is:
      *  1 if comp_size > blk_size/2,
