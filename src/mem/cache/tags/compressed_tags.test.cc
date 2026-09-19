@@ -28,6 +28,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -318,7 +319,7 @@ TEST_F(SuperBlkTestFixture, SelectiveLRUNeighborEviction)
     ASSERT_EQ(new_blk_cf, 2);
 
     // Calculate minimum required evictions
-    uint8_t min_other_cf = superBlk.blks.size();
+    uint8_t min_other_cf = static_cast<uint8_t>(superBlk.blks.size());
     for (const auto &sub_blk : superBlk.blks) {
         if (sub_blk->isValid() && (&subBlks[3] != sub_blk)) {
             CompressionBlk *cblk = static_cast<CompressionBlk *>(sub_blk);
@@ -374,19 +375,20 @@ TEST_F(SuperBlkTestFixture, SelectiveLRUNeighborEviction)
     verifyInvariants(superBlk);
 }
 
-
 TEST_F(SuperBlkTestFixture, HasValidDemand)
 {
     // Initial state: empty superblock has no valid demand
     ASSERT_FALSE(superBlk.hasValidDemand());
 
     // Insert a prefetched block
+    subBlks[0].insert({0x6000, false});
     subBlks[0].setPrefetched();
     ASSERT_TRUE(subBlks[0].isValid());
     ASSERT_TRUE(subBlks[0].wasPrefetched());
     ASSERT_FALSE(superBlk.hasValidDemand());
 
     // Insert a demand block
+    subBlks[1].insert({0x6000, false});
     ASSERT_TRUE(subBlks[1].isValid());
     ASSERT_FALSE(subBlks[1].wasPrefetched());
     ASSERT_TRUE(superBlk.hasValidDemand());
@@ -399,10 +401,12 @@ TEST_F(SuperBlkTestFixture, HasValidDemand)
     subBlks[0].clearPrefetched();
     ASSERT_FALSE(subBlks[0].wasPrefetched());
     ASSERT_TRUE(superBlk.hasValidDemand());
+}
 
 TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
 {
     // Insert a demand sub-block into superBlk with size 64 bits (high CF = 8)
+    subBlks[0].insert({0x6000, false});
     subBlks[0].setSizeBits(64);
     ASSERT_TRUE(superBlk.hasValidDemand());
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
@@ -439,6 +443,7 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
         !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
 
     ASSERT_TRUE(co_alloc_allowed_for_demand);
+}
 
 TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
 {
@@ -451,6 +456,7 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     CompressionBlk blk_demand1;
     CompressionBlk blk_prefetch;
 
+    auto dummyTagExtractor = [](Addr addr) { return addr; };
     blk_demand0.registerTagExtractor(dummyTagExtractor);
     blk_demand1.registerTagExtractor(dummyTagExtractor);
     blk_prefetch.registerTagExtractor(dummyTagExtractor);
@@ -462,7 +468,13 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     blk_demand1.setSectorBlock(&sb_demand1);
     blk_prefetch.setSectorBlock(&sb_prefetch);
 
+    sb_demand0.blks = {&blk_demand0};
+    sb_demand1.blks = {&blk_demand1};
+    sb_prefetch.blks = {&blk_prefetch};
 
+    blk_demand0.insert({0x1000, false}); // demand block
+    blk_demand1.insert({0x2000, false}); // demand block
+    blk_prefetch.insert({0x3000, false});
     blk_prefetch.setPrefetched(); // prefetched block
 
     ASSERT_TRUE(sb_demand0.hasValidDemand());
@@ -470,6 +482,7 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     ASSERT_FALSE(sb_prefetch.hasValidDemand());
 
     std::vector<SuperBlk *> superblock_entries = {&sb_demand0, &sb_demand1,
+                                                  &sb_prefetch};
 
     // Filter candidate victim superblocks for a prefetch request
     std::vector<SuperBlk *> replacement_candidates;
@@ -479,7 +492,11 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
         for (auto *sb : superblock_entries) {
             if (!sb->hasValidDemand()) {
                 replacement_candidates.push_back(sb);
+            }
+        }
+    } else {
         replacement_candidates = superblock_entries;
+    }
 
     // Verify only sb_prefetch is eligible for eviction during a prefetch
     // request
@@ -495,7 +512,11 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
         for (auto *sb : superblock_entries) {
             if (!sb->hasValidDemand()) {
                 replacement_candidates.push_back(sb);
+            }
+        }
+    }
 
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
