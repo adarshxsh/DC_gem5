@@ -976,6 +976,12 @@ class BaseCache : public ClockedObject
     const bool moveContractions;
 
     /**
+     * Whether clean sub-blocks of compressed superblocks should perform
+     * non-inclusive eviction filtering (retained in upper L1 caches).
+     */
+    const bool compressedNonInclusiveEviction;
+
+    /**
      * Bit vector of the blocking reasons for the access path.
      * @sa #BlockedCause
      */
