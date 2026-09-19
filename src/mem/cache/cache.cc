@@ -197,9 +197,10 @@ Cache::doWritebacks(PacketList& writebacks, Tick forward_time)
         // write buffer.
 
         // For compressed non-inclusive eviction mode, clean sub-blocks
-        // retain their upper-level L1 cached copies without invalidating snoops.
-        bool is_compressed_non_inc = compressedNonInclusiveEviction &&
-                                     (compressor != nullptr);
+        // retain their upper-level L1 cached copies without invalidating
+        // snoops.
+        bool is_compressed_non_inc =
+            compressedNonInclusiveEviction && (compressor != nullptr);
         bool invalidate = !is_compressed_non_inc;
 
         // Call isCachedAbove for Writebacks, CleanEvicts and
@@ -241,8 +242,8 @@ Cache::doWritebacksAtomic(PacketList& writebacks)
 {
     while (!writebacks.empty()) {
         PacketPtr wbPkt = writebacks.front();
-        bool is_compressed_non_inc = compressedNonInclusiveEviction &&
-                                     (compressor != nullptr);
+        bool is_compressed_non_inc =
+            compressedNonInclusiveEviction && (compressor != nullptr);
         bool invalidate = !is_compressed_non_inc;
 
         // Call isCachedAbove for both Writebacks and CleanEvicts. If

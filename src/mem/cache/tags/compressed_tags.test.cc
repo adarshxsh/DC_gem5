@@ -574,11 +574,12 @@ TEST_F(SuperBlkTestFixture, CompressedNonInclusiveEvictionFiltering)
     bool is_cached_above = true;
     bool compressed_non_inclusive_eviction = true;
 
-    std::vector<CacheBlk*> evict_blks = { &subBlks[0] };
-    for (auto* evict_blk : evict_blks) {
-        if (!evict_blk->isSet(CacheBlk::DirtyBit) && compressed_non_inclusive_eviction && is_cached_above) {
-            // Clean sub-block present in upper cache: L2 invalidates tag backing
-            // while suppressing upper-level snoop invalidations
+    std::vector<CacheBlk *> evict_blks = {&subBlks[0]};
+    for (auto *evict_blk : evict_blks) {
+        if (!evict_blk->isSet(CacheBlk::DirtyBit) &&
+            compressed_non_inclusive_eviction && is_cached_above) {
+            // Clean sub-block present in upper cache: L2 invalidates tag
+            // backing while suppressing upper-level snoop invalidations
             evict_blk->invalidate();
         }
     }
