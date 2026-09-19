@@ -565,9 +565,10 @@ class BaseCache : public ClockedObject
      * @param mshr The MSHR that corresponds to the reponse
      * @param pkt The response packet
      * @param blk The reference block
+     * @param writebacks List of writebacks generated
      */
     virtual void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                                    CacheBlk *blk) = 0;
+                                    CacheBlk *blk, PacketList &writebacks) = 0;
 
     /**
      * Handles a response (cache line fill/write ack) from the bus.
@@ -750,10 +751,12 @@ class BaseCache : public ClockedObject
      *
      * @param pkt Request packet from upstream that hit a block
      * @param blk Cache block that the packet hit
+     * @param writebacks List of writebacks generated
      * @param deferred_response Whether this request originally missed
      * @param pending_downgrade Whether the writable flag is to be removed
      */
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+                                PacketList &writebacks,
                                 bool deferred_response = false,
                                 bool pending_downgrade = false);
 

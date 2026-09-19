@@ -635,7 +635,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
         }
     }
 
-    serviceMSHRTargets(mshr, pkt, blk);
+    serviceMSHRTargets(mshr, pkt, blk, writebacks);
     // We are stopping servicing targets early for the Locked RMW Read until
     // the write comes.
     if (!mshr->hasLockedRMWReadTarget()) {
@@ -1176,7 +1176,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 }
 
 void
-BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
+BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                          bool, bool)
 {
     assert(pkt->isRequest());
 
@@ -1226,6 +1227,14 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         } else {
             cmpAndSwap(blk, pkt);
         }
+
+        if (compressor) {
+            if (!updateCompressionData(
+                    blk, reinterpret_cast<const uint64_t *>(blk->data),
+                    writebacks)) {
+                invalidateBlock(blk);
+            }
+        }
     } else if (pkt->isWrite()) {
         // we have the block in a writable state and can go ahead,
         // note that the line may be also be considered writable in
@@ -1242,6 +1251,14 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         // this cache before knowing the store will fail.
         blk->setCoherenceBits(CacheBlk::DirtyBit);
         DPRINTF(CacheVerbose, "%s for %s (write)\n", __func__, pkt->print());
+
+        if (compressor) {
+            if (!updateCompressionData(
+                    blk, reinterpret_cast<const uint64_t *>(blk->data),
+                    writebacks)) {
+                invalidateBlock(blk);
+            }
+        }
     } else if (pkt->isRead()) {
         if (pkt->isLLSC()) {
             blk->trackLoadLocked(pkt);
@@ -1562,11 +1579,14 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             if (compressor) {
                 lat += compressor->getDecompressionLatency(blk);
             }
+        } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
+            lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
+                  compressor->getDecompressionLatency(blk);
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
 
-        satisfyRequest(pkt, blk);
+        satisfyRequest(pkt, blk, writebacks);
         maintainClusivity(pkt->fromCache(), blk);
 
         return true;
