@@ -46,6 +46,8 @@
 #ifndef __MEM_CTRL_HH__
 #define __MEM_CTRL_HH__
 
+#include <algorithm>
+#include <cstdint>
 #include <deque>
 #include <string>
 #include <unordered_set>
@@ -433,6 +435,12 @@ class MemCtrl : public qos::MemCtrl
                     MemInterface* mem_intr);
 
     /**
+     * Get latency of oldest queued read request
+     * @return Wait duration in ticks of the oldest read packet in readQueue
+     */
+    Tick getOldestReadWaitTime() const;
+
+    /**
      * Calculate burst window aligned tick
      *
      * @param cmd_tick Initial tick of command
@@ -517,6 +525,8 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeLowThreshold;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
+    uint32_t maxWriteDrainBurst;
+    Tick maxReadWaitTime;
 
     /**
      * Memory controller configuration initialized based on parameter
