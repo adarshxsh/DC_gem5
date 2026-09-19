@@ -123,6 +123,10 @@ CompressionBlk::setSizeBits(const std::size_t size)
         } else {
             setUncompressed();
         }
+
+        if (!superblock->isCompacting()) {
+            superblock->compact();
+        }
     } else {
         if (size > 0 && size < 512) {
             setCompressed();
@@ -153,6 +157,9 @@ CompressionBlk::invalidate()
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
         superblock->updateCompressionFactor();
+        if (!superblock->isCompacting()) {
+            superblock->compact();
+        }
     }
 }
 
@@ -186,10 +193,80 @@ SuperBlk::SuperBlk()
 }
 
 void
+SuperBlk::compact()
+{
+    if (_compacting) {
+        return;
+    }
+
+    _compacting = true;
+
+    uint8_t write_idx = 0;
+    for (uint8_t read_idx = 0; read_idx < blks.size(); ++read_idx) {
+        if (blks[read_idx]->isValid()) {
+            if (write_idx != read_idx) {
+                CompressionBlk *dest =
+                    static_cast<CompressionBlk *>(blks[write_idx]);
+                CompressionBlk *src =
+                    static_cast<CompressionBlk *>(blks[read_idx]);
+                *dest = std::move(*src);
+            }
+            write_idx++;
+        }
+    }
+
+    _compacting = false;
+
+    updateOffsetMap();
+    updateCompressionFactor();
+}
+
+void
+SuperBlk::updateOffsetMap()
+{
+    if (blks.empty()) {
+        return;
+    }
+    if (sectorOffsetToSlot.size() != blks.size()) {
+        sectorOffsetToSlot.resize(blks.size(), -1);
+    }
+    std::fill(sectorOffsetToSlot.begin(), sectorOffsetToSlot.end(), -1);
+    for (uint8_t slot = 0; slot < blks.size(); ++slot) {
+        if (blks[slot]->isValid()) {
+            int offset = blks[slot]->getSectorOffset();
+            if (offset >= 0 &&
+                offset < static_cast<int>(sectorOffsetToSlot.size())) {
+                sectorOffsetToSlot[offset] = slot;
+            }
+        }
+    }
+}
+
+CompressionBlk *
+SuperBlk::findSubBlk(int sector_offset) const
+{
+    if (sector_offset >= 0 &&
+        sector_offset < static_cast<int>(sectorOffsetToSlot.size())) {
+        int slot = sectorOffsetToSlot[sector_offset];
+        if (slot >= 0 && slot < static_cast<int>(blks.size()) &&
+            blks[slot]->isValid()) {
+            return static_cast<CompressionBlk *>(blks[slot]);
+        }
+    }
+    for (const auto &blk : blks) {
+        if (blk->isValid() && blk->getSectorOffset() == sector_offset) {
+            return static_cast<CompressionBlk *>(blk);
+        }
+    }
+    return nullptr;
+}
+
+void
 SuperBlk::invalidate()
 {
     SectorBlk::invalidate();
     compressionFactor = 1;
+    updateOffsetMap();
 }
 
 bool
@@ -232,6 +309,7 @@ SuperBlk::setBlkSize(const std::size_t blk_size)
 {
     assert(blkSize == 0);
     blkSize = blk_size;
+    updateOffsetMap();
 }
 
 uint8_t

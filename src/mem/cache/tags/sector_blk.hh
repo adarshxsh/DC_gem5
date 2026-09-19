@@ -151,6 +151,17 @@ class SectorBlk : public TaggedEntry
     std::vector<SectorSubBlk*> blks;
 
     /**
+     * Get the uncompressed block size in bytes if applicable.
+     *
+     * @return Block size in bytes.
+     */
+    virtual std::size_t
+    getBlkSize() const
+    {
+        return 0;
+    }
+
+    /**
      * Checks that a sector block is valid.
      *
      * @return True if any of the blocks in the sector is valid.

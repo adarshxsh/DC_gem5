@@ -254,8 +254,11 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
         if (!cblks[sb_idx][sub_idx].isValid()) {
             Addr tag = tag_base + (sb_idx * 0x1000);
             if (!sblks[sb_idx].isValid() || sblks[sb_idx].getTag() == tag) {
-                cblks[sb_idx][sub_idx].insert({tag, false});
-                cblks[sb_idx][sub_idx].setSizeBits(sz);
+                if (!sblks[sb_idx].isValid() ||
+                    sblks[sb_idx].canCoAllocate(sz)) {
+                    cblks[sb_idx][sub_idx].insert({tag, false});
+                    cblks[sb_idx][sub_idx].setSizeBits(sz);
+                }
             }
         } else if (iter % 3 == 0) {
             // Invalidate/evict
@@ -269,12 +272,19 @@ TEST_F(SuperBlkTestFixture, StressCoAllocationMigrationEviction)
                 (!sblks[target_sb].isValid() ||
                  sblks[target_sb].getTag() ==
                      cblks[sb_idx][sub_idx].getTag())) {
-                cblks[target_sb][target_sub] =
-                    std::move(cblks[sb_idx][sub_idx]);
+                if (!sblks[target_sb].isValid() ||
+                    sblks[target_sb].canCoAllocate(
+                        cblks[sb_idx][sub_idx].getSizeBits())) {
+                    cblks[target_sb][target_sub] =
+                        std::move(cblks[sb_idx][sub_idx]);
+                }
             }
         } else {
             // Update size (expansion / contraction)
-            cblks[sb_idx][sub_idx].setSizeBits(sz);
+            if (sblks[sb_idx].calculateCompressionFactor(sz) >=
+                sblks[sb_idx].getNumValid()) {
+                cblks[sb_idx][sub_idx].setSizeBits(sz);
+            }
         }
 
         for (int i = 0; i < NumSuperBlks; ++i) {
@@ -393,21 +403,113 @@ TEST_F(SuperBlkTestFixture, SelectiveEvictionExceededCapacity)
     ASSERT_EQ(evict_blks[0], &subBlks[0]);
     ASSERT_EQ(evict_blks[1], &subBlks[1]);
 
-    // Perform selective eviction
-    for (auto *evict_blk : evict_blks) {
-        evict_blk->invalidate();
-    }
+    // Perform selective eviction by logical sector offset
+    superBlk.findSubBlk(0)->invalidate();
+    superBlk.findSubBlk(1)->invalidate();
 
-    // Update expansion sub-block size
-    subBlks[3].setSizeBits(expansion_size);
+    // Update expansion sub-block size on active sub-block at sector offset 3
+    superBlk.findSubBlk(3)->setSizeBits(expansion_size);
 
-    // Verify subBlks[2] and subBlks[3] are preserved, subBlks[0] and
-    // subBlks[1] evicted
-    ASSERT_FALSE(subBlks[0].isValid());
-    ASSERT_FALSE(subBlks[1].isValid());
-    ASSERT_TRUE(subBlks[2].isValid());
-    ASSERT_TRUE(subBlks[3].isValid());
+    // After eager compaction, remaining valid sub-blocks (sector offsets 2 and
+    // 3) are left-packed into physical slots 0 and 1
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_FALSE(superBlk.blks[2]->isValid());
+    ASSERT_FALSE(superBlk.blks[3]->isValid());
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 2);
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 3);
     ASSERT_EQ(superBlk.getNumValid(), 2);
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, EagerInPlaceCompactionOnInvalidation)
+{
+    // Insert 4 sub-blocks at sector offsets 0, 1, 2, 3 (64 bits each -> CF=8)
+    subBlks[0].insert({0x6000, false});
+    subBlks[0].setSizeBits(64);
+
+    subBlks[1].insert({0x6000, false});
+    subBlks[1].setSizeBits(64);
+
+    subBlks[2].insert({0x6000, false});
+    subBlks[2].setSizeBits(64);
+
+    subBlks[3].insert({0x6000, false});
+    subBlks[3].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+
+    // Invalidate intermediate sub-block at sector offset 1 (slot 1)
+    superBlk.findSubBlk(1)->invalidate();
+
+    // Verify eager compaction left-packs remaining valid sub-blocks into slots
+    // 0, 1, 2
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_TRUE(superBlk.blks[2]->isValid());
+    ASSERT_FALSE(superBlk.blks[3]->isValid());
+
+    // Verify dynamic sector offset mapping
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 2);
+    ASSERT_EQ(superBlk.blks[2]->getSectorOffset(), 3);
+
+    ASSERT_EQ(superBlk.findSubBlk(0), superBlk.blks[0]);
+    ASSERT_EQ(superBlk.findSubBlk(1), nullptr);
+    ASSERT_EQ(superBlk.findSubBlk(2), superBlk.blks[1]);
+    ASSERT_EQ(superBlk.findSubBlk(3), superBlk.blks[2]);
+    verifyInvariants(superBlk);
+
+    // Invalidate slot 0 (sector offset 0)
+    superBlk.blks[0]->invalidate();
+
+    // Active sub-blocks (sector offsets 2, 3) left-packed into slots 0 and 1
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_FALSE(superBlk.blks[2]->isValid());
+    ASSERT_FALSE(superBlk.blks[3]->isValid());
+
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 2);
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 3);
+
+    // Verify co-allocation into first free slot (slot 2)
+    ASSERT_TRUE(superBlk.canCoAllocate(64));
+    CompressionBlk *free_slot =
+        static_cast<CompressionBlk *>(superBlk.blks[superBlk.getNumValid()]);
+    ASSERT_EQ(free_slot, superBlk.blks[2]);
+    free_slot->insert({0x6000, false});
+    free_slot->setSectorOffset(1);
+    free_slot->setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_EQ(superBlk.findSubBlk(1), superBlk.blks[2]);
+    verifyInvariants(superBlk);
+}
+
+TEST_F(SuperBlkTestFixture, EagerCompactionOnSizeContraction)
+{
+    subBlks[0].insert({0x7000, false});
+    subBlks[0].setSizeBits(256); // CF=2
+
+    subBlks[1].insert({0x7000, false});
+    subBlks[1].setSizeBits(256); // CF=2
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+
+    // Contract subBlks[0] to 64 bits (CF=8)
+    subBlks[0].setSizeBits(64);
+
+    // Compaction maintains active sub-blocks in slots 0 and 1
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_EQ(superBlk.findSubBlk(0), superBlk.blks[0]);
+    ASSERT_EQ(superBlk.findSubBlk(1), superBlk.blks[1]);
     verifyInvariants(superBlk);
 }
