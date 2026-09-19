@@ -357,6 +357,8 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
             // Update stats
             stats.avgWrQLen = totalWriteQueueSize;
 
+            updateQueuePressure();
+
         } else {
             DPRINTF(MemCtrl,
                     "Merging write burst with existing queue entry\n");
@@ -1114,6 +1116,8 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         delete mem_pkt;
 
+        updateQueuePressure();
+
         // If we emptied the write queue, or got sufficiently below the
         // threshold (using the minWritesPerSwitch as the hysteresis) and
         // are not draining, or we have reads waiting and have done enough
@@ -1537,6 +1541,42 @@ void
 MemCtrl::MemoryPort::disableSanityCheck()
 {
     queue.disableSanityCheck();
+}
+
+void
+MemCtrl::regProbePoints()
+{
+    qos::MemCtrl::regProbePoints();
+    ppQueuePressure =
+        new ProbePointArg<double>(getProbeManager(), "ppQueuePressure");
+}
+
+double
+MemCtrl::getWriteQueuePressure() const
+{
+    return (writeBufferSize > 0)
+               ? std::clamp(static_cast<double>(totalWriteQueueSize) /
+                                static_cast<double>(writeBufferSize),
+                            0.0, 1.0)
+               : 0.0;
+}
+
+void
+MemCtrl::updateQueuePressure()
+{
+    if (!ppQueuePressure || writeBufferSize == 0) {
+        return;
+    }
+
+    double currentPressure = getWriteQueuePressure();
+    constexpr double HysteresisDelta = 0.05;
+    if (lastReportedPressure < 0.0 ||
+        std::abs(currentPressure - lastReportedPressure) >= HysteresisDelta ||
+        (currentPressure == 0.0 && lastReportedPressure != 0.0) ||
+        (currentPressure == 1.0 && lastReportedPressure != 1.0)) {
+        lastReportedPressure = currentPressure;
+        ppQueuePressure->notify(currentPressure);
+    }
 }
 
 } // namespace memory

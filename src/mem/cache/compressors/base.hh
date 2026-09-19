@@ -41,6 +41,7 @@
 #include "base/compiler.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "sim/probe/probe.hh"
 #include "sim/sim_object.hh"
 
 namespace gem5
@@ -136,6 +137,18 @@ class Base : public SimObject
 
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
+
+    /** Sensitivity factor for threshold scaling. */
+    const float pressureSensitivity;
+
+    /** Maximum allowable breakeven threshold. */
+    const float maxPressureThreshold;
+
+    /** Current memory queue pressure fill ratio [0.0, 1.0]. */
+    double queuePressure;
+
+    /** Probe listeners. */
+    std::vector<ProbeListenerPtr<>> queuePressureListeners;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
@@ -279,6 +292,34 @@ class Base : public SimObject
      * @param size_bits The block size.
      */
     static void setSizeBits(CacheBlk* blk, const std::size_t size_bits);
+
+    /** Listener class for memory queue pressure events. */
+    class QueuePressureListener : public ProbeListenerArgBase<double>
+    {
+      private:
+        Base &compressor;
+
+      public:
+        QueuePressureListener(Base &_compressor, std::string name)
+            : ProbeListenerArgBase<double>(std::move(name)),
+              compressor(_compressor)
+        {}
+        void
+        notify(const double &pressure) override
+        {
+            compressor.updateQueuePressure(pressure);
+        }
+    };
+
+    void updateQueuePressure(double pressure);
+    double
+    getQueuePressure() const
+    {
+        return queuePressure;
+    }
+    double getEffectiveBreakevenThreshold() const;
+    void registerQueuePressureProbe(SimObject *obj);
+    void regProbeListeners() override;
 };
 
 class Base::CompressionData
