@@ -137,6 +137,12 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether compression bypass during memory queue pressure is enabled. */
+    const bool enableMemoryQueuePressureBypass;
+
+    /** Threshold percentage for downstream memory queue pressure bypass. */
+    const unsigned memoryQueueThresholdPercentage;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -177,6 +183,9 @@ class Base : public SimObject
 
         /** Number of compressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedCompressions;
+
+        /** Number of compressions bypassed due to memory queue pressure. */
+        statistics::Scalar pressureBypassedCompressions;
 
         /** Number of decompressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedDecompressions;

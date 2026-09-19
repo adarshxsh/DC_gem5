@@ -93,6 +93,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
+      memoryQueueThresholdPercentage(p.memory_queue_threshold_percentage),
       tempBlockWriteback(nullptr),
       writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
                                     name(), false,
@@ -659,7 +660,8 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
             // Request the bus for a prefetch if this deallocation freed enough
             // MSHRs for a prefetch to take place
-            if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+            if (prefetcher && mshrQueue.canPrefetch() && !isBlocked() &&
+                !isMemoryQueueSaturated()) {
                 Tick next_pf_time = std::max(
                     prefetcher->nextPrefetchReadyTime(), clockEdge());
                 if (next_pf_time != MaxTick)
@@ -953,7 +955,8 @@ BaseCache::getNextQueueEntry()
 
     // fall through... no pending requests.  Try a prefetch.
     assert(!miss_mshr && !wq_entry);
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked() &&
+        !isMemoryQueueSaturated()) {
         // If we have a miss queue slot, we can try a prefetch
         PacketPtr pkt = prefetcher->getPacket();
         if (pkt) {
@@ -2006,7 +2009,8 @@ BaseCache::nextQueueReadyTime() const
 
     // Don't signal prefetch ready time if no MSHRs available
     // Will signal once enoguh MSHRs are deallocated
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked() &&
+        !isMemoryQueueSaturated()) {
         nextReady = std::min(nextReady,
                              prefetcher->nextPrefetchReadyTime());
     }

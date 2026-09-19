@@ -102,6 +102,10 @@ class BaseCache(ClockedObject):
     demand_mshr_reserve = Param.Unsigned(1, "MSHRs reserved for demand access")
     tgts_per_mshr = Param.Unsigned("Max number of accesses per MSHR")
     write_buffers = Param.Unsigned(8, "Number of write buffers")
+    memory_queue_threshold_percentage = Param.Percent(
+        80,
+        "Downstream memory queue occupancy threshold percentage for pressure feedback",
+    )
 
     is_read_only = Param.Bool(False, "Is this cache read only (e.g. inst)")
 

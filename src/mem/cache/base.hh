@@ -689,6 +689,45 @@ class BaseCache : public ClockedObject
      */
     const bool writebackClean;
 
+    /** Threshold percentage for memory queue occupancy pressure signaling. */
+    const unsigned memoryQueueThresholdPercentage;
+
+  public:
+    /** Get write buffer occupancy percentage (0 - 100). */
+    virtual double
+    getWriteBufferOccupancy() const
+    {
+        if (writeBuffer.capacity() <= 0)
+            return 0.0;
+        return (100.0 * writeBuffer.allocatedEntries()) / writeBuffer.capacity();
+    }
+
+    /** Get MSHR queue occupancy percentage (0 - 100). */
+    virtual double
+    getMSHROccupancy() const
+    {
+        if (mshrQueue.capacity() <= 0)
+            return 0.0;
+        return (100.0 * mshrQueue.allocatedEntries()) / mshrQueue.capacity();
+    }
+
+    /** Get combined downstream memory queue occupancy percentage (0 - 100). */
+    virtual double
+    getMemoryQueueOccupancy() const
+    {
+        return std::max(getWriteBufferOccupancy(), getMSHROccupancy());
+    }
+
+    /** Check whether memory queue depth exceeds defined pressure threshold or is saturated. */
+    virtual bool
+    isMemoryQueueSaturated() const
+    {
+        return writeBuffer.isFull() || mshrQueue.isFull() ||
+               (getMemoryQueueOccupancy() >= memoryQueueThresholdPercentage);
+    }
+
+  protected:
+
     /**
      * Writebacks from the tempBlock, resulting on the response path
      * in atomic mode, must happen after the call to recvAtomic has
