@@ -72,7 +72,6 @@ class BaseXBar : public ClockedObject
 {
 
   public:
-
     /**
      * A layer is an internal crossbar arbitration point with its own
      * flow control. Each layer is a converging multiplexer tree. By

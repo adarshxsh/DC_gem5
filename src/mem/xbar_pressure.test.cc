@@ -40,10 +40,22 @@ class MockResponsePort : public ResponsePort
         return AddrRangeList();
     }
 
-    Tick recvAtomic(PacketPtr pkt) override { return 0; }
-    bool recvTimingReq(PacketPtr pkt) override { return true; }
-    void recvRespRetry() override {}
-    void recvFunctional(PacketPtr pkt) override {}
+    Tick
+    recvAtomic(PacketPtr pkt) override
+    {
+        return 0;
+    }
+    bool
+    recvTimingReq(PacketPtr pkt) override
+    {
+        return true;
+    }
+    void
+    recvRespRetry() override
+    {}
+    void
+    recvFunctional(PacketPtr pkt) override
+    {}
 };
 
 class MockRequestPort : public RequestPort
@@ -51,8 +63,14 @@ class MockRequestPort : public RequestPort
   public:
     MockRequestPort(const std::string &name) : RequestPort(name) {}
 
-    bool recvTimingResp(PacketPtr pkt) override { return true; }
-    void recvReqRetry() override {}
+    bool
+    recvTimingResp(PacketPtr pkt) override
+    {
+        return true;
+    }
+    void
+    recvReqRetry() override
+    {}
 };
 
 TEST(PortPressureTest, ProtocolInterfaceMetrics)
