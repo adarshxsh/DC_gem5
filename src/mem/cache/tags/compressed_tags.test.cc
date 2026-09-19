@@ -109,7 +109,11 @@ TEST_F(SuperBlkTestFixture, CalculateCompressionFactor)
     // 64 bytes = 512 bits
     ASSERT_EQ(superBlk.calculateCompressionFactor(0), 8);
     ASSERT_EQ(superBlk.calculateCompressionFactor(64), 8);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(73), 7);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(85), 6);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(100), 5);
     ASSERT_EQ(superBlk.calculateCompressionFactor(128), 4);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(170), 3);
     ASSERT_EQ(superBlk.calculateCompressionFactor(256), 2);
     ASSERT_EQ(superBlk.calculateCompressionFactor(512), 1);
     ASSERT_EQ(superBlk.calculateCompressionFactor(1024), 1);
@@ -130,6 +134,8 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_TRUE(superBlk.canCoAllocate(64));
     ASSERT_TRUE(superBlk.canCoAllocate(
         128)); // target_cf = min(8, 4) = 4, 1 < 4, 128 <= 128
+    ASSERT_TRUE(superBlk.canCoAllocate(
+        170)); // target_cf = min(8, 3) = 3, 1 < 3, 170 <= 170
     ASSERT_FALSE(superBlk.canCoAllocate(512)); // target_cf = 1 -> uncompressed
 
     // Co-allocate block 1 at offset 1 (size 128 bits -> CF=4)
@@ -156,6 +162,43 @@ TEST_F(SuperBlkTestFixture, CoAllocationAndCapacityReuse)
     ASSERT_EQ(superBlk.getNumValid(), 2);
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
     verifyInvariants(superBlk);
+
+    // Test continuous integer factor (3x) co-allocation of three 170-bit
+    // sub-blocks
+    SuperBlk sb3;
+    sb3.setBlkSize(BlkSize);
+    std::unique_ptr<CompressionBlk[]> sb3_subBlks(
+        new CompressionBlk[NumSubBlks]);
+    sb3.blks.resize(NumSubBlks);
+    for (unsigned k = 0; k < NumSubBlks; ++k) {
+        sb3.blks[k] = &sb3_subBlks[k];
+        sb3_subBlks[k].setSectorBlock(&sb3);
+        sb3_subBlks[k].setSectorOffset(k);
+        sb3_subBlks[k].registerTagExtractor([](Addr addr) { return addr; });
+    }
+    sb3.registerTagExtractor([](Addr addr) { return addr; });
+
+    ASSERT_TRUE(sb3.canCoAllocate(170));
+    sb3_subBlks[0].insert({0x4000, false});
+    sb3_subBlks[0].setSizeBits(170); // CF=3
+    ASSERT_EQ(sb3.getCompressionFactor(), 3);
+    verifyInvariants(sb3);
+
+    ASSERT_TRUE(sb3.canCoAllocate(170));
+    sb3_subBlks[1].insert({0x4000, false});
+    sb3_subBlks[1].setSizeBits(170); // CF=3
+    ASSERT_EQ(sb3.getCompressionFactor(), 3);
+    verifyInvariants(sb3);
+
+    ASSERT_TRUE(sb3.canCoAllocate(170));
+    sb3_subBlks[2].insert({0x4000, false});
+    sb3_subBlks[2].setSizeBits(170); // CF=3
+    ASSERT_EQ(sb3.getCompressionFactor(), 3);
+    verifyInvariants(sb3);
+
+    // 4th sub-block of size 170 cannot co-allocate as max sub-blocks for CF=3
+    // is 3
+    ASSERT_FALSE(sb3.canCoAllocate(170));
 }
 
 TEST_F(SuperBlkTestFixture, SubBlockMigration)
