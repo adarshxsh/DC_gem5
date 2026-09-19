@@ -49,6 +49,7 @@
 #include <cassert>
 
 #include "base/compiler.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/trace.hh"
 #include "base/types.hh"
@@ -888,6 +889,10 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
                 // it was not consumed, make sure that any flags are
                 // carried over to cache above
                 tgt_pkt->copyResponderFlags(pkt);
+                CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
+                if (comp_blk && comp_blk->isCompressed()) {
+                    tgt_pkt->setCompressedSize(divCeil(comp_blk->getSizeBits(), 8));
+                }
             }
             tgt_pkt->makeTimingResponse();
             // if this packet is an error copy that to the new packet
@@ -1225,6 +1230,11 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
         panic_if(!invalidate && !pkt->hasSharers(),
                  "%s is passing a Modified line through %s, "
                  "but keeping the block", name(), pkt->print());
+
+        CompressionBlk *comp_blk = dynamic_cast<CompressionBlk *>(blk);
+        if (comp_blk && comp_blk->isCompressed()) {
+            pkt->setCompressedSize(divCeil(comp_blk->getSizeBits(), 8));
+        }
 
         if (is_timing) {
             doTimingSupplyResponse(pkt, blk->data, is_deferred, pending_inval);
