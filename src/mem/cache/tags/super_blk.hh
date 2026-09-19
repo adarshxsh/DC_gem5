@@ -196,6 +196,14 @@ class SuperBlk : public SectorBlk
     bool isCompressed(const CompressionBlk* ignored_blk = nullptr) const;
 
     /**
+     * Checks whether the superblock contains any valid demand (non-prefetched)
+     * sub-blocks.
+     *
+     * @return True if at least one valid sub-block was not prefetched.
+     */
+    bool hasValidDemand() const;
+
+    /**
      * Checks whether a superblock can co-allocate given compressed data block.
      *
      * @param compressed_size Size, in bits, of new block to allocate.

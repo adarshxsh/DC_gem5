@@ -101,8 +101,8 @@ class Cache : public BaseCache
 
     void doWritebacksAtomic(PacketList& writebacks) override;
 
-    void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                            CacheBlk *blk) override;
+    void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
+                            PacketList &writebacks) override;
 
     void recvTimingSnoopReq(PacketPtr pkt) override;
 
@@ -115,7 +115,7 @@ class Cache : public BaseCache
 
     Tick recvAtomicSnoop(PacketPtr pkt) override;
 
-    void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+    void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         bool deferred_response = false,
                         bool pending_downgrade = false) override;
 
