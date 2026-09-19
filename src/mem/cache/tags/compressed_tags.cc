@@ -185,8 +185,9 @@ CompressedTags::findVictim(const CacheBlk::KeyType& key,
         assert(!victim->isValid());
 
         // Print all co-allocated blocks
-        DPRINTF(CacheComp, "Co-Allocation: offset %d of %s\n", offset,
-                victim_superblock->print());
+        DPRINTF(CacheComp, "Co-Allocation: offset %llu of %s\n",
+                (unsigned long long)offset,
+                victim_superblock->print().c_str());
     }
 
     // Update number of sub-blocks evicted due to a replacement
