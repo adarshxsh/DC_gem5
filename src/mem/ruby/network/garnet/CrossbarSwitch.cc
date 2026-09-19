@@ -84,8 +84,8 @@ CrossbarSwitch::wakeup()
                         "CrossbarSwitch at Router %d outport %d "
                         "endpoint decompression busy at cycle %lld. Delaying "
                         "flit %s\n",
-                        m_router->get_id(), outport, m_router->curCycle(),
-                        *t_flit);
+                        m_router->get_id(), outport,
+                        (unsigned long long)m_router->curCycle(), *t_flit);
                 continue;
             }
 
