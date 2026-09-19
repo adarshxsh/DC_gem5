@@ -50,6 +50,11 @@ class BaseCache;
 class CacheBlk;
 struct BaseCacheCompressorParams;
 
+namespace memory
+{
+class MemCtrl;
+}
+
 namespace compression
 {
 
@@ -137,6 +142,16 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether memory pressure compression bypass is enabled. */
+    const bool enableMemPressureBypass;
+
+    /** Memory write queue pressure threshold percentage to bypass compression.
+     */
+    const float memPressureThreshold;
+
+    /** Pointer to memory controller for write queue pressure feedback. */
+    memory::MemCtrl *memCtrl;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -147,13 +162,13 @@ class Base : public SimObject
     uint64_t sampledCompressedBits;
 
     /** Pointer to the parent cache. */
-    BaseCache* cache;
+    BaseCache *cache;
 
     struct BaseStats : public statistics::Group
     {
-        const Base& compressor;
+        const Base &compressor;
 
-        BaseStats(Base& compressor);
+        BaseStats(Base &compressor);
 
         void regStats() override;
 
@@ -201,7 +216,7 @@ class Base : public SimObject
      * @param data The raw pointer to the data being compressed.
      * @return The raw data divided into a vector of sequential chunks.
      */
-    std::vector<Chunk> toChunks(const uint64_t* data) const;
+    std::vector<Chunk> toChunks(const uint64_t *data) const;
 
     /**
      * This function re-joins the chunks to recreate the original data.
@@ -209,7 +224,7 @@ class Base : public SimObject
      * @param chunks The raw data divided into a vector of sequential chunks.
      * @param data The raw pointer to the data.
      */
-    void fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const;
+    void fromChunks(const std::vector<Chunk> &chunks, uint64_t *data) const;
 
     /**
      * Apply the compression process to the cache line.
@@ -223,9 +238,9 @@ class Base : public SimObject
      * @param decomp_lat Decompression latency in number of cycles.
      * @return Cache line after compression.
      */
-    virtual std::unique_ptr<CompressionData> compress(
-        const std::vector<Chunk>& chunks, Cycles& comp_lat,
-        Cycles& decomp_lat) = 0;
+    virtual std::unique_ptr<CompressionData>
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) = 0;
 
     /**
      * Apply the decompression process to the compressed data.
@@ -233,8 +248,8 @@ class Base : public SimObject
      * @param comp_data Compressed cache line.
      * @param cache_line The cache line to be decompressed.
      */
-    virtual void decompress(const CompressionData* comp_data,
-                              uint64_t* cache_line) = 0;
+    virtual void decompress(const CompressionData *comp_data,
+                            uint64_t *cache_line) = 0;
 
   public:
     typedef BaseCacheCompressorParams Params;
@@ -254,7 +269,7 @@ class Base : public SimObject
      * @return Cache line after compression.
      */
     std::unique_ptr<CompressionData>
-    compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat);
+    compress(const uint64_t *data, Cycles &comp_lat, Cycles &decomp_lat);
 
     /**
      * Get the decompression latency if the block is compressed. Latency is 0
@@ -262,7 +277,7 @@ class Base : public SimObject
      *
      * @param blk The compressed block.
      */
-    Cycles getDecompressionLatency(const CacheBlk* blk);
+    Cycles getDecompressionLatency(const CacheBlk *blk);
 
     /**
      * Set the decompression latency of compressed block.
@@ -270,7 +285,7 @@ class Base : public SimObject
      * @param blk The compressed block.
      * @param lat The decompression latency.
      */
-    static void setDecompressionLatency(CacheBlk* blk, const Cycles lat);
+    static void setDecompressionLatency(CacheBlk *blk, const Cycles lat);
 
     /**
      * Set the size of the compressed block, in bits.
@@ -278,7 +293,7 @@ class Base : public SimObject
      * @param blk The compressed block.
      * @param size_bits The block size.
      */
-    static void setSizeBits(CacheBlk* blk, const std::size_t size_bits);
+    static void setSizeBits(CacheBlk *blk, const std::size_t size_bits);
 };
 
 class Base::CompressionData

@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects.IndexingPolicies import *
+from m5.objects.MemCtrl import MemCtrl
 from m5.objects.ReplacementPolicies import *
 from m5.params import *
 from m5.proxy import *
@@ -79,6 +80,19 @@ class BaseCacheCompressor(SimObject):
     decay_shift = Param.Unsigned(
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
+    )
+
+    enable_mem_pressure_bypass = Param.Bool(
+        False,
+        "Enable memory queue pressure based compression bypass",
+    )
+    mem_pressure_threshold = Param.Percent(
+        80,
+        "Memory write queue pressure threshold percentage to bypass compression",
+    )
+    mem_ctrl = Param.MemCtrl(
+        NULL,
+        "Memory controller pointer for queue pressure monitoring",
     )
 
 
