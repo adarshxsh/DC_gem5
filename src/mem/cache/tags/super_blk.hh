@@ -240,6 +240,27 @@ class SuperBlk : public SectorBlk
     uint8_t getCompressionFactor() const;
 
     /**
+     * Get the number of valid sub-blocks in this superblock.
+     *
+     * @return Number of valid sub-blocks.
+     */
+    uint8_t getValidSubBlkCount() const;
+
+    /**
+     * Get remaining bit capacity in this superblock.
+     *
+     * @return Remaining free capacity in bits.
+     */
+    std::size_t getRemainingBitCapacity() const;
+
+    /**
+     * Get sub-block density of this superblock.
+     *
+     * @return Density value calculated as valid sub-block count times compression factor.
+     */
+    double getDensity() const;
+
+    /**
      * Set the compression factor of this superblock.
      *
      * @param compression_factor The new compression factor.

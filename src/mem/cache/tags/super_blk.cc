@@ -272,6 +272,33 @@ SuperBlk::getCompressionFactor() const
     return compressionFactor;
 }
 
+uint8_t
+SuperBlk::getValidSubBlkCount() const
+{
+    return getNumValid();
+}
+
+std::size_t
+SuperBlk::getRemainingBitCapacity() const
+{
+    std::size_t bit_sum = 0;
+    for (const auto &blk : blks) {
+        if (blk->isValid()) {
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
+            bit_sum += cblk->getSizeBits();
+        }
+    }
+    std::size_t total_bits = blkSize * CHAR_BIT;
+    return (total_bits > bit_sum) ? (total_bits - bit_sum) : 0;
+}
+
+double
+SuperBlk::getDensity() const
+{
+    return static_cast<double>(getValidSubBlkCount()) * getCompressionFactor();
+}
+
 void
 SuperBlk::setCompressionFactor(const uint8_t compression_factor)
 {
