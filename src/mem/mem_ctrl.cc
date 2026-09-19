@@ -891,7 +891,7 @@ MemCtrl::nonDetermReads(MemInterface* mem_intr) {
 Tick
 MemCtrl::getOldestReadWaitTime() const
 {
-    Tick oldest_entry = UINT64_MAX;
+    Tick oldest_entry = MaxTick;
     for (const auto &queue : readQueue) {
         if (!queue.empty()) {
             if (queue.front()->entryTime < oldest_entry) {
@@ -899,7 +899,7 @@ MemCtrl::getOldestReadWaitTime() const
             }
         }
     }
-    if (oldest_entry == UINT64_MAX) {
+    if (oldest_entry == MaxTick) {
         return 0;
     }
     return (curTick() > oldest_entry) ? (curTick() - oldest_entry) : 0;
