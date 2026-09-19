@@ -232,7 +232,7 @@ Base::compress(const uint64_t *data, Cycles &comp_lat, Cycles &decomp_lat)
                 : currentRatio;
 
         if (decayedCompressedBits > 0.0 &&
-            std::abs(currentRatio - previousRatio) > sharpDeltaThreshold) {
+            std::fabs(currentRatio - previousRatio) > sharpDeltaThreshold) {
             // Reset cumulative counters on sharp ratio delta
             decayedUncompressedBits = uncomp_bits;
             decayedCompressedBits = comp_size_bits;
