@@ -159,10 +159,17 @@ class MSHR : public QueueEntry, public Printable
         const bool allocOnFill;   //!< Should the response servicing this
                                   //!< target list allocate in the cache?
 
+        std::size_t compressedSizeBits;
+        uint8_t compressionFactor;
+
         Target(PacketPtr _pkt, Tick _readyTime, Counter _order,
-               Source _source, bool _markedPending, bool alloc_on_fill)
+               Source _source, bool _markedPending, bool alloc_on_fill,
+               std::size_t _compressedSizeBits = 0, uint8_t _compressionFactor = 1)
             : QueueEntry::Target(_pkt, _readyTime, _order), source(_source),
-              markedPending(_markedPending), allocOnFill(alloc_on_fill)
+              markedPending(_markedPending), allocOnFill(alloc_on_fill),
+              compressedSizeBits(_compressedSizeBits ? _compressedSizeBits :
+                                 (_pkt ? _pkt->getSize() * 8 : 0)),
+              compressionFactor(_compressionFactor)
         {}
     };
 
@@ -179,6 +186,8 @@ class MSHR : public QueueEntry, public Printable
          * target coming from another cache.
          */
         bool hasFromCache;
+        std::size_t compressedSizeBits;
+        uint8_t compressionFactor;
 
         TargetList(const std::string &name = ".unnamedTargetList");
 
@@ -189,9 +198,22 @@ class MSHR : public QueueEntry, public Printable
          * @param pkt Packet considered for the flag update
          * @param source Indicates the source of the packet
          * @param alloc_on_fill Whether the pkt would allocate on a fill
+         * @param comp_size_bits In-flight compressed size in bits
+         * @param comp_factor Compression factor
          */
         void updateFlags(PacketPtr pkt, Target::Source source,
-                         bool alloc_on_fill);
+                         bool alloc_on_fill,
+                         std::size_t comp_size_bits = 0,
+                         uint8_t comp_factor = 1);
+
+        /**
+         * Update compressed size and factor bounds for this TargetList.
+         */
+        void updateCompressionFlags(std::size_t comp_size_bits,
+                                    uint8_t comp_factor = 1);
+
+        std::size_t getCompressedSizeBits() const { return compressedSizeBits; }
+        uint8_t getCompressionFactor() const { return compressionFactor; }
 
         /**
          * Reset state
@@ -215,6 +237,8 @@ class MSHR : public QueueEntry, public Printable
             hasUpgrade = false;
             allocOnFill = false;
             hasFromCache = false;
+            compressedSizeBits = blkSize * 8;
+            compressionFactor = 1;
         }
 
         /**
@@ -258,7 +282,8 @@ class MSHR : public QueueEntry, public Printable
          * @param alloc_on_fill Whether it should allocate on a fill
          */
         void add(PacketPtr pkt, Tick readyTime, Counter order,
-                 Target::Source source, bool markPending, bool alloc_on_fill);
+                 Target::Source source, bool markPending, bool alloc_on_fill,
+                 std::size_t comp_size_bits = 0, uint8_t comp_factor = 1);
 
         /**
          * Convert upgrades to the equivalent request if the cache line they
@@ -407,6 +432,14 @@ class MSHR : public QueueEntry, public Printable
         return targets.isWholeLineWrite();
     }
 
+    std::size_t getCompressedSizeBits() const {
+        return targets.getCompressedSizeBits();
+    }
+
+    uint8_t getCompressionFactor() const {
+        return targets.getCompressionFactor();
+    }
+
     /**
      * Allocate a miss to this MSHR.
      * @param blk_addr The address of the block.
@@ -415,9 +448,12 @@ class MSHR : public QueueEntry, public Printable
      * @param when_ready When should the MSHR be ready to act upon.
      * @param _order The logical order of this MSHR
      * @param alloc_on_fill Should the cache allocate a block on fill
+     * @param comp_size_bits In-flight compressed size in bits
+     * @param comp_factor Compression factor
      */
     void allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                  Tick when_ready, Counter _order, bool alloc_on_fill);
+                  Tick when_ready, Counter _order, bool alloc_on_fill,
+                  std::size_t comp_size_bits = 0, uint8_t comp_factor = 1);
 
     void markInService(bool pending_modified_resp);
 
@@ -431,9 +467,13 @@ class MSHR : public QueueEntry, public Printable
     /**
      * Add a request to the list of targets.
      * @param target The target.
+     * @param comp_size_bits In-flight compressed size in bits
+     * @param comp_factor Compression factor
      */
     void allocateTarget(PacketPtr target, Tick when, Counter order,
-                        bool alloc_on_fill);
+                        bool alloc_on_fill,
+                        std::size_t comp_size_bits = 0,
+                        uint8_t comp_factor = 1);
     bool handleSnoop(PacketPtr target, Counter order);
 
     /** A simple constructor. */
