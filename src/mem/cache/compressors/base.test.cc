@@ -22,8 +22,8 @@ class TestBaseCompressor : public Base
     using Base::compress;
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
-             Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         auto data = std::make_unique<CompressionData>();
         data->setSizeBits(blkSize * 8 / 2);
@@ -33,7 +33,7 @@ class TestBaseCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* cache_line) override
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
     {
         std::memset(cache_line, 0, blkSize);
     }

@@ -149,7 +149,8 @@ class Base : public SimObject
     /** EWMA smoothing factor alpha for pressure tracking. */
     const float ewmaAlpha;
 
-    /** Hysteresis margin percentage for pressure threshold state transitions. */
+    /** Hysteresis margin percentage for pressure threshold state transitions.
+     */
     const unsigned hysteresisMarginPerc;
 
     /** Total number of compression requests. */
