@@ -128,6 +128,35 @@ class BaseCache(ClockedObject):
         True, "Try to co-allocate blocks that contract"
     )
 
+    compression_pressure_threshold = Param.Percent(
+        85, "Compressed tag occupancy threshold (%) to signal pressure"
+    )
+    enable_compression_pressure = Param.Bool(
+        True,
+        "Enable L2 compression pressure signaling and L1 writeback throttling",
+    )
+    writeback_throttle_delay = Param.Cycles(
+        10,
+        "Latency interval imposed on writeback draining during compression pressure",
+    )
+    write_buffer_bypass_threshold = Param.Percent(
+        90,
+        "L1 write buffer occupancy threshold (%) to bypass backpressure delays",
+    )
+
+    enable_compression_backpressure = Param.Bool(
+        False, "Enable cross-level compression backpressure signaling"
+    )
+    backpressure_high_threshold = Param.Unsigned(
+        0, "High-water mark write queue fill threshold to assert backpressure"
+    )
+    backpressure_low_threshold = Param.Unsigned(
+        0, "Low-water mark write queue fill threshold to deassert backpressure"
+    )
+    backpressure_expansion_threshold = Param.Unsigned(
+        1, "Data expansion eviction threshold to assert backpressure"
+    )
+
     sequential_access = Param.Bool(
         False, "Whether to access tags and data sequentially"
     )

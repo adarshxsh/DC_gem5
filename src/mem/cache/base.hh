@@ -243,6 +243,8 @@ class BaseCache : public ClockedObject
 
         virtual void recvFunctionalSnoop(PacketPtr pkt);
 
+        void recvCompressionBackpressure(bool active) override;
+
       public:
 
         MemSidePort(const std::string &_name, BaseCache *_cache,
@@ -370,6 +372,31 @@ class BaseCache : public ClockedObject
 
     /** Compression method being used. */
     compression::Base* compressor;
+
+    /** Parameters for L2-L1 compression pressure signaling and throttling */
+    const unsigned compressionPressureThreshold;
+    const bool enableCompressionPressure;
+    const Cycles writebackThrottleDelay;
+    const unsigned writeBufferBypassThreshold;
+
+    /** Dynamic pressure signaling state and writeback drain timing */
+    bool l2CompressionPressureActive;
+    Tick lastWritebackDrainTick;
+
+    const bool enableCompressionBackpressure;
+    unsigned backpressureHighThreshold;
+    unsigned backpressureLowThreshold;
+    const unsigned backpressureExpansionThreshold;
+
+    bool backpressureActive;
+    bool downstreamBackpressureActive;
+
+    void setDownstreamBackpressure(bool active);
+    bool isDownstreamBackpressureActive() const { return downstreamBackpressureActive; }
+    bool isBackpressureActive() const { return backpressureActive; }
+    void checkBackpressure(bool expansionEvictionBurst = false);
+    void assertBackpressure();
+    void deassertBackpressure();
 
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
@@ -1347,6 +1374,13 @@ class BaseCache : public ClockedObject
      * @return True if the cache is coalescing writes
      */
     bool coalesce() const;
+
+    /**
+     * Checks if local compressed tag occupancy exceeds the pressure threshold
+     *
+     * @return True if compression pressure condition is detected
+     */
+    bool isCompressionPressureActive() const;
 
 
     /**

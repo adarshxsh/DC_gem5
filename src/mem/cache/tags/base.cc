@@ -225,6 +225,20 @@ BaseTags::forEachBlk(std::function<void(CacheBlk &)> visitor)
     });
 }
 
+double
+BaseTags::getOccupancyRatio() const
+{
+    if (numBlocks == 0)
+        return 0.0;
+    unsigned valid_blocks = 0;
+    const_cast<BaseTags*>(this)->forEachBlk([&valid_blocks](CacheBlk &blk) {
+        if (blk.isValid()) {
+            valid_blocks++;
+        }
+    });
+    return (double)valid_blocks / numBlocks;
+}
+
 BaseTags::BaseTagStats::BaseTagStats(BaseTags &_tags)
     : statistics::Group(&_tags),
     tags(_tags),

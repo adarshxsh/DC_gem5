@@ -301,10 +301,10 @@ class Packet : public Printable, public Extensible<Packet>
     enum : FlagsType
     {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x000000FF,
+        COPY_FLAGS             = 0x000200FF,
 
         // Flags that are used to create reponse packets
-        RESPONDER_FLAGS        = 0x00000009,
+        RESPONDER_FLAGS        = 0x00020009,
 
         // Does this packet have sharers (which means it should not be
         // considered writable) or not. See setHasSharers below.
@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Signal downstream queue/compression pressure
+        COMPRESSION_PRESSURE  = 0x00020000
     };
 
     Flags flags;
@@ -759,6 +762,10 @@ class Packet : public Printable, public Extensible<Packet>
     void setBlockCached()          { flags.set(BLOCK_CACHED); }
     bool isBlockCached() const     { return flags.isSet(BLOCK_CACHED); }
     void clearBlockCached()        { flags.clear(BLOCK_CACHED); }
+
+    void setCompressionPressure()     { flags.set(COMPRESSION_PRESSURE); }
+    bool isCompressionPressure() const { return flags.isSet(COMPRESSION_PRESSURE); }
+    void clearCompressionPressure()   { flags.clear(COMPRESSION_PRESSURE); }
 
     /**
      * QoS Value getter

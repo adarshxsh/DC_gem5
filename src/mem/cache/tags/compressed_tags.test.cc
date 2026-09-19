@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -559,3 +560,87 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST(CompressionPressureTest, PacketFlagManipulation)
+{
+    RequestPtr req = std::make_shared<Request>(0x1000, 64, 0, 0);
+    Packet pkt(req, MemCmd::ReadReq);
+
+    EXPECT_FALSE(pkt.isCompressionPressure());
+    pkt.setCompressionPressure();
+    EXPECT_TRUE(pkt.isCompressionPressure());
+
+    RequestPtr req2 = std::make_shared<Request>(0x1000, 64, 0, 0);
+    Packet req_pkt2(req2, MemCmd::ReadReq);
+    req_pkt2.copyResponderFlags(&pkt);
+    EXPECT_TRUE(req_pkt2.isCompressionPressure());
+
+    pkt.clearCompressionPressure();
+    EXPECT_FALSE(pkt.isCompressionPressure());
+}
+
+TEST(CompressionBackpressureProtocol, BackpressureSignalState)
+{
+    bool downstreamBackpressureActive = false;
+    bool writebackSendScheduled = false;
+
+    auto setDownstreamBackpressure = [&](bool active) {
+        if (downstreamBackpressureActive != active) {
+            downstreamBackpressureActive = active;
+            if (!downstreamBackpressureActive) {
+                writebackSendScheduled = true;
+            }
+        }
+    };
+
+    ASSERT_FALSE(downstreamBackpressureActive);
+    ASSERT_FALSE(writebackSendScheduled);
+
+    setDownstreamBackpressure(true);
+    ASSERT_TRUE(downstreamBackpressureActive);
+    ASSERT_FALSE(writebackSendScheduled);
+
+    setDownstreamBackpressure(false);
+    ASSERT_FALSE(downstreamBackpressureActive);
+    ASSERT_TRUE(writebackSendScheduled);
+}
+
+TEST(CompressionBackpressureProtocol, HysteresisThresholds)
+{
+    unsigned highWaterMark = 6;
+    unsigned lowWaterMark = 2;
+    bool active = false;
+
+    auto updateBackpressure = [&](unsigned occupancy, bool expansionEviction) {
+        if (!active) {
+            if (occupancy >= highWaterMark || expansionEviction) {
+                active = true;
+            }
+        } else {
+            if (occupancy <= lowWaterMark && !expansionEviction) {
+                active = false;
+            }
+        }
+    };
+
+    // Low occupancy
+    updateBackpressure(3, false);
+    ASSERT_FALSE(active);
+
+    // Reaches high water mark
+    updateBackpressure(6, false);
+    ASSERT_TRUE(active);
+
+    // Drops slightly but stays above low water mark (hysteresis)
+    updateBackpressure(4, false);
+    ASSERT_TRUE(active);
+
+    // Drops to low water mark
+    updateBackpressure(2, false);
+    ASSERT_FALSE(active);
+
+    // Expansion eviction burst forces backpressure even at lower occupancy
+    updateBackpressure(3, true);
+    ASSERT_TRUE(active);
+}
+

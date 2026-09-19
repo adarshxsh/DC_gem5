@@ -369,6 +369,14 @@ BaseXBar::findPort(AddrRange addr_range, PacketPtr pkt)
           addr_range.to_string(), name(), port_trace);
 }
 
+void
+BaseXBar::recvCompressionBackpressure(PortID mem_side_port_id, bool active)
+{
+    for (auto* p : cpuSidePorts) {
+        p->sendCompressionBackpressure(active);
+    }
+}
+
 /** Function called by the port when the crossbar is receiving a range change.*/
 void
 BaseXBar::recvRangeChange(PortID mem_side_port_id)
