@@ -58,6 +58,12 @@ GTest(
     "compressed_tags.test.cc",
     "super_blk.cc",
     "sector_blk.cc",
+    "#src/mem/cache/write_queue_entry.cc",
+    "#src/mem/cache/mshr.cc",
+    "#src/mem/packet.cc",
+    "#src/sim/bufval.cc",
+    "#src/base/bitfield.cc",
+    "#src/cpu/reg_class.cc",
     "#src/base/types.cc",
     with_tag("gem5 simobject"),
 )

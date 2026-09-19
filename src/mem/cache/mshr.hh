@@ -198,11 +198,15 @@ class MSHR : public QueueEntry, public Printable
          *
          * @param blk_addr Address of the cache block
          * @param blk_size Size of the cache block
+         * @param sub_blk_size Size of each sub-block in bytes
          */
-        void init(Addr blk_addr, Addr blk_size) {
+        void init(Addr blk_addr, Addr blk_size, unsigned sub_blk_size = 8) {
             blkAddr = blk_addr;
             blkSize = blk_size;
             writesBitmap.resize(blk_size);
+            unsigned num_sub_blks = (sub_blk_size > 0 && blk_size >= sub_blk_size) ?
+                (blk_size / sub_blk_size) : 8;
+            subBlockDirtyMask.resize(num_sub_blks, false);
 
             resetFlags();
         }
@@ -210,11 +214,24 @@ class MSHR : public QueueEntry, public Printable
         void resetFlags() {
             canMergeWrites = true;
             std::fill(writesBitmap.begin(), writesBitmap.end(), false);
+            std::fill(subBlockDirtyMask.begin(), subBlockDirtyMask.end(), false);
 
             needsWritable = false;
             hasUpgrade = false;
             allocOnFill = false;
             hasFromCache = false;
+        }
+
+        const std::vector<bool>& getSubBlockDirtyMask() const {
+            return subBlockDirtyMask;
+        }
+
+        bool isSubBlockDirty(unsigned idx) const {
+            return idx < subBlockDirtyMask.size() && subBlockDirtyMask[idx];
+        }
+
+        unsigned getNumDirtySubBlocks() const {
+            return std::count(subBlockDirtyMask.begin(), subBlockDirtyMask.end(), true);
         }
 
         /**
@@ -303,6 +320,11 @@ class MSHR : public QueueEntry, public Printable
          * list.
          */
         std::vector<char> writesBitmap;
+
+        /**
+         * Track sub-block dirty status for requests in this target list.
+         */
+        std::vector<bool> subBlockDirtyMask;
     };
 
     /** A list of MSHRs. */
