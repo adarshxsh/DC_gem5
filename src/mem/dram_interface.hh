@@ -217,6 +217,10 @@ class DRAMInterface : public MemInterface
          * Track time spent in each power state.
          */
         statistics::Vector pwrStateTime;
+
+        /** Dynamic refresh deferral and powerdown inhibition stats */
+        statistics::Scalar numRefreshDeferrals;
+        statistics::Scalar numPowerdownInhibits;
     };
 
     /**
@@ -301,6 +305,9 @@ class DRAMInterface : public MemInterface
          * Track number of packets in write queue going to this rank
          */
         uint32_t writeEntries;
+
+        /** Count of dynamic refresh deferrals for current refresh interval */
+        unsigned int deferredRefreshes;
 
         /**
          * Number of ACT, RD, and WR events currently scheduled
@@ -476,6 +483,9 @@ class DRAMInterface : public MemInterface
         void processWakeUpEvent();
         EventFunctionWrapper wakeUpEvent;
 
+        void incRefreshDeferrals() { stats.numRefreshDeferrals++; }
+        void incPowerdownInhibits() { stats.numPowerdownInhibits++; }
+
       protected:
         RankStats stats;
     };
@@ -547,6 +557,12 @@ class DRAMInterface : public MemInterface
 
     /** Enable or disable DRAM powerdown states. */
     bool enableDRAMPowerdown;
+
+    /** Enable dynamic refresh deferral during write queue drains. */
+    const bool enableRefreshDeferral;
+    const unsigned int maxRefreshDeferrals;
+    /** Enable powerdown inhibition during write queue drains. */
+    const bool enablePowerdownInhibit;
 
     /** The time when stats were last reset used to calculate average power */
     Tick lastStatsResetTick;

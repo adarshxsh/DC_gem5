@@ -772,6 +772,19 @@ class MemCtrl : public qos::MemCtrl
      */
     bool inWriteBusState(bool next_state, const MemInterface* mem_intr) const;
 
+    /**
+     * Get current write queue pressure as occupancy ratio [0.0, 1.0]
+     */
+    double getWriteQueuePressure() const
+    {
+        return writeBufferSize > 0 ? (double)totalWriteQueueSize / (double)writeBufferSize : 0.0;
+    }
+
+    /**
+     * Check if controller is actively draining the write queue
+     */
+    bool isWriteDraining() const;
+
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
