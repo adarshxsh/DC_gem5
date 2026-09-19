@@ -46,6 +46,8 @@
 #ifndef __MEM_CTRL_HH__
 #define __MEM_CTRL_HH__
 
+#include <algorithm>
+#include <cstdint>
 #include <deque>
 #include <string>
 #include <unordered_set>
@@ -550,6 +552,27 @@ class MemCtrl : public qos::MemCtrl
     Tick nextBurstAt;
 
     Tick prevArrival;
+
+    /**
+     * Predictive velocity-aware queue thresholding state and parameters
+     */
+    Tick lastWriteArrivalTick;
+    uint32_t lastWriteQueueSize;
+    Tick prevWriteArrivalTick;
+    uint32_t prevWriteQueueSize;
+    bool highPressure;
+    const Tick leadTimeHorizon;
+
+    /**
+     * Update write arrival tracking for velocity estimation
+     */
+    void updateWriteArrivalTrack(MemInterface *mem_intr);
+
+    /**
+     * Calculate effective write queue occupancy Q_eff = Q_current + v *
+     * tau_lead
+     */
+    virtual uint32_t getEffectiveWriteQueueSize(MemInterface *mem_intr) const;
 
     /**
      * The soonest you have to start thinking about the next request

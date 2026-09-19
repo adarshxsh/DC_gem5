@@ -89,6 +89,11 @@ class MemCtrl(QoSMemCtrl):
         16, "Minimum read bursts before switching to writes"
     )
 
+    # lead-time horizon for predictive write queue thresholding
+    lead_time_horizon = Param.Latency(
+        "20ns", "Lead-time horizon for predictive write queue thresholding"
+    )
+
     # scheduler, address map and page policy
     mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
