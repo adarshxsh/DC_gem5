@@ -182,5 +182,4 @@ TEST(SuperBlkTest, GetVictimsOnExpansionTargeted)
     evict_blks.clear();
     super_blk.getVictimsOnExpansion(&sub_blks[3], 4, evict_blks);
     EXPECT_EQ(evict_blks.size(), 0);
->>>>>>> 5fb313e (mem-cache: replace indiscriminate collateral eviction with targeted sub-block eviction)
 }
