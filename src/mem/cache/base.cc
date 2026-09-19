@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -95,7 +95,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1781,8 +1781,9 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         if (mshrQueue.occupancyRatio() > mshrBypassThreshold) {
             stats.bypassedCompressionsMSHR++;
         } else {
-            const auto comp_data = compressor->compress(
-                pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
+            const auto comp_data =
+                compressor->compress(pkt->getConstPtr<uint64_t>(),
+                                     compression_lat, decompression_lat);
             blk_size_bits = comp_data->getSizeBits();
         }
     }
