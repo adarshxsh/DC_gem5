@@ -89,6 +89,40 @@ class MemCtrl(QoSMemCtrl):
         16, "Minimum read bursts before switching to writes"
     )
 
+    # enable dynamic watermark scaling and queue pressure adaptation
+    enable_adaptive_watermarks = Param.Bool(
+        False,
+        "Enable dynamic watermark scaling and burst adaptation based on queue pressure",
+    )
+
+    # adaptive threshold percentage bounds
+    write_high_thresh_min_perc = Param.Percent(
+        50, "Minimum threshold percentage to force writes in adaptive mode"
+    )
+    write_high_thresh_max_perc = Param.Percent(
+        95, "Maximum threshold percentage to force writes in adaptive mode"
+    )
+    write_low_thresh_min_perc = Param.Percent(
+        20, "Minimum threshold percentage to start writes in adaptive mode"
+    )
+    write_low_thresh_max_perc = Param.Percent(
+        80, "Maximum threshold percentage to start writes in adaptive mode"
+    )
+
+    # adaptive minimum burst switch bounds
+    min_writes_per_switch_min = Param.Unsigned(
+        4, "Minimum bound for min_writes_per_switch in adaptive mode"
+    )
+    min_writes_per_switch_max = Param.Unsigned(
+        32, "Maximum bound for min_writes_per_switch in adaptive mode"
+    )
+    min_reads_per_switch_min = Param.Unsigned(
+        4, "Minimum bound for min_reads_per_switch in adaptive mode"
+    )
+    min_reads_per_switch_max = Param.Unsigned(
+        32, "Maximum bound for min_reads_per_switch in adaptive mode"
+    )
+
     # scheduler, address map and page policy
     mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
