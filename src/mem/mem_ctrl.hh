@@ -46,7 +46,11 @@
 #ifndef __MEM_CTRL_HH__
 #define __MEM_CTRL_HH__
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <deque>
+#include <limits>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -519,6 +523,24 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minReadsPerSwitch;
 
     /**
+     * Adaptive write buffer draining configuration and parameters
+     */
+    const bool enableAdaptiveDrain;
+    const uint32_t writeHighThresholdMax;
+    const Tick maxReadStallLatency;
+    const uint32_t maxWritesPerSwitch;
+
+    /**
+     * Helper functions for adaptive write buffer draining logic
+     */
+    Tick getOldestReadWait() const;
+    Tick getOldestWriteWait() const;
+    double calculatePressureGradient() const;
+    uint32_t getEffectiveWriteHighThreshold() const;
+    uint32_t getAdaptiveMinWritesPerSwitch() const;
+    bool hasEmergencyRead() const;
+
+    /**
      * Memory controller configuration initialized based on parameter
      * values.
      */
@@ -581,6 +603,9 @@ class MemCtrl : public qos::MemCtrl
 
         statistics::Scalar numRdRetry;
         statistics::Scalar numWrRetry;
+        statistics::Scalar numAdaptiveThreshAdjustments;
+        statistics::Scalar numEmergencyReadPreemptions;
+        statistics::Scalar avgEffectiveWriteHighThresh;
         statistics::Vector readPktSize;
         statistics::Vector writePktSize;
         statistics::Vector rdQLenPdf;

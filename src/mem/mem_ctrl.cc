@@ -40,6 +40,11 @@
 
 #include "mem/mem_ctrl.hh"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
@@ -57,27 +62,42 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      enableAdaptiveDrain(p.enable_adaptive_drain),
+      writeHighThresholdMax(std::min(
+          (uint32_t)(writeBufferSize * p.write_high_thresh_max_perc / 100.0),
+          (uint32_t)std::floor(writeBufferSize * 0.95))),
+      maxReadStallLatency(p.max_read_stall_latency),
+      maxWritesPerSwitch(p.max_writes_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -91,6 +111,11 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
         fatal("Write buffer low threshold %d must be smaller than the "
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
+    if (enableAdaptiveDrain && writeHighThresholdMax < writeHighThreshold) {
+        fatal("Write buffer high threshold max percentage (%d) must be >= "
+              "high threshold (%d)\n",
+              p.write_high_thresh_max_perc, p.write_high_thresh_perc);
+    }
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
@@ -1036,11 +1061,20 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // there are no other writes that can issue
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+            uint32_t eff_write_high = getEffectiveWriteHighThreshold();
+            if (enableAdaptiveDrain) {
+                stats.avgEffectiveWriteHighThresh = eff_write_high;
+            }
+
+            if ((mem_intr->writeQueueSize > eff_write_high) &&
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
+                if (enableAdaptiveDrain &&
+                    eff_write_high > writeHighThreshold) {
+                    stats.numAdaptiveThreshAdjustments++;
+                }
             }
 
             // remove the request from the queue
@@ -1123,13 +1157,31 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         bool below_threshold =
             mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
 
+        uint32_t adaptive_min_writes = getAdaptiveMinWritesPerSwitch();
+        bool emergency_read = enableAdaptiveDrain && hasEmergencyRead();
+        bool hard_write_emergency =
+            (mem_intr->writeQueueSize >= writeHighThresholdMax) ||
+            writeQueueFull(1);
+
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
-            (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
+            (mem_intr->readQueueSize &&
+             mem_intr->writesThisTime >= adaptive_min_writes) ||
+            (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr))) ||
+            (emergency_read && !hard_write_emergency &&
+             mem_intr->writesThisTime >= 1)) {
 
             // turn the bus back around for reads again
             mem_intr->busStateNext = MemCtrl::READ;
+
+            if (emergency_read && !hard_write_emergency &&
+                mem_intr->writesThisTime < adaptive_min_writes) {
+                stats.numEmergencyReadPreemptions++;
+                DPRINTF(
+                    MemCtrl,
+                    "Emergency read preemption triggered after %d writes\n",
+                    mem_intr->writesThisTime);
+            }
 
             // note that the we switch back to reads also in the idle
             // case, which eventually will check for any draining and
@@ -1146,6 +1198,106 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         retry_wr_req = false;
         port.sendRetryReq();
     }
+}
+
+Tick
+MemCtrl::getOldestReadWait() const
+{
+    Tick oldest_entry = MaxTick;
+    for (const auto &queue : readQueue) {
+        for (const auto &pkt : queue) {
+            if (pkt->entryTime < oldest_entry) {
+                oldest_entry = pkt->entryTime;
+            }
+        }
+    }
+    if (oldest_entry == MaxTick || oldest_entry > curTick()) {
+        return 0;
+    }
+    return curTick() - oldest_entry;
+}
+
+Tick
+MemCtrl::getOldestWriteWait() const
+{
+    Tick oldest_entry = MaxTick;
+    for (const auto &queue : writeQueue) {
+        for (const auto &pkt : queue) {
+            if (pkt->entryTime < oldest_entry) {
+                oldest_entry = pkt->entryTime;
+            }
+        }
+    }
+    if (oldest_entry == MaxTick || oldest_entry > curTick()) {
+        return 0;
+    }
+    return curTick() - oldest_entry;
+}
+
+double
+MemCtrl::calculatePressureGradient() const
+{
+    uint32_t rd_occ = totalReadQueueSize + respQueue.size();
+    if (rd_occ == 0) {
+        return 0.0;
+    }
+
+    double rd_occ_ratio = std::min(1.0, (double)rd_occ / readBufferSize);
+    Tick rd_wait = getOldestReadWait();
+    double rd_wait_ratio =
+        (maxReadStallLatency > 0)
+            ? std::min(1.0, (double)rd_wait / maxReadStallLatency)
+            : 0.0;
+
+    double read_pressure = 0.5 * rd_occ_ratio + 0.5 * rd_wait_ratio;
+    double wr_occ_ratio =
+        std::min(1.0, (double)totalWriteQueueSize / writeBufferSize);
+
+    double gradient = read_pressure - 0.5 * wr_occ_ratio;
+    return std::max(0.0, std::min(1.0, gradient));
+}
+
+uint32_t
+MemCtrl::getEffectiveWriteHighThreshold() const
+{
+    if (!enableAdaptiveDrain) {
+        return writeHighThreshold;
+    }
+
+    double gradient = calculatePressureGradient();
+    uint32_t dynamic_high =
+        writeHighThreshold +
+        (uint32_t)std::round((writeHighThresholdMax - writeHighThreshold) *
+                             gradient);
+
+    uint32_t hard_ceiling = (uint32_t)std::floor(writeBufferSize * 0.95);
+    return std::min(dynamic_high, hard_ceiling);
+}
+
+uint32_t
+MemCtrl::getAdaptiveMinWritesPerSwitch() const
+{
+    if (!enableAdaptiveDrain) {
+        return minWritesPerSwitch;
+    }
+
+    double wr_occ_ratio =
+        std::min(1.0, (double)totalWriteQueueSize / writeBufferSize);
+    uint32_t adaptive_writes =
+        minWritesPerSwitch +
+        (uint32_t)std::round((maxWritesPerSwitch - minWritesPerSwitch) *
+                             wr_occ_ratio);
+
+    return std::min(adaptive_writes, maxWritesPerSwitch);
+}
+
+bool
+MemCtrl::hasEmergencyRead() const
+{
+    if ((totalReadQueueSize + respQueue.size()) == 0) {
+        return false;
+    }
+    return (getOldestReadWait() >= maxReadStallLatency);
 }
 
 bool
@@ -1180,98 +1332,115 @@ MemCtrl::pktSizeCheck(MemPacket* mem_pkt, MemInterface* mem_intr) const
 
 MemCtrl::CtrlStats::CtrlStats(MemCtrl &_ctrl)
     : statistics::Group(&_ctrl),
-    ctrl(_ctrl),
+      ctrl(_ctrl),
 
-    ADD_STAT(readReqs, statistics::units::Count::get(),
-             "Number of read requests accepted"),
-    ADD_STAT(writeReqs, statistics::units::Count::get(),
-             "Number of write requests accepted"),
+      ADD_STAT(readReqs, statistics::units::Count::get(),
+               "Number of read requests accepted"),
+      ADD_STAT(writeReqs, statistics::units::Count::get(),
+               "Number of write requests accepted"),
 
-    ADD_STAT(readBursts, statistics::units::Count::get(),
-             "Number of controller read bursts, including those serviced by "
-             "the write queue"),
-    ADD_STAT(writeBursts, statistics::units::Count::get(),
-             "Number of controller write bursts, including those merged in "
-             "the write queue"),
-    ADD_STAT(servicedByWrQ, statistics::units::Count::get(),
-             "Number of controller read bursts serviced by the write queue"),
-    ADD_STAT(mergedWrBursts, statistics::units::Count::get(),
-             "Number of controller write bursts merged with an existing one"),
+      ADD_STAT(readBursts, statistics::units::Count::get(),
+               "Number of controller read bursts, including those serviced by "
+               "the write queue"),
+      ADD_STAT(writeBursts, statistics::units::Count::get(),
+               "Number of controller write bursts, including those merged in "
+               "the write queue"),
+      ADD_STAT(servicedByWrQ, statistics::units::Count::get(),
+               "Number of controller read bursts serviced by the write queue"),
+      ADD_STAT(
+          mergedWrBursts, statistics::units::Count::get(),
+          "Number of controller write bursts merged with an existing one"),
 
-    ADD_STAT(neitherReadNorWriteReqs, statistics::units::Count::get(),
-             "Number of requests that are neither read nor write"),
+      ADD_STAT(neitherReadNorWriteReqs, statistics::units::Count::get(),
+               "Number of requests that are neither read nor write"),
 
-    ADD_STAT(avgRdQLen, statistics::units::Rate<
-                statistics::units::Count, statistics::units::Tick>::get(),
-             "Average read queue length when enqueuing"),
-    ADD_STAT(avgWrQLen, statistics::units::Rate<
-                statistics::units::Count, statistics::units::Tick>::get(),
-             "Average write queue length when enqueuing"),
+      ADD_STAT(avgRdQLen,
+               statistics::units::Rate<statistics::units::Count,
+                                       statistics::units::Tick>::get(),
+               "Average read queue length when enqueuing"),
+      ADD_STAT(avgWrQLen,
+               statistics::units::Rate<statistics::units::Count,
+                                       statistics::units::Tick>::get(),
+               "Average write queue length when enqueuing"),
 
-    ADD_STAT(numRdRetry, statistics::units::Count::get(),
-             "Number of times read queue was full causing retry"),
-    ADD_STAT(numWrRetry, statistics::units::Count::get(),
-             "Number of times write queue was full causing retry"),
+      ADD_STAT(numRdRetry, statistics::units::Count::get(),
+               "Number of times read queue was full causing retry"),
+      ADD_STAT(numWrRetry, statistics::units::Count::get(),
+               "Number of times write queue was full causing retry"),
+      ADD_STAT(numAdaptiveThreshAdjustments, statistics::units::Count::get(),
+               "Number of times write threshold was dynamically adjusted due "
+               "to read pressure"),
+      ADD_STAT(numEmergencyReadPreemptions, statistics::units::Count::get(),
+               "Number of emergency read preemptions in write bus state"),
+      ADD_STAT(avgEffectiveWriteHighThresh, statistics::units::Count::get(),
+               "Average effective write high threshold"),
 
-    ADD_STAT(readPktSize, statistics::units::Count::get(),
-             "Read request sizes (log2)"),
-    ADD_STAT(writePktSize, statistics::units::Count::get(),
-             "Write request sizes (log2)"),
+      ADD_STAT(readPktSize, statistics::units::Count::get(),
+               "Read request sizes (log2)"),
+      ADD_STAT(writePktSize, statistics::units::Count::get(),
+               "Write request sizes (log2)"),
 
-    ADD_STAT(rdQLenPdf, statistics::units::Count::get(),
-             "What read queue length does an incoming req see"),
-    ADD_STAT(wrQLenPdf, statistics::units::Count::get(),
-             "What write queue length does an incoming req see"),
+      ADD_STAT(rdQLenPdf, statistics::units::Count::get(),
+               "What read queue length does an incoming req see"),
+      ADD_STAT(wrQLenPdf, statistics::units::Count::get(),
+               "What write queue length does an incoming req see"),
 
-    ADD_STAT(rdPerTurnAround, statistics::units::Count::get(),
-             "Reads before turning the bus around for writes"),
-    ADD_STAT(wrPerTurnAround, statistics::units::Count::get(),
-             "Writes before turning the bus around for reads"),
+      ADD_STAT(rdPerTurnAround, statistics::units::Count::get(),
+               "Reads before turning the bus around for writes"),
+      ADD_STAT(wrPerTurnAround, statistics::units::Count::get(),
+               "Writes before turning the bus around for reads"),
 
-    ADD_STAT(bytesReadWrQ, statistics::units::Byte::get(),
-             "Total number of bytes read from write queue"),
-    ADD_STAT(bytesReadSys, statistics::units::Byte::get(),
-             "Total read bytes from the system interface side"),
-    ADD_STAT(bytesWrittenSys, statistics::units::Byte::get(),
-             "Total written bytes from the system interface side"),
+      ADD_STAT(bytesReadWrQ, statistics::units::Byte::get(),
+               "Total number of bytes read from write queue"),
+      ADD_STAT(bytesReadSys, statistics::units::Byte::get(),
+               "Total read bytes from the system interface side"),
+      ADD_STAT(bytesWrittenSys, statistics::units::Byte::get(),
+               "Total written bytes from the system interface side"),
 
-    ADD_STAT(avgRdBWSys, statistics::units::Rate<
-                statistics::units::Byte, statistics::units::Second>::get(),
-             "Average system read bandwidth in Byte/s"),
-    ADD_STAT(avgWrBWSys, statistics::units::Rate<
-                statistics::units::Byte, statistics::units::Second>::get(),
-             "Average system write bandwidth in Byte/s"),
+      ADD_STAT(avgRdBWSys,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Average system read bandwidth in Byte/s"),
+      ADD_STAT(avgWrBWSys,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Average system write bandwidth in Byte/s"),
 
-    ADD_STAT(totGap, statistics::units::Tick::get(),
-             "Total gap between requests"),
-    ADD_STAT(avgGap, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "Average gap between requests"),
+      ADD_STAT(totGap, statistics::units::Tick::get(),
+               "Total gap between requests"),
+      ADD_STAT(avgGap,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "Average gap between requests"),
 
-    ADD_STAT(requestorReadBytes, statistics::units::Byte::get(),
-             "Per-requestor bytes read from memory"),
-    ADD_STAT(requestorWriteBytes, statistics::units::Byte::get(),
-             "Per-requestor bytes write to memory"),
-    ADD_STAT(requestorReadRate, statistics::units::Rate<
-                statistics::units::Byte, statistics::units::Second>::get(),
-             "Per-requestor bytes read from memory rate"),
-    ADD_STAT(requestorWriteRate, statistics::units::Rate<
-                statistics::units::Byte, statistics::units::Second>::get(),
-             "Per-requestor bytes write to memory rate"),
-    ADD_STAT(requestorReadAccesses, statistics::units::Count::get(),
-             "Per-requestor read serviced memory accesses"),
-    ADD_STAT(requestorWriteAccesses, statistics::units::Count::get(),
-             "Per-requestor write serviced memory accesses"),
-    ADD_STAT(requestorReadTotalLat, statistics::units::Tick::get(),
-             "Per-requestor read total memory access latency"),
-    ADD_STAT(requestorWriteTotalLat, statistics::units::Tick::get(),
-             "Per-requestor write total memory access latency"),
-    ADD_STAT(requestorReadAvgLat, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "Per-requestor read average memory access latency"),
-    ADD_STAT(requestorWriteAvgLat, statistics::units::Rate<
-                statistics::units::Tick, statistics::units::Count>::get(),
-             "Per-requestor write average memory access latency")
+      ADD_STAT(requestorReadBytes, statistics::units::Byte::get(),
+               "Per-requestor bytes read from memory"),
+      ADD_STAT(requestorWriteBytes, statistics::units::Byte::get(),
+               "Per-requestor bytes write to memory"),
+      ADD_STAT(requestorReadRate,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Per-requestor bytes read from memory rate"),
+      ADD_STAT(requestorWriteRate,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Per-requestor bytes write to memory rate"),
+      ADD_STAT(requestorReadAccesses, statistics::units::Count::get(),
+               "Per-requestor read serviced memory accesses"),
+      ADD_STAT(requestorWriteAccesses, statistics::units::Count::get(),
+               "Per-requestor write serviced memory accesses"),
+      ADD_STAT(requestorReadTotalLat, statistics::units::Tick::get(),
+               "Per-requestor read total memory access latency"),
+      ADD_STAT(requestorWriteTotalLat, statistics::units::Tick::get(),
+               "Per-requestor write total memory access latency"),
+      ADD_STAT(requestorReadAvgLat,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "Per-requestor read average memory access latency"),
+      ADD_STAT(requestorWriteAvgLat,
+               statistics::units::Rate<statistics::units::Tick,
+                                       statistics::units::Count>::get(),
+               "Per-requestor write average memory access latency")
 {
 }
 
