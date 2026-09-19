@@ -463,17 +463,20 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
     ASSERT_LT(new_cf, current_cf);
 
     // Prefetch demand-protection guard logic verification:
-    // If request is prefetch AND superblock has valid demand AND new_cf < current_cf,
-    // co-allocation is disallowed.
+    // If request is prefetch AND superblock has valid demand AND new_cf <
+    // current_cf, co-allocation is disallowed.
     bool is_prefetch = true;
-    bool co_alloc_allowed_for_prefetch = superBlk.canCoAllocate(new_size) &&
+    bool co_alloc_allowed_for_prefetch =
+        superBlk.canCoAllocate(new_size) &&
         !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
 
     ASSERT_FALSE(co_alloc_allowed_for_prefetch);
 
-    // For demand requests (is_prefetch = false), co-allocation remains allowed.
+    // For demand requests (is_prefetch = false), co-allocation remains
+    // allowed.
     is_prefetch = false;
-    bool co_alloc_allowed_for_demand = superBlk.canCoAllocate(new_size) &&
+    bool co_alloc_allowed_for_demand =
+        superBlk.canCoAllocate(new_size) &&
         !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
 
     ASSERT_TRUE(co_alloc_allowed_for_demand);
@@ -509,20 +512,21 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     blk_demand0.insert({0x1000, false}); // demand block
     blk_demand1.insert({0x2000, false}); // demand block
     blk_prefetch.insert({0x3000, false});
-    blk_prefetch.setPrefetched();        // prefetched block
+    blk_prefetch.setPrefetched(); // prefetched block
 
     ASSERT_TRUE(sb_demand0.hasValidDemand());
     ASSERT_TRUE(sb_demand1.hasValidDemand());
     ASSERT_FALSE(sb_prefetch.hasValidDemand());
 
-    std::vector<SuperBlk*> superblock_entries = {&sb_demand0, &sb_demand1, &sb_prefetch};
+    std::vector<SuperBlk *> superblock_entries = {&sb_demand0, &sb_demand1,
+                                                  &sb_prefetch};
 
     // Filter candidate victim superblocks for a prefetch request
-    std::vector<SuperBlk*> replacement_candidates;
+    std::vector<SuperBlk *> replacement_candidates;
     bool is_prefetch = true;
 
     if (is_prefetch) {
-        for (auto* sb : superblock_entries) {
+        for (auto *sb : superblock_entries) {
             if (!sb->hasValidDemand()) {
                 replacement_candidates.push_back(sb);
             }
@@ -531,7 +535,8 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
         replacement_candidates = superblock_entries;
     }
 
-    // Verify only sb_prefetch is eligible for eviction during a prefetch request
+    // Verify only sb_prefetch is eligible for eviction during a prefetch
+    // request
     ASSERT_EQ(replacement_candidates.size(), 1);
     ASSERT_EQ(replacement_candidates[0], &sb_prefetch);
 
@@ -541,14 +546,14 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
 
     replacement_candidates.clear();
     if (is_prefetch) {
-        for (auto* sb : superblock_entries) {
+        for (auto *sb : superblock_entries) {
             if (!sb->hasValidDemand()) {
                 replacement_candidates.push_back(sb);
             }
         }
     }
 
-    // Verify no candidates remain, which causes findVictim to return nullptr and drop prefetch
+    // Verify no candidates remain, which causes findVictim to return nullptr
+    // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
-

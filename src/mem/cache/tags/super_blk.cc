@@ -210,7 +210,7 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
 bool
 SuperBlk::hasValidDemand() const
 {
-    for (const auto& blk : blks) {
+    for (const auto &blk : blks) {
         if (blk->isValid() && !blk->wasPrefetched()) {
             return true;
         }
