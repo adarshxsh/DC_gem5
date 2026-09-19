@@ -45,6 +45,9 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <algorithm>
+#include <climits>
+
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -125,7 +128,7 @@ CacheBlk *
 CompressedTags::findVictim(const CacheBlk::KeyType &key,
                            const std::size_t compressed_size,
                            std::vector<CacheBlk *> &evict_blks,
-                           const uint64_t partition_id = 0)
+                           const uint64_t partition_id)
 {
     // Get all possible locations of this superblock
     std::vector<ReplaceableEntry *> superblock_entries =

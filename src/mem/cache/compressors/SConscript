@@ -50,6 +50,8 @@ Source('zero.cc')
 GTest('base.test', 'base.test.cc', 'base.cc',
       '#src/mem/cache/base.cc',
       '#src/mem/cache/write_queue_entry.cc',
+      '#src/mem/port.cc',
+      '#src/mem/packet_queue.cc',
       '#src/mem/cache/tags/super_blk.cc', '#src/mem/cache/tags/sector_blk.cc',
       '#src/base/statistics.cc', '#src/base/stats/info.cc',
       '#src/base/stats/storage.cc', '#src/base/stats/text.cc',
@@ -68,5 +70,3 @@ GTest('multi.test', 'multi.test.cc', 'multi.cc', 'base.cc', 'zero.cc',
       '#src/base/stats/storage.cc', '#src/base/stats/text.cc',
       '#src/base/types.cc', '#src/base/output.cc', '#src/cpu/reg_class.cc',
       '#src/sim/bufval.cc', with_tag('gem5 simobject'))
-
-GTest('compressor_base.test', 'base.test.cc', 'base.cc')

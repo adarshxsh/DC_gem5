@@ -48,6 +48,7 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "base/logging.hh"
 #include "base/named.hh"

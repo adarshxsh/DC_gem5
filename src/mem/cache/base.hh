@@ -46,9 +46,12 @@
 #ifndef __MEM_CACHE_BASE_HH__
 #define __MEM_CACHE_BASE_HH__
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "base/addr_range.hh"
 #include "base/compiler.hh"

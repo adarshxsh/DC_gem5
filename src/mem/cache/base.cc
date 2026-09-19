@@ -45,6 +45,9 @@
 
 #include "mem/cache/base.hh"
 
+#include <algorithm>
+#include <cstring>
+
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
@@ -949,14 +952,14 @@ BaseCache::getNextQueueEntry()
         bool residence_expired =
             wq_entry->getTarget() &&
             (curTick() >= wq_entry->getTarget()->recvTime +
-                              clockPeriod() * maxQueueResidenceTime);
+                              cyclesToTicks(maxQueueResidenceTime));
 
         bool is_critical = writeBuffer.isFull() ||
                            writeBuffer.getOccupancyRatio() > 0.85 ||
                            conflict_mshr != nullptr || residence_expired;
 
         if (l2Backpressure && is_dirty_writeback && !is_critical) {
-            Tick throttle_ticks = clockPeriod() * writebackThrottleInterval;
+            Tick throttle_ticks = cyclesToTicks(writebackThrottleInterval);
             if (curTick() < lastWritebackTick + throttle_ticks) {
                 if (miss_mshr) {
                     WriteQueueEntry *conflict_mshr_write =
