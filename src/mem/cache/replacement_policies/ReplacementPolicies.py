@@ -181,6 +181,14 @@ class DWLRURP(LRURP):
     type = "DWLRURP"
     cxx_class = "gem5::replacement_policy::DWLRU"
     cxx_header = "mem/cache/replacement_policies/dwlru_rp.hh"
+    queue_occupancy_threshold = Param.Unsigned(
+        12,
+        "Downstream memory queue occupancy threshold for pressure backpressure",
+    )
+    pressure_weight = Param.Float(
+        1.0,
+        "Weight factor for downstream memory queue occupancy feedback in DWLRU score",
+    )
 
 
 # Alias for backwards compatibility

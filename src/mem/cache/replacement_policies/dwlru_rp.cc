@@ -42,7 +42,11 @@ namespace gem5
 namespace replacement_policy
 {
 
-DWLRU::DWLRU(const Params &p) : LRU(p)
+DWLRU::DWLRU(const Params &p)
+    : LRU(p),
+      queueOccupancy(0.0),
+      pressureWeight(p.pressure_weight),
+      queueOccupancyThreshold(p.queue_occupancy_threshold)
 {}
 
 void
@@ -63,6 +67,30 @@ void
 DWLRU::reset(const std::shared_ptr<ReplacementData> &replacement_data) const
 {
     LRU::reset(replacement_data);
+}
+
+void
+DWLRU::setQueueOccupancy(double occupancy) const
+{
+    queueOccupancy = occupancy;
+}
+
+void
+DWLRU::setMemQueueOccupancy(double occupancy) const
+{
+    queueOccupancy = occupancy;
+}
+
+double
+DWLRU::getQueueOccupancy() const
+{
+    return queueOccupancy;
+}
+
+double
+DWLRU::getMemQueueOccupancy() const
+{
+    return queueOccupancy;
 }
 
 ReplaceableEntry *
@@ -98,7 +126,17 @@ DWLRU::getVictim(const ReplacementCandidates &candidates) const
         } else {
             double density = static_cast<double>(valid_count) / max_blks;
             Tick age = curTick() - candidate_data->lastTouchTick;
-            score = static_cast<double>(age + 1) / density;
+
+            // Incorporate downstream memory queue occupancy feedback
+            double pressure =
+                (queueOccupancyThreshold > 0)
+                    ? (queueOccupancy /
+                       static_cast<double>(queueOccupancyThreshold))
+                    : queueOccupancy;
+            double occupancy_factor =
+                1.0 + (pressureWeight * pressure * (1.0 - density));
+            score =
+                (static_cast<double>(age + 1) / density) * occupancy_factor;
         }
 
         if (score > max_score) {

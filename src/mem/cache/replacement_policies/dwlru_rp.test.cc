@@ -190,3 +190,55 @@ TEST_F(DWLRUVictimizationTestF, AutomaticMetadataUpdate)
     secBlk.invalidateSubBlk();
     ASSERT_EQ(dw_data->validSubBlkCount, 0);
 }
+
+TEST_F(DWLRURPTestF, QueueOccupancyFeedbackGetterSetter)
+{
+    ASSERT_DOUBLE_EQ(rp->getQueueOccupancy(), 0.0);
+    ASSERT_DOUBLE_EQ(rp->getMemQueueOccupancy(), 0.0);
+
+    rp->setQueueOccupancy(8.5);
+    ASSERT_DOUBLE_EQ(rp->getQueueOccupancy(), 8.5);
+    ASSERT_DOUBLE_EQ(rp->getMemQueueOccupancy(), 8.5);
+
+    rp->setMemQueueOccupancy(14.0);
+    ASSERT_DOUBLE_EQ(rp->getQueueOccupancy(), 14.0);
+    ASSERT_DOUBLE_EQ(rp->getMemQueueOccupancy(), 14.0);
+}
+
+TEST_F(DWLRUVictimizationTestF, QueueOccupancyImpactOnVictimSelection)
+{
+    // Reset entries at equal tick
+    mockTick = 500;
+    for (auto &entry : candidates) {
+        rp->reset(entry->replacementData);
+    }
+
+    // Set sub-block validity:
+    // Entry 0: 4 valid (density 1.0)
+    // Entry 1: 3 valid (density 0.75)
+    // Entry 2: 2 valid (density 0.5)
+    // Entry 3: 1 valid (density 0.25)
+    for (int k = 0; k < 4; ++k) {
+        entries[0].validateSubBlk();
+    }
+    for (int k = 0; k < 3; ++k) {
+        entries[1].validateSubBlk();
+    }
+    for (int k = 0; k < 2; ++k) {
+        entries[2].validateSubBlk();
+    }
+    for (int k = 0; k < 1; ++k) {
+        entries[3].validateSubBlk();
+    }
+
+    mockTick = 1000;
+    // Without queue pressure, Entry 3 has lowest density (0.25) -> chosen as
+    // victim
+    rp->setQueueOccupancy(0.0);
+    ASSERT_EQ(rp->getVictim(candidates), &entries[3]);
+
+    // Under memory queue pressure, low density entry (Entry 3) is prioritized
+    // even more for replacement
+    rp->setQueueOccupancy(16.0);
+    ASSERT_EQ(rp->getVictim(candidates), &entries[3]);
+}
