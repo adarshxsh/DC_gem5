@@ -559,3 +559,41 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, DynamicSlotRemappingCompaction)
+{
+    // Insert sub-blocks with explicit sector offsets 0, 1, 2, 3
+    for (unsigned k = 0; k < 4; ++k) {
+        subBlks[k].insert({0x7000, false});
+        subBlks[k].setSizeBits(64);
+        subBlks[k].setSectorOffset(k);
+    }
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    verifyInvariants(superBlk);
+
+    // Invalidate sub-block at slot 1 (sector offset 1)
+    subBlks[1].invalidate();
+
+    // Verify sub-blocks are compacted: slots 0, 1, 2 are valid, slot 3 is free
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 2);
+
+    ASSERT_TRUE(superBlk.blks[2]->isValid());
+    ASSERT_EQ(superBlk.blks[2]->getSectorOffset(), 3);
+
+    ASSERT_FALSE(superBlk.blks[3]->isValid());
+    verifyInvariants(superBlk);
+
+    // Co-allocate a new sub-block with sector offset 1 into the free slot at
+    // index 3
+    superBlk.blks[3]->insert({0x7000, false});
+    static_cast<CompressionBlk *>(superBlk.blks[3])->setSizeBits(64);
+    superBlk.blks[3]->setSectorOffset(1);
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+    verifyInvariants(superBlk);
+}

@@ -29,6 +29,7 @@
 #include <gtest/gtest.h>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "sim/cur_tick.hh"
 
 using namespace gem5;
 
@@ -68,12 +69,14 @@ class CanCoAllocateTest : public ::testing::Test
     static constexpr std::size_t BlkSize = 64;
     static constexpr unsigned NumSubBlks = 4;
 
+    Tick mockTick = 0;
     SuperBlk superBlk;
     std::unique_ptr<CompressionBlk[]> subBlks;
 
     void
     SetUp() override
     {
+        Gem5Internal::_curTickPtr = &mockTick;
         superBlk.setBlkSize(BlkSize);
         subBlks.reset(new CompressionBlk[NumSubBlks]);
         superBlk.blks.resize(NumSubBlks);
@@ -132,4 +135,33 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
 
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
+}
+
+TEST_F(CanCoAllocateTest, InPlaceSuperblockCompaction)
+{
+    // Populate 4 sub-blocks with explicit sector offsets 0, 1, 2, 3
+    for (unsigned k = 0; k < 4; ++k) {
+        subBlks[k].insert({0x1000, false});
+        subBlks[k].setSizeBits(64);
+        subBlks[k].setSectorOffset(k);
+    }
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+
+    // Invalidate sub-block at physical index 1 (sector offset 1)
+    subBlks[1].invalidate();
+
+    // Verify remaining active sub-blocks are compacted to contiguous lower
+    // indices 0, 1, 2
+    ASSERT_EQ(superBlk.getNumValid(), 3);
+    ASSERT_TRUE(superBlk.blks[0]->isValid());
+    ASSERT_EQ(superBlk.blks[0]->getSectorOffset(), 0);
+
+    ASSERT_TRUE(superBlk.blks[1]->isValid());
+    ASSERT_EQ(superBlk.blks[1]->getSectorOffset(), 2); // shifted from index 2
+
+    ASSERT_TRUE(superBlk.blks[2]->isValid());
+    ASSERT_EQ(superBlk.blks[2]->getSectorOffset(), 3); // shifted from index 3
+
+    // Physical index 3 must be invalid (free slot contiguous at the end)
+    ASSERT_FALSE(superBlk.blks[3]->isValid());
 }

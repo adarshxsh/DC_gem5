@@ -34,6 +34,7 @@
 
 #include "mem/cache/tags/super_blk.hh"
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 
@@ -152,7 +153,7 @@ CompressionBlk::invalidate()
     _size = 0;
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
-        superblock->updateCompressionFactor();
+        superblock->compactSlots();
     }
 }
 
@@ -181,8 +182,15 @@ CompressionBlk::print() const
 }
 
 SuperBlk::SuperBlk()
-    : SectorBlk(), blkSize(0), compressionFactor(1)
+    : SectorBlk(), blkSize(0), compressionFactor(1), isCompacting(false)
+{}
+
+void
+SuperBlk::compactSlots()
 {
+    std::stable_partition(blks.begin(), blks.end(),
+                          [](const SectorSubBlk *b) { return b->isValid(); });
+    updateCompressionFactor();
 }
 
 void
@@ -231,15 +239,11 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
     }
 
     std::size_t bit_sum = 0;
-    std::size_t count = 0;
     for (const auto &blk : blks) {
         if (blk->isValid()) {
             const CompressionBlk *cblk =
                 static_cast<const CompressionBlk *>(blk);
             bit_sum += cblk->getSizeBits();
-            if (++count >= 4) {
-                break;
-            }
         }
     }
 

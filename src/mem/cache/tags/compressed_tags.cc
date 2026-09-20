@@ -145,25 +145,35 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
-            superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
-            if (is_prefetch && superblock->hasValidDemand()) {
-                const uint8_t new_blk_cf =
-                    superblock->calculateCompressionFactor(compressed_size);
-                const uint8_t current_cf = superblock->getCompressionFactor();
-                const uint8_t new_cf = (superblock->getNumValid() == 0)
-                                           ? new_blk_cf
-                                           : std::min(current_cf, new_blk_cf);
-                if (new_cf < current_cf) {
-                    continue;
+        if (superblock->match(key) && superblock->isCompressed() &&
+            superblock->getNumValid() < superblock->blks.size()) {
+            bool has_offset = false;
+            for (const auto &blk : superblock->blks) {
+                if (blk->isValid() && blk->getSectorOffset() == offset) {
+                    has_offset = true;
+                    break;
                 }
             }
-            victim_superblock = superblock;
-            is_co_allocation = true;
-            break;
+
+            if (!has_offset && superblock->canCoAllocate(compressed_size)) {
+                if (is_prefetch && superblock->hasValidDemand()) {
+                    const uint8_t new_blk_cf =
+                        superblock->calculateCompressionFactor(
+                            compressed_size);
+                    const uint8_t current_cf =
+                        superblock->getCompressionFactor();
+                    const uint8_t new_cf =
+                        (superblock->getNumValid() == 0)
+                            ? new_blk_cf
+                            : std::min(current_cf, new_blk_cf);
+                    if (new_cf < current_cf) {
+                        continue;
+                    }
+                }
+                victim_superblock = superblock;
+                is_co_allocation = true;
+                break;
+            }
         }
     }
 
@@ -206,16 +216,19 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Get the location of the victim block within the superblock
-    SectorSubBlk* victim = victim_superblock->blks[offset];
-
-    // It would be a hit if victim was valid in a co-allocation, and upgrades
-    // do not call findVictim, so it cannot happen
-    if (is_co_allocation){
+    SectorSubBlk *victim = nullptr;
+    if (is_co_allocation) {
+        assert(victim_superblock != nullptr);
+        victim = victim_superblock->blks[victim_superblock->getNumValid()];
         assert(!victim->isValid());
+        victim->setSectorOffset(offset);
 
         // Print all co-allocated blocks
         DPRINTF(CacheComp, "Co-Allocation: offset %d of %s\n", offset,
                 victim_superblock->print());
+    } else {
+        victim = victim_superblock->blks[0];
+        victim->setSectorOffset(offset);
     }
 
     // Update number of sub-blocks evicted due to a replacement
@@ -244,6 +257,14 @@ CompressedTags::checkInvariants() const
             uint8_t num_valid = super_blk.getNumValid();
             uint8_t cf = super_blk.getCompressionFactor();
             std::size_t total_bits = 0;
+
+            for (unsigned i = 0; i < num_valid; ++i) {
+                assert(super_blk.blks[i]->isValid());
+            }
+            for (unsigned i = num_valid; i < super_blk.blks.size(); ++i) {
+                assert(!super_blk.blks[i]->isValid());
+            }
+
             for (const auto &blk : super_blk.blks) {
                 if (blk->isValid()) {
                     const CompressionBlk *cblk =
@@ -260,6 +281,9 @@ CompressedTags::checkInvariants() const
             }
         } else {
             assert(super_blk.getCompressionFactor() == 1);
+            for (const auto &blk : super_blk.blks) {
+                assert(!blk->isValid());
+            }
         }
     }
     return true;
