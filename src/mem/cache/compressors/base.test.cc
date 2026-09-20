@@ -135,7 +135,8 @@ TEST_F(BaseCacheCompressorQueuePressureTest, PressureExceedsThreshold)
     // 85% pressure >= 80% threshold -> compression bypassed
     EXPECT_EQ(comp_lat, Cycles(0));
     EXPECT_EQ(decomp_lat, Cycles(0));
-    EXPECT_EQ(comp_data->getSizeBits(), 64 * 8); // Uncompressed size (512 bits)
+    EXPECT_EQ(comp_data->getSizeBits(),
+              64 * 8); // Uncompressed size (512 bits)
 }
 
 /**

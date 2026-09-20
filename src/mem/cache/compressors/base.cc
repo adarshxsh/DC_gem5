@@ -187,11 +187,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Memory queue pressure bypass active (pressure: %.2f >= threshold: %d). "
-            "Bypassing compression.\n",
-            currentQueuePressure, queuePressureThreshold);
+        DPRINTF(CacheComp,
+                "Memory queue pressure bypass active (pressure: %.2f >= "
+                "threshold: %d). "
+                "Bypassing compression.\n",
+                currentQueuePressure, queuePressureThreshold);
         return comp_data;
     }
 

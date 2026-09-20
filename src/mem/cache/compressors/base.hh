@@ -140,7 +140,8 @@ class Base : public SimObject
     /** Whether dynamic memory queue pressure throttling is enabled. */
     const bool enableQueuePressureThrottling;
 
-    /** Downstream memory queue occupancy saturation threshold percentage (0-100). */
+    /** Downstream memory queue occupancy saturation threshold percentage
+     * (0-100). */
     const int queuePressureThreshold;
 
     /** Current monitored downstream memory queue pressure percentage. */
@@ -254,21 +255,35 @@ class Base : public SimObject
     virtual void setCache(BaseCache *_cache);
 
     /** Set the monitored downstream memory queue pressure percentage. */
-    void setQueuePressure(double pressure) { currentQueuePressure = pressure; }
+    void
+    setQueuePressure(double pressure)
+    {
+        currentQueuePressure = pressure;
+    }
 
     /** Get the monitored downstream memory queue pressure percentage. */
-    double getQueuePressure() const { return currentQueuePressure; }
+    double
+    getQueuePressure() const
+    {
+        return currentQueuePressure;
+    }
 
     /** Check if queue pressure throttling is enabled. */
-    bool isQueuePressureThrottlingEnabled() const
+    bool
+    isQueuePressureThrottlingEnabled() const
     {
         return enableQueuePressureThrottling;
     }
 
     /** Get queue pressure saturation threshold. */
-    int getQueuePressureThreshold() const { return queuePressureThreshold; }
+    int
+    getQueuePressureThreshold() const
+    {
+        return queuePressureThreshold;
+    }
 
-    /** Check if downstream memory queue occupancy exceeds saturation threshold. */
+    /** Check if downstream memory queue occupancy exceeds saturation
+     * threshold. */
     bool isQueuePressureExceeded() const;
 
     /**

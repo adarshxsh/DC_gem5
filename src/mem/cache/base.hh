@@ -1000,11 +1000,14 @@ class BaseCache : public ClockedObject
 
   public:
     /** Get write queue pressure ratio percentage (0-100). */
-    double getWriteQueuePressure() const
+    double
+    getWriteQueuePressure() const
     {
         return (writeBuffer.capacity() > 0)
-            ? ((double)writeBuffer.occupancy() / (double)writeBuffer.capacity()) * 100.0
-            : 0.0;
+                   ? ((double)writeBuffer.occupancy() /
+                      (double)writeBuffer.capacity()) *
+                         100.0
+                   : 0.0;
     }
 
     /** System we are currently operating in. */
