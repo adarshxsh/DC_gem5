@@ -108,6 +108,7 @@ Queued::Queued(const QueuedPrefetcherParams &p)
       cacheSnoop(p.cache_snoop),
       tagPrefetch(p.tag_prefetch),
       throttleControlPct(p.throttle_control_percentage),
+      queuePressureThreshold(p.queue_pressure_threshold),
       cht((name() + ".cht").c_str(), p.cht_entries, p.cht_assoc,
           p.cht_replacement_policy, p.cht_indexing_policy,
           CHTEntry(genTagExtractor(p.cht_indexing_policy))),
@@ -177,6 +178,22 @@ Queued::getMaxPermittedPrefetches(size_t total) const
     return max_pfs;
 }
 
+size_t
+Queued::getMaxPermittedPrefetches(size_t total,
+                                 const CacheAccessor &cache) const
+{
+    size_t max_pfs = getMaxPermittedPrefetches(total);
+    double press = cache.getQueuePressure();
+    if (press >= queuePressureThreshold && queuePressureThreshold < 1.0) {
+        double range = 1.0 - queuePressureThreshold;
+        double excess = (range > 0.0) ? (press - queuePressureThreshold) / range : 1.0;
+        excess = std::min(1.0, std::max(0.0, excess));
+        double pressure_factor = 1.0 - excess;
+        max_pfs = (size_t)std::floor(max_pfs * pressure_factor);
+    }
+    return max_pfs;
+}
+
 void
 Queued::notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi)
 {
@@ -208,8 +225,8 @@ Queued::notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi)
     std::vector<AddrPriority> addresses;
     calculatePrefetch(pfi, addresses, cache);
 
-    // Get the maximu number of prefetches that we are allowed to generate
-    size_t max_pfs = getMaxPermittedPrefetches(addresses.size());
+    // Get the maximum number of prefetches that we are allowed to generate
+    size_t max_pfs = getMaxPermittedPrefetches(addresses.size(), cache);
 
     // Queue up generated prefetches
     size_t num_pfs = 0;
@@ -258,6 +275,15 @@ Queued::getPacket()
     if (pfq.empty()) {
         DPRINTF(HWPrefetch, "No hardware prefetches available.\n");
         return nullptr;
+    }
+
+    if (pfq.front().cache) {
+        double press = pfq.front().cache->getQueuePressure();
+        if (press >= queuePressureThreshold && queuePressureThreshold < 1.0) {
+            DPRINTF(HWPrefetch, "Throttling prefetch issue due to downstream queue pressure (%f >= %f).\n",
+                    press, queuePressureThreshold);
+            return nullptr;
+        }
     }
 
     PacketPtr pkt = pfq.front().pkt;

@@ -210,6 +210,12 @@ RequestPort::removeTrace(PacketPtr pkt) const
     ext->remove();
 }
 
+double
+RequestPort::getPeerQueuePressure() const
+{
+    return _responsePort ? _responsePort->getQueuePressure() : 0.0;
+}
+
 /**
  * Response port
  */

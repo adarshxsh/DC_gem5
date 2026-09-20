@@ -247,6 +247,8 @@ class BaseCache : public ClockedObject
 
         MemSidePort(const std::string &_name, BaseCache *_cache,
                     const std::string &_label);
+
+        double getQueuePressure() const { return getPeerQueuePressure(); }
     };
 
     /**
@@ -269,6 +271,8 @@ class BaseCache : public ClockedObject
         void clearBlocked();
 
         bool isBlocked() const { return blocked; }
+
+        double getQueuePressure() const override { return cache.getQueuePressure(); }
 
       protected:
 
@@ -357,6 +361,12 @@ class BaseCache : public ClockedObject
             return cache.getCompressionFactor(addr, is_secure);
         }
 
+        double
+        getQueuePressure() const override
+        {
+            return cache.getQueuePressure();
+        }
+
     } accessor;
 
     /** Miss status registers */
@@ -376,6 +386,9 @@ class BaseCache : public ClockedObject
 
     /** Prefetcher */
     prefetch::Base *prefetcher;
+
+    /** Queue pressure threshold for prefetch throttling */
+    const double prefetchQueuePressureThreshold;
 
     /** To probe when a cache hit occurs */
     ProbePointArg<CacheAccessProbeArg> *ppHit;
@@ -1266,6 +1279,11 @@ class BaseCache : public ClockedObject
     {
         memSidePort.schedSendEvent(time);
     }
+
+    double getQueuePressure() const;
+    double getDownstreamQueuePressure() const { return memSidePort.getQueuePressure(); }
+    double getCompressedCachePressure() const;
+    bool canPrefetch() const;
 
     bool inCache(Addr addr, bool is_secure) const {
         return tags->findBlock({addr, is_secure});

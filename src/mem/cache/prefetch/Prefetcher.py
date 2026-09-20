@@ -165,6 +165,10 @@ class QueuedPrefetcher(BasePrefetcher):
         "Percentage of requests \
         that can be throttled depending on the accuracy of the prefetcher.",
     )
+    queue_pressure_threshold = Param.Float(
+        0.80,
+        "Queue pressure threshold above which prefetch generation is throttled",
+    )
 
     enable_cht = Param.Bool(
         True, "Enable Compression History Table (CHT) filtering"

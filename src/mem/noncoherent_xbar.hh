@@ -100,6 +100,8 @@ class NoncoherentXBar : public BaseXBar
               queue(_xbar, *this)
         { }
 
+        double getQueuePressure() const override { return xbar.getQueuePressure(); }
+
       protected:
 
         bool

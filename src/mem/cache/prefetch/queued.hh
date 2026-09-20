@@ -179,6 +179,9 @@ class Queued : public Base
     /** Percentage of requests that can be throttled */
     const unsigned int throttleControlPct;
 
+    /** Queue pressure threshold for prefetch throttling */
+    const double queuePressureThreshold;
+
     /** Compression History Table (CHT) entry */
     struct CHTEntry : public TaggedEntry
     {
@@ -295,6 +298,8 @@ class Queued : public Base
      * @return the number of these request candidates are allowed to be created
      */
     size_t getMaxPermittedPrefetches(size_t total) const;
+    size_t getMaxPermittedPrefetches(size_t total,
+                                     const CacheAccessor &cache) const;
 
     RequestPtr createPrefetchRequest(Addr addr, PrefetchInfo const &pfi,
                                         PacketPtr pkt);

@@ -185,6 +185,12 @@ class RequestPort: public Port, public AtomicRequestProtocol,
      */
     void printAddr(Addr a);
 
+    /**
+     * Query downstream peer queue pressure metric.
+     * @return Normalized queue pressure (0.0 to 1.0) of connected responder.
+     */
+    double getPeerQueuePressure() const;
+
   public:
     /* The atomic protocol. */
 
@@ -387,6 +393,13 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      * @return a list of ranges responded to
      */
     virtual AddrRangeList getAddrRanges() const = 0;
+
+    /**
+     * Get normalized queue pressure/congestion metric.
+     *
+     * @return Normalized queue pressure from 0.0 (empty) to 1.0 (saturated).
+     */
+    virtual double getQueuePressure() const { return 0.0; }
 
     /**
      * We let the request port do the work, so these don't do anything.
