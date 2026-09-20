@@ -147,6 +147,24 @@ class Queue : public Drainable, public Named
         return allocated == 0;
     }
 
+    int
+    size() const
+    {
+        return allocated;
+    }
+
+    int
+    occupancy() const
+    {
+        return allocated;
+    }
+
+    int
+    capacity() const
+    {
+        return numEntries;
+    }
+
     bool isFull() const
     {
         return (allocated >= numEntries - numReserve);

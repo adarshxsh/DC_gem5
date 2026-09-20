@@ -892,6 +892,9 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 tgt_pkt->copyResponderFlags(pkt);
             }
             tgt_pkt->makeTimingResponse();
+            if (isCompressionPressureActive()) {
+                tgt_pkt->setCompressionPressure();
+            }
             // if this packet is an error copy that to the new packet
             if (is_error)
                 tgt_pkt->copyError(pkt);

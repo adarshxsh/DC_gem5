@@ -82,19 +82,31 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      compressionPressureThreshold(p.compression_pressure_threshold),
+      enableCompressionPressure(p.enable_compression_pressure),
+      writebackThrottleDelay(p.writeback_throttle_delay),
+      writeBufferBypassThreshold(p.write_buffer_bypass_threshold),
+      l2CompressionPressureActive(false),
+      lastWritebackDrainTick(0),
+      enableCompressionBackpressure(p.enable_compression_backpressure),
+      backpressureHighThreshold(p.backpressure_high_threshold),
+      backpressureLowThreshold(p.backpressure_low_threshold),
+      backpressureExpansionThreshold(p.backpressure_expansion_threshold),
+      backpressureActive(false),
+      downstreamBackpressureActive(false),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -142,6 +154,17 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
         "Compressed cache %s does not have a compression algorithm", name());
     if (compressor)
         compressor->setCache(this);
+
+    if (enableCompressionBackpressure) {
+        if (backpressureHighThreshold == 0) {
+            backpressureHighThreshold =
+                std::max(1u, (unsigned)(p.write_buffers * 0.75));
+        }
+        if (backpressureLowThreshold == 0) {
+            backpressureLowThreshold =
+                std::max(0u, (unsigned)(p.write_buffers * 0.25));
+        }
+    }
 }
 
 BaseCache::~BaseCache()
@@ -252,6 +275,7 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
     }
 
     writeBuffer.allocate(blk_addr, blkSize, pkt, time, order++);
+    checkBackpressure(false);
 
     if (writeBuffer.isFull()) {
         setBlocked((BlockedCause)MSHRQueue_WriteBuffer);
@@ -266,6 +290,7 @@ BaseCache::markInService(WriteQueueEntry *entry)
 {
     bool wasFull = writeBuffer.isFull();
     writeBuffer.markInService(entry);
+    checkBackpressure(false);
 
     if (wasFull && !writeBuffer.isFull()) {
         clearBlocked(Blocked_NoWBBuffers);
@@ -334,6 +359,9 @@ BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
         assert(pkt->payloadDelay == 0);
 
         pkt->makeTimingResponse();
+        if (isCompressionPressureActive()) {
+            pkt->setCompressionPressure();
+        }
 
         // In this case we are considering request_time that takes
         // into account the delay of the xbar, if any, and just
@@ -533,6 +561,10 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
     // Reset the bus additional time as it is now accounted for
     pkt->headerDelay = pkt->payloadDelay = 0;
 
+    if (isCompressionPressureActive()) {
+        pkt->setCompressionPressure();
+    }
+
     cpuSidePort.schedTimingResp(pkt, completion_time);
 }
 
@@ -540,6 +572,9 @@ void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
+
+    // Update L1 compression pressure state based on in-band packet flag
+    l2CompressionPressureActive = pkt->isCompressionPressure();
 
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above
@@ -911,9 +946,33 @@ BaseCache::getNextQueueEntry()
     MSHR *miss_mshr  = mshrQueue.getNext();
     WriteQueueEntry *wq_entry = writeBuffer.getNext();
 
+    // Defer writebacks if downstream backpressure is active and write buffer
+    // is not full
+    if (downstreamBackpressureActive && wq_entry && !writeBuffer.isFull()) {
+        wq_entry = nullptr;
+    }
+
+    double wb_occ =
+        writeBuffer.capacity() > 0
+            ? (double)writeBuffer.occupancy() / writeBuffer.capacity()
+            : 0.0;
+    bool bypass = (wb_occ >= (double)writeBufferBypassThreshold / 100.0);
+
+    // If L2 compression pressure is active and write buffer is not at bypass
+    // limit, enforce throttling delay on writeback draining
+    if (wq_entry && l2CompressionPressureActive && !bypass) {
+        Tick min_drain_time =
+            lastWritebackDrainTick + writebackThrottleDelay * clockPeriod();
+        if (curTick() < min_drain_time) {
+            wq_entry = nullptr;
+        }
+    }
+
     // If we got a write buffer request ready, first priority is a
-    // full write buffer, otherwise we favour the miss requests
-    if (wq_entry && (writeBuffer.isFull() || !miss_mshr)) {
+    // full write buffer or bypass limit reached, otherwise we favour the miss
+    // requests
+    if (wq_entry && (writeBuffer.isFull() || bypass ||
+                     (!miss_mshr && !l2CompressionPressureActive))) {
         // need to search MSHR queue for conflicting earlier miss.
         MSHR *conflict_mshr = mshrQueue.findPending(wq_entry);
 
@@ -1998,11 +2057,43 @@ BaseCache::invalidateVisitor(CacheBlk &blk)
     }
 }
 
+bool
+BaseCache::isCompressionPressureActive() const
+{
+    if (!enableCompressionPressure || !tags) {
+        return false;
+    }
+    double occ = tags->getOccupancyRatio();
+    double threshold = (double)compressionPressureThreshold / 100.0;
+    if (occ >= threshold) {
+        if (compressor != nullptr ||
+            dynamic_cast<CompressedTags *>(tags) != nullptr) {
+            return true;
+        }
+    }
+    return false;
+}
+
 Tick
 BaseCache::nextQueueReadyTime() const
 {
-    Tick nextReady = std::min(mshrQueue.nextReadyTime(),
-                              writeBuffer.nextReadyTime());
+    Tick mshr_ready = mshrQueue.nextReadyTime();
+    Tick wq_ready = writeBuffer.nextReadyTime();
+
+    double wb_occ =
+        writeBuffer.capacity() > 0
+            ? (double)writeBuffer.occupancy() / writeBuffer.capacity()
+            : 0.0;
+    bool bypass = (wb_occ >= (double)writeBufferBypassThreshold / 100.0);
+
+    if (l2CompressionPressureActive && !bypass &&
+        writeBuffer.occupancy() > 0) {
+        Tick min_drain_time =
+            lastWritebackDrainTick + writebackThrottleDelay * clockPeriod();
+        wq_ready = std::max(wq_ready, min_drain_time);
+    }
+
+    Tick nextReady = std::min(mshr_ready, wq_ready);
 
     // Don't signal prefetch ready time if no MSHRs available
     // Will signal once enoguh MSHRs are deallocated
@@ -2138,6 +2229,7 @@ BaseCache::sendWriteQueuePacket(WriteQueueEntry* wq_entry)
         return true;
     } else {
         markInService(wq_entry);
+        lastWritebackDrainTick = curTick();
         return false;
     }
 }
@@ -2935,6 +3027,68 @@ BaseCache::getCompressionFactor(Addr addr, bool is_secure) const
         }
     }
     return 1;
+}
+
+void
+BaseCache::MemSidePort::recvCompressionBackpressure(bool active)
+{
+    cache->setDownstreamBackpressure(active);
+}
+
+void
+BaseCache::setDownstreamBackpressure(bool active)
+{
+    if (downstreamBackpressureActive != active) {
+        DPRINTF(CachePort,
+                "Downstream compression backpressure changed to %d\n", active);
+        downstreamBackpressureActive = active;
+        if (!downstreamBackpressureActive) {
+            schedMemSideSendEvent(curTick());
+        }
+    }
+}
+
+void
+BaseCache::checkBackpressure(bool expansionEvictionBurst)
+{
+    if (!enableCompressionBackpressure) {
+        return;
+    }
+
+    unsigned occupancy = writeBuffer.size();
+    if (!backpressureActive) {
+        if (occupancy >= backpressureHighThreshold || expansionEvictionBurst) {
+            assertBackpressure();
+        }
+    } else {
+        if (occupancy <= backpressureLowThreshold && !expansionEvictionBurst) {
+            deassertBackpressure();
+        }
+    }
+}
+
+void
+BaseCache::assertBackpressure()
+{
+    if (!backpressureActive) {
+        backpressureActive = true;
+        DPRINTF(CachePort,
+                "%s: Asserting compression backpressure (wb size=%d)\n",
+                name(), writeBuffer.size());
+        cpuSidePort.sendCompressionBackpressure(true);
+    }
+}
+
+void
+BaseCache::deassertBackpressure()
+{
+    if (backpressureActive) {
+        backpressureActive = false;
+        DPRINTF(CachePort,
+                "%s: Deasserting compression backpressure (wb size=%d)\n",
+                name(), writeBuffer.size());
+        cpuSidePort.sendCompressionBackpressure(false);
+    }
 }
 
 } // namespace gem5

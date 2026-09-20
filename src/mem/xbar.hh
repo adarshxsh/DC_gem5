@@ -340,6 +340,13 @@ class BaseXBar : public ClockedObject
     virtual void recvRangeChange(PortID mem_side_port_id);
 
     /**
+     * Function called by the port when the crossbar receives a compression
+     * backpressure signal.
+     */
+    virtual void recvCompressionBackpressure(PortID mem_side_port_id,
+                                             bool active);
+
+    /**
      * Find which port connected to this crossbar (if any) should be
      * given a packet with this address range.
      *
