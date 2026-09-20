@@ -643,4 +643,3 @@ TEST(CompressionBackpressureProtocol, HysteresisThresholds)
     updateBackpressure(3, true);
     ASSERT_TRUE(active);
 }
-

@@ -372,7 +372,7 @@ BaseXBar::findPort(AddrRange addr_range, PacketPtr pkt)
 void
 BaseXBar::recvCompressionBackpressure(PortID mem_side_port_id, bool active)
 {
-    for (auto* p : cpuSidePorts) {
+    for (auto *p : cpuSidePorts) {
         p->sendCompressionBackpressure(active);
     }
 }
