@@ -35,6 +35,11 @@
 #ifndef __MEM_CACHE_TAGS_SUPER_BLK_HH__
 #define __MEM_CACHE_TAGS_SUPER_BLK_HH__
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
+
 #include "mem/cache/tags/sector_blk.hh"
 
 namespace gem5
@@ -180,11 +185,39 @@ class SuperBlk : public SectorBlk
      */
     uint8_t compressionFactor;
 
+    /**
+     * Dynamic offset-to-slot indirection map mapping sector offsets (0..N-1)
+     * to physical sub-block slot indices (0..N-1).
+     */
+    mutable std::vector<int> offsetToSlot;
+
+    /** Re-entrancy guard to prevent recursive slot compaction. */
+    bool compacting = false;
+
   public:
     SuperBlk();
     SuperBlk(const SuperBlk&) = delete;
     SuperBlk& operator=(const SuperBlk&) = delete;
     ~SuperBlk() {};
+
+    /**
+     * Map a sector offset to its physical sub-block slot index.
+     *
+     * @param offset Sector offset (0..N-1).
+     * @return Physical slot index (0..N-1).
+     */
+    int getSlotForOffset(int offset) const;
+
+    /**
+     * Compacts active sub-blocks into contiguous lower slots starting at slot
+     * 0 upon sub-block invalidation and updates the indirection map.
+     */
+    void compactSlots();
+
+    /**
+     * Initialize or reset the offset-to-slot indirection map to identity.
+     */
+    void initOffsetToSlot() const;
 
     /**
      * Returns whether the superblock contains compressed blocks or not. By

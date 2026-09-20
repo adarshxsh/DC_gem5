@@ -46,6 +46,8 @@
 #ifndef __MEM_CACHE_TAGS_COMPRESSED_TAGS_HH__
 #define __MEM_CACHE_TAGS_COMPRESSED_TAGS_HH__
 
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "mem/cache/tags/sector_tags.hh"
@@ -105,6 +107,15 @@ class CompressedTags : public SectorTags
      * Initialize blocks as SuperBlk and CompressionBlk instances.
      */
     void tagsInit() override;
+
+    /**
+     * Finds the given address in the cache using the superblock offset-to-slot
+     * map.
+     *
+     * @param key The key (address, is_secure) to find.
+     * @return Pointer to the cache block if found.
+     */
+    CacheBlk *findBlock(const CacheBlk::KeyType &key) const override;
 
     /**
      * Find replacement victim based on address. Checks if data can be co-
