@@ -383,11 +383,18 @@ class BaseCache : public ClockedObject
     const float compPressureThreshold;
 
   public:
-    float getDownstreamMemPressure() const { return downstreamMemPressure; }
-    bool isUnderMemoryPressure() const { return downstreamMemPressure >= pfPressureThreshold; }
+    float
+    getDownstreamMemPressure() const
+    {
+        return downstreamMemPressure;
+    }
+    bool
+    isUnderMemoryPressure() const
+    {
+        return downstreamMemPressure >= pfPressureThreshold;
+    }
 
   protected:
-
     /** To probe when a cache hit occurs */
     ProbePointArg<CacheAccessProbeArg> *ppHit;
 

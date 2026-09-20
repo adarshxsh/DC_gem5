@@ -188,14 +188,19 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 float
 MemCtrl::getReadQueuePressure() const
 {
-    if (readBufferSize == 0) return 0.0f;
-    return (float)(totalReadQueueSize + respQueue.size()) / (float)readBufferSize;
+    if (readBufferSize == 0) {
+        return 0.0f;
+    }
+    return (float)(totalReadQueueSize + respQueue.size()) /
+           (float)readBufferSize;
 }
 
 float
 MemCtrl::getWriteQueuePressure() const
 {
-    if (writeBufferSize == 0) return 0.0f;
+    if (writeBufferSize == 0) {
+        return 0.0f;
+    }
     return (float)totalWriteQueueSize / (float)writeBufferSize;
 }
 
@@ -208,11 +213,14 @@ MemCtrl::getQueuePressure() const
 uint32_t
 MemCtrl::getDynamicWriteHighThreshold() const
 {
-    if (writeBufferSize == 0) return writeHighThreshold;
+    if (writeBufferSize == 0) {
+        return writeHighThreshold;
+    }
     float p_rd = getReadQueuePressure();
     float p_wr = getWriteQueuePressure();
     float p_grad = p_rd - p_wr;
-    float thresh = (float)writeHighThreshold + (float)writeBufferSize * 0.25f * p_grad;
+    float thresh =
+        (float)writeHighThreshold + (float)writeBufferSize * 0.25f * p_grad;
     float min_thresh = (float)writeLowThreshold + 1.0f;
     float max_thresh = (float)writeBufferSize;
     return (uint32_t)std::clamp(thresh, min_thresh, max_thresh);
@@ -221,12 +229,15 @@ MemCtrl::getDynamicWriteHighThreshold() const
 uint32_t
 MemCtrl::getDynamicWriteLowThreshold() const
 {
-    if (writeBufferSize == 0) return writeLowThreshold;
+    if (writeBufferSize == 0) {
+        return writeLowThreshold;
+    }
     float p_rd = getReadQueuePressure();
     float p_wr = getWriteQueuePressure();
     float p_grad = p_rd - p_wr;
     float high_t = (float)getDynamicWriteHighThreshold();
-    float thresh = (float)writeLowThreshold + (float)writeBufferSize * 0.25f * p_grad;
+    float thresh =
+        (float)writeLowThreshold + (float)writeBufferSize * 0.25f * p_grad;
     float min_thresh = 1.0f;
     float max_thresh = std::max(1.0f, high_t - 1.0f);
     return (uint32_t)std::clamp(thresh, min_thresh, max_thresh);
@@ -1087,10 +1098,11 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // of reads before switching, or have emptied the readQ
             uint32_t dynHighThresh = getDynamicWriteHighThreshold();
             if ((mem_intr->writeQueueSize > dynHighThresh ||
-                (getWriteQueuePressure() > 0.85f && getWriteQueuePressure() > getReadQueuePressure())) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+                 (getWriteQueuePressure() > 0.85f &&
+                  getWriteQueuePressure() > getReadQueuePressure())) &&
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 
@@ -1177,8 +1189,11 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
-            (mem_intr->readQueueSize && (getReadQueuePressure() > getWriteQueuePressure() && mem_intr->writesThisTime >= minWritesPerSwitch)) ||
+            (mem_intr->readQueueSize &&
+             mem_intr->writesThisTime >= minWritesPerSwitch) ||
+            (mem_intr->readQueueSize &&
+             (getReadQueuePressure() > getWriteQueuePressure() &&
+              mem_intr->writesThisTime >= minWritesPerSwitch)) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again

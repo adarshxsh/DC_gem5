@@ -291,13 +291,13 @@ class MemCtrl : public qos::MemCtrl
     virtual float getQueuePressure() const;
 
     /**
-     * Compute dynamic read/write watermarks based on relative pressure gradient.
+     * Compute dynamic read/write watermarks based on relative pressure
+     * gradient.
      */
     virtual uint32_t getDynamicWriteHighThreshold() const;
     virtual uint32_t getDynamicWriteLowThreshold() const;
 
   protected:
-
     /**
      * Remember if the memory system is in timing mode
      */

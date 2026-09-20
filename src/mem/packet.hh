@@ -783,8 +783,16 @@ class Packet : public Printable, public Extensible<Packet>
     /**
      * Memory controller queue pressure feedback getter/setter
      */
-    inline float getMemPressure() const { return _memPressure; }
-    inline void setMemPressure(float p) { _memPressure = p; }
+    inline float
+    getMemPressure() const
+    {
+        return _memPressure;
+    }
+    inline void
+    setMemPressure(float p)
+    {
+        _memPressure = p;
+    }
 
     inline RequestorID requestorId() const { return req->requestorId(); }
 
@@ -884,13 +892,21 @@ class Packet : public Printable, public Extensible<Packet>
      * not be valid. The command must be supplied.
      */
     Packet(const RequestPtr &_req, MemCmd _cmd)
-        :  cmd(_cmd), id((PacketId)_req.get()), req(_req),
-           data(nullptr), addr(0), _isSecure(false), size(0),
-           _qosValue(0), _memPressure(0.0f),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(0), snoopDelay(0),
-           payloadDelay(0), senderState(NULL)
+        : cmd(_cmd),
+          id((PacketId)_req.get()),
+          req(_req),
+          data(nullptr),
+          addr(0),
+          _isSecure(false),
+          size(0),
+          _qosValue(0),
+          _memPressure(0.0f),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(0),
+          snoopDelay(0),
+          payloadDelay(0),
+          senderState(NULL)
     {
         flags.clear();
         if (req->hasPaddr()) {
@@ -925,13 +941,20 @@ class Packet : public Printable, public Extensible<Packet>
      * req.  this allows for overriding the size/addr of the req.
      */
     Packet(const RequestPtr &_req, MemCmd _cmd, int _blkSize, PacketId _id = 0)
-        :  cmd(_cmd), id(_id ? _id : (PacketId)_req.get()), req(_req),
-           data(nullptr), addr(0), _isSecure(false),
-           _qosValue(0), _memPressure(0.0f),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(0),
-           snoopDelay(0), payloadDelay(0), senderState(NULL)
+        : cmd(_cmd),
+          id(_id ? _id : (PacketId)_req.get()),
+          req(_req),
+          data(nullptr),
+          addr(0),
+          _isSecure(false),
+          _qosValue(0),
+          _memPressure(0.0f),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(0),
+          snoopDelay(0),
+          payloadDelay(0),
+          senderState(NULL)
     {
         flags.clear();
         if (req->hasPaddr()) {
@@ -951,18 +974,23 @@ class Packet : public Printable, public Extensible<Packet>
      * packet should allocate its own data.
      */
     Packet(const PacketPtr pkt, bool clear_flags, bool alloc_data)
-        :  Extensible<Packet>(*pkt),
-           cmd(pkt->cmd), id(pkt->id), req(pkt->req),
-           data(nullptr),
-           addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
-           bytesValid(pkt->bytesValid),
-           _qosValue(pkt->qosValue()), _memPressure(pkt->getMemPressure()),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(pkt->headerDelay),
-           snoopDelay(0),
-           payloadDelay(pkt->payloadDelay),
-           senderState(pkt->senderState)
+        : Extensible<Packet>(*pkt),
+          cmd(pkt->cmd),
+          id(pkt->id),
+          req(pkt->req),
+          data(nullptr),
+          addr(pkt->addr),
+          _isSecure(pkt->_isSecure),
+          size(pkt->size),
+          bytesValid(pkt->bytesValid),
+          _qosValue(pkt->qosValue()),
+          _memPressure(pkt->getMemPressure()),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(pkt->headerDelay),
+          snoopDelay(0),
+          payloadDelay(pkt->payloadDelay),
+          senderState(pkt->senderState)
     {
         if (!clear_flags)
             flags.set(pkt->flags & COPY_FLAGS);
