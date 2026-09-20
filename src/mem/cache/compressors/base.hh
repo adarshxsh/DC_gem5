@@ -137,6 +137,15 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether dynamic memory queue pressure throttling is enabled. */
+    const bool enableQueuePressureThrottling;
+
+    /** Downstream memory queue occupancy saturation threshold percentage (0-100). */
+    const int queuePressureThreshold;
+
+    /** Current monitored downstream memory queue pressure percentage. */
+    double currentQueuePressure;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -243,6 +252,24 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Set the monitored downstream memory queue pressure percentage. */
+    void setQueuePressure(double pressure) { currentQueuePressure = pressure; }
+
+    /** Get the monitored downstream memory queue pressure percentage. */
+    double getQueuePressure() const { return currentQueuePressure; }
+
+    /** Check if queue pressure throttling is enabled. */
+    bool isQueuePressureThrottlingEnabled() const
+    {
+        return enableQueuePressureThrottling;
+    }
+
+    /** Get queue pressure saturation threshold. */
+    int getQueuePressureThreshold() const { return queuePressureThreshold; }
+
+    /** Check if downstream memory queue occupancy exceeds saturation threshold. */
+    bool isQueuePressureExceeded() const;
 
     /**
      * Apply the compression process to the cache line. Ignores compression

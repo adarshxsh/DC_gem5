@@ -77,6 +77,9 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     backendLatency(p.static_backend_latency),
     commandWindow(p.command_window),
     prevArrival(0),
+    enableQueuePressureThrottling(p.enable_queue_pressure_throttling),
+    queuePressureThreshold(p.queue_pressure_threshold),
+    ppQueuePressure(nullptr),
     stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
@@ -94,6 +97,32 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
+}
+
+void
+MemCtrl::regProbePoints()
+{
+    qos::MemCtrl::regProbePoints();
+    ppQueuePressure = new ProbePointArg<double>(getProbeManager(), "QueuePressure");
+}
+
+uint32_t
+MemCtrl::getTotalWriteQueueSize() const
+{
+    uint32_t total = 0;
+    for (const auto& q : writeQueue) {
+        total += q.size();
+    }
+    return total;
+}
+
+double
+MemCtrl::getWriteQueuePressure() const
+{
+    uint32_t total_write = dram ? dram->writeQueueSize : getTotalWriteQueueSize();
+    return (writeBufferSize > 0)
+        ? ((double)total_write / (double)writeBufferSize) * 100.0
+        : 0.0;
 }
 
 void
@@ -351,6 +380,10 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
                        pkt->qosValue(), mem_pkt->addr, 1);
 
             mem_intr->writeQueueSize++;
+
+            if (ppQueuePressure) {
+                ppQueuePressure->notify(getWriteQueuePressure());
+            }
 
             assert(totalWriteQueueSize == isInWriteQueue.size());
 
@@ -1108,6 +1141,10 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                     mem_pkt->readyTime - mem_pkt->entryTime);
 
         mem_intr->writeQueueSize--;
+
+        if (ppQueuePressure) {
+            ppQueuePressure->notify(getWriteQueuePressure());
+        }
 
         // remove the request from the queue - the iterator is no longer valid
         writeQueue[mem_pkt->qosValue()].erase(to_write);

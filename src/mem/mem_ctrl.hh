@@ -518,6 +518,11 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
+    /** Queue pressure throttling parameters and probe point */
+    const bool enableQueuePressureThrottling;
+    const int queuePressureThreshold;
+    ProbePointArg<double> *ppQueuePressure;
+
     /**
      * Memory controller configuration initialized based on parameter
      * values.
@@ -778,6 +783,13 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
+    void regProbePoints() override;
+
+    /** Calculate write queue pressure percentage (0-100). */
+    double getWriteQueuePressure() const;
+
+    /** Calculate total write queue size across all priorities. */
+    uint32_t getTotalWriteQueueSize() const;
 
   protected:
 
