@@ -355,7 +355,13 @@ class TopLevelBase(object, metaclass=TopLevelMeta):
         srcs = copy.copy(self.srcs)
         for f in self.filters:
             srcs += Source.all.apply_filter(env, f)
-        return srcs
+        seen = set()
+        deduped = SourceList()
+        for s in srcs:
+            if s not in seen:
+                seen.add(s)
+                deduped.append(s)
+        return deduped
 
     def libs(self, env):
         libs = copy.copy(self.sourceLibs)
@@ -468,7 +474,13 @@ class GTest(Executable):
         return super().declare_all(env)
 
     def declare(self, env):
-        binary, stripped = super().declare(env)
+        objs = self.srcs_to_objs(env, self.sources(env))
+
+        date_obj = env.StaticObject(date_source)
+        env.Depends(date_obj, objs)
+        objs.append(date_obj)
+
+        binary, stripped = super().declare(env, objs)
 
         out_dir = env['GTEST_OUT_DIR']
         xml_file = out_dir.Dir(str(self.dir)).File(self.target + '.xml')

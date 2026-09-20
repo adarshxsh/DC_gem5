@@ -183,7 +183,5 @@ class DWLRURP(LRURP):
     cxx_header = "mem/cache/replacement_policies/dwlru_rp.hh"
 
 
-class DensityWeightedLRURP(DWLRURP):
-    type = "DensityWeightedLRURP"
-    cxx_class = "gem5::replacement_policy::DWLRU"
-    cxx_header = "mem/cache/replacement_policies/dwlru_rp.hh"
+# Alias for backwards compatibility
+DensityWeightedLRURP = DWLRURP

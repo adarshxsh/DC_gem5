@@ -28,6 +28,6 @@ Import('*')
 Source('logging.cc', tags=('gtest lib', 'gtest logging'), tag_gem5_lib=False)
 Source(
     'logging_mock.cc',
-    tags=('gtest lib', 'gtest logging'),
+    tags=('gtest mock logging',),
     tag_gem5_lib=False
 )
