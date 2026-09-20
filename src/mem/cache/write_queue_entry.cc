@@ -46,7 +46,9 @@
 
 #include "mem/cache/write_queue_entry.hh"
 
+#include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <string>
 
 #include "base/logging.hh"
@@ -110,6 +112,11 @@ WriteQueueEntry::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
              "Write queue entry %#llx should be an uncacheable write or "
              "a cacheable eviction or a writeclean");
 
+    unsigned num_subblocks = std::max(1u, blkSize / DEFAULT_SUBBLOCK_SIZE);
+    subBlockDirty.assign(num_subblocks, false);
+
+    markSubBlocksDirty(target->getOffset(blkSize), target->getSize());
+
     targets.add(target, when_ready, _order);
 
     // All targets must refer to the same block
@@ -117,10 +124,84 @@ WriteQueueEntry::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
 }
 
 void
+WriteQueueEntry::markSubBlocksDirty(Addr offset, unsigned size)
+{
+    if (subBlockDirty.empty()) {
+        return;
+    }
+
+    unsigned num_subblocks = subBlockDirty.size();
+    unsigned subblock_size = std::max(1u, blkSize / num_subblocks);
+
+    unsigned start_sb = offset / subblock_size;
+    unsigned end_sb =
+        (size == 0) ? start_sb : ((offset + size - 1) / subblock_size);
+
+    start_sb = std::min(start_sb, num_subblocks - 1);
+    end_sb = std::min(end_sb, num_subblocks - 1);
+
+    for (unsigned i = start_sb; i <= end_sb; ++i) {
+        subBlockDirty[i] = true;
+    }
+}
+
+bool
+WriteQueueEntry::isSubBlockDirty(size_t index) const
+{
+    return index < subBlockDirty.size() ? subBlockDirty[index] : false;
+}
+
+unsigned
+WriteQueueEntry::getNumDirtySubBlocks() const
+{
+    unsigned count = 0;
+    for (bool dirty : subBlockDirty) {
+        if (dirty) {
+            count++;
+        }
+    }
+    return count;
+}
+
+unsigned
+WriteQueueEntry::getNumSubBlocks() const
+{
+    return subBlockDirty.size();
+}
+
+void
+WriteQueueEntry::coalesceSubBlock(PacketPtr pkt, Tick when_ready,
+                                  Counter _order)
+{
+    markSubBlocksDirty(pkt->getOffset(blkSize), pkt->getSize());
+
+    if (hasTargets()) {
+        PacketPtr primary_pkt = getTarget()->pkt;
+        if (primary_pkt && primary_pkt->hasData() && pkt->hasData()) {
+            uint8_t *primary_data = primary_pkt->getPtr<uint8_t>();
+            const uint8_t *new_data = pkt->getConstPtr<uint8_t>();
+            Addr offset = pkt->getOffset(blkSize);
+            size_t len = pkt->getSize();
+            if (primary_data && new_data && (offset + len <= blkSize)) {
+                std::memcpy(primary_data + offset, new_data, len);
+            }
+        }
+    }
+
+    Tick delay = pkt->payloadDelay;
+    pkt->payloadDelay = 0;
+    Tick new_ready = when_ready + delay;
+    readyTime = std::max(readyTime, new_ready);
+
+    targets.add(pkt, when_ready, _order);
+}
+
+void
 WriteQueueEntry::deallocate()
 {
     assert(targets.empty());
     inService = false;
+    subBlockDirty.clear();
 }
 
 bool
