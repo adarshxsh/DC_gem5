@@ -94,6 +94,14 @@ class BaseXBar(ClockedObject):
         False, "Perform address mapping for the default port"
     )
 
+    enable_queue_pressure_scheduling = Param.Bool(
+        False,
+        "Enable queue pressure aware crossbar arbitration and scheduling",
+    )
+    queue_pressure_threshold = Param.Percent(
+        80, "Queue pressure threshold percentage for deferring requests"
+    )
+
 
 class NoncoherentXBar(BaseXBar):
     type = "NoncoherentXBar"

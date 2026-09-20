@@ -118,6 +118,21 @@ NoncoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
         return false;
     }
 
+    if (enableQueuePressureScheduling) {
+        float target_pressure =
+            memSidePorts[mem_side_port_id]->getQueuePressure();
+        if (target_pressure >= queuePressureThreshold && isDeferrable(pkt)) {
+            DPRINTF(NoncoherentXBar,
+                    "recvTimingReq: src %s %s 0x%x QUEUE PRESSURE DEFER "
+                    "(pressure: %.2f >= %.2f)\n",
+                    src_port->name(), pkt->cmdString(), pkt->getAddr(),
+                    target_pressure, queuePressureThreshold);
+            reqLayers[mem_side_port_id]->failedTiming(src_port,
+                                                      clockEdge(Cycles(1)));
+            return false;
+        }
+    }
+
     DPRINTF(NoncoherentXBar, "recvTimingReq: src %s %s 0x%x\n",
             src_port->name(), pkt->cmdString(), pkt->getAddr());
 

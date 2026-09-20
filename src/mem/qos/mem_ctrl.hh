@@ -350,6 +350,17 @@ class MemCtrl : public ClockedObject
     uint64_t getTotalWriteQueueSize() const { return totalWriteQueueSize; }
 
     /**
+     * Get normalized queue pressure metric (0.0 to 1.0)
+     *
+     * @return Normalized queue pressure
+     */
+    virtual float
+    getQueuePressure() const
+    {
+        return 0.0f;
+    }
+
+    /**
      * Gets the last service tick related to a QoS Priority
      *
      * @param prio QoS Priority

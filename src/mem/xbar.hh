@@ -164,6 +164,18 @@ class BaseXBar : public ClockedObject
          */
         void recvRetry();
 
+        /**
+         * Evaluate queue pressure metric associated with source and
+         * destination ports.
+         */
+        float
+        getPortQueuePressure(SrcType *src_port) const
+        {
+            float dst_p = port.getQueuePressure();
+            float src_p = src_port ? src_port->getQueuePressure() : 0.0f;
+            return std::max(dst_p, src_p);
+        }
+
       protected:
 
         /**
@@ -413,6 +425,23 @@ class BaseXBar : public ClockedObject
   public:
 
     virtual ~BaseXBar();
+
+    const bool enableQueuePressureScheduling;
+    const float queuePressureThreshold;
+
+    bool isDeferrable(PacketPtr pkt) const;
+
+    virtual float
+    getQueuePressure() const
+    {
+        float max_p = 0.0f;
+        for (const auto &port : memSidePorts) {
+            if (port) {
+                max_p = std::max(max_p, port->getQueuePressure());
+            }
+        }
+        return max_p;
+    }
 
     /** A function used to return the port associated with this object. */
     Port &getPort(const std::string &if_name,
