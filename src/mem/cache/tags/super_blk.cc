@@ -231,8 +231,9 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size,
-                        const std::vector<CompressionBlk *> &candidate_blks) const
+SuperBlk::canCoAllocate(
+    const std::size_t compressed_size,
+    const std::vector<CompressionBlk *> &candidate_blks) const
 {
     if (!isCompressed()) {
         return false;

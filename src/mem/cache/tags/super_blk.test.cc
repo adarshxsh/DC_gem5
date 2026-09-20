@@ -149,7 +149,8 @@ TEST_F(CanCoAllocateTest, CandidateSubBlockCoAllocation)
     // Candidates vector containing subBlks[0] and subBlks[1]
     std::vector<CompressionBlk *> candidates = {&subBlks[0], &subBlks[1]};
 
-    // 256 (sub[0]) + 128 (sub[1]) + 128 (expanding) = 512 <= 512 -> should succeed
+    // 256 (sub[0]) + 128 (sub[1]) + 128 (expanding) = 512 <= 512 -> should
+    // succeed
     EXPECT_TRUE(superBlk.canCoAllocate(128, candidates));
 
     // 256 (sub[0]) + 128 (sub[1]) + 256 (expanding) = 640 > 512 -> should fail
@@ -158,7 +159,8 @@ TEST_F(CanCoAllocateTest, CandidateSubBlockCoAllocation)
     // Prune candidate subBlks[0]
     candidates = {&subBlks[1]};
 
-    // 128 (sub[1]) + 256 (expanding) = 384 <= 512 -> should succeed after pruning
+    // 128 (sub[1]) + 256 (expanding) = 384 <= 512 -> should succeed after
+    // pruning
     EXPECT_TRUE(superBlk.canCoAllocate(256, candidates));
 
     // Expansion to uncompressed size (512 bits) must be rejected

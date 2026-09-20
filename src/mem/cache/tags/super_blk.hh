@@ -217,12 +217,15 @@ class SuperBlk : public SectorBlk
      * Checks whether a superblock can co-allocate given compressed data block
      * along with a set of candidate sub-blocks.
      *
-     * @param compressed_size Size, in bits, of new/expanding block to allocate.
-     * @param candidate_blks Vector of candidate sub-blocks to remain co-allocated.
+     * @param compressed_size Size, in bits, of new/expanding block to
+     * allocate.
+     * @param candidate_blks Vector of candidate sub-blocks to remain
+     * co-allocated.
      * @return True if block can be co-allocated in superblock.
      */
-    bool canCoAllocate(const std::size_t compressed_size,
-                       const std::vector<CompressionBlk *> &candidate_blks) const;
+    bool
+    canCoAllocate(const std::size_t compressed_size,
+                  const std::vector<CompressionBlk *> &candidate_blks) const;
 
     /**
      * Set block size. Should be called only once, when initializing blocks.
