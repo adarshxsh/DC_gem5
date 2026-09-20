@@ -273,6 +273,18 @@ BaseCache::markInService(WriteQueueEntry *entry)
 }
 
 void
+BaseCache::updateWriteQueuePressure()
+{
+    CompressedTags *comp_tags = dynamic_cast<CompressedTags *>(tags);
+    if (comp_tags) {
+        double threshold = comp_tags->getWriteQueuePressureThreshold() / 100.0;
+        bool pressure = (writeBuffer.occupancyRatio() >= threshold) ||
+                        writeBuffer.isFull();
+        comp_tags->setWriteQueuePressure(pressure);
+    }
+}
+
+void
 BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
 {
 
@@ -1108,6 +1120,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     // must be evicted to make room for the expanded/contracted block
     std::vector<CacheBlk*> evict_blks;
     if (is_data_expansion || is_data_contraction) {
+        updateWriteQueuePressure();
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
@@ -1147,9 +1160,22 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                 }
             }
 
-            // Order candidate sub-blocks by age (oldest/LRU first)
+            // Order candidate sub-blocks by clean-first then age when write
+            // queue is under pressure
+            CompressedTags *comp_tags = dynamic_cast<CompressedTags *>(tags);
+            bool wq_pressure =
+                comp_tags && comp_tags->isWriteQueueUnderPressure();
+
             std::sort(co_blks.begin(), co_blks.end(),
-                      [](const CompressionBlk *a, const CompressionBlk *b) {
+                      [wq_pressure](const CompressionBlk *a,
+                                    const CompressionBlk *b) {
+                          if (wq_pressure) {
+                              bool a_dirty = a->isSet(CacheBlk::DirtyBit);
+                              bool b_dirty = b->isSet(CacheBlk::DirtyBit);
+                              if (a_dirty != b_dirty) {
+                                  return !a_dirty;
+                              }
+                          }
                           return a->getAge() > b->getAge();
                       });
 
@@ -1775,6 +1801,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
             pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
         blk_size_bits = comp_data->getSizeBits();
     }
+
+    updateWriteQueuePressure();
 
     // get partitionId from Packet
     const auto partition_id = partitionManager ?

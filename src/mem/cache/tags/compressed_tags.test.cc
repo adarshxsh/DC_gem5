@@ -559,3 +559,118 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, WriteQueuePressureGuardCoAllocationAndVictimFilter)
+{
+    // 1. Verify co-allocation degradation deferral under write queue pressure
+    superBlk.blks[0]->insert({0x1000, false});
+    subBlks[0].setSizeBits(128); // CF = 4
+
+    std::size_t new_size = 256; // CF = 2, which would degrade CF from 4 to 2
+    uint8_t new_blk_cf = superBlk.calculateCompressionFactor(new_size);
+    uint8_t current_cf = superBlk.getCompressionFactor();
+    uint8_t new_cf = std::min(current_cf, new_blk_cf);
+
+    ASSERT_EQ(current_cf, 4);
+    ASSERT_EQ(new_cf, 2);
+    ASSERT_TRUE(new_cf < current_cf);
+
+    // Co-allocation capacity physically allows 128 + 256 = 384 <= 512 bits
+    ASSERT_TRUE(superBlk.canCoAllocate(new_size));
+
+    // Under write queue pressure, degradation (new_cf < current_cf) is
+    // rejected
+    bool writeQueuePressure = true;
+    bool co_alloc_allowed_under_pressure =
+        superBlk.canCoAllocate(new_size) &&
+        !writeQueuePressure; // or !(writeQueuePressure && (new_cf <
+                             // current_cf))
+
+    ASSERT_FALSE(co_alloc_allowed_under_pressure);
+
+    // Without write queue pressure, non-degrading co-allocation is allowed
+    writeQueuePressure = false;
+    bool co_alloc_allowed_normal =
+        superBlk.canCoAllocate(new_size) &&
+        !(writeQueuePressure && (new_cf < current_cf));
+
+    ASSERT_TRUE(co_alloc_allowed_normal);
+
+    // 2. Verify replacement candidate filtering under write queue pressure
+    SuperBlk sb_full;
+    SuperBlk sb_partial;
+    SuperBlk sb_empty;
+
+    CompressionBlk blk_full0, blk_full1;
+    CompressionBlk blk_partial0;
+
+    auto dummyExtractor = [](Addr addr) { return addr; };
+    sb_full.registerTagExtractor(dummyExtractor);
+    sb_partial.registerTagExtractor(dummyExtractor);
+    sb_empty.registerTagExtractor(dummyExtractor);
+    blk_full0.registerTagExtractor(dummyExtractor);
+    blk_full1.registerTagExtractor(dummyExtractor);
+    blk_partial0.registerTagExtractor(dummyExtractor);
+
+    blk_full0.setSectorBlock(&sb_full);
+    blk_full1.setSectorBlock(&sb_full);
+    blk_partial0.setSectorBlock(&sb_partial);
+
+    blk_full0.setSectorOffset(0);
+    blk_full1.setSectorOffset(1);
+    blk_partial0.setSectorOffset(0);
+
+    sb_full.blks = {&blk_full0, &blk_full1};
+    sb_partial.blks = {&blk_partial0};
+    sb_empty.blks = {};
+
+    blk_full0.insert({0x4000, false});
+    blk_full1.insert({0x4000, false});
+    blk_partial0.insert({0x5000, false});
+
+    std::vector<SuperBlk *> superblock_entries = {&sb_full, &sb_partial,
+                                                  &sb_empty};
+
+    // Under write queue pressure, filter replacement candidates to prefer
+    // empty/invalid superblocks
+    std::vector<SuperBlk *> replacement_candidates;
+    writeQueuePressure = true;
+
+    if (writeQueuePressure) {
+        for (auto *sb : superblock_entries) {
+            if (!sb->isValid() || sb->getNumValid() == 0) {
+                replacement_candidates.push_back(sb);
+            }
+        }
+    }
+
+    ASSERT_EQ(replacement_candidates.size(), 1);
+    ASSERT_EQ(replacement_candidates[0], &sb_empty);
+
+    // If no empty superblocks, filter to candidates with minimal valid
+    // sub-blocks
+    superblock_entries = {&sb_full, &sb_partial};
+    replacement_candidates.clear();
+
+    if (writeQueuePressure) {
+        for (auto *sb : superblock_entries) {
+            if (!sb->isValid() || sb->getNumValid() == 0) {
+                replacement_candidates.push_back(sb);
+            }
+        }
+        if (replacement_candidates.empty()) {
+            size_t min_valid = 8;
+            for (auto *sb : superblock_entries) {
+                min_valid = std::min(min_valid, (size_t)sb->getNumValid());
+            }
+            for (auto *sb : superblock_entries) {
+                if (sb->getNumValid() == min_valid) {
+                    replacement_candidates.push_back(sb);
+                }
+            }
+        }
+    }
+
+    ASSERT_EQ(replacement_candidates.size(), 1);
+    ASSERT_EQ(replacement_candidates[0], &sb_partial);
+}

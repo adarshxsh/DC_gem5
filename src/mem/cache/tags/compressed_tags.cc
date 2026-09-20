@@ -60,7 +60,9 @@ namespace gem5
 {
 
 CompressedTags::CompressedTags(const Params &p)
-    : SectorTags(p)
+    : SectorTags(p),
+      writeQueuePressureThreshold(p.write_queue_pressure_threshold),
+      writeQueuePressure(false)
 {
 }
 
@@ -150,7 +152,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
             superblock->isCompressed() &&
             superblock->canCoAllocate(compressed_size))
         {
-            if (is_prefetch && superblock->hasValidDemand()) {
+            if ((is_prefetch && superblock->hasValidDemand()) ||
+                writeQueuePressure) {
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);
                 const uint8_t current_cf = superblock->getCompressionFactor();
@@ -185,12 +188,36 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
                     replacement_candidates.push_back(entry);
                 }
             }
+        } else if (writeQueuePressure) {
+            // Under write queue pressure, filter candidates to prefer invalid
+            // or empty superblocks, or those with minimal valid sub-blocks to
+            // minimize writeback eviction traffic during write queue drains.
+            for (const auto &entry : superblock_entries) {
+                SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+                if (!superblock->isValid() || superblock->getNumValid() == 0) {
+                    replacement_candidates.push_back(entry);
+                }
+            }
+            if (replacement_candidates.empty()) {
+                size_t min_valid = numBlocksPerSector;
+                for (const auto &entry : superblock_entries) {
+                    SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+                    min_valid =
+                        std::min(min_valid, (size_t)superblock->getNumValid());
+                }
+                for (const auto &entry : superblock_entries) {
+                    SuperBlk *superblock = static_cast<SuperBlk *>(entry);
+                    if (superblock->getNumValid() == min_valid) {
+                        replacement_candidates.push_back(entry);
+                    }
+                }
+            }
         } else {
             replacement_candidates = superblock_entries;
         }
 
         if (replacement_candidates.empty()) {
-            return nullptr;
+            replacement_candidates = superblock_entries;
         }
 
         // Choose replacement victim from replacement candidates
