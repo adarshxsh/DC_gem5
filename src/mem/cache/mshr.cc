@@ -46,7 +46,10 @@
 
 #include "mem/cache/mshr.hh"
 
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "base/logging.hh"

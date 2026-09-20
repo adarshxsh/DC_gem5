@@ -45,6 +45,8 @@
 #include "mem/cache/mshr_queue.hh"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include "debug/MSHR.hh"
 #include "mem/cache/mshr.hh"

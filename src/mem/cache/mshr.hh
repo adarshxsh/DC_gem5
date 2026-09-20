@@ -46,7 +46,10 @@
 #ifndef __MEM_CACHE_MSHR_HH__
 #define __MEM_CACHE_MSHR_HH__
 
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <iosfwd>
 #include <list>
 #include <string>

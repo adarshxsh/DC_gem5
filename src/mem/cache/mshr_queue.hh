@@ -45,6 +45,8 @@
 #ifndef __MEM_CACHE_MSHR_QUEUE_HH__
 #define __MEM_CACHE_MSHR_QUEUE_HH__
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "base/types.hh"
