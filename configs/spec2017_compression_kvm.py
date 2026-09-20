@@ -83,6 +83,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         l2_size: str = "512KiB",
         l2_assoc: int = 16,
         compressor: str = "none",
+        enable_queue_pressure_throttling: bool = False,
+        queue_pressure_threshold: int = 80,
+        queue_pressure_response_mode: str = "bypass",
         membus: Optional[SystemXBar] = None,
     ) -> None:
         AbstractClassicCacheHierarchy.__init__(self)
@@ -101,6 +104,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._l2_size = l2_size
         self._l2_assoc = l2_assoc
         self._compressor_choice = compressor.lower()
+        self._enable_queue_pressure_throttling = enable_queue_pressure_throttling
+        self._queue_pressure_threshold = queue_pressure_threshold
+        self._queue_pressure_response_mode = queue_pressure_response_mode
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -134,6 +140,16 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 l2.compressor = ZeroCompressor()
             else:
                 l2.compressor = BDI()
+
+            l2.compressor.enable_queue_pressure_throttling = (
+                self._enable_queue_pressure_throttling
+            )
+            l2.compressor.queue_pressure_threshold = (
+                self._queue_pressure_threshold
+            )
+            l2.compressor.queue_pressure_response_mode = (
+                self._queue_pressure_response_mode
+            )
 
             l2.tags = CompressedTags()
             print(
@@ -358,6 +374,54 @@ parser.add_argument(
     help="Number of instructions for measured ROI (default: 10M).",
 )
 
+
+def percent_type(value_str: str) -> int:
+    try:
+        val = int(value_str)
+    except ValueError:
+        try:
+            val = float(value_str)
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                f"Invalid percentage value: '{value_str}'"
+            )
+        if not val.is_integer():
+            raise argparse.ArgumentTypeError(
+                f"Percentage threshold must be an integer, got '{value_str}'"
+            )
+        val = int(val)
+    if val < 0 or val > 100:
+        raise argparse.ArgumentTypeError(
+            f"Percentage threshold must be between 0 and 100, got {val}"
+        )
+    return val
+
+
+parser.add_argument(
+    "--enable-queue-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable memory queue pressure throttling for cache compression.",
+)
+
+parser.add_argument(
+    "--queue-pressure-threshold",
+    type=percent_type,
+    required=False,
+    default=80,
+    help="Memory queue occupancy percentage threshold (0-100) to trigger pressure feedback (default: 80).",
+)
+
+parser.add_argument(
+    "--queue-pressure-response-mode",
+    type=str,
+    required=False,
+    default="bypass",
+    choices=["bypass", "throttle", "disable"],
+    help="Response mode when memory queue pressure threshold is exceeded (default: bypass).",
+)
+
 args = parser.parse_args()
 
 # Normalize compressor choice
@@ -428,6 +492,9 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     l2_size=args.l2_size,
     l2_assoc=16,
     compressor=chosen_compressor,
+    enable_queue_pressure_throttling=args.enable_queue_pressure_throttling,
+    queue_pressure_threshold=args.queue_pressure_threshold,
+    queue_pressure_response_mode=args.queue_pressure_response_mode,
 )
 
 memory = DualChannelDDR4_2400(size="3GiB")
