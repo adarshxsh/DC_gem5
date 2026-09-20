@@ -195,6 +195,11 @@ class HBMCtrl : public MemCtrl
     DRAMInterface* pc1Int;
 
     /**
+     * Minimum reserved write queue entries per pseudo-channel
+     */
+    unsigned int minWriteReserve;
+
+    /**
      * This indicates if the R/W queues will be partitioned among
      * pseudo channels
      */

@@ -51,7 +51,8 @@ HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
                          name()),
     respondEventPC1([this] {processRespondEvent(pc1Int, respQueuePC1,
                          respondEventPC1, retryRdReqPC1); }, name()),
-    pc1Int(p.dram_2)
+    pc1Int(p.dram_2),
+    minWriteReserve(p.min_write_reserve)
 {
     DPRINTF(MemCtrl, "Setting up HBM controller\n");
 
@@ -158,23 +159,29 @@ HBMCtrl::recvMemBackdoorReq(const MemBackdoorReq &req,
 bool
 HBMCtrl::writeQueueFullPC0(unsigned int neededEntries) const
 {
+    unsigned int pc1_reserved = std::max((unsigned int)pc1Int->writeQueueSize, minWriteReserve);
+    unsigned int max_pc0_cap = (writeBufferSize > pc1_reserved) ? (writeBufferSize - pc1_reserved) : 0;
+
     DPRINTF(MemCtrl,
-            "Write queue limit %d, PC0 size %d, entries needed %d\n",
-            writeBufferSize/2, pc0Int->writeQueueSize, neededEntries);
+            "Write queue full check PC0: total limit %d, minReserve %d, PC1 size %d (reserved %d), max PC0 cap %d, PC0 size %d, entries needed %d\n",
+            writeBufferSize, minWriteReserve, pc1Int->writeQueueSize, pc1_reserved, max_pc0_cap, pc0Int->writeQueueSize, neededEntries);
 
     unsigned int wrsize_new = (pc0Int->writeQueueSize + neededEntries);
-    return wrsize_new > (writeBufferSize/2);
+    return wrsize_new > max_pc0_cap;
 }
 
 bool
 HBMCtrl::writeQueueFullPC1(unsigned int neededEntries) const
 {
+    unsigned int pc0_reserved = std::max((unsigned int)pc0Int->writeQueueSize, minWriteReserve);
+    unsigned int max_pc1_cap = (writeBufferSize > pc0_reserved) ? (writeBufferSize - pc0_reserved) : 0;
+
     DPRINTF(MemCtrl,
-            "Write queue limit %d, PC1 size %d, entries needed %d\n",
-            writeBufferSize/2, pc1Int->writeQueueSize, neededEntries);
+            "Write queue full check PC1: total limit %d, minReserve %d, PC0 size %d (reserved %d), max PC1 cap %d, PC1 size %d, entries needed %d\n",
+            writeBufferSize, minWriteReserve, pc0Int->writeQueueSize, pc0_reserved, max_pc1_cap, pc1Int->writeQueueSize, neededEntries);
 
     unsigned int wrsize_new = (pc1Int->writeQueueSize + neededEntries);
-    return wrsize_new > (writeBufferSize/2);
+    return wrsize_new > max_pc1_cap;
 }
 
 bool
