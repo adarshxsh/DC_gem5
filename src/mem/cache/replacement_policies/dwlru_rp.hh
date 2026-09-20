@@ -111,6 +111,32 @@ class DWLRU : public LRU
      * @return A shared pointer to the new replacement data.
      */
     std::shared_ptr<ReplacementData> instantiateEntry() override;
+
+    /**
+     * Set downstream memory queue occupancy feedback.
+     *
+     * @param occupancy Downstream memory queue occupancy (count or ratio).
+     */
+    void setQueueOccupancy(double occupancy) const;
+    void setMemQueueOccupancy(double occupancy) const;
+
+    /**
+     * Get current downstream memory queue occupancy feedback.
+     *
+     * @return Current memory queue occupancy value.
+     */
+    double getQueueOccupancy() const;
+    double getMemQueueOccupancy() const;
+
+  protected:
+    /** Downstream memory queue occupancy feedback value. */
+    mutable double queueOccupancy;
+
+    /** Weight factor for downstream memory queue occupancy feedback. */
+    double pressureWeight;
+
+    /** Downstream memory queue occupancy threshold. */
+    unsigned queueOccupancyThreshold;
 };
 
 } // namespace replacement_policy
