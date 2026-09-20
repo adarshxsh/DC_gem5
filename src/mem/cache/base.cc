@@ -1149,25 +1149,26 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 
             if (num_valid > new_target_cf) {
                 const int num_to_evict = num_valid - new_target_cf;
-                std::vector<CacheBlk*> candidate_blks;
-                for (auto& sub_blk : superblock->blks) {
+                std::vector<CacheBlk *> candidate_blks;
+                for (auto &sub_blk : superblock->blks) {
                     if (sub_blk->isValid() && (blk != sub_blk)) {
                         candidate_blks.push_back(sub_blk);
                     }
                 }
 
                 std::sort(candidate_blks.begin(), candidate_blks.end(),
-                    [](const CacheBlk* a, const CacheBlk* b) {
-                        if (a->getWhenReady() != b->getWhenReady()) {
-                            return a->getWhenReady() < b->getWhenReady();
-                        }
-                        if (a->getAge() != b->getAge()) {
-                            return a->getAge() > b->getAge();
-                        }
-                        return a->getRefCount() < b->getRefCount();
-                    });
+                          [](const CacheBlk *a, const CacheBlk *b) {
+                              if (a->getWhenReady() != b->getWhenReady()) {
+                                  return a->getWhenReady() < b->getWhenReady();
+                              }
+                              if (a->getAge() != b->getAge()) {
+                                  return a->getAge() > b->getAge();
+                              }
+                              return a->getRefCount() < b->getRefCount();
+                          });
 
-                for (int i = 0; i < num_to_evict && i < candidate_blks.size(); ++i) {
+                for (int i = 0; i < num_to_evict && i < candidate_blks.size();
+                     ++i) {
                     evict_blks.push_back(candidate_blks[i]);
                 }
             }
