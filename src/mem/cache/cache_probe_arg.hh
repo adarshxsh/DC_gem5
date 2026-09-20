@@ -84,6 +84,13 @@ struct CacheAccessor
     {
         return 1;
     }
+
+    /** Get active queue pressure metric for cache and downstream memory */
+    virtual double
+    getQueuePressure() const
+    {
+        return 0.0;
+    }
 };
 
 /**

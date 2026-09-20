@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -91,10 +91,11 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       compressor(p.compressor),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
+      prefetchQueuePressureThreshold(p.prefetch_queue_pressure_threshold),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -659,7 +660,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
             // Request the bus for a prefetch if this deallocation freed enough
             // MSHRs for a prefetch to take place
-            if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+            if (prefetcher && canPrefetch() && !isBlocked()) {
                 Tick next_pf_time = std::max(
                     prefetcher->nextPrefetchReadyTime(), clockEdge());
                 if (next_pf_time != MaxTick)
@@ -953,7 +954,7 @@ BaseCache::getNextQueueEntry()
 
     // fall through... no pending requests.  Try a prefetch.
     assert(!miss_mshr && !wq_entry);
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    if (prefetcher && canPrefetch() && !isBlocked()) {
         // If we have a miss queue slot, we can try a prefetch
         PacketPtr pkt = prefetcher->getPacket();
         if (pkt) {
@@ -2006,7 +2007,7 @@ BaseCache::nextQueueReadyTime() const
 
     // Don't signal prefetch ready time if no MSHRs available
     // Will signal once enoguh MSHRs are deallocated
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    if (prefetcher && canPrefetch() && !isBlocked()) {
         nextReady = std::min(nextReady,
                              prefetcher->nextPrefetchReadyTime());
     }
@@ -2014,6 +2015,48 @@ BaseCache::nextQueueReadyTime() const
     return nextReady;
 }
 
+double
+BaseCache::getCompressedCachePressure() const
+{
+    if (!compressor) {
+        return 0.0;
+    }
+    return writeBuffer.getNumEntries() > 0
+               ? (double)writeBuffer.getAllocated() /
+                     writeBuffer.getNumEntries()
+               : 0.0;
+}
+
+double
+BaseCache::getQueuePressure() const
+{
+    double mshr_p =
+        mshrQueue.getNumEntries() > 0
+            ? (double)mshrQueue.getAllocated() / mshrQueue.getNumEntries()
+            : 0.0;
+    double wb_p =
+        writeBuffer.getNumEntries() > 0
+            ? (double)writeBuffer.getAllocated() / writeBuffer.getNumEntries()
+            : 0.0;
+    double ds_p = getDownstreamQueuePressure();
+    double comp_p = getCompressedCachePressure();
+    return std::max({mshr_p, wb_p, ds_p, comp_p});
+}
+
+bool
+BaseCache::canPrefetch() const
+{
+    if (!mshrQueue.canPrefetch()) {
+        return false;
+    }
+    if (prefetchQueuePressureThreshold <= 1.0) {
+        double pressure = getQueuePressure();
+        if (pressure >= prefetchQueuePressureThreshold) {
+            return false;
+        }
+    }
+    return true;
+}
 
 bool
 BaseCache::sendMSHRQueuePacket(MSHR* mshr)

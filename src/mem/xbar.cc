@@ -87,6 +87,18 @@ BaseXBar::~BaseXBar()
         delete port;
 }
 
+double
+BaseXBar::getQueuePressure() const
+{
+    double max_p = 0.0;
+    for (const auto *p : memSidePorts) {
+        if (p) {
+            max_p = std::max(max_p, p->getPeerQueuePressure());
+        }
+    }
+    return max_p;
+}
+
 Port &
 BaseXBar::getPort(const std::string &if_name, PortID idx)
 {

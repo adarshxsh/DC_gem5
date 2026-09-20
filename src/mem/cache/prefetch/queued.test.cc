@@ -56,6 +56,7 @@ class MockCacheAccessor : public CacheAccessor
   public:
     uint8_t compressionFactor = 1;
     std::size_t compressedSizeBits = 512;
+    double queuePressure = 0.0;
 
     bool
     inCache(Addr addr, bool is_secure) const override
@@ -94,6 +95,12 @@ class MockCacheAccessor : public CacheAccessor
     getCompressionFactor(Addr addr, bool is_secure) const override
     {
         return compressionFactor;
+    }
+
+    double
+    getQueuePressure() const override
+    {
+        return queuePressure;
     }
 };
 
@@ -213,6 +220,80 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     // Inserting again for testPC1 should now pass CHT filter
     prefetcher.insert(&pkt, pfi, 1, mockCache);
     EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+
+    delete params.cht_indexing_policy;
+    delete params.cht_replacement_policy;
+}
+
+TEST(QueuedQueuePressureTest, QueuePressureThrottling)
+{
+    Tick mockTick = 1000;
+    Gem5Internal::_curTickPtr = &mockTick;
+
+    QueuedPrefetcherParams params;
+    params.name = "test_queued_prefetcher_pressure";
+    params.block_size = 64;
+    params.latency = 1;
+    params.queue_size = 32;
+    params.max_prefetch_requests_with_pending_translation = 32;
+    params.queue_squash = false;
+    params.queue_filter = true;
+    params.cache_snoop = false;
+    params.tag_prefetch = true;
+    params.throttle_control_percentage = 0;
+    params.queue_pressure_threshold = 0.80;
+    params.on_miss = false;
+    params.on_read = true;
+    params.on_write = true;
+    params.on_data = true;
+    params.on_inst = true;
+    params.prefetch_on_access = true;
+    params.prefetch_on_pf_hit = true;
+    params.use_virtual_addresses = false;
+    params.page_bytes = 4096;
+
+    params.enable_cht = false;
+    params.cht_entries = 64;
+    params.cht_assoc = 2;
+    params.cht_min_cf_threshold = 2;
+
+    TaggedSetAssociativeParams idxParams;
+    idxParams.entry_size = 1;
+    idxParams.assoc = 2;
+    idxParams.size = 64;
+    params.cht_indexing_policy = new TaggedSetAssociative(idxParams);
+
+    LRURPParams replParams;
+    params.cht_replacement_policy = new replacement_policy::LRU(replParams);
+
+    TestQueuedPrefetcher prefetcher(params);
+    MockCacheAccessor mockCache;
+
+    Addr testAddr = 0x1000;
+    RequestPtr req = std::make_shared<Request>(testAddr, 64, 0, 0);
+    Packet pkt(req, MemCmd::ReadReq);
+    pkt.allocate();
+
+    Base::PrefetchInfo pfi(&pkt, testAddr, true);
+    CacheAccessProbeArg probeArg(&pkt, mockCache);
+
+    // Scenario 1: Low queue pressure (0.0 < 0.80) -> prefetch generated and
+    // issued
+    mockCache.queuePressure = 0.0;
+    prefetcher.notify(probeArg, pfi);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+    PacketPtr issuedPkt = prefetcher.getPacket();
+    EXPECT_NE(issuedPkt, nullptr);
+    delete issuedPkt;
+
+    // Scenario 2: High queue pressure (0.90 >= 0.80) -> prefetch generation
+    // throttled
+    prefetcher.getPFQ().clear();
+    mockCache.queuePressure = 0.90;
+    prefetcher.notify(probeArg, pfi);
+    // At 0.90 pressure (above 0.80 threshold), max permitted prefetches scaled
+    // down
+    EXPECT_EQ(prefetcher.getPFQ().size(), 0);
 
     delete params.cht_indexing_policy;
     delete params.cht_replacement_policy;

@@ -398,6 +398,12 @@ class BaseXBar : public ClockedObject
     BaseXBar(const BaseXBarParams &p);
 
     /**
+     * Get max queue pressure across downstream memory-side ports.
+     * @return Max queue pressure (0.0 to 1.0).
+     */
+    double getQueuePressure() const;
+
+    /**
      * Stats for transaction distribution and data passing through the
      * crossbar. The transaction distribution is globally counting
      * different types of commands. The packet count and total packet

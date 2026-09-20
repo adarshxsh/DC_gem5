@@ -106,6 +106,9 @@ class BaseCache(ClockedObject):
     is_read_only = Param.Bool(False, "Is this cache read only (e.g. inst)")
 
     prefetcher = Param.BasePrefetcher(NULL, "Prefetcher attached to cache")
+    prefetch_queue_pressure_threshold = Param.Float(
+        0.80, "Queue pressure threshold for prefetch throttling"
+    )
 
     tags = Param.BaseTags(BaseSetAssoc(), "Tag store")
     replacement_policy = Param.BaseReplacementPolicy(

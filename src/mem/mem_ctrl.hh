@@ -260,6 +260,12 @@ class MemCtrl : public qos::MemCtrl
         MemoryPort(const std::string& name, MemCtrl& _ctrl);
         void disableSanityCheck();
 
+        double
+        getQueuePressure() const override
+        {
+            return ctrl.getQueuePressure();
+        }
+
       protected:
 
         Tick recvAtomic(PacketPtr pkt) override;
@@ -327,6 +333,12 @@ class MemCtrl : public qos::MemCtrl
      * @return true if write queue is full, false otherwise
      */
     bool writeQueueFull(unsigned int pkt_count) const;
+
+    /**
+     * Get normalized queue pressure metric for memory controller queues.
+     * @return Max of read and write queue occupancies (0.0 to 1.0).
+     */
+    double getQueuePressure() const;
 
     /**
      * When a new read comes in, first check if the write q has a
