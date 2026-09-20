@@ -10,9 +10,16 @@
 #include <vector>
 
 #include "mem/cache/compressors/cpack.hh"
+#include "mem/cache/compressors/dictionary_compressor_impl.hh"
 #include "mem/cache/compressors/fpc.hh"
 #include "params/CPack.hh"
 #include "params/FPC.hh"
+#include "sim/root.hh"
+
+namespace gem5
+{
+Root *Root::_root = nullptr;
+}
 
 using namespace gem5;
 using namespace compression;
@@ -31,6 +38,14 @@ class TestFPC : public FPC
     using Base::compress;
     using FPC::decompress;
     using FPC::FPC;
+};
+
+class TestDictCompressor64 : public DictionaryCompressor<uint64_t>
+{
+  public:
+    using DictionaryCompressor<uint64_t>::toDictionaryEntry;
+    template <std::size_t DeltaSizeBits>
+    using DeltaPattern = DictionaryCompressor<uint64_t>::DeltaPattern<DeltaSizeBits>;
 };
 
 TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
@@ -136,3 +151,31 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
         EXPECT_EQ(decomp_data[i], non_zero_data[i]);
     }
 }
+
+TEST(DictionaryCompressorTest, DeltaPatternAsymmetricNegativeBound)
+{
+    // Test that DeltaPattern::isValidDelta accepts full two's complement minimum
+    // negative offset (-2^(N-1)), e.g. -128 for 8-bit delta.
+    using Delta8Pattern = TestDictCompressor64::DeltaPattern<8>;
+
+    uint64_t base_val = 0x1000;
+    uint64_t min_neg_val = 0x1000 - 128; // delta = -128
+    uint64_t max_pos_val = 0x1000 + 127; // delta = +127
+    uint64_t out_of_bounds_neg = 0x1000 - 129; // delta = -129
+    uint64_t out_of_bounds_pos = 0x1000 + 128; // delta = +128
+
+    auto base_bytes = TestDictCompressor64::toDictionaryEntry(base_val);
+    auto min_neg_bytes = TestDictCompressor64::toDictionaryEntry(min_neg_val);
+    auto max_pos_bytes = TestDictCompressor64::toDictionaryEntry(max_pos_val);
+    auto out_neg_bytes = TestDictCompressor64::toDictionaryEntry(out_of_bounds_neg);
+    auto out_pos_bytes = TestDictCompressor64::toDictionaryEntry(out_of_bounds_pos);
+
+    // Delta -128 must be valid under two's complement
+    EXPECT_TRUE(Delta8Pattern::isValidDelta(min_neg_bytes, base_bytes));
+    // Delta +127 must be valid
+    EXPECT_TRUE(Delta8Pattern::isValidDelta(max_pos_bytes, base_bytes));
+    // Delta -129 and +128 must be invalid
+    EXPECT_FALSE(Delta8Pattern::isValidDelta(out_neg_bytes, base_bytes));
+    EXPECT_FALSE(Delta8Pattern::isValidDelta(out_pos_bytes, base_bytes));
+}
+
