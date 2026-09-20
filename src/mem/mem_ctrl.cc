@@ -72,6 +72,20 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
+    enableDynamicArbitration(p.enable_dynamic_arbitration),
+    writeDrainHysteresis(p.write_drain_hysteresis),
+    readAgeThreshold(p.read_age_threshold),
+    qosEscalationThreshold(p.qos_escalation_threshold),
+    maxEscalationReads(p.max_escalation_reads),
+    maxWritesPerSwitch(p.max_writes_per_switch),
+    maxReadsPerSwitch(p.max_reads_per_switch),
+    pressureWeightWrite(p.pressure_weight_write),
+    pressureWeightRead(p.pressure_weight_read),
+    pressureWeightLatency(p.pressure_weight_latency),
+    isWriteDraining(false),
+    escalationReadsRemaining(0),
+    currentWriteQuota(p.min_writes_per_switch),
+    currentReadQuota(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
@@ -877,6 +891,88 @@ MemCtrl::nonDetermReads(MemInterface* mem_intr) {
     }
 }
 
+Tick
+MemCtrl::getOldestReadWaitTime() const
+{
+    Tick oldest_entry = MaxTick;
+    for (const auto& queue : readQueue) {
+        if (!queue.empty()) {
+            MemPacket* pkt = queue.front();
+            if (pkt->entryTime < oldest_entry) {
+                oldest_entry = pkt->entryTime;
+            }
+        }
+    }
+    if (oldest_entry == MaxTick || oldest_entry > curTick()) {
+        return 0;
+    }
+    return curTick() - oldest_entry;
+}
+
+bool
+MemCtrl::isReadEscalationActive(MemInterface* mem_intr) const
+{
+    if (mem_intr->readQueueSize == 0) {
+        return false;
+    }
+    if (readAgeThreshold > 0 && getOldestReadWaitTime() >= readAgeThreshold) {
+        return true;
+    }
+    if (qosEscalationThreshold > 0) {
+        for (uint8_t qos = qosEscalationThreshold; qos < readQueue.size(); ++qos) {
+            if (!readQueue[qos].empty()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void
+MemCtrl::updateDynamicPressureAndQuotas(MemInterface* mem_intr)
+{
+    if (!enableDynamicArbitration) {
+        currentWriteQuota = minWritesPerSwitch;
+        currentReadQuota = minReadsPerSwitch;
+        return;
+    }
+
+    double wr_occupancy = writeBufferSize > 0 ?
+        (double)mem_intr->writeQueueSize / writeBufferSize : 0.0;
+    double rd_occupancy = readBufferSize > 0 ?
+        (double)mem_intr->readQueueSize / readBufferSize : 0.0;
+
+    double lat_ratio = 0.0;
+    if (readAgeThreshold > 0) {
+        lat_ratio = (double)getOldestReadWaitTime() / readAgeThreshold;
+    }
+
+    double p_write = pressureWeightWrite * wr_occupancy;
+    double p_read = pressureWeightRead * rd_occupancy +
+                    pressureWeightLatency * lat_ratio;
+
+    double pressure_gradient = p_write - p_read;
+
+    if (pressure_gradient > 0.0) {
+        double scale = std::min(1.0, pressure_gradient);
+        currentWriteQuota = minWritesPerSwitch +
+            (uint32_t)((maxWritesPerSwitch - minWritesPerSwitch) * scale);
+    } else {
+        currentWriteQuota = minWritesPerSwitch;
+    }
+
+    if (pressure_gradient < 0.0) {
+        double scale = std::min(1.0, -pressure_gradient);
+        currentReadQuota = minReadsPerSwitch +
+            (uint32_t)((maxReadsPerSwitch - minReadsPerSwitch) * scale);
+    } else {
+        currentReadQuota = minReadsPerSwitch;
+    }
+
+    stats.avgWriteBurstQuota = currentWriteQuota;
+    stats.avgReadBurstQuota = currentReadQuota;
+}
+
 void
 MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                         MemPacketQueue& resp_queue,
@@ -891,8 +987,13 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
     // detect bus state change
     bool switched_cmd_type = (mem_intr->busState != mem_intr->busStateNext);
+    if (switched_cmd_type) {
+        stats.numBusTurnarounds++;
+    }
     // record stats
     recordTurnaroundStats(mem_intr->busState, mem_intr->busStateNext);
+
+    updateDynamicPressureAndQuotas(mem_intr);
 
     DPRINTF(MemCtrl, "QoS Turnarounds selected state %s %s\n",
             (mem_intr->busState==MemCtrl::READ)?"READ":"WRITE",
@@ -1031,15 +1132,38 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
             resp_queue.push_back(mem_pkt);
 
-            // we have so many writes that we have to transition
-            // don't transition if the writeRespQueue is full and
-            // there are no other writes that can issue
-            // Also ensure that we've issued a minimum defined number
-            // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+            // Handle escalation read burst counter if active
+            if (escalationReadsRemaining > 0) {
+                escalationReadsRemaining--;
+                DPRINTF(MemCtrl, "Escalation read burst issued, %d remaining\n",
+                        escalationReadsRemaining);
+            }
+
+            bool write_high = (mem_intr->writeQueueSize > writeHighThreshold);
+            bool quota_met = (mem_intr->readsThisTime >= currentReadQuota);
+
+            if (write_high && !(nvmWriteBlock(mem_intr))) {
+                if (enableDynamicArbitration && writeDrainHysteresis) {
+                    if (!isWriteDraining) {
+                        isWriteDraining = true;
+                        stats.numWriteDrainHysteresis++;
+                        DPRINTF(MemCtrl,
+                                "Entering write drain hysteresis (writeQueueSize %d > %d)\n",
+                                mem_intr->writeQueueSize, writeHighThreshold);
+                    }
+                    if (escalationReadsRemaining == 0 || mem_intr->readQueueSize == 0) {
+                        switch_to_writes = true;
+                    }
+                } else {
+                    if (quota_met || mem_intr->readQueueSize == 0) {
+                        switch_to_writes = true;
+                    }
+                }
+            } else if (isWriteDraining &&
+                       (escalationReadsRemaining == 0 || mem_intr->readQueueSize == 0)) {
+                switch_to_writes = true;
+            } else if (!write_high && quota_met &&
+                       mem_intr->writeQueueSize > writeLowThreshold) {
                 switch_to_writes = true;
             }
 
@@ -1088,6 +1212,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // wait for a refresh event to kick things into action again.
         if (!write_found) {
             DPRINTF(MemCtrl, "No Writes Found - exiting\n");
+            if (isWriteDraining && mem_intr->readQueueSize > 0) {
+                mem_intr->busStateNext = MemCtrl::READ;
+            }
             return;
         }
 
@@ -1114,27 +1241,48 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         delete mem_pkt;
 
-        // If we emptied the write queue, or got sufficiently below the
-        // threshold (using the minWritesPerSwitch as the hysteresis) and
-        // are not draining, or we have reads waiting and have done enough
-        // writes, then switch to reads.
-        // If we are interfacing to NVM and have filled the writeRespQueue,
-        // with only NVM writes in Q, then switch to reads
-        bool below_threshold =
-            mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
+        bool switch_to_reads = false;
+        bool near_overflow = (mem_intr->writeQueueSize >= writeBufferSize - 2);
 
-        if (mem_intr->writeQueueSize == 0 ||
-            (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
-            (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
+        if (mem_intr->writeQueueSize == 0) {
+            isWriteDraining = false;
+            switch_to_reads = true;
+        } else if (enableDynamicArbitration && writeDrainHysteresis) {
+            if (isWriteDraining) {
+                if (mem_intr->writeQueueSize < writeLowThreshold) {
+                    isWriteDraining = false;
+                    if (mem_intr->readQueueSize > 0 || drainState() != DrainState::Draining) {
+                        switch_to_reads = true;
+                    }
+                } else if (!near_overflow && isReadEscalationActive(mem_intr)) {
+                    stats.numReadEscalations++;
+                    escalationReadsRemaining = maxEscalationReads;
+                    switch_to_reads = true;
+                    DPRINTF(MemCtrl,
+                            "Read escalation triggered during write drain (oldest wait %lld ticks)\n",
+                            (long long)getOldestReadWaitTime());
+                }
+            } else {
+                bool below_threshold =
+                    (mem_intr->writeQueueSize + currentWriteQuota < writeLowThreshold);
+                if ((below_threshold && drainState() != DrainState::Draining) ||
+                    (mem_intr->readQueueSize && mem_intr->writesThisTime >= currentWriteQuota) ||
+                    (mem_intr->readQueueSize && nvmWriteBlock(mem_intr))) {
+                    switch_to_reads = true;
+                }
+            }
+        } else {
+            bool below_threshold =
+                (mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold);
+            if ((below_threshold && drainState() != DrainState::Draining) ||
+                (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
+                (mem_intr->readQueueSize && nvmWriteBlock(mem_intr))) {
+                switch_to_reads = true;
+            }
+        }
 
-            // turn the bus back around for reads again
+        if (switch_to_reads) {
             mem_intr->busStateNext = MemCtrl::READ;
-
-            // note that the we switch back to reads also in the idle
-            // case, which eventually will check for any draining and
-            // also pause any further scheduling if there is really
-            // nothing to do
         }
     }
     // It is possible that a refresh to another rank kicks things back into
@@ -1212,6 +1360,18 @@ MemCtrl::CtrlStats::CtrlStats(MemCtrl &_ctrl)
              "Number of times read queue was full causing retry"),
     ADD_STAT(numWrRetry, statistics::units::Count::get(),
              "Number of times write queue was full causing retry"),
+    ADD_STAT(numWriteDrainHysteresis, statistics::units::Count::get(),
+             "Number of times write drain hysteresis was initiated"),
+    ADD_STAT(numReadEscalations, statistics::units::Count::get(),
+             "Number of read escalation bursts triggered during write drain"),
+    ADD_STAT(numBusTurnarounds, statistics::units::Count::get(),
+             "Number of bus direction state transitions"),
+    ADD_STAT(avgWriteBurstQuota, statistics::units::Rate<
+                statistics::units::Count, statistics::units::Tick>::get(),
+             "Average dynamic write burst quota"),
+    ADD_STAT(avgReadBurstQuota, statistics::units::Rate<
+                statistics::units::Count, statistics::units::Tick>::get(),
+             "Average dynamic read burst quota"),
 
     ADD_STAT(readPktSize, statistics::units::Count::get(),
              "Read request sizes (log2)"),
@@ -1285,6 +1445,8 @@ MemCtrl::CtrlStats::regStats()
 
     avgRdQLen.precision(2);
     avgWrQLen.precision(2);
+    avgWriteBurstQuota.precision(2);
+    avgReadBurstQuota.precision(2);
 
     readPktSize.init(ceilLog2(ctrl.system()->cacheLineSize()) + 1);
     writePktSize.init(ceilLog2(ctrl.system()->cacheLineSize()) + 1);

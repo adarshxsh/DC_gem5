@@ -46,7 +46,10 @@
 #ifndef __MEM_CTRL_HH__
 #define __MEM_CTRL_HH__
 
+#include <algorithm>
+#include <climits>
 #include <deque>
+#include <memory>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -519,6 +522,47 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minReadsPerSwitch;
 
     /**
+     * Parameters for dynamic pressure-gradient bus arbitration and write drain
+     * hysteresis
+     */
+    const bool enableDynamicArbitration;
+    const bool writeDrainHysteresis;
+    const Tick readAgeThreshold;
+    const uint8_t qosEscalationThreshold;
+    const uint32_t maxEscalationReads;
+    const uint32_t maxWritesPerSwitch;
+    const uint32_t maxReadsPerSwitch;
+    const double pressureWeightWrite;
+    const double pressureWeightRead;
+    const double pressureWeightLatency;
+
+    /**
+     * Runtime state for dynamic bus arbitration
+     */
+    bool isWriteDraining;
+    uint32_t escalationReadsRemaining;
+    uint32_t currentWriteQuota;
+    uint32_t currentReadQuota;
+
+    /**
+     * Compute waiting latency of the oldest read request in read queue.
+     * @return Waiting time in ticks.
+     */
+    Tick getOldestReadWaitTime() const;
+
+    /**
+     * Check if urgent read escalation signal is active based on read age
+     * or QoS threshold.
+     * @return True if read escalation is triggered.
+     */
+    bool isReadEscalationActive(MemInterface* mem_intr) const;
+
+    /**
+     * Update pressure gradient and dynamic read/write burst quotas.
+     */
+    void updateDynamicPressureAndQuotas(MemInterface* mem_intr);
+
+    /**
      * Memory controller configuration initialized based on parameter
      * values.
      */
@@ -581,6 +625,11 @@ class MemCtrl : public qos::MemCtrl
 
         statistics::Scalar numRdRetry;
         statistics::Scalar numWrRetry;
+        statistics::Scalar numWriteDrainHysteresis;
+        statistics::Scalar numReadEscalations;
+        statistics::Scalar numBusTurnarounds;
+        statistics::Average avgWriteBurstQuota;
+        statistics::Average avgReadBurstQuota;
         statistics::Vector readPktSize;
         statistics::Vector writePktSize;
         statistics::Vector rdQLenPdf;
