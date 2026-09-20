@@ -72,7 +72,6 @@ class BaseXBar : public ClockedObject
 {
 
   protected:
-
     /**
      * A layer is an internal crossbar arbitration point with its own
      * flow control. Each layer is a converging multiplexer tree. By
@@ -92,7 +91,6 @@ class BaseXBar : public ClockedObject
     {
 
       public:
-
         /**
          * Create a layer and give it a name. The layer uses
          * the crossbar an event manager.
@@ -101,7 +99,7 @@ class BaseXBar : public ClockedObject
          * @param _xbar the crossbar this layer belongs to
          * @param _name the layer's name
          */
-        Layer(DstType& _port, BaseXBar& _xbar, const std::string& _name);
+        Layer(DstType &_port, BaseXBar &_xbar, const std::string &_name);
 
         /**
          * Drain according to the normal semantics, so that the crossbar
@@ -114,8 +112,11 @@ class BaseXBar : public ClockedObject
          */
         DrainState drain() override;
 
-        const std::string name() const { return _name; }
-
+        const std::string
+        name() const
+        {
+            return _name;
+        }
 
         /**
          * Determine if the layer accepts a packet from a specific
@@ -127,7 +128,7 @@ class BaseXBar : public ClockedObject
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port);
+        bool tryTiming(SrcType *src_port);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -147,9 +148,14 @@ class BaseXBar : public ClockedObject
          * @param src_port Source port
          * @param busy_time Time to spend as a result of a failed send
          */
-        void failedTiming(SrcType* src_port, Tick busy_time);
+        void failedTiming(SrcType *src_port, Tick busy_time);
 
         void occupyLayer(Tick until);
+
+        /**
+         * Select the next waiting port to retry.
+         */
+        virtual SrcType *selectNextRetryPort();
 
         /**
          * Send a retry to the port at the head of waitingForLayer. The
@@ -165,22 +171,20 @@ class BaseXBar : public ClockedObject
         void recvRetry();
 
       protected:
-
         /**
          * Sending the actual retry, in a manner specific to the
          * individual layers. Note that for a RequestPort, there is
          * both a RequestLayer and a SnoopResponseLayer using the same
          * port, but using different functions for the flow control.
          */
-        virtual void sendRetry(SrcType* retry_port) = 0;
+        virtual void sendRetry(SrcType *retry_port) = 0;
 
       private:
-
         /** The destination port this layer converges at. */
-        DstType& port;
+        DstType &port;
 
         /** The crossbar this layer is a part of. */
-        BaseXBar& xbar;
+        BaseXBar &xbar;
 
         std::string _name;
 
@@ -200,7 +204,12 @@ class BaseXBar : public ClockedObject
          * layer, or goes to a busy state if the port does not
          * immediately react to the retry by calling sendTiming.
          */
-        enum State { IDLE, BUSY, RETRY };
+        enum State
+        {
+            IDLE,
+            BUSY,
+            RETRY
+        };
 
         State state;
 
@@ -208,13 +217,13 @@ class BaseXBar : public ClockedObject
          * A deque of ports that retry should be called on because
          * the original send was delayed due to a busy layer.
          */
-        std::deque<SrcType*> waitingForLayer;
+        std::deque<SrcType *> waitingForLayer;
 
         /**
          * Track who is waiting for the retry when receiving it from a
          * peer. If no port is waiting NULL is stored.
          */
-        SrcType* waitingForPeer;
+        SrcType *waitingForPeer;
 
         /**
          * Release the layer after being occupied and return to an
@@ -231,7 +240,6 @@ class BaseXBar : public ClockedObject
          */
         statistics::Scalar occupancy;
         statistics::Formula utilization;
-
     };
 
     class ReqLayer : public Layer<ResponsePort, RequestPort>
@@ -244,14 +252,13 @@ class BaseXBar : public ClockedObject
          * @param _xbar the crossbar this layer belongs to
          * @param _name the layer's name
          */
-        ReqLayer(RequestPort& _port, BaseXBar& _xbar,
-        const std::string& _name) :
-            Layer(_port, _xbar, _name)
+        ReqLayer(RequestPort &_port, BaseXBar &_xbar, const std::string &_name)
+            : Layer(_port, _xbar, _name)
         {}
 
       protected:
         void
-        sendRetry(ResponsePort* retry_port) override
+        sendRetry(ResponsePort *retry_port) override
         {
             retry_port->sendRetryReq();
         }
@@ -267,14 +274,14 @@ class BaseXBar : public ClockedObject
          * @param _xbar the crossbar this layer belongs to
          * @param _name the layer's name
          */
-        RespLayer(ResponsePort& _port, BaseXBar& _xbar,
-                  const std::string& _name) :
-            Layer(_port, _xbar, _name)
+        RespLayer(ResponsePort &_port, BaseXBar &_xbar,
+                  const std::string &_name)
+            : Layer(_port, _xbar, _name)
         {}
 
       protected:
         void
-        sendRetry(RequestPort* retry_port) override
+        sendRetry(RequestPort *retry_port) override
         {
             retry_port->sendRetryResp();
         }
@@ -290,15 +297,14 @@ class BaseXBar : public ClockedObject
          * @param _xbar the crossbar this layer belongs to
          * @param _name the layer's name
          */
-        SnoopRespLayer(RequestPort& _port, BaseXBar& _xbar,
-                       const std::string& _name) :
-            Layer(_port, _xbar, _name)
+        SnoopRespLayer(RequestPort &_port, BaseXBar &_xbar,
+                       const std::string &_name)
+            : Layer(_port, _xbar, _name)
         {}
 
       protected:
-
         void
-        sendRetry(ResponsePort* retry_port) override
+        sendRetry(ResponsePort *retry_port) override
         {
             retry_port->sendRetrySnoopResp();
         }
@@ -383,8 +389,8 @@ class BaseXBar : public ClockedObject
     bool gotAllAddrRanges;
 
     /** The memory-side ports and CPU-side ports of the crossbar */
-    std::vector<QueuedResponsePort*> cpuSidePorts;
-    std::vector<RequestPort*> memSidePorts;
+    std::vector<QueuedResponsePort *> cpuSidePorts;
+    std::vector<RequestPort *> memSidePorts;
 
     /** Port that handles requests that don't match any of the interfaces.*/
     PortID defaultPortID;
@@ -411,12 +417,14 @@ class BaseXBar : public ClockedObject
     statistics::Vector2d pktSize;
 
   public:
-
     virtual ~BaseXBar();
 
     /** A function used to return the port associated with this object. */
     Port &getPort(const std::string &if_name,
-                  PortID idx=InvalidPortID) override;
+                  PortID idx = InvalidPortID) override;
+
+    /** Return the queue pressure of a downstream memory-side port. */
+    float getPortQueuePressure(PortID mem_side_port_id) const;
 
     void regStats() override;
 };
