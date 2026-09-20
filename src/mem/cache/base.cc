@@ -1830,7 +1830,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
             DPRINTF(CacheComp,
                     "Bypassing compression on block fill for address %#llx "
                     "due to high MSHR occupancy (%d/%d)\n",
-                    addr, mshrQueue.occupancy(), mshrQueue.capacity());
+                    (unsigned long long)addr, mshrQueue.occupancy(),
+                    mshrQueue.capacity());
         } else {
             const auto comp_data =
                 compressor->compress(pkt->getConstPtr<uint64_t>(),
