@@ -639,13 +639,25 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       bankGroupArch(_p.bank_groups_per_rank > 0),
       tRL(_p.tCL),
       tWL(_p.tCWL),
-      tBURST_MIN(_p.tBURST_MIN), tBURST_MAX(_p.tBURST_MAX),
-      tCCD_L_WR(_p.tCCD_L_WR), tCCD_L(_p.tCCD_L),
-      tRCD_RD(_p.tRCD), tRCD_WR(_p.tRCD_WR),
-      tRP(_p.tRP), tRAS(_p.tRAS), tWR(_p.tWR), tRTP(_p.tRTP),
-      tRFC(_p.tRFC), tREFI(_p.tREFI), tRRD(_p.tRRD), tRRD_L(_p.tRRD_L),
-      tPPD(_p.tPPD), tAAD(_p.tAAD),
-      tXAW(_p.tXAW), tXP(_p.tXP), tXS(_p.tXS),
+      tBURST_MIN(_p.tBURST_MIN),
+      tBURST_MAX(_p.tBURST_MAX),
+      tCCD_L_WR(_p.tCCD_L_WR),
+      tCCD_L(_p.tCCD_L),
+      tRCD_RD(_p.tRCD),
+      tRCD_WR(_p.tRCD_WR),
+      tRP(_p.tRP),
+      tRAS(_p.tRAS),
+      tWR(_p.tWR),
+      tRTP(_p.tRTP),
+      tRFC(_p.tRFC),
+      tREFI(_p.tREFI),
+      tRRD(_p.tRRD),
+      tRRD_L(_p.tRRD_L),
+      tPPD(_p.tPPD),
+      tAAD(_p.tAAD),
+      tXAW(_p.tXAW),
+      tXP(_p.tXP),
+      tXS(_p.tXS),
       clkResyncDelay(_p.tBURST_MAX),
       dataClockSync(_p.data_clock_sync),
       burstInterleave(tBURST != tBURST_MIN),
@@ -655,8 +667,12 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       rdToWrDlySameBG(_p.tRTW + _p.tBURST_MAX),
       pageMgmt(_p.page_policy),
       maxAccessesPerRow(_p.max_accesses_per_row),
-      timeStampOffset(0), activeRank(0),
+      timeStampOffset(0),
+      activeRank(0),
       enableDRAMPowerdown(_p.enable_dram_powerdown),
+      enableRefreshDeferral(_p.enable_refresh_deferral),
+      maxRefreshDeferrals(_p.max_refresh_deferrals),
+      enablePowerdownInhibit(_p.enable_powerdown_inhibit),
       lastStatsResetTick(0),
       stats(*this)
 {
@@ -958,19 +974,34 @@ DRAMInterface::respondEvent(uint8_t rank)
         assert(!rank_ref.activateEvent.scheduled());
         assert(!rank_ref.prechargeEvent.scheduled());
 
-        // if coming from active state, schedule power event to
-        // active power-down else go to precharge power-down
-        DPRINTF(DRAMState, "Rank %d sleep at tick %d; current power state is "
-                "%d\n", rank, curTick(), rank_ref.pwrState);
+        bool is_write_draining =
+            (ctrl != nullptr) &&
+            (ctrl->inWriteBusState(true, this) ||
+             (busState == MemCtrl::WRITE) || (writeQueueSize > 0));
 
-        // default to ACT power-down unless already in IDLE state
-        // could be in IDLE if PRE issued before data returned
-        PowerState next_pwr_state = PWR_ACT_PDN;
-        if (rank_ref.pwrState == PWR_IDLE) {
-            next_pwr_state = PWR_PRE_PDN;
+        if (enablePowerdownInhibit && is_write_draining) {
+            rank_ref.incPowerdownInhibits();
+            DPRINTF(DRAMState,
+                    "Rank %d sleep after read response inhibited during write "
+                    "queue drain\n",
+                    rank);
+        } else {
+            // if coming from active state, schedule power event to
+            // active power-down else go to precharge power-down
+            DPRINTF(DRAMState,
+                    "Rank %d sleep at tick %d; current power state is "
+                    "%d\n",
+                    rank, curTick(), rank_ref.pwrState);
+
+            // default to ACT power-down unless already in IDLE state
+            // could be in IDLE if PRE issued before data returned
+            PowerState next_pwr_state = PWR_ACT_PDN;
+            if (rank_ref.pwrState == PWR_IDLE) {
+                next_pwr_state = PWR_PRE_PDN;
+            }
+
+            rank_ref.powerDownSleep(next_pwr_state, curTick());
         }
-
-        rank_ref.powerDownSleep(next_pwr_state, curTick());
     }
 }
 
@@ -1115,21 +1146,34 @@ DRAMInterface::minBankPrep(const MemPacketQueue& queue,
     return std::make_pair(bank_mask, hidden_bank_prep);
 }
 
-DRAMInterface::Rank::Rank(const DRAMInterfaceParams &_p,
-                         int _rank, DRAMInterface& _dram)
-    : EventManager(&_dram), dram(_dram),
-      pwrStateTrans(PWR_IDLE), pwrStatePostRefresh(PWR_IDLE),
-      pwrStateTick(0), refreshDueAt(0), pwrState(PWR_IDLE),
-      refreshState(REF_IDLE), inLowPowerState(false), rank(_rank),
-      readEntries(0), writeEntries(0), outstandingEvents(0),
-      wakeUpAllowedAt(0), power(_p, false), banks(_p.banks_per_rank),
-      numBanksActive(0), actTicks(_p.activation_limit, 0), lastBurstTick(0),
-      writeDoneEvent([this]{ processWriteDoneEvent(); }, name()),
-      activateEvent([this]{ processActivateEvent(); }, name()),
-      prechargeEvent([this]{ processPrechargeEvent(); }, name()),
-      refreshEvent([this]{ processRefreshEvent(); }, name()),
-      powerEvent([this]{ processPowerEvent(); }, name()),
-      wakeUpEvent([this]{ processWakeUpEvent(); }, name()),
+DRAMInterface::Rank::Rank(const DRAMInterfaceParams &_p, int _rank,
+                          DRAMInterface &_dram)
+    : EventManager(&_dram),
+      dram(_dram),
+      pwrStateTrans(PWR_IDLE),
+      pwrStatePostRefresh(PWR_IDLE),
+      pwrStateTick(0),
+      refreshDueAt(0),
+      pwrState(PWR_IDLE),
+      refreshState(REF_IDLE),
+      inLowPowerState(false),
+      rank(_rank),
+      readEntries(0),
+      writeEntries(0),
+      deferredRefreshes(0),
+      outstandingEvents(0),
+      wakeUpAllowedAt(0),
+      power(_p, false),
+      banks(_p.banks_per_rank),
+      numBanksActive(0),
+      actTicks(_p.activation_limit, 0),
+      lastBurstTick(0),
+      writeDoneEvent([this] { processWriteDoneEvent(); }, name()),
+      activateEvent([this] { processActivateEvent(); }, name()),
+      prechargeEvent([this] { processPrechargeEvent(); }, name()),
+      refreshEvent([this] { processRefreshEvent(); }, name()),
+      powerEvent([this] { processPowerEvent(); }, name()),
+      wakeUpEvent([this] { processWakeUpEvent(); }, name()),
       stats(_dram, *this)
 {
     for (int b = 0; b < _p.banks_per_rank; b++) {
@@ -1257,13 +1301,28 @@ DRAMInterface::Rank::processPrechargeEvent()
         // RD/WR or refresh commands
         if (isQueueEmpty() && outstandingEvents == 0 &&
             dram.enableDRAMPowerdown) {
-            // should still be in ACT state since bank still open
-            assert(pwrState == PWR_ACT);
+            bool is_write_draining =
+                (dram.ctrl != nullptr) &&
+                (dram.ctrl->inWriteBusState(true, &(this->dram)) ||
+                 (dram.busState == MemCtrl::WRITE) ||
+                 (dram.writeQueueSize > 0));
 
-            // All banks closed - switch to precharge power down state.
-            DPRINTF(DRAMState, "Rank %d sleep at tick %d\n",
-                    rank, curTick());
-            powerDownSleep(PWR_PRE_PDN, curTick());
+            if (dram.enablePowerdownInhibit && is_write_draining) {
+                stats.numPowerdownInhibits++;
+                DPRINTF(
+                    DRAMState,
+                    "Rank %d powerdown inhibited during write queue drain\n",
+                    rank);
+                schedulePowerEvent(PWR_IDLE, curTick());
+            } else {
+                // should still be in ACT state since bank still open
+                assert(pwrState == PWR_ACT);
+
+                // All banks closed - switch to precharge power down state.
+                DPRINTF(DRAMState, "Rank %d sleep at tick %d\n", rank,
+                        curTick());
+                powerDownSleep(PWR_PRE_PDN, curTick());
+            }
         } else {
             // we should transition to the idle state when the last bank
             // is precharged
@@ -1305,6 +1364,27 @@ DRAMInterface::Rank::processRefreshEvent()
     // after which it will
     // hand control back to this event loop
     if (refreshState == REF_DRAIN) {
+        bool is_write_draining =
+            (dram.ctrl != nullptr) &&
+            (dram.ctrl->inWriteBusState(true, &(this->dram)) ||
+             (dram.busState == MemCtrl::WRITE && dram.writeQueueSize > 0));
+
+        bool can_defer =
+            dram.enableRefreshDeferral && is_write_draining &&
+            (deferredRefreshes < dram.maxRefreshDeferrals) &&
+            (curTick() < refreshDueAt + dram.maxRefreshDeferrals * dram.tREFI);
+
+        if (can_defer) {
+            ++deferredRefreshes;
+            stats.numRefreshDeferrals++;
+            DPRINTF(DRAM,
+                    "Rank %d deferring refresh during write queue drain "
+                    "(deferred %u/%u)\n",
+                    rank, deferredRefreshes, dram.maxRefreshDeferrals);
+            schedule(refreshEvent, curTick() + dram.tCK);
+            return;
+        }
+
         // if a request is at the moment being handled and this request is
         // accessing the current rank then wait for it to finish
         if ((rank == dram.activeRank)
@@ -1421,6 +1501,7 @@ DRAMInterface::Rank::processRefreshEvent()
 
         // Update for next refresh
         refreshDueAt += dram.tREFI;
+        deferredRefreshes = 0;
 
         // make sure we did not wait so long that we cannot make up
         // for it
@@ -1464,9 +1545,26 @@ DRAMInterface::Rank::processRefreshEvent()
                 // still have refresh event outstanding but there should
                 // be no other events outstanding
                 assert(outstandingEvents == 1);
-                DPRINTF(DRAMState, "Rank %d sleeping after refresh but was NOT"
-                        " in a low power state before refreshing\n", rank);
-                powerDownSleep(PWR_PRE_PDN, curTick());
+                bool is_write_draining =
+                    (dram.ctrl != nullptr) &&
+                    (dram.ctrl->inWriteBusState(true, &(this->dram)) ||
+                     (dram.busState == MemCtrl::WRITE) ||
+                     (dram.writeQueueSize > 0));
+
+                if (dram.enablePowerdownInhibit && is_write_draining) {
+                    stats.numPowerdownInhibits++;
+                    DPRINTF(DRAMState,
+                            "Rank %d sleeping post-refresh inhibited during "
+                            "write queue drain\n",
+                            rank);
+                    schedulePowerEvent(PWR_IDLE, curTick());
+                } else {
+                    DPRINTF(DRAMState,
+                            "Rank %d sleeping after refresh but was NOT"
+                            " in a low power state before refreshing\n",
+                            rank);
+                    powerDownSleep(PWR_PRE_PDN, curTick());
+                }
 
             } else {
                 // move to the idle power state once the refresh is done, this
@@ -1963,38 +2061,42 @@ DRAMInterface::DRAMStats::regStats()
 
 DRAMInterface::RankStats::RankStats(DRAMInterface &_dram, Rank &_rank)
     : statistics::Group(&_dram, csprintf("rank%d", _rank.rank).c_str()),
-    rank(_rank),
+      rank(_rank),
 
-    ADD_STAT(actEnergy, statistics::units::Joule::get(),
-             "Energy for activate commands per rank (pJ)"),
-    ADD_STAT(preEnergy, statistics::units::Joule::get(),
-             "Energy for precharge commands per rank (pJ)"),
-    ADD_STAT(readEnergy, statistics::units::Joule::get(),
-             "Energy for read commands per rank (pJ)"),
-    ADD_STAT(writeEnergy, statistics::units::Joule::get(),
-             "Energy for write commands per rank (pJ)"),
-    ADD_STAT(refreshEnergy, statistics::units::Joule::get(),
-             "Energy for refresh commands per rank (pJ)"),
-    ADD_STAT(actBackEnergy, statistics::units::Joule::get(),
-             "Energy for active background per rank (pJ)"),
-    ADD_STAT(preBackEnergy, statistics::units::Joule::get(),
-             "Energy for precharge background per rank (pJ)"),
-    ADD_STAT(actPowerDownEnergy, statistics::units::Joule::get(),
-             "Energy for active power-down per rank (pJ)"),
-    ADD_STAT(prePowerDownEnergy, statistics::units::Joule::get(),
-             "Energy for precharge power-down per rank (pJ)"),
-    ADD_STAT(selfRefreshEnergy, statistics::units::Joule::get(),
-             "Energy for self refresh per rank (pJ)"),
+      ADD_STAT(actEnergy, statistics::units::Joule::get(),
+               "Energy for activate commands per rank (pJ)"),
+      ADD_STAT(preEnergy, statistics::units::Joule::get(),
+               "Energy for precharge commands per rank (pJ)"),
+      ADD_STAT(readEnergy, statistics::units::Joule::get(),
+               "Energy for read commands per rank (pJ)"),
+      ADD_STAT(writeEnergy, statistics::units::Joule::get(),
+               "Energy for write commands per rank (pJ)"),
+      ADD_STAT(refreshEnergy, statistics::units::Joule::get(),
+               "Energy for refresh commands per rank (pJ)"),
+      ADD_STAT(actBackEnergy, statistics::units::Joule::get(),
+               "Energy for active background per rank (pJ)"),
+      ADD_STAT(preBackEnergy, statistics::units::Joule::get(),
+               "Energy for precharge background per rank (pJ)"),
+      ADD_STAT(actPowerDownEnergy, statistics::units::Joule::get(),
+               "Energy for active power-down per rank (pJ)"),
+      ADD_STAT(prePowerDownEnergy, statistics::units::Joule::get(),
+               "Energy for precharge power-down per rank (pJ)"),
+      ADD_STAT(selfRefreshEnergy, statistics::units::Joule::get(),
+               "Energy for self refresh per rank (pJ)"),
 
-    ADD_STAT(totalEnergy, statistics::units::Joule::get(),
-             "Total energy per rank (pJ)"),
-    ADD_STAT(averagePower, statistics::units::Watt::get(),
-             "Core power per rank (mW)"),
+      ADD_STAT(totalEnergy, statistics::units::Joule::get(),
+               "Total energy per rank (pJ)"),
+      ADD_STAT(averagePower, statistics::units::Watt::get(),
+               "Core power per rank (mW)"),
 
-    ADD_STAT(totalIdleTime, statistics::units::Tick::get(),
-             "Total Idle time Per DRAM Rank"),
-    ADD_STAT(pwrStateTime, statistics::units::Tick::get(),
-             "Time in different power states")
+      ADD_STAT(totalIdleTime, statistics::units::Tick::get(),
+               "Total Idle time Per DRAM Rank"),
+      ADD_STAT(pwrStateTime, statistics::units::Tick::get(),
+               "Time in different power states"),
+      ADD_STAT(numRefreshDeferrals, statistics::units::Count::get(),
+               "Number of DRAM refresh deferral events during write drains"),
+      ADD_STAT(numPowerdownInhibits, statistics::units::Count::get(),
+               "Number of power-down entry inhibitions during write drains")
 {
 }
 

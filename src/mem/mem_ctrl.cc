@@ -792,6 +792,13 @@ MemCtrl::inWriteBusState(bool next_state, const MemInterface* mem_intr) const
     }
 }
 
+bool
+MemCtrl::isWriteDraining() const
+{
+    return (dram != nullptr && dram->busState == WRITE) ||
+           (totalWriteQueueSize >= writeHighThreshold);
+}
+
 Tick
 MemCtrl::doBurstAccess(MemPacket* mem_pkt, MemInterface* mem_intr)
 {

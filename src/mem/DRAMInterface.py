@@ -70,6 +70,17 @@ class DRAMInterface(MemInterface):
     # performance being lower when enabled
     enable_dram_powerdown = Param.Bool(False, "Enable powerdown states")
 
+    # Dynamic refresh deferral and powerdown inhibition during write queue drains
+    enable_refresh_deferral = Param.Bool(
+        True, "Enable dynamic refresh deferral during write queue drains"
+    )
+    max_refresh_deferrals = Param.Unsigned(
+        8, "Maximum allowed refresh deferrals before forced refresh"
+    )
+    enable_powerdown_inhibit = Param.Bool(
+        True, "Inhibit power-down transitions during write queue drains"
+    )
+
     # For power modelling we need to know if the DRAM has a DLL or not
     dll = Param.Bool(True, "DRAM has DLL or not")
 
