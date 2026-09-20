@@ -45,7 +45,8 @@ class TestDictCompressor64 : public DictionaryCompressor<uint64_t>
   public:
     using DictionaryCompressor<uint64_t>::toDictionaryEntry;
     template <std::size_t DeltaSizeBits>
-    using DeltaPattern = DictionaryCompressor<uint64_t>::DeltaPattern<DeltaSizeBits>;
+    using DeltaPattern =
+        DictionaryCompressor<uint64_t>::DeltaPattern<DeltaSizeBits>;
 };
 
 TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
@@ -166,21 +167,23 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
 
 TEST(DictionaryCompressorTest, DeltaPatternAsymmetricNegativeBound)
 {
-    // Test that DeltaPattern::isValidDelta accepts full two's complement minimum
-    // negative offset (-2^(N-1)), e.g. -128 for 8-bit delta.
+    // Test that DeltaPattern::isValidDelta accepts full two's complement
+    // minimum negative offset (-2^(N-1)), e.g. -128 for 8-bit delta.
     using Delta8Pattern = TestDictCompressor64::DeltaPattern<8>;
 
     uint64_t base_val = 0x1000;
-    uint64_t min_neg_val = 0x1000 - 128; // delta = -128
-    uint64_t max_pos_val = 0x1000 + 127; // delta = +127
+    uint64_t min_neg_val = 0x1000 - 128;       // delta = -128
+    uint64_t max_pos_val = 0x1000 + 127;       // delta = +127
     uint64_t out_of_bounds_neg = 0x1000 - 129; // delta = -129
     uint64_t out_of_bounds_pos = 0x1000 + 128; // delta = +128
 
     auto base_bytes = TestDictCompressor64::toDictionaryEntry(base_val);
     auto min_neg_bytes = TestDictCompressor64::toDictionaryEntry(min_neg_val);
     auto max_pos_bytes = TestDictCompressor64::toDictionaryEntry(max_pos_val);
-    auto out_neg_bytes = TestDictCompressor64::toDictionaryEntry(out_of_bounds_neg);
-    auto out_pos_bytes = TestDictCompressor64::toDictionaryEntry(out_of_bounds_pos);
+    auto out_neg_bytes =
+        TestDictCompressor64::toDictionaryEntry(out_of_bounds_neg);
+    auto out_pos_bytes =
+        TestDictCompressor64::toDictionaryEntry(out_of_bounds_pos);
 
     // Delta -128 must be valid under two's complement
     EXPECT_TRUE(Delta8Pattern::isValidDelta(min_neg_bytes, base_bytes));
@@ -190,4 +193,3 @@ TEST(DictionaryCompressorTest, DeltaPatternAsymmetricNegativeBound)
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_neg_bytes, base_bytes));
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_pos_bytes, base_bytes));
 }
-
