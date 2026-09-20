@@ -1064,8 +1064,8 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 }
 
 bool
-BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks)
+BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                                 PacketList &writebacks, Cycles *comp_lat)
 {
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {
@@ -1205,12 +1205,16 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     compression_blk->setSizeBits(compression_size);
     compression_blk->setDecompressionLatency(decompression_lat);
 
+    if (comp_lat) {
+        *comp_lat = compression_lat;
+    }
+
     return true;
 }
 
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                          bool, bool)
+                          bool, bool, Cycles *comp_lat)
 {
     assert(pkt->isRequest());
 
@@ -1264,7 +1268,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1288,7 +1292,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1603,6 +1607,8 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // OK to satisfy access
         incHitCount(pkt);
 
+        Cycles recomp_lat = Cycles(0);
+
         // Calculate access latency based on the need to access the data array
         if (pkt->isRead()) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
@@ -1619,7 +1625,15 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
 
-        satisfyRequest(pkt, blk, writebacks);
+        satisfyRequest(pkt, blk, writebacks, false, false,
+                       (compressor && !pkt->isWholeLineWrite(blkSize))
+                           ? &recomp_lat
+                           : nullptr);
+
+        if (compressor && !pkt->isWholeLineWrite(blkSize)) {
+            lat += recomp_lat;
+        }
+
         maintainClusivity(pkt->fromCache(), blk);
 
         return true;
