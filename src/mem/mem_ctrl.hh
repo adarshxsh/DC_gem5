@@ -772,6 +772,12 @@ class MemCtrl : public qos::MemCtrl
      */
     bool inWriteBusState(bool next_state, const MemInterface* mem_intr) const;
 
+    uint32_t
+    getWriteLowThreshold() const
+    {
+        return writeLowThreshold;
+    }
+
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
