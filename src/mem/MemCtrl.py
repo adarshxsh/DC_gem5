@@ -94,7 +94,8 @@ class MemCtrl(QoSMemCtrl):
         False, "Enable read queue pressure preemption during write drains"
     )
     read_queue_latency_threshold = Param.Latency(
-        "50ns", "Read queue latency threshold to trigger write drain preemption"
+        "50ns",
+        "Read queue latency threshold to trigger write drain preemption",
     )
     read_queue_pressure_threshold = Param.Percent(
         80, "Read queue occupancy threshold to trigger preemption"
