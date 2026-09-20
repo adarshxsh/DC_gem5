@@ -41,6 +41,7 @@
 #ifndef __MEM_RUBY_SLICC_INTERFACE_MESSAGE_HH__
 #define __MEM_RUBY_SLICC_INTERFACE_MESSAGE_HH__
 
+#include <cassert>
 #include <iostream>
 #include <memory>
 #include <stack>
