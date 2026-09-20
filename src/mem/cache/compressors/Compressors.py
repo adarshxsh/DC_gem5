@@ -81,6 +81,19 @@ class BaseCacheCompressor(SimObject):
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
 
+    enable_queue_pressure_throttling = Param.Bool(
+        False,
+        "Enable memory queue pressure throttling for cache compression",
+    )
+    queue_pressure_threshold = Param.Percent(
+        80,
+        "Memory queue occupancy percentage threshold to trigger pressure feedback",
+    )
+    queue_pressure_response_mode = Param.String(
+        "bypass",
+        "Response mode when memory queue pressure threshold is exceeded (e.g., bypass, throttle)",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"

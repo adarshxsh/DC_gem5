@@ -139,6 +139,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
         decay_shift: int = 4,
+        enable_queue_pressure_throttling: bool = False,
+        queue_pressure_threshold: int = 80,
+        queue_pressure_response_mode: str = "bypass",
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -169,6 +172,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._decay_shift = decay_shift
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
+        self._queue_pressure_threshold = queue_pressure_threshold
+        self._queue_pressure_response_mode = queue_pressure_response_mode
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -198,6 +206,15 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
                 l2.compressor.decay_shift = self._decay_shift
+            l2.compressor.enable_queue_pressure_throttling = (
+                self._enable_queue_pressure_throttling
+            )
+            l2.compressor.queue_pressure_threshold = (
+                self._queue_pressure_threshold
+            )
+            l2.compressor.queue_pressure_response_mode = (
+                self._queue_pressure_response_mode
+            )
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
@@ -433,6 +450,54 @@ parser.add_argument(
     help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
 )
 
+
+def percent_type(value_str: str) -> int:
+    try:
+        val = int(value_str)
+    except ValueError:
+        try:
+            val = float(value_str)
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                f"Invalid percentage value: '{value_str}'"
+            )
+        if not val.is_integer():
+            raise argparse.ArgumentTypeError(
+                f"Percentage threshold must be an integer, got '{value_str}'"
+            )
+        val = int(val)
+    if val < 0 or val > 100:
+        raise argparse.ArgumentTypeError(
+            f"Percentage threshold must be between 0 and 100, got {val}"
+        )
+    return val
+
+
+parser.add_argument(
+    "--enable-queue-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable memory queue pressure throttling for cache compression.",
+)
+
+parser.add_argument(
+    "--queue-pressure-threshold",
+    type=percent_type,
+    required=False,
+    default=80,
+    help="Memory queue occupancy percentage threshold (0-100) to trigger pressure feedback (default: 80).",
+)
+
+parser.add_argument(
+    "--queue-pressure-response-mode",
+    type=str,
+    required=False,
+    default="bypass",
+    choices=["bypass", "throttle", "disable"],
+    help="Response mode when memory queue pressure threshold is exceeded (default: bypass).",
+)
+
 args = parser.parse_args()
 
 
@@ -492,6 +557,9 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
     decay_shift=args.decay_shift,
+    enable_queue_pressure_throttling=args.enable_queue_pressure_throttling,
+    queue_pressure_threshold=args.queue_pressure_threshold,
+    queue_pressure_response_mode=args.queue_pressure_response_mode,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
