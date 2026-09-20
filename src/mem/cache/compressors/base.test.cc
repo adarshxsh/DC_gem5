@@ -42,8 +42,6 @@
 
 namespace gem5
 {
-Root *Root::_root = nullptr;
-
 using namespace compression;
 
 class TestCompressor : public Base
