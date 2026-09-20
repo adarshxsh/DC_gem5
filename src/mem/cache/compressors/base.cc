@@ -94,6 +94,12 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      windowSize(p.window_size),
+      ringBuffer(p.window_size),
+      windowHead(0),
+      windowCount(0),
+      windowUncompressedBits(0),
+      windowCompressedBits(0),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -118,6 +124,18 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+double
+Base::getObservedRatio() const
+{
+    if (windowSize > 0 && windowCompressedBits > 0) {
+        return (double)windowUncompressedBits / (double)windowCompressedBits;
+    } else if (sampledCompressedBits > 0) {
+        return (double)sampledUncompressedBits / (double)sampledCompressedBits;
+    } else {
+        return latencyBreakevenThreshold + 1.0;
+    }
 }
 
 std::vector<Base::Chunk>
@@ -164,10 +182,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
 
-    double observedRatio =
-        (sampledCompressedBits > 0)
-            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+    double observedRatio = getObservedRatio();
 
     bool shouldBypass =
         enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
@@ -230,6 +245,36 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.sampledCompressions++;
         stats.sampledUncompressedBits += uncomp_bits;
         stats.sampledCompressedBits += comp_size_bits;
+
+        if (windowSize > 0) {
+            if (windowCount == windowSize) {
+                // Buffer is full; evict sample at windowHead
+                uint64_t evictedUncomp = ringBuffer[windowHead].uncompressedBits;
+                uint64_t evictedComp = ringBuffer[windowHead].compressedBits;
+
+                if (windowUncompressedBits >= evictedUncomp) {
+                    windowUncompressedBits -= evictedUncomp;
+                } else {
+                    windowUncompressedBits = 0;
+                }
+
+                if (windowCompressedBits >= evictedComp) {
+                    windowCompressedBits -= evictedComp;
+                } else {
+                    windowCompressedBits = 0;
+                }
+            } else {
+                windowCount++;
+            }
+
+            ringBuffer[windowHead] = {uncomp_bits, comp_size_bits};
+            windowUncompressedBits += uncomp_bits;
+            windowCompressedBits += comp_size_bits;
+            windowHead = (windowHead + 1) % windowSize;
+
+            stats.windowUncompressedBits = windowUncompressedBits;
+            stats.windowCompressedBits = windowCompressedBits;
+        }
     }
 
     if (shouldBypass) {
@@ -276,10 +321,7 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0)
-                                   ? ((double)sampledUncompressedBits /
-                                      (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
+        double observedRatio = getObservedRatio();
         if (observedRatio < latencyBreakevenThreshold) {
             stats.bypassedDecompressions += 1;
         }
@@ -338,7 +380,13 @@ Base::BaseStats::BaseStats(Base &_compressor)
       ADD_STAT(sampledCompressedBits, statistics::units::Bit::get(),
                "Total compressed bits of sampled blocks"),
       ADD_STAT(observedCompressionRatio, statistics::units::Ratio::get(),
-               "Observed compression ratio from sampling")
+               "Observed compression ratio from sampling"),
+      ADD_STAT(windowUncompressedBits, statistics::units::Bit::get(),
+               "Total uncompressed bits in sliding window"),
+      ADD_STAT(windowCompressedBits, statistics::units::Bit::get(),
+               "Total compressed bits in sliding window"),
+      ADD_STAT(observedWindowCompressionRatio, statistics::units::Ratio::get(),
+               "Observed sliding window compression ratio")
 {
 }
 
@@ -366,6 +414,10 @@ Base::BaseStats::regStats()
     observedCompressionRatio.flags(statistics::total | statistics::nozero |
                                    statistics::nonan);
     observedCompressionRatio = sampledUncompressedBits / sampledCompressedBits;
+
+    observedWindowCompressionRatio.flags(statistics::total | statistics::nozero |
+                                         statistics::nonan);
+    observedWindowCompressionRatio = windowUncompressedBits / windowCompressedBits;
 }
 
 } // namespace compression
