@@ -26,9 +26,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <gtest/gtest.h>
 #include <algorithm>
 #include <cstdint>
+#include <gtest/gtest.h>
 #include <memory>
 #include <vector>
 
@@ -40,9 +40,9 @@ namespace memory
 class MemCtrlArbitrationTest : public ::testing::Test
 {
   protected:
-    void SetUp() override
-    {
-    }
+    void
+    SetUp() override
+    {}
 };
 
 TEST_F(MemCtrlArbitrationTest, DynamicQuotaCalculation)

@@ -555,12 +555,12 @@ class MemCtrl : public qos::MemCtrl
      * or QoS threshold.
      * @return True if read escalation is triggered.
      */
-    bool isReadEscalationActive(MemInterface* mem_intr) const;
+    bool isReadEscalationActive(MemInterface *mem_intr) const;
 
     /**
      * Update pressure gradient and dynamic read/write burst quotas.
      */
-    void updateDynamicPressureAndQuotas(MemInterface* mem_intr);
+    void updateDynamicPressureAndQuotas(MemInterface *mem_intr);
 
     /**
      * Memory controller configuration initialized based on parameter
