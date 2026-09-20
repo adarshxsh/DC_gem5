@@ -89,6 +89,38 @@ class MemCtrl(QoSMemCtrl):
         16, "Minimum read bursts before switching to writes"
     )
 
+    # Dynamic pressure-gradient bus arbitration and write drain hysteresis
+    enable_dynamic_arbitration = Param.Bool(
+        True, "Enable dynamic pressure-gradient bus arbitration"
+    )
+    write_drain_hysteresis = Param.Bool(
+        True, "Enable write drain hysteresis down to low threshold"
+    )
+    read_age_threshold = Param.Latency(
+        "50ns", "Read waiting latency threshold to trigger read escalation"
+    )
+    qos_escalation_threshold = Param.Unsigned(
+        0, "QoS priority threshold for read escalation (0 = disabled/min)"
+    )
+    max_escalation_reads = Param.Unsigned(
+        8, "Maximum consecutive read bursts during read escalation"
+    )
+    max_writes_per_switch = Param.Unsigned(
+        64, "Maximum dynamic write burst quota under write pressure"
+    )
+    max_reads_per_switch = Param.Unsigned(
+        64, "Maximum dynamic read burst quota under read pressure"
+    )
+    pressure_weight_write = Param.Float(
+        1.0, "Weighting factor for write queue depth pressure"
+    )
+    pressure_weight_read = Param.Float(
+        1.0, "Weighting factor for read queue depth pressure"
+    )
+    pressure_weight_latency = Param.Float(
+        1.0, "Weighting factor for read waiting latency pressure"
+    )
+
     # scheduler, address map and page policy
     mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
