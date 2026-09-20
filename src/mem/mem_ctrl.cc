@@ -40,6 +40,10 @@
 
 #include "mem/mem_ctrl.hh"
 
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
