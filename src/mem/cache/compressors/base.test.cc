@@ -31,6 +31,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <vector>
 
 #include "mem/cache/compressors/base.hh"
 #include "params/BaseCacheCompressor.hh"
