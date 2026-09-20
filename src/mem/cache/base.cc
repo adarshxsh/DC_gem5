@@ -47,6 +47,7 @@
 #include <algorithm>
 
 #include "base/compiler.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
 #include "debug/CacheComp.hh"
@@ -237,11 +238,12 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
     Addr blk_addr = pkt->getBlockAddr(blkSize);
 
     // If using compression, on evictions the block is decompressed and
-    // the operation's latency is added to the payload delay. Consume
-    // that payload delay here, meaning that the data is always stored
+    // the operation's latency is added to the header delay. Consume
+    // that delay here, meaning that the data is always stored
     // uncompressed in the writebuffer
     if (compressor) {
-        time += pkt->payloadDelay;
+        time += pkt->headerDelay + pkt->payloadDelay;
+        pkt->headerDelay = 0;
         pkt->payloadDelay = 0;
     }
 
@@ -1885,7 +1887,11 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->headerDelay += compressor->getDecompressionLatency(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            pkt->setCompressedSize(divCeil(cblk->getSizeBits(), 8));
+        }
     }
 
     return pkt;
@@ -1930,7 +1936,11 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        pkt->headerDelay += compressor->getDecompressionLatency(blk);
+        CompressionBlk *cblk = dynamic_cast<CompressionBlk *>(blk);
+        if (cblk && cblk->isCompressed()) {
+            pkt->setCompressedSize(divCeil(cblk->getSizeBits(), 8));
+        }
     }
 
     return pkt;

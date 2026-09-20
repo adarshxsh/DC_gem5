@@ -51,6 +51,7 @@
 #include <cassert>
 #include <initializer_list>
 #include <list>
+#include <optional>
 
 #include "base/addr_range.hh"
 #include "base/cast.hh"
@@ -449,6 +450,11 @@ class Packet : public Printable, public Extensible<Packet>
     uint32_t payloadDelay;
 
     /**
+     * Optional compressed payload size (in bytes).
+     */
+    std::optional<unsigned> compressedSize = std::nullopt;
+
+    /**
      * A virtual base opaque structure used to hold state associated
      * with the packet (e.g., an MSHR), specific to a SimObject that
      * sees the packet. A pointer to this state is returned in the
@@ -817,6 +823,31 @@ class Packet : public Printable, public Extensible<Packet>
     unsigned getSize() const  { assert(flags.isSet(VALID_SIZE)); return size; }
 
     /**
+     * Get compressed payload size state and actual wire payload size.
+     */
+    bool
+    hasCompressedSize() const
+    {
+        return compressedSize.has_value();
+    }
+    unsigned
+    getPayloadSize() const
+    {
+        return hasCompressedSize() ? *compressedSize : getSize();
+    }
+    void
+    setCompressedSize(unsigned _size)
+    {
+        compressedSize = _size;
+    }
+    unsigned
+    getCompressedSize() const
+    {
+        assert(hasCompressedSize());
+        return *compressedSize;
+    }
+
+    /**
      * Get address range to which this packet belongs.
      *
      * @return Address range of this packet.
@@ -942,18 +973,23 @@ class Packet : public Printable, public Extensible<Packet>
      * packet should allocate its own data.
      */
     Packet(const PacketPtr pkt, bool clear_flags, bool alloc_data)
-        :  Extensible<Packet>(*pkt),
-           cmd(pkt->cmd), id(pkt->id), req(pkt->req),
-           data(nullptr),
-           addr(pkt->addr), _isSecure(pkt->_isSecure), size(pkt->size),
-           bytesValid(pkt->bytesValid),
-           _qosValue(pkt->qosValue()),
-           htmReturnReason(HtmCacheFailure::NO_FAIL),
-           htmTransactionUid(0),
-           headerDelay(pkt->headerDelay),
-           snoopDelay(0),
-           payloadDelay(pkt->payloadDelay),
-           senderState(pkt->senderState)
+        : Extensible<Packet>(*pkt),
+          cmd(pkt->cmd),
+          id(pkt->id),
+          req(pkt->req),
+          data(nullptr),
+          addr(pkt->addr),
+          _isSecure(pkt->_isSecure),
+          size(pkt->size),
+          bytesValid(pkt->bytesValid),
+          _qosValue(pkt->qosValue()),
+          htmReturnReason(HtmCacheFailure::NO_FAIL),
+          htmTransactionUid(0),
+          headerDelay(pkt->headerDelay),
+          snoopDelay(0),
+          payloadDelay(pkt->payloadDelay),
+          compressedSize(pkt->compressedSize),
+          senderState(pkt->senderState)
     {
         if (!clear_flags)
             flags.set(pkt->flags & COPY_FLAGS);
