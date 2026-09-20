@@ -45,7 +45,9 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <algorithm>
 #include <climits>
+#include <limits>
 
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
@@ -139,10 +141,16 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     }
 
     // Check if the superblock this address belongs to has been allocated. If
-    // so, try co-allocating
+    // so, evaluate all candidate superblocks using sub-block density and
+    // remaining capacity score to select the optimal relocation target.
     SuperBlk* victim_superblock = nullptr;
     bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
+
+    double max_density_score = -1e9;
+    std::size_t min_secondary_evictions =
+        std::numeric_limits<std::size_t>::max();
+
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
         if (superblock->match(key) &&
@@ -161,9 +169,59 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
                     continue;
                 }
             }
-            victim_superblock = superblock;
-            is_co_allocation = true;
-            break;
+
+            // Calculate metrics for candidate superblock
+            const uint8_t valid_count = superblock->getValidSubBlkCount();
+            const std::size_t remaining_bits =
+                superblock->getRemainingBitCapacity();
+            const double density = superblock->getDensity();
+
+            const uint8_t new_blk_cf =
+                superblock->calculateCompressionFactor(compressed_size);
+            const uint8_t current_cf = superblock->getCompressionFactor();
+            const uint8_t target_cf = (valid_count == 0)
+                                          ? new_blk_cf
+                                          : std::min(current_cf, new_blk_cf);
+
+            std::size_t secondary_evictions = 0;
+            if (target_cf > 0 && (valid_count + 1 > target_cf)) {
+                secondary_evictions = (valid_count + 1) - target_cf;
+            }
+
+            // Calculate density score
+            const double total_bits = static_cast<double>(blkSize * CHAR_BIT);
+            const double remaining_capacity_ratio =
+                (total_bits > 0)
+                    ? (static_cast<double>(remaining_bits) / total_bits)
+                    : 0.0;
+            const double density_score = density + remaining_capacity_ratio -
+                                         (secondary_evictions * 1000.0);
+
+            if (victim_superblock == nullptr ||
+                density_score > max_density_score) {
+                max_density_score = density_score;
+                min_secondary_evictions = secondary_evictions;
+                victim_superblock = superblock;
+                is_co_allocation = true;
+            }
+        }
+    }
+
+    if (is_co_allocation && min_secondary_evictions > 0 &&
+        victim_superblock != nullptr) {
+        std::vector<CompressionBlk *> co_blks;
+        for (auto &blk : victim_superblock->blks) {
+            if (blk->isValid() && (blk != victim_superblock->blks[offset])) {
+                co_blks.push_back(static_cast<CompressionBlk *>(blk));
+            }
+        }
+        std::sort(co_blks.begin(), co_blks.end(),
+                  [](const CompressionBlk *a, const CompressionBlk *b) {
+                      return a->getAge() > b->getAge();
+                  });
+        for (std::size_t i = 0;
+             i < min_secondary_evictions && i < co_blks.size(); ++i) {
+            evict_blks.push_back(co_blks[i]);
         }
     }
 
