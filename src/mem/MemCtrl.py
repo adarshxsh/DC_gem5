@@ -110,7 +110,8 @@ class MemCtrl(QoSMemCtrl):
         0.5, "Sensitivity factor alpha for write queue fill velocity (dQ/dt)"
     )
     adaptive_threshold_beta = Param.Float(
-        0.5, "Sensitivity factor beta for relative write/read queue pressure ratio"
+        0.5,
+        "Sensitivity factor beta for relative write/read queue pressure ratio",
     )
 
 
