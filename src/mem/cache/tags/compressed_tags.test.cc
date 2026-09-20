@@ -35,6 +35,12 @@
 
 #include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
+#include "sim/root.hh"
+
+namespace gem5
+{
+Root *Root::_root = nullptr;
+}
 
 using namespace gem5;
 
