@@ -252,6 +252,14 @@ class SuperBlk : public SectorBlk
      */
     void updateCompressionFactor();
 
+    /**
+     * Get the superblock compression density (ratio of valid sub-blocks
+     * to total superblock compression capacity).
+     *
+     * @return Superblock density.
+     */
+    double getDensity() const;
+
     void invalidate() override;
 
     std::string print() const override;

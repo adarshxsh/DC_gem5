@@ -72,7 +72,7 @@ Now trace what happened inside `insert()`:
 void TaggedEntry::insert(const KeyType &key)
 {
     // key.address is 0x1FFF_E000 (the tag, NOT the original raw address!)
-    setTag(extractTag(key.address)); 
+    setTag(extractTag(key.address));
 }
 ```
 
