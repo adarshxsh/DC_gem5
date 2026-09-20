@@ -742,7 +742,7 @@ class DictionaryCompressor<T>::DeltaPattern
         const T base =
             DictionaryCompressor<T>::fromDictionaryEntry(base_bytes);
         const typename std::make_signed<T>::type delta = value - base;
-        return (delta >= -limit) && (delta <= limit);
+        return (delta >= -(limit + 1)) && (delta <= limit);
     }
 
     static bool
