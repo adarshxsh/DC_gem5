@@ -1533,6 +1533,17 @@ MemCtrl::MemoryPort::recvTimingReq(PacketPtr pkt)
     return ctrl.recvTimingReq(pkt);
 }
 
+float
+MemCtrl::getQueuePressure() const
+{
+    uint32_t totalCapacity = readBufferSize + writeBufferSize;
+    if (totalCapacity == 0)
+        return 0.0f;
+    uint64_t totalOccupancy = totalReadQueueSize + respQueue.size() + totalWriteQueueSize;
+    float pressure = static_cast<float>(totalOccupancy) / static_cast<float>(totalCapacity);
+    return std::min(1.0f, std::max(0.0f, pressure));
+}
+
 void
 MemCtrl::MemoryPort::disableSanityCheck()
 {

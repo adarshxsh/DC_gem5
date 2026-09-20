@@ -260,6 +260,8 @@ class MemCtrl : public qos::MemCtrl
         MemoryPort(const std::string& name, MemCtrl& _ctrl);
         void disableSanityCheck();
 
+        float getQueuePressure() const override { return ctrl.getQueuePressure(); }
+
       protected:
 
         Tick recvAtomic(PacketPtr pkt) override;
@@ -676,6 +678,14 @@ class MemCtrl : public qos::MemCtrl
   public:
 
     MemCtrl(const MemCtrlParams &p);
+
+    /**
+     * Calculate and return normalized queue pressure metric (0.0 to 1.0)
+     * based on read buffer, write buffer, and response queue occupancy.
+     *
+     * @return Normalized queue pressure
+     */
+    float getQueuePressure() const override;
 
     /**
      * Ensure that all interfaced have drained commands

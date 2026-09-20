@@ -104,6 +104,11 @@ class CoherentXBar : public BaseXBar
               queue(_xbar, *this)
         { }
 
+        float getQueuePressure() const override
+        {
+            return xbar.getQueuePressure();
+        }
+
       protected:
 
         bool

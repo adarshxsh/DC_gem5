@@ -175,6 +175,13 @@ class RequestPort: public Port, public AtomicRequestProtocol,
     virtual bool isSnooping() const { return false; }
 
     /**
+     * Query method to expose memory queue pressure signals from connected peer.
+     *
+     * @return Normalized queue pressure (0.0 to 1.0)
+     */
+    virtual float getQueuePressure() const;
+
+    /**
      * Get the address ranges of the connected responder port.
      */
     AddrRangeList getAddrRanges() const;
@@ -373,6 +380,14 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      * @return true if the peer request port is snooping
      */
     bool isSnooping() const { return _requestPort->isSnooping(); }
+
+    /**
+     * Query method to expose memory queue pressure signals without
+     * incurring timing simulation overhead.
+     *
+     * @return Normalized queue pressure (0.0 to 1.0)
+     */
+    virtual float getQueuePressure() const { return 0.0f; }
 
     /**
      * Called by the owner to send a range change
@@ -641,6 +656,12 @@ RequestPort::sendRetryResp()
     } catch (UnboundPortException) {
         reportUnbound();
     }
+}
+
+inline float
+RequestPort::getQueuePressure() const
+{
+    return _responsePort ? _responsePort->getQueuePressure() : 0.0f;
 }
 
 } // namespace gem5

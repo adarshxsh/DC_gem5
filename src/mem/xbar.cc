@@ -68,6 +68,8 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
                           p.port_mem_side_ports_connection_count, false),
       gotAllAddrRanges(false), defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
+      enableQueuePressureScheduling(p.enable_queue_pressure_scheduling),
+      queuePressureThreshold(p.queue_pressure_threshold / 100.0f),
 
       ADD_STAT(transDist, statistics::units::Count::get(),
                "Transaction distribution"),
@@ -283,10 +285,27 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     // update the state
     state = RETRY;
 
-    // set the retrying port to the front of the retry list and pop it
-    // off the list
-    SrcType* retryingPort = waitingForLayer.front();
-    waitingForLayer.pop_front();
+    SrcType* retryingPort = nullptr;
+
+    if (xbar.enableQueuePressureScheduling && waitingForLayer.size() > 1) {
+        // Arbitrate among waiting CPU-side ports, prioritizing ports targeting lower queue pressure
+        auto best_it = waitingForLayer.begin();
+        float min_pressure = getPortQueuePressure(*best_it);
+
+        for (auto it = std::next(waitingForLayer.begin()); it != waitingForLayer.end(); ++it) {
+            float p = getPortQueuePressure(*it);
+            if (p < min_pressure) {
+                min_pressure = p;
+                best_it = it;
+            }
+        }
+
+        retryingPort = *best_it;
+        waitingForLayer.erase(best_it);
+    } else {
+        retryingPort = waitingForLayer.front();
+        waitingForLayer.pop_front();
+    }
 
     // tell the port to retry, which in some cases ends up calling the
     // layer again
@@ -303,6 +322,22 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
         // occupy the crossbar layer until the next clock edge
         occupyLayer(xbar.clockEdge());
     }
+}
+
+bool
+BaseXBar::isDeferrable(PacketPtr pkt) const
+{
+    if (!pkt)
+        return false;
+    if (pkt->isExpressSnoop() || pkt->isResponse())
+        return false;
+    if (pkt->isLLSC() || pkt->isAtomicOp())
+        return false;
+    if (pkt->req && (pkt->req->isUncacheable() || pkt->req->isStrictlyOrdered()))
+        return false;
+    if (pkt->cacheResponding())
+        return false;
+    return true;
 }
 
 template <typename SrcType, typename DstType>
