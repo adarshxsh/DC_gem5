@@ -221,6 +221,20 @@ SuperBlk::hasValidDemand() const
 bool
 SuperBlk::canCoAllocate(const std::size_t compressed_size) const
 {
+    std::vector<CompressionBlk *> candidate_blks;
+    for (const auto &blk : blks) {
+        if (blk->isValid()) {
+            candidate_blks.push_back(static_cast<CompressionBlk *>(blk));
+        }
+    }
+    return canCoAllocate(compressed_size, candidate_blks);
+}
+
+bool
+SuperBlk::canCoAllocate(
+    const std::size_t compressed_size,
+    const std::vector<CompressionBlk *> &candidate_blks) const
+{
     if (!isCompressed()) {
         return false;
     }
@@ -230,20 +244,14 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    std::size_t bit_sum = 0;
-    std::size_t count = 0;
-    for (const auto &blk : blks) {
-        if (blk->isValid()) {
-            const CompressionBlk *cblk =
-                static_cast<const CompressionBlk *>(blk);
+    std::size_t bit_sum = compressed_size;
+    for (const auto *cblk : candidate_blks) {
+        if (cblk && cblk->isValid()) {
             bit_sum += cblk->getSizeBits();
-            if (++count >= 4) {
-                break;
-            }
         }
     }
 
-    return (bit_sum + compressed_size) <= (blkSize * CHAR_BIT);
+    return bit_sum <= (blkSize * CHAR_BIT);
 }
 
 void
