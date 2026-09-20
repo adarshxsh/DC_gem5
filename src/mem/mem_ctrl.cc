@@ -622,13 +622,15 @@ uint8_t
 MemCtrl::getQueuePressureLevel() const
 {
     uint32_t total_occupancy = 0;
-    for (auto* intr : drams) {
+    for (auto *intr : drams) {
         if (intr) {
             total_occupancy += intr->readQueueSize + intr->writeQueueSize;
         }
     }
     uint32_t total_capacity = readBufferSize + writeBufferSize;
-    if (total_capacity == 0) return 0;
+    if (total_capacity == 0) {
+        return 0;
+    }
 
     double ratio = static_cast<double>(total_occupancy) / total_capacity;
     if (ratio >= 0.85) {

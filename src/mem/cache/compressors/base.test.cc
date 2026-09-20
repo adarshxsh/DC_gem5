@@ -61,14 +61,16 @@ TEST(BaseCompressorTest, MemoryQueuePressureDecompressionBypass)
     blk.setSizeBits(0); // zero block
     blk.setDecompressionLatency(Cycles(2));
 
-    // Under normal pressure, getDecompressionLatency should return the block's latency (2 cycles)
+    // Under normal pressure, getDecompressionLatency should return the block's
+    // latency (2 cycles)
     EXPECT_EQ(compressor.getDecompressionLatency(&blk), Cycles(2));
 
     // Set memory pressure to HIGH (level 3)
     compressor.setMemoryQueuePressure(3);
     EXPECT_TRUE(compressor.isMemoryPressureHigh());
 
-    // Under high memory pressure, getDecompressionLatency should bypass latency (return 0 cycles)
+    // Under high memory pressure, getDecompressionLatency should bypass
+    // latency (return 0 cycles)
     EXPECT_EQ(compressor.getDecompressionLatency(&blk), Cycles(0));
 
     // Set memory pressure back to LOW (level 1)
