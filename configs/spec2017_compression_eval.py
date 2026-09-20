@@ -164,6 +164,10 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
             l2_assoc=l2_assoc,
         )
 
+        self._l1i_size = l1i_size
+        self._l1d_size = l1d_size
+        self._l2_size = l2_size
+        self._l2_assoc = l2_assoc
         self._use_compression = use_compression
         self._enable_adaptive_bypass = enable_adaptive_bypass
         self._latency_breakeven_threshold = latency_breakeven_threshold
@@ -427,9 +431,11 @@ parser.add_argument(
 
 parser.add_argument(
     "--decay-shift",
+    "--decayShift",
     type=int,
     required=False,
     default=4,
+    dest="decay_shift",
     help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
 )
 
