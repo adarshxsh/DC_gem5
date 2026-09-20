@@ -50,7 +50,7 @@ class TestDictCompressor64 : public DictionaryCompressor<uint64_t>
 
 TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
 {
-    CPackParams p;
+    CPackParams p{};
     p.name = "cpack";
     p.block_size = 64;
     p.chunk_size_bits = 32;
@@ -59,8 +59,14 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
     p.comp_extra_latency = Cycles(5);
     p.decomp_chunks_per_cycle = 2;
     p.decomp_extra_latency = Cycles(1);
+    p.size_threshold_percentage = 100;
+    p.enable_adaptive_bypass = false;
+    p.latency_breakeven_threshold = 1.0;
+    p.sampling_interval = 100;
+    p.decay_shift = 4;
 
     TestCPack compressor(p);
+    compressor.regStats();
 
     // 1. All-zero block
     uint64_t zero_data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -109,7 +115,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
 
 TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
 {
-    FPCParams p;
+    FPCParams p{};
     p.name = "fpc";
     p.block_size = 64;
     p.chunk_size_bits = 32;
@@ -119,8 +125,14 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
     p.decomp_chunks_per_cycle = 4;
     p.decomp_extra_latency = Cycles(1);
     p.zero_run_bits = 3;
+    p.size_threshold_percentage = 100;
+    p.enable_adaptive_bypass = false;
+    p.latency_breakeven_threshold = 1.0;
+    p.sampling_interval = 100;
+    p.decay_shift = 4;
 
     TestFPC compressor(p);
+    compressor.regStats();
 
     // 1. All-zero block
     uint64_t zero_data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
