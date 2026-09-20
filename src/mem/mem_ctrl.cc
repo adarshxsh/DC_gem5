@@ -792,6 +792,22 @@ MemCtrl::inWriteBusState(bool next_state, const MemInterface* mem_intr) const
     }
 }
 
+bool
+MemCtrl::hasWriteRowHit(uint8_t pseudo_channel, uint8_t rank, uint32_t bank,
+                        uint32_t row) const
+{
+    for (const auto &queue : writeQueue) {
+        for (const auto &pkt : queue) {
+            if (pkt->isDram() && (pkt->pseudoChannel == pseudo_channel) &&
+                (pkt->rank == rank) && (pkt->bank == bank) &&
+                (pkt->row == row)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 Tick
 MemCtrl::doBurstAccess(MemPacket* mem_pkt, MemInterface* mem_intr)
 {

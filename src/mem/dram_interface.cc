@@ -1188,18 +1188,28 @@ DRAMInterface::Rank::isQueueEmpty() const
     return no_queued_cmds;
 }
 
+bool
+DRAMInterface::Rank::hasWriteRowHit() const
+{
+    for (size_t b = 0; b < banks.size(); ++b) {
+        if (banks[b].openRow != Bank::NO_ROW) {
+            if (dram.ctrl->hasWriteRowHit(dram.pseudoChannel, rank, b,
+                                          banks[b].openRow)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void
 DRAMInterface::Rank::checkDrainDone()
 {
-    // if this rank was waiting to drain it is now able to proceed to
-    // precharge
+    // if this rank was waiting to drain check if it is ready to proceed
     if (refreshState == REF_DRAIN) {
-        DPRINTF(DRAM, "Refresh drain done, now precharging\n");
-
-        refreshState = REF_PD_EXIT;
-
-        // hand control back to the refresh event loop
-        schedule(refreshEvent, curTick());
+        if (!refreshEvent.scheduled()) {
+            schedule(refreshEvent, curTick());
+        }
     }
 }
 
@@ -1312,6 +1322,12 @@ DRAMInterface::Rank::processRefreshEvent()
             // hand control over to the request loop until it is
             // evaluated next
             DPRINTF(DRAM, "Refresh awaiting draining\n");
+            return;
+        } else if ((dram.ctrl->inWriteBusState(true, &dram) ||
+                    dram.ctrl->inWriteBusState(false, &dram)) &&
+                   hasWriteRowHit() &&
+                   (curTick() + dram.tRFC < refreshDueAt + dram.tREFI)) {
+            DPRINTF(DRAM, "Refresh awaiting write drain hits completion\n");
             return;
         } else {
             refreshState = REF_PD_EXIT;
@@ -1448,9 +1464,15 @@ DRAMInterface::Rank::processRefreshEvent()
             // simply go to IDLE and wait
             schedulePowerEvent(PWR_IDLE, curTick());
         } else {
+            bool write_drain_active =
+                (dram.writeQueueSize > 0) ||
+                dram.ctrl->inWriteBusState(true, &dram) ||
+                dram.ctrl->inWriteBusState(false, &dram);
+
             // At the moment, we sleep when the refresh ends and wait to be
-            // woken up again if previously in a low-power state.
-            if (pwrStatePostRefresh != PWR_IDLE) {
+            // woken up again if previously in a low-power state, UNLESS write
+            // drain activity is active.
+            if (pwrStatePostRefresh != PWR_IDLE && !write_drain_active) {
                 // power State should be power Refresh
                 assert(pwrState == PWR_REF);
                 DPRINTF(DRAMState, "Rank %d sleeping after refresh and was in "
@@ -1458,9 +1480,10 @@ DRAMInterface::Rank::processRefreshEvent()
                         pwrStatePostRefresh);
                 powerDownSleep(pwrState, curTick());
 
-            // Force PRE power-down if there are no outstanding commands
-            // in Q after refresh.
-            } else if (isQueueEmpty() && dram.enableDRAMPowerdown) {
+                // Force PRE power-down if there are no outstanding commands
+                // in Q after refresh and no write drain activity.
+            } else if (isQueueEmpty() && dram.enableDRAMPowerdown &&
+                       !write_drain_active) {
                 // still have refresh event outstanding but there should
                 // be no other events outstanding
                 assert(outstandingEvents == 1);

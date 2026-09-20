@@ -772,6 +772,18 @@ class MemCtrl : public qos::MemCtrl
      */
     bool inWriteBusState(bool next_state, const MemInterface* mem_intr) const;
 
+    /**
+     * Check if the write queue contains a packet targeting an open row
+     *
+     * @param pseudo_channel Pseudo channel index
+     * @param rank Rank index
+     * @param bank Bank index
+     * @param row Row address
+     * @return True if a matching write packet is enqueued
+     */
+    bool hasWriteRowHit(uint8_t pseudo_channel, uint8_t rank, uint32_t bank,
+                        uint32_t row) const;
+
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 

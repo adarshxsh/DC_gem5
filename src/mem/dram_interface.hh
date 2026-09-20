@@ -418,6 +418,14 @@ class DRAMInterface : public MemInterface
         bool isQueueEmpty() const;
 
         /**
+         * Check if open bank row hits exist for this rank in the write queue
+         * during active write queue draining.
+         *
+         * @return True if write packets match an open bank row on this rank
+         */
+        bool hasWriteRowHit() const;
+
+        /**
          * Let the rank check if it was waiting for requests to drain
          * to allow it to transition states.
          */
