@@ -82,7 +82,6 @@ class SuperBlkTestFixture : public ::testing::Test
                 if (cf < min_cf) {
                     min_cf = cf;
                 }
-                total_bits += cblk->getSizeBits();
                 ASSERT_EQ(blk->getTag(), sb.getTag());
                 ASSERT_EQ(blk->isSecure(), sb.isSecure());
             }
