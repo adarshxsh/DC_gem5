@@ -230,20 +230,20 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    std::size_t bit_sum = 0;
-    std::size_t count = 0;
+    if (getNumValid() >= blks.size()) {
+        return false;
+    }
+
+    std::size_t total_bits = 0;
     for (const auto &blk : blks) {
         if (blk->isValid()) {
             const CompressionBlk *cblk =
                 static_cast<const CompressionBlk *>(blk);
-            bit_sum += cblk->getSizeBits();
-            if (++count >= 4) {
-                break;
-            }
+            total_bits += cblk->getSizeBits();
         }
     }
 
-    return (bit_sum + compressed_size) <= (blkSize * CHAR_BIT);
+    return (total_bits + compressed_size) <= (blkSize * CHAR_BIT);
 }
 
 void
