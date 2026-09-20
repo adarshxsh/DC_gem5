@@ -140,10 +140,11 @@ class Multi : public Base
 
     void setCache(BaseCache *_cache) override;
 
-    void setBackpressure(bool bp) override
+    void
+    setBackpressure(bool bp) override
     {
         Base::setBackpressure(bp);
-        for (auto& comp : compressors) {
+        for (auto &comp : compressors) {
             if (comp) {
                 comp->setBackpressure(bp);
             }

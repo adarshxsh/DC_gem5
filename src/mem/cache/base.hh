@@ -270,7 +270,8 @@ class BaseCache : public ClockedObject
 
         bool isBlocked() const { return blocked; }
 
-        void schedTimingResp(PacketPtr pkt, Tick when)
+        void
+        schedTimingResp(PacketPtr pkt, Tick when)
         {
             if (cache.isBackpressured()) {
                 pkt->setBackpressure();
@@ -585,7 +586,11 @@ class BaseCache : public ClockedObject
      * Set/get memory backpressure state.
      */
     virtual void setBackpressure(bool active);
-    bool isBackpressured() const { return backpressured; }
+    bool
+    isBackpressured() const
+    {
+        return backpressured;
+    }
 
     /**
      * Handles a response (cache line fill/write ack) from the bus.

@@ -330,12 +330,15 @@ class MemCtrl : public qos::MemCtrl
 
     /**
      * Check if memory controller queues are under high pressure.
-     * Returns true if write queue size exceeds writeHighThreshold or total queue occupancy is high.
+     * Returns true if write queue size exceeds writeHighThreshold or total
+     * queue occupancy is high.
      */
-    virtual bool isBackpressured() const
+    virtual bool
+    isBackpressured() const
     {
         return (totalWriteQueueSize >= writeHighThreshold) ||
-               (totalWriteQueueSize + totalReadQueueSize >= (writeBufferSize + readBufferSize) * 3 / 4);
+               (totalWriteQueueSize + totalReadQueueSize >=
+                (writeBufferSize + readBufferSize) * 3 / 4);
     }
 
     /**

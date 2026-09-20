@@ -99,17 +99,26 @@ Base::PrefetchEvictListener::notify(const EvictionInfo &info)
 }
 
 Base::Base(const BasePrefetcherParams &p)
-    : ClockedObject(p), listeners(), system(nullptr), probeManager(nullptr),
-      blkSize(p.block_size), lBlkSize(floorLog2(blkSize)),
-      onMiss(p.on_miss), onRead(p.on_read),
-      onWrite(p.on_write), onData(p.on_data), onInst(p.on_inst),
+    : ClockedObject(p),
+      listeners(),
+      system(nullptr),
+      probeManager(nullptr),
+      blkSize(p.block_size),
+      lBlkSize(floorLog2(blkSize)),
+      onMiss(p.on_miss),
+      onRead(p.on_read),
+      onWrite(p.on_write),
+      onData(p.on_data),
+      onInst(p.on_inst),
       requestorId(p.sys->getRequestorId(this)),
       pageBytes(p.page_bytes),
       prefetchOnAccess(p.prefetch_on_access),
       prefetchOnPfHit(p.prefetch_on_pf_hit),
       useVirtualAddresses(p.use_virtual_addresses),
-      prefetchStats(this), issuedPrefetches(0),
-      usefulPrefetches(0), mmu(nullptr),
+      prefetchStats(this),
+      issuedPrefetches(0),
+      usefulPrefetches(0),
+      mmu(nullptr),
       backpressured(false)
 {
 }
@@ -126,32 +135,32 @@ Base::setParentInfo(System *sys, ProbeManager *pm, unsigned blk_size)
 }
 
 Base::StatGroup::StatGroup(statistics::Group *parent)
-  : statistics::Group(parent),
-    ADD_STAT(demandMshrMisses, statistics::units::Count::get(),
-        "demands not covered by prefetchs"),
-    ADD_STAT(pfIssued, statistics::units::Count::get(),
-        "number of hwpf issued"),
-    ADD_STAT(pfUnused, statistics::units::Count::get(),
-             "number of HardPF blocks evicted w/o reference"),
-    ADD_STAT(pfUseful, statistics::units::Count::get(),
-        "number of useful prefetch"),
-    ADD_STAT(pfUsefulButMiss, statistics::units::Count::get(),
-        "number of hit on prefetch but cache block is not in an usable "
-        "state"),
-    ADD_STAT(accuracy, statistics::units::Count::get(),
-        "accuracy of the prefetcher"),
-    ADD_STAT(coverage, statistics::units::Count::get(),
-    "coverage brought by this prefetcher"),
-    ADD_STAT(pfHitInCache, statistics::units::Count::get(),
-        "number of prefetches hitting in cache"),
-    ADD_STAT(pfHitInMSHR, statistics::units::Count::get(),
-        "number of prefetches hitting in a MSHR"),
-    ADD_STAT(pfHitInWB, statistics::units::Count::get(),
-        "number of prefetches hit in the Write Buffer"),
-    ADD_STAT(pfInhibitedByBackpressure, statistics::units::Count::get(),
-        "number of prefetches inhibited by backpressure"),
-    ADD_STAT(pfLate, statistics::units::Count::get(),
-        "number of late prefetches (hitting in cache, MSHR or WB)")
+    : statistics::Group(parent),
+      ADD_STAT(demandMshrMisses, statistics::units::Count::get(),
+               "demands not covered by prefetchs"),
+      ADD_STAT(pfIssued, statistics::units::Count::get(),
+               "number of hwpf issued"),
+      ADD_STAT(pfUnused, statistics::units::Count::get(),
+               "number of HardPF blocks evicted w/o reference"),
+      ADD_STAT(pfUseful, statistics::units::Count::get(),
+               "number of useful prefetch"),
+      ADD_STAT(pfUsefulButMiss, statistics::units::Count::get(),
+               "number of hit on prefetch but cache block is not in an usable "
+               "state"),
+      ADD_STAT(accuracy, statistics::units::Count::get(),
+               "accuracy of the prefetcher"),
+      ADD_STAT(coverage, statistics::units::Count::get(),
+               "coverage brought by this prefetcher"),
+      ADD_STAT(pfHitInCache, statistics::units::Count::get(),
+               "number of prefetches hitting in cache"),
+      ADD_STAT(pfHitInMSHR, statistics::units::Count::get(),
+               "number of prefetches hitting in a MSHR"),
+      ADD_STAT(pfHitInWB, statistics::units::Count::get(),
+               "number of prefetches hit in the Write Buffer"),
+      ADD_STAT(pfInhibitedByBackpressure, statistics::units::Count::get(),
+               "number of prefetches inhibited by backpressure"),
+      ADD_STAT(pfLate, statistics::units::Count::get(),
+               "number of late prefetches (hitting in cache, MSHR or WB)")
 {
     using namespace statistics;
 

@@ -251,10 +251,18 @@ class Base : public SimObject
     virtual void setCache(BaseCache *_cache);
 
     /** Set backpressure status. */
-    virtual void setBackpressure(bool bp) { backpressured = bp; }
+    virtual void
+    setBackpressure(bool bp)
+    {
+        backpressured = bp;
+    }
 
     /** Get backpressure status. */
-    bool isBackpressured() const { return backpressured; }
+    bool
+    isBackpressured() const
+    {
+        return backpressured;
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

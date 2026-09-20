@@ -32,9 +32,21 @@ class TestBaseCompressor : public Zero
 
     TestBaseCompressor(const ZeroCompressorParams &p) : Zero(p) {}
 
-    uint64_t getSampledUncompressedBits() const { return sampledUncompressedBits; }
-    uint64_t getSampledCompressedBits() const { return sampledCompressedBits; }
-    uint64_t getTotalCompressionRequests() const { return totalCompressionRequests; }
+    uint64_t
+    getSampledUncompressedBits() const
+    {
+        return sampledUncompressedBits;
+    }
+    uint64_t
+    getSampledCompressedBits() const
+    {
+        return sampledCompressedBits;
+    }
+    uint64_t
+    getTotalCompressionRequests() const
+    {
+        return totalCompressionRequests;
+    }
 };
 
 class BaseCompressorTest : public ::testing::Test
@@ -43,7 +55,8 @@ class BaseCompressorTest : public ::testing::Test
     uint64_t zeroLine[8];
     uint64_t randomLine[8];
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         std::memset(zeroLine, 0, sizeof(zeroLine));
 
@@ -57,8 +70,9 @@ class BaseCompressorTest : public ::testing::Test
         randomLine[7] = 0x9F8E7D6C5B4A3928ULL;
     }
 
-    ZeroCompressorParams createParams(bool enableBypass, float threshold,
-                                     unsigned sampling, unsigned decayShift)
+    ZeroCompressorParams
+    createParams(bool enableBypass, float threshold, unsigned sampling,
+                 unsigned decayShift)
     {
         ZeroCompressorParams p;
         p.name = "test_base_compressor";
@@ -163,8 +177,8 @@ TEST_F(BaseCompressorTest, AdaptToCompressiblePhaseWithin20Samples)
 
     for (int i = 1; i <= 50; i++) {
         auto comp_data = comp.compress(zeroLine, comp_lat, decomp_lat);
-        // When compression is re-enabled, compressed size for zero block is 0 bits
-        // and comp_lat > 0
+        // When compression is re-enabled, compressed size for zero block is 0
+        // bits and comp_lat > 0
         if (comp_data->getSizeBits() == 0 && comp_lat > Cycles(0)) {
             re_enabled = true;
             samples_to_reenable = i;
@@ -177,7 +191,8 @@ TEST_F(BaseCompressorTest, AdaptToCompressiblePhaseWithin20Samples)
 }
 
 /**
- * Test that counter decay does NOT alter behavior when enableAdaptiveBypass is false.
+ * Test that counter decay does NOT alter behavior when enableAdaptiveBypass is
+ * false.
  */
 TEST_F(BaseCompressorTest, DisabledBypassNoDecay)
 {

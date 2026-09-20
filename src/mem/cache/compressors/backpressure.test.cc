@@ -42,13 +42,15 @@ class BackpressureCompressorTest : public ::testing::Test
 
     inline static Tick myTick = 0;
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         Gem5Internal::_curTickPtr = &myTick;
         std::memset(zeroLine, 0, sizeof(zeroLine));
     }
 
-    ZeroCompressorParams createParams()
+    ZeroCompressorParams
+    createParams()
     {
         ZeroCompressorParams p;
         p.name = "test_backpressure_compressor";
@@ -110,7 +112,8 @@ TEST_F(BackpressureCompressorTest, BypassCompressionOnBackpressure)
 
     // Under backpressure, compression must be bypassed
     auto comp_data_bp = comp.compress(zeroLine, comp_lat, decomp_lat);
-    EXPECT_EQ(comp_data_bp->getSizeBits(), 512ULL); // Full uncompressed block size in bits
+    EXPECT_EQ(comp_data_bp->getSizeBits(),
+              512ULL); // Full uncompressed block size in bits
     EXPECT_EQ(comp_lat, Cycles(0));
     EXPECT_EQ(decomp_lat, Cycles(0));
 
