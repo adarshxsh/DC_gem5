@@ -242,27 +242,29 @@ TEST_F(BaseCompressorTest, NumericalStabilityNearZero)
 
 static bool g_mockCacheSaturated = false;
 
-static bool mockIsMemoryQueueSaturated(const void* self)
+static bool
+mockIsMemoryQueueSaturated(const void *self)
 {
     return g_mockCacheSaturated;
 }
 
 struct MockCacheInstance
 {
-    void* vptr;
-    void* vtable[64];
+    void *vptr;
+    void *vtable[64];
 
     MockCacheInstance()
     {
         vptr = &vtable[0];
         for (int i = 0; i < 64; i++) {
-            vtable[i] = (void*)&mockIsMemoryQueueSaturated;
+            vtable[i] = (void *)&mockIsMemoryQueueSaturated;
         }
     }
 
-    BaseCache* getCachePtr()
+    BaseCache *
+    getCachePtr()
     {
-        return reinterpret_cast<BaseCache*>(this);
+        return reinterpret_cast<BaseCache *>(this);
     }
 };
 
@@ -281,7 +283,8 @@ TEST_F(BaseCompressorTest, MemoryQueuePressureBypass)
 
     Cycles comp_lat(10), decomp_lat(10);
 
-    // Case 1: Normal queue state (not saturated) -> Zero block compresses to 0 bits
+    // Case 1: Normal queue state (not saturated) -> Zero block compresses to 0
+    // bits
     g_mockCacheSaturated = false;
     auto comp_data = comp.compress(zeroLine, comp_lat, decomp_lat);
     EXPECT_EQ(comp_data->getSizeBits(), 0);

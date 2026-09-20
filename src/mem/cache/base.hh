@@ -697,17 +697,20 @@ class BaseCache : public ClockedObject
     virtual double
     getWriteBufferOccupancy() const
     {
-        if (writeBuffer.capacity() <= 0)
+        if (writeBuffer.capacity() <= 0) {
             return 0.0;
-        return (100.0 * writeBuffer.allocatedEntries()) / writeBuffer.capacity();
+        }
+        return (100.0 * writeBuffer.allocatedEntries()) /
+               writeBuffer.capacity();
     }
 
     /** Get MSHR queue occupancy percentage (0 - 100). */
     virtual double
     getMSHROccupancy() const
     {
-        if (mshrQueue.capacity() <= 0)
+        if (mshrQueue.capacity() <= 0) {
             return 0.0;
+        }
         return (100.0 * mshrQueue.allocatedEntries()) / mshrQueue.capacity();
     }
 
@@ -718,7 +721,8 @@ class BaseCache : public ClockedObject
         return std::max(getWriteBufferOccupancy(), getMSHROccupancy());
     }
 
-    /** Check whether memory queue depth exceeds defined pressure threshold or is saturated. */
+    /** Check whether memory queue depth exceeds defined pressure threshold or
+     * is saturated. */
     virtual bool
     isMemoryQueueSaturated() const
     {
@@ -727,7 +731,6 @@ class BaseCache : public ClockedObject
     }
 
   protected:
-
     /**
      * Writebacks from the tempBlock, resulting on the response path
      * in atomic mode, must happen after the call to recvAtomic has

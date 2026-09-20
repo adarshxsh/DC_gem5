@@ -174,9 +174,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
-    bool shouldBypass =
-        (enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold)) ||
-        memQueueSaturated;
+    bool shouldBypass = (enableAdaptiveBypass &&
+                         (observedRatio < latencyBreakevenThreshold)) ||
+                        memQueueSaturated;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -193,11 +193,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
                 "Memory queue pressure active (queue occupancy saturated). "
                 "Bypassing compression.\n");
         } else {
-            DPRINTF(
-                CacheComp,
-                "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-                "Bypassing compression.\n",
-                observedRatio, latencyBreakevenThreshold);
+            DPRINTF(CacheComp,
+                    "Adaptive bypass active (observed ratio: %.4f < "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    observedRatio, latencyBreakevenThreshold);
         }
         return comp_data;
     }
@@ -253,8 +253,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.bypassedCompressions++;
         if (memQueueSaturated) {
             stats.pressureBypassedCompressions++;
-            DPRINTF(CacheComp, "Memory queue pressure active (sampled request). "
-                               "Bypassing compression.\n");
+            DPRINTF(CacheComp,
+                    "Memory queue pressure active (sampled request). "
+                    "Bypassing compression.\n");
         } else {
             DPRINTF(CacheComp, "Adaptive bypass active (sampled request). "
                                "Bypassing compression.\n");
@@ -350,7 +351,8 @@ Base::BaseStats::BaseStats(Base &_compressor)
       ADD_STAT(bypassedCompressions, statistics::units::Count::get(),
                "Total number of bypassed compressions"),
       ADD_STAT(pressureBypassedCompressions, statistics::units::Count::get(),
-               "Total number of compressions bypassed due to memory queue pressure"),
+               "Total number of compressions bypassed due to memory queue "
+               "pressure"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),
