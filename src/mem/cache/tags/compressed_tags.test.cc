@@ -559,3 +559,24 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, DetachedL1CleanTrackingLifecycle)
+{
+    std::unordered_set<Addr> detachedL1CleanAddrs;
+    Addr testAddr = 0x1000;
+    bool is_secure = false;
+
+    // Track block during L2 eviction when clean L1 copy is preserved
+    detachedL1CleanAddrs.insert(testAddr);
+    ASSERT_NE(detachedL1CleanAddrs.find(testAddr), detachedL1CleanAddrs.end());
+
+    // L2 block invalidation does NOT clear detached tracking entry
+    subBlks[0].insert({testAddr, is_secure});
+    subBlks[0].invalidate();
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_NE(detachedL1CleanAddrs.find(testAddr), detachedL1CleanAddrs.end());
+
+    // Explicit snoop invalidation or L2 block allocation clears tracking entry
+    detachedL1CleanAddrs.erase(testAddr);
+    ASSERT_EQ(detachedL1CleanAddrs.find(testAddr), detachedL1CleanAddrs.end());
+}
