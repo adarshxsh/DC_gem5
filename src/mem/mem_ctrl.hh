@@ -519,6 +519,35 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minReadsPerSwitch;
 
     /**
+     * Dynamic arbitration configuration parameters and state tracking
+     */
+    const bool enableDynamicArbitration;
+    const double adaptiveThresholdAlpha;
+    const double adaptiveThresholdBeta;
+
+    mutable double writeQueueFillVelocity;
+    mutable Tick lastQueueStatsUpdateTick;
+    mutable uint32_t lastWriteQueueSize;
+
+    /**
+     * Update queue pressure statistics (including write queue fill velocity
+     * dQ_write/dt)
+     */
+    virtual void updateQueuePressureStats();
+
+    /**
+     * Compute dynamic write high/low thresholds and adaptive switch limits
+     * based on queue pressure gradient and write queue fill rate.
+     *
+     * @param dyn_high Output dynamic high write threshold
+     * @param dyn_low Output dynamic low write threshold
+     * @param dyn_min_writes Output adaptive minimum writes per switch
+     */
+    virtual void getDynamicWriteThresholds(uint32_t &dyn_high,
+                                           uint32_t &dyn_low,
+                                           uint32_t &dyn_min_writes) const;
+
+    /**
      * Memory controller configuration initialized based on parameter
      * values.
      */
