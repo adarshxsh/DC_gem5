@@ -185,6 +185,64 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
     return  wrsize_new > writeBufferSize;
 }
 
+float
+MemCtrl::getReadQueuePressure() const
+{
+    if (readBufferSize == 0) {
+        return 0.0f;
+    }
+    return (float)(totalReadQueueSize + respQueue.size()) /
+           (float)readBufferSize;
+}
+
+float
+MemCtrl::getWriteQueuePressure() const
+{
+    if (writeBufferSize == 0) {
+        return 0.0f;
+    }
+    return (float)totalWriteQueueSize / (float)writeBufferSize;
+}
+
+float
+MemCtrl::getQueuePressure() const
+{
+    return std::max(getReadQueuePressure(), getWriteQueuePressure());
+}
+
+uint32_t
+MemCtrl::getDynamicWriteHighThreshold() const
+{
+    if (writeBufferSize == 0) {
+        return writeHighThreshold;
+    }
+    float p_rd = getReadQueuePressure();
+    float p_wr = getWriteQueuePressure();
+    float p_grad = p_rd - p_wr;
+    float thresh =
+        (float)writeHighThreshold + (float)writeBufferSize * 0.25f * p_grad;
+    float min_thresh = (float)writeLowThreshold + 1.0f;
+    float max_thresh = (float)writeBufferSize;
+    return (uint32_t)std::clamp(thresh, min_thresh, max_thresh);
+}
+
+uint32_t
+MemCtrl::getDynamicWriteLowThreshold() const
+{
+    if (writeBufferSize == 0) {
+        return writeLowThreshold;
+    }
+    float p_rd = getReadQueuePressure();
+    float p_wr = getWriteQueuePressure();
+    float p_grad = p_rd - p_wr;
+    float high_t = (float)getDynamicWriteHighThreshold();
+    float thresh =
+        (float)writeLowThreshold + (float)writeBufferSize * 0.25f * p_grad;
+    float min_thresh = 1.0f;
+    float max_thresh = std::max(1.0f, high_t - 1.0f);
+    return (uint32_t)std::clamp(thresh, min_thresh, max_thresh);
+}
+
 bool
 MemCtrl::addToReadQueue(PacketPtr pkt,
                 unsigned int pkt_count, MemInterface* mem_intr)
@@ -635,6 +693,7 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
     if (needsResponse) {
         // access already turned the packet into a response
         assert(pkt->isResponse());
+        pkt->setMemPressure(getQueuePressure());
         // response_time consumes the static latency and is charged also
         // with headerDelay that takes into account the delay provided by
         // the xbar and also the payloadDelay that takes into account the
@@ -940,9 +999,10 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // In the case there is no read request to go next,
             // trigger writes if we have passed the low threshold (or
             // if we are draining)
+            uint32_t dynLowThresh = getDynamicWriteLowThreshold();
             if (!(mem_intr->writeQueueSize == 0) &&
                 (drainState() == DrainState::Draining ||
-                 mem_intr->writeQueueSize > writeLowThreshold)) {
+                 mem_intr->writeQueueSize > dynLowThresh)) {
 
                 DPRINTF(MemCtrl,
                         "Switching to writes due to read queue empty\n");
@@ -1036,10 +1096,13 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // there are no other writes that can issue
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+            uint32_t dynHighThresh = getDynamicWriteHighThreshold();
+            if ((mem_intr->writeQueueSize > dynHighThresh ||
+                 (getWriteQueuePressure() > 0.85f &&
+                  getWriteQueuePressure() > getReadQueuePressure())) &&
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 
@@ -1120,12 +1183,17 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // writes, then switch to reads.
         // If we are interfacing to NVM and have filled the writeRespQueue,
         // with only NVM writes in Q, then switch to reads
+        uint32_t dynLowThresh = getDynamicWriteLowThreshold();
         bool below_threshold =
-            mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
+            mem_intr->writeQueueSize + minWritesPerSwitch < dynLowThresh;
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
+            (mem_intr->readQueueSize &&
+             mem_intr->writesThisTime >= minWritesPerSwitch) ||
+            (mem_intr->readQueueSize &&
+             (getReadQueuePressure() > getWriteQueuePressure() &&
+              mem_intr->writesThisTime >= minWritesPerSwitch)) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again

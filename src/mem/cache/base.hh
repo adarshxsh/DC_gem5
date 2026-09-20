@@ -377,6 +377,24 @@ class BaseCache : public ClockedObject
     /** Prefetcher */
     prefetch::Base *prefetcher;
 
+    /** Downstream memory pressure tracking and thresholds */
+    float downstreamMemPressure;
+    const float pfPressureThreshold;
+    const float compPressureThreshold;
+
+  public:
+    float
+    getDownstreamMemPressure() const
+    {
+        return downstreamMemPressure;
+    }
+    bool
+    isUnderMemoryPressure() const
+    {
+        return downstreamMemPressure >= pfPressureThreshold;
+    }
+
+  protected:
     /** To probe when a cache hit occurs */
     ProbePointArg<CacheAccessProbeArg> *ppHit;
 
