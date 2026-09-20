@@ -371,6 +371,12 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** Whether adaptive decompression throttling is enabled. */
+    const bool enableAdaptiveDecompressionThrottling;
+
+    /** Decompression throttle threshold in percentage. */
+    const int decompressionThrottleThreshold;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -1210,6 +1216,32 @@ class BaseCache : public ClockedObject
     }
 
     void allocateWriteBuffer(PacketPtr pkt, Tick time);
+
+    /**
+     * Get the current max memory queue occupancy ratio (MSHR and write buffer).
+     * @return Max occupancy ratio [0.0, 1.0].
+     */
+    double getQueueOccupancy() const
+    {
+        double mshr_occ = mshrQueue.getOccupancyRatio();
+        double wb_occ = writeBuffer.getOccupancyRatio();
+        return std::max(mshr_occ, wb_occ);
+    }
+
+    /**
+     * Check if memory queues/MSHRs are congested above throttling threshold.
+     * @return True if queue pressure exceeds threshold or queues are saturated.
+     */
+    bool isQueueCongested() const
+    {
+        if (!enableAdaptiveDecompressionThrottling) {
+            return false;
+        }
+        if (mshrQueue.isFull() || writeBuffer.isFull()) {
+            return true;
+        }
+        return (getQueueOccupancy() * 100.0) >= decompressionThrottleThreshold;
+    }
 
     /**
      * Returns true if the cache is blocked for accesses.

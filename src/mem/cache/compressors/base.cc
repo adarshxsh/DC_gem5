@@ -91,6 +91,9 @@ Base::Base(const Params &p)
       decompChunksPerCycle(p.decomp_chunks_per_cycle),
       decompExtraLatency(p.decomp_extra_latency),
       enableAdaptiveBypass(p.enable_adaptive_bypass),
+      enableAdaptiveDecompressionThrottling(
+          p.enable_adaptive_decompression_throttling),
+      decompressionThrottleThreshold(p.decompression_throttle_threshold),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
@@ -269,6 +272,22 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     if (comp_blk && comp_blk->isCompressed() &&
         (comp_blk->getSizeBits() < blkSize * CHAR_BIT)) {
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
+
+        // Check for adaptive queue-aware decompression throttling
+        if (enableAdaptiveDecompressionThrottling ||
+            (cache && cache->isQueueCongested())) {
+            double queue_occ = cache ? (cache->getQueueOccupancy() * 100.0) : 0.0;
+            if ((cache && cache->isQueueCongested()) ||
+                (queue_occ >= decompressionThrottleThreshold)) {
+                DPRINTF(CacheComp,
+                        "Queue congestion detected (occupancy >= %d%%). "
+                        "Throttling decompression latency from %llu to 0 cycles.\n",
+                        decompressionThrottleThreshold, decomp_lat);
+                stats.bypassedDecompressions += 1;
+                return Cycles(0);
+            }
+        }
+
         DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
                 comp_blk->print(), decomp_lat);
         stats.decompressions += 1;

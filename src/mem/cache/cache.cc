@@ -741,6 +741,11 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
+            // Evaluate queue congestion state for CPU read responses
+            bool queue_congested = isQueueCongested();
+            uint32_t effective_payload_delay = queue_congested ? 0 :
+                                              pkt->payloadDelay;
+
             // Software prefetch handling for cache closest to core
             if (tgt_pkt->cmd.isSWPrefetch()) {
                 if (tgt_pkt->needsWritable()) {
@@ -812,7 +817,7 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // from lower level caches/memory to an upper level cache or
                 // the core.
                 completion_time += clockEdge(responseLatency) +
-                    (transfer_offset ? pkt->payloadDelay : 0);
+                    (transfer_offset ? effective_payload_delay : 0);
 
                 assert(!tgt_pkt->req->isUncacheable());
 
@@ -867,7 +872,7 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // responseLatency is the latency of the return path
                 // from lower level caches/memory to the core.
                 completion_time += clockEdge(responseLatency) +
-                    pkt->payloadDelay;
+                    effective_payload_delay;
                 if (!is_error) {
                     if (pkt->isRead()) {
                         // sanity check
