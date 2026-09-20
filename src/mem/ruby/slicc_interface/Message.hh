@@ -41,6 +41,7 @@
 #ifndef __MEM_RUBY_SLICC_INTERFACE_MESSAGE_HH__
 #define __MEM_RUBY_SLICC_INTERFACE_MESSAGE_HH__
 
+#include <cassert>
 #include <iostream>
 #include <memory>
 #include <stack>
@@ -66,20 +67,39 @@ class Message
         : m_block_size(block_size),
           m_time(curTime),
           m_LastEnqueueTime(curTime),
-          m_DelayedTicks(0), m_msg_counter(0)
-    { }
+          m_DelayedTicks(0),
+          m_msg_counter(0)
+    {}
 
     Message(const Message &other) = default;
 
-    virtual ~Message() { }
+    virtual ~Message() {}
 
     virtual MsgPtr clone() const = 0;
-    virtual void print(std::ostream& out) const = 0;
+    virtual void print(std::ostream &out) const = 0;
 
-    virtual const MessageSizeType& getMessageSize() const
-    { panic("MessageSizeType() called on wrong message!"); }
-    virtual MessageSizeType& getMessageSize()
-    { panic("MessageSizeType() called on wrong message!"); }
+    virtual const MessageSizeType &
+    getMessageSize() const
+    {
+        panic("MessageSizeType() called on wrong message!");
+    }
+    virtual MessageSizeType &
+    getMessageSize()
+    {
+        panic("MessageSizeType() called on wrong message!");
+    }
+
+    virtual int
+    getPayloadSize() const
+    {
+        return m_payload_size;
+    }
+    virtual void
+    setPayloadSize(int size)
+    {
+        assert(size >= 0);
+        m_payload_size = size;
+    }
 
     /**
      * The two functions below are used for reading / writing the message
@@ -88,47 +108,104 @@ class Message
      * class that can be potentially searched for the address needs to
      * implement these methods.
      */
-    virtual bool functionalRead(Packet *pkt)
-    { panic("functionalRead(Packet) not implemented"); }
-    virtual bool functionalRead(Packet *pkt, WriteMask &mask)
-    { panic("functionalRead(Packet,WriteMask) not implemented"); }
-    virtual bool functionalWrite(Packet *pkt)
-    { panic("functionalWrite(Packet) not implemented"); }
+    virtual bool
+    functionalRead(Packet *pkt)
+    {
+        panic("functionalRead(Packet) not implemented");
+    }
+    virtual bool
+    functionalRead(Packet *pkt, WriteMask &mask)
+    {
+        panic("functionalRead(Packet,WriteMask) not implemented");
+    }
+    virtual bool
+    functionalWrite(Packet *pkt)
+    {
+        panic("functionalWrite(Packet) not implemented");
+    }
 
     //! Update the delay this message has experienced so far.
-    void updateDelayedTicks(Tick curTime)
+    void
+    updateDelayedTicks(Tick curTime)
     {
         assert(m_LastEnqueueTime <= curTime);
         Tick delta = curTime - m_LastEnqueueTime;
         m_DelayedTicks += delta;
     }
-    Tick getDelayedTicks() const {return m_DelayedTicks;}
+    Tick
+    getDelayedTicks() const
+    {
+        return m_DelayedTicks;
+    }
 
-    void setLastEnqueueTime(const Tick& time) { m_LastEnqueueTime = time; }
-    Tick getLastEnqueueTime() const {return m_LastEnqueueTime;}
+    void
+    setLastEnqueueTime(const Tick &time)
+    {
+        m_LastEnqueueTime = time;
+    }
+    Tick
+    getLastEnqueueTime() const
+    {
+        return m_LastEnqueueTime;
+    }
 
-    Tick getTime() const { return m_time; }
-    void setMsgCounter(uint64_t c) { m_msg_counter = c; }
-    uint64_t getMsgCounter() const { return m_msg_counter; }
+    Tick
+    getTime() const
+    {
+        return m_time;
+    }
+    void
+    setMsgCounter(uint64_t c)
+    {
+        m_msg_counter = c;
+    }
+    uint64_t
+    getMsgCounter() const
+    {
+        return m_msg_counter;
+    }
 
     // Functions related to network traversal
-    virtual const NetDest& getDestination() const
-    { panic("getDestination() called on wrong message!"); }
-    virtual NetDest& getDestination()
-    { panic("getDestination() called on wrong message!"); }
+    virtual const NetDest &
+    getDestination() const
+    {
+        panic("getDestination() called on wrong message!");
+    }
+    virtual NetDest &
+    getDestination()
+    {
+        panic("getDestination() called on wrong message!");
+    }
 
-    int getIncomingLink() const { return incoming_link; }
-    void setIncomingLink(int link) { incoming_link = link; }
-    int getVnet() const { return vnet; }
-    void setVnet(int net) { vnet = net; }
+    int
+    getIncomingLink() const
+    {
+        return incoming_link;
+    }
+    void
+    setIncomingLink(int link)
+    {
+        incoming_link = link;
+    }
+    int
+    getVnet() const
+    {
+        return vnet;
+    }
+    void
+    setVnet(int net)
+    {
+        vnet = net;
+    }
 
   protected:
     int m_block_size = 0;
+    int m_payload_size = 0;
 
   private:
     Tick m_time;
     Tick m_LastEnqueueTime; // my last enqueue time
-    Tick m_DelayedTicks; // my delayed cycles
+    Tick m_DelayedTicks;    // my delayed cycles
     uint64_t m_msg_counter; // FIXME, should this be a 64-bit value?
 
     // Variables for required network traversal
@@ -148,8 +225,8 @@ operator>(const MsgPtr &lhs, const MsgPtr &rhs)
     return l->getLastEnqueueTime() > r->getLastEnqueueTime();
 }
 
-inline std::ostream&
-operator<<(std::ostream& out, const Message& obj)
+inline std::ostream &
+operator<<(std::ostream &out, const Message &obj)
 {
     obj.print(out);
     out << std::flush;
