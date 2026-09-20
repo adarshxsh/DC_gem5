@@ -33,8 +33,27 @@
 #include <memory>
 #include <vector>
 
+#include "mem/cache/base.hh"
+#include "mem/cache/mshr.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/cache/write_queue_entry.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
+
+namespace gem5
+{
+bool
+BaseCache::sendWriteQueuePacket(WriteQueueEntry *wq_entry)
+{
+    return false;
+}
+bool
+BaseCache::sendMSHRQueuePacket(MSHR *mshr)
+{
+    return false;
+}
+} // namespace gem5
 
 using namespace gem5;
 
@@ -558,4 +577,51 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, SubBlockDirtyMaskTracking)
+{
+    // Create Request and Packet for a store to sub-block 2 (offset 16, size 8)
+    RequestPtr req = std::make_shared<Request>(0x1010, 8, 0, 0);
+    PacketPtr pkt = new Packet(req, MemCmd::WriteReq);
+    pkt->allocate();
+
+    // Test MSHR::TargetList updateWriteFlags with store request
+    MSHR::TargetList targetList("test_mshr_targets");
+    targetList.init(0x1000, 64, 8);
+    targetList.updateWriteFlags(pkt);
+
+    const auto &mshrMask = targetList.getSubBlockDirtyMask();
+    ASSERT_EQ(mshrMask.size(), 8);
+    for (unsigned i = 0; i < 8; ++i) {
+        if (i == 2) {
+            EXPECT_TRUE(mshrMask[i]);
+            EXPECT_TRUE(targetList.isSubBlockDirty(i));
+        } else {
+            EXPECT_FALSE(mshrMask[i]);
+            EXPECT_FALSE(targetList.isSubBlockDirty(i));
+        }
+    }
+    EXPECT_EQ(targetList.getNumDirtySubBlocks(), 1);
+
+    // Test WriteQueueEntry allocation with WritebackDirty packet
+    PacketPtr wbPkt = new Packet(req, MemCmd::WritebackDirty);
+    wbPkt->allocate();
+
+    WriteQueueEntry wqEntry("test_wq_entry");
+    wqEntry.allocate(0x1000, 64, wbPkt, mockTick, 1);
+
+    const auto &wqMask = wqEntry.getSubBlockDirtyMask();
+    ASSERT_EQ(wqMask.size(), 8);
+    // WritebackDirty is full-line dirty
+    EXPECT_EQ(wqEntry.getNumDirtySubBlocks(), 8);
+
+    // Test WriteQueueEntry matchBlockAddr with matching sub-block vs clean
+    // sub-block
+    EXPECT_TRUE(wqEntry.matchBlockAddr(pkt));
+
+    delete pkt;
+    delete wbPkt;
+    wqEntry.popTarget();
+    wqEntry.deallocate();
 }

@@ -148,6 +148,19 @@ MSHR::TargetList::updateWriteFlags(PacketPtr pkt)
             auto offset = pkt->getOffset(blkSize);
             auto begin = writesBitmap.begin() + offset;
             std::fill(begin, begin + pkt->getSize(), true);
+
+            if (!subBlockDirtyMask.empty()) {
+                unsigned sub_blk_size = blkSize / subBlockDirtyMask.size();
+                if (sub_blk_size > 0) {
+                    unsigned start_sub = offset / sub_blk_size;
+                    unsigned end_sub =
+                        (offset + pkt->getSize() - 1) / sub_blk_size;
+                    for (unsigned i = start_sub;
+                         i <= end_sub && i < subBlockDirtyMask.size(); ++i) {
+                        subBlockDirtyMask[i] = true;
+                    }
+                }
+            }
         }
 
         // We won't allow further merging if this has been a

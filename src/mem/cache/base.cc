@@ -241,7 +241,33 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
     // that payload delay here, meaning that the data is always stored
     // uncompressed in the writebuffer
     if (compressor) {
-        time += pkt->payloadDelay;
+        unsigned num_sub_blks = 8;
+        unsigned sub_blk_size = blkSize / num_sub_blks;
+        if (sub_blk_size == 0) {
+            sub_blk_size = 8;
+        }
+
+        unsigned dirty_sub_blks = 0;
+        if (pkt->cmd == MemCmd::CleanEvict) {
+            dirty_sub_blks = 0;
+        } else if (pkt->getSize() >= blkSize ||
+                   pkt->cmd == MemCmd::WritebackDirty) {
+            dirty_sub_blks = num_sub_blks;
+        } else {
+            auto offset = pkt->getOffset(blkSize);
+            auto size = pkt->getSize();
+            unsigned start_sub = offset / sub_blk_size;
+            unsigned end_sub = (offset + size - 1) / sub_blk_size;
+            dirty_sub_blks =
+                (end_sub >= start_sub) ? (end_sub - start_sub + 1) : 1;
+            if (dirty_sub_blks > num_sub_blks) {
+                dirty_sub_blks = num_sub_blks;
+            }
+        }
+
+        uint64_t adjusted_payload_delay =
+            (pkt->payloadDelay * dirty_sub_blks) / num_sub_blks;
+        time += adjusted_payload_delay;
         pkt->payloadDelay = 0;
     }
 

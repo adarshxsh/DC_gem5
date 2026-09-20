@@ -111,12 +111,34 @@ class WriteQueueEntry : public QueueEntry, public Printable
     /** List of all requests that match the address */
     TargetList targets;
 
+    /** Track sub-block dirty status for this entry. */
+    std::vector<bool> subBlockDirtyMask;
+
   public:
 
     /** A simple constructor. */
     WriteQueueEntry(const std::string &name)
         :   QueueEntry(name)
     {}
+
+    const std::vector<bool> &
+    getSubBlockDirtyMask() const
+    {
+        return subBlockDirtyMask;
+    }
+
+    bool
+    isSubBlockDirty(unsigned idx) const
+    {
+        return idx < subBlockDirtyMask.size() && subBlockDirtyMask[idx];
+    }
+
+    unsigned
+    getNumDirtySubBlocks() const
+    {
+        return std::count(subBlockDirtyMask.begin(), subBlockDirtyMask.end(),
+                          true);
+    }
 
     /**
      * Allocate a miss to this entry.
