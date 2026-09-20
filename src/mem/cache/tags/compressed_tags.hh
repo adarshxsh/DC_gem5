@@ -89,7 +89,7 @@ class CompressedTags : public SectorTags
 
   public:
     /** Convenience typedef. */
-     typedef CompressedTagsParams Params;
+    typedef CompressedTagsParams Params;
 
     /**
      * Construct and initialize this tag store.
@@ -99,7 +99,7 @@ class CompressedTags : public SectorTags
     /**
      * Destructor.
      */
-    virtual ~CompressedTags() {};
+    virtual ~CompressedTags(){};
 
     /**
      * Initialize blocks as SuperBlk and CompressionBlk instances.
@@ -123,6 +123,12 @@ class CompressedTags : public SectorTags
                          std::vector<CacheBlk *> &evict_blks,
                          const uint64_t partition_id = 0,
                          bool is_prefetch = false) override;
+
+    CacheBlk *findRelocationVictim(const CacheBlk::KeyType &key,
+                                   const std::size_t compressed_size,
+                                   const CacheBlk *src_blk,
+                                   std::vector<CacheBlk *> &evict_blks,
+                                   const uint64_t partition_id = 0) override;
 
     /**
      * Find if any of the sub-blocks satisfies a condition.
