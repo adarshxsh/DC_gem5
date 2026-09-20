@@ -164,7 +164,7 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
     // test if the crossbar should be considered occupied for the current
     // port, and exclude express snoops from the check
     if (!is_express_snoop &&
-        !reqLayers[mem_side_port_id]->tryTiming(src_port)) {
+        !reqLayers[mem_side_port_id]->tryTiming(src_port, pkt)) {
         DPRINTF(CoherentXBar, "%s: src %s packet %s BUSY\n", __func__,
                 src_port->name(), pkt->print());
         return false;
@@ -187,8 +187,10 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
     // set the packet header and payload delay
     calcPacketTiming(pkt, xbar_delay);
 
-    // determine how long to be crossbar layer is busy
-    Tick packetFinishTime = clockEdge(headerLatency) + pkt->payloadDelay;
+    // determine how long the crossbar layer is busy based strictly on
+    // physical payload transmission latency (excluding decompression delay)
+    Tick packetFinishTime =
+        clockEdge(headerLatency) + calcPayloadTransmissionDelay(pkt);
 
     // is this the destination point for this packet? (e.g. true if
     // this xbar is the PoC for a cache maintenance operation to the
@@ -458,7 +460,7 @@ CoherentXBar::recvTimingResp(PacketPtr pkt, PortID mem_side_port_id)
 
     // test if the crossbar should be considered occupied for the
     // current port
-    if (!respLayers[cpu_side_port_id]->tryTiming(src_port)) {
+    if (!respLayers[cpu_side_port_id]->tryTiming(src_port, pkt)) {
         DPRINTF(CoherentXBar, "%s: src %s packet %s BUSY\n", __func__,
                 src_port->name(), pkt->print());
         return false;
@@ -478,8 +480,10 @@ CoherentXBar::recvTimingResp(PacketPtr pkt, PortID mem_side_port_id)
     // set the packet header and payload delay
     calcPacketTiming(pkt, xbar_delay);
 
-    // determine how long to be crossbar layer is busy
-    Tick packetFinishTime = clockEdge(headerLatency) + pkt->payloadDelay;
+    // determine how long the crossbar layer is busy based strictly on
+    // physical payload transmission latency (excluding decompression delay)
+    Tick packetFinishTime =
+        clockEdge(headerLatency) + calcPayloadTransmissionDelay(pkt);
 
     if (snoopFilter && !system->bypassCaches()) {
         // let the snoop filter inspect the response and update its state
@@ -591,7 +595,7 @@ CoherentXBar::recvTimingSnoopResp(PacketPtr pkt, PortID cpu_side_port_id)
     // the response layer rather than the snoop response layer
     if (forwardAsSnoop) {
         assert(dest_port_id < snoopLayers.size());
-        if (!snoopLayers[dest_port_id]->tryTiming(src_port)) {
+        if (!snoopLayers[dest_port_id]->tryTiming(src_port, pkt)) {
             DPRINTF(CoherentXBar, "%s: src %s packet %s BUSY\n", __func__,
                     src_port->name(), pkt->print());
             return false;
@@ -600,7 +604,7 @@ CoherentXBar::recvTimingSnoopResp(PacketPtr pkt, PortID cpu_side_port_id)
         // get the memory-side port that mirrors this CPU-side port internally
         RequestPort* snoop_port = snoopRespPorts[cpu_side_port_id];
         assert(dest_port_id < respLayers.size());
-        if (!respLayers[dest_port_id]->tryTiming(snoop_port)) {
+        if (!respLayers[dest_port_id]->tryTiming(snoop_port, pkt)) {
             DPRINTF(CoherentXBar, "%s: src %s packet %s BUSY\n", __func__,
                     snoop_port->name(), pkt->print());
             return false;
@@ -627,8 +631,10 @@ CoherentXBar::recvTimingSnoopResp(PacketPtr pkt, PortID cpu_side_port_id)
     // set the packet header and payload delay
     calcPacketTiming(pkt, xbar_delay);
 
-    // determine how long to be crossbar layer is busy
-    Tick packetFinishTime = clockEdge(headerLatency) + pkt->payloadDelay;
+    // determine how long the crossbar layer is busy based strictly on
+    // physical payload transmission latency (excluding decompression delay)
+    Tick packetFinishTime =
+        clockEdge(headerLatency) + calcPayloadTransmissionDelay(pkt);
 
     // forward it either as a snoop response or a normal response
     if (forwardAsSnoop) {

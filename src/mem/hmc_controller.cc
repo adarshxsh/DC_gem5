@@ -51,7 +51,7 @@ bool HMCController::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
 
     // test if the layer should be considered occupied for the current
     // port
-    if (!reqLayers[mem_side_port_id]->tryTiming(src_port)) {
+    if (!reqLayers[mem_side_port_id]->tryTiming(src_port, pkt)) {
         DPRINTF(HMCController, "recvTimingReq: src %s %s 0x%x BUSY\n",
                 src_port->name(), pkt->cmdString(), pkt->getAddr());
         return false;
@@ -75,7 +75,8 @@ bool HMCController::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
     calcPacketTiming(pkt, xbar_delay);
 
     // determine how long to be layer is busy
-    Tick packetFinishTime = clockEdge(Cycles(1)) + pkt->payloadDelay;
+    Tick packetFinishTime =
+        clockEdge(Cycles(1)) + calcPayloadTransmissionDelay(pkt);
 
     // before forwarding the packet (and possibly altering it),
     // remember if we are expecting a response

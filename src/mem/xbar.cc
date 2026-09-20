@@ -104,6 +104,14 @@ BaseXBar::getPort(const std::string &if_name, PortID idx)
     }
 }
 
+Tick
+BaseXBar::calcPayloadTransmissionDelay(PacketPtr pkt) const
+{
+    return (pkt && pkt->hasData())
+               ? (divCeil(pkt->getSize(), width) * clockPeriod())
+               : 0;
+}
+
 void
 BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
 {
@@ -183,7 +191,7 @@ void BaseXBar::Layer<SrcType, DstType>::occupyLayer(Tick until)
 
 template <typename SrcType, typename DstType>
 bool
-BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
+BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType *src_port, PacketPtr pkt)
 {
     // if we are in the retry state, we will not see anything but the
     // retrying port (or in the case of the snoop ports the snoop
@@ -196,14 +204,30 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
     // for a retry from the peer
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
-        assert(std::find(waitingForLayer.begin(), waitingForLayer.end(),
-                         src_port) == waitingForLayer.end());
+        assert(std::find_if(waitingForLayer.begin(), waitingForLayer.end(),
+                            [src_port](const WaitingPort &wp) {
+                                return wp.port == src_port;
+                            }) == waitingForLayer.end());
 
-        // put the port at the end of the retry list waiting for the
-        // layer to be freed up (and in the case of a busy peer, for
-        // that transaction to go through, and then the layer to free
-        // up)
-        waitingForLayer.push_back(src_port);
+        // Determine if the incoming request is high priority (demand read)
+        bool high_pri =
+            pkt ? (pkt->isRead() || (pkt->isDemand() && !pkt->isWriteback() &&
+                                     !pkt->isEviction()))
+                : false;
+
+        if (high_pri) {
+            // High-priority demand read requests jump queued writeback
+            // requests. Insert before the first low-priority entry in
+            // waitingForLayer
+            auto it = std::find_if(
+                waitingForLayer.begin(), waitingForLayer.end(),
+                [](const WaitingPort &wp) { return !wp.highPriority; });
+            waitingForLayer.emplace(it, src_port, true);
+        } else {
+            // Low-priority writebacks/evictions or unspecified requests go to
+            // the back
+            waitingForLayer.emplace_back(src_port, false);
+        }
         return false;
     }
 
@@ -285,7 +309,7 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
 
     // set the retrying port to the front of the retry list and pop it
     // off the list
-    SrcType* retryingPort = waitingForLayer.front();
+    SrcType *retryingPort = waitingForLayer.front().port;
     waitingForLayer.pop_front();
 
     // tell the port to retry, which in some cases ends up calling the
@@ -314,9 +338,9 @@ BaseXBar::Layer<SrcType, DstType>::recvRetry()
     assert(waitingForPeer != NULL);
 
     // add the port where the failed packet originated to the front of
-    // the waiting ports for the layer, this allows us to call retry
-    // on the port immediately if the crossbar layer is idle
-    waitingForLayer.push_front(waitingForPeer);
+    // the waiting ports for the layer as high priority, this allows us
+    // to call retry on the port immediately if the crossbar layer is idle
+    waitingForLayer.emplace_front(waitingForPeer, true);
 
     // we are no longer waiting for the peer
     waitingForPeer = NULL;
