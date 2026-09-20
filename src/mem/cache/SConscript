@@ -79,6 +79,8 @@ GTest(
     "#src/sim/bufval.cc",
     "#src/cpu/reg_class.cc",
     "#src/base/bitfield.cc",
+    "#src/base/logging.cc",
+    "#src/base/hostinfo.cc",
     Dir("#src").File("base/types.cc"),
     with_tag("gem5 simobject"),
 )
