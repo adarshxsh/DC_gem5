@@ -260,7 +260,11 @@ class MemCtrl : public qos::MemCtrl
         MemoryPort(const std::string& name, MemCtrl& _ctrl);
         void disableSanityCheck();
 
-        float getQueuePressure() const override { return ctrl.getQueuePressure(); }
+        float
+        getQueuePressure() const override
+        {
+            return ctrl.getQueuePressure();
+        }
 
       protected:
 

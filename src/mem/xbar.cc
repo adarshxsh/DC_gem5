@@ -65,8 +65,10 @@ BaseXBar::BaseXBar(const BaseXBarParams &p)
       headerLatency(p.header_latency),
       width(p.width),
       gotAddrRanges(p.port_default_connection_count +
-                          p.port_mem_side_ports_connection_count, false),
-      gotAllAddrRanges(false), defaultPortID(InvalidPortID),
+                        p.port_mem_side_ports_connection_count,
+                    false),
+      gotAllAddrRanges(false),
+      defaultPortID(InvalidPortID),
       useDefaultRange(p.use_default_range),
       enableQueuePressureScheduling(p.enable_queue_pressure_scheduling),
       queuePressureThreshold(p.queue_pressure_threshold / 100.0f),
@@ -285,14 +287,16 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     // update the state
     state = RETRY;
 
-    SrcType* retryingPort = nullptr;
+    SrcType *retryingPort = nullptr;
 
     if (xbar.enableQueuePressureScheduling && waitingForLayer.size() > 1) {
-        // Arbitrate among waiting CPU-side ports, prioritizing ports targeting lower queue pressure
+        // Arbitrate among waiting CPU-side ports, prioritizing ports targeting
+        // lower queue pressure
         auto best_it = waitingForLayer.begin();
         float min_pressure = getPortQueuePressure(*best_it);
 
-        for (auto it = std::next(waitingForLayer.begin()); it != waitingForLayer.end(); ++it) {
+        for (auto it = std::next(waitingForLayer.begin());
+             it != waitingForLayer.end(); ++it) {
             float p = getPortQueuePressure(*it);
             if (p < min_pressure) {
                 min_pressure = p;
@@ -327,16 +331,22 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
 bool
 BaseXBar::isDeferrable(PacketPtr pkt) const
 {
-    if (!pkt)
+    if (!pkt) {
         return false;
-    if (pkt->isExpressSnoop() || pkt->isResponse())
+    }
+    if (pkt->isExpressSnoop() || pkt->isResponse()) {
         return false;
-    if (pkt->isLLSC() || pkt->isAtomicOp())
+    }
+    if (pkt->isLLSC() || pkt->isAtomicOp()) {
         return false;
-    if (pkt->req && (pkt->req->isUncacheable() || pkt->req->isStrictlyOrdered()))
+    }
+    if (pkt->req &&
+        (pkt->req->isUncacheable() || pkt->req->isStrictlyOrdered())) {
         return false;
-    if (pkt->cacheResponding())
+    }
+    if (pkt->cacheResponding()) {
         return false;
+    }
     return true;
 }
 

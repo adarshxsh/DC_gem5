@@ -171,12 +171,16 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
     }
 
     if (enableQueuePressureScheduling) {
-        float target_pressure = memSidePorts[mem_side_port_id]->getQueuePressure();
+        float target_pressure =
+            memSidePorts[mem_side_port_id]->getQueuePressure();
         if (target_pressure >= queuePressureThreshold && isDeferrable(pkt)) {
-            DPRINTF(CoherentXBar, "%s: src %s packet %s QUEUE PRESSURE DEFER (pressure: %.2f >= %.2f)\n",
-                    __func__, src_port->name(), pkt->print(),
-                    target_pressure, queuePressureThreshold);
-            reqLayers[mem_side_port_id]->failedTiming(src_port, clockEdge(Cycles(1)));
+            DPRINTF(CoherentXBar,
+                    "%s: src %s packet %s QUEUE PRESSURE DEFER (pressure: "
+                    "%.2f >= %.2f)\n",
+                    __func__, src_port->name(), pkt->print(), target_pressure,
+                    queuePressureThreshold);
+            reqLayers[mem_side_port_id]->failedTiming(src_port,
+                                                      clockEdge(Cycles(1)));
             return false;
         }
     }

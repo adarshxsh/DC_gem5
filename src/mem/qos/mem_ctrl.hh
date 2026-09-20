@@ -354,7 +354,11 @@ class MemCtrl : public ClockedObject
      *
      * @return Normalized queue pressure
      */
-    virtual float getQueuePressure() const { return 0.0f; }
+    virtual float
+    getQueuePressure() const
+    {
+        return 0.0f;
+    }
 
     /**
      * Gets the last service tick related to a QoS Priority

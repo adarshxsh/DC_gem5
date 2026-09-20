@@ -175,7 +175,8 @@ class RequestPort: public Port, public AtomicRequestProtocol,
     virtual bool isSnooping() const { return false; }
 
     /**
-     * Query method to expose memory queue pressure signals from connected peer.
+     * Query method to expose memory queue pressure signals from connected
+     * peer.
      *
      * @return Normalized queue pressure (0.0 to 1.0)
      */
@@ -387,7 +388,11 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      *
      * @return Normalized queue pressure (0.0 to 1.0)
      */
-    virtual float getQueuePressure() const { return 0.0f; }
+    virtual float
+    getQueuePressure() const
+    {
+        return 0.0f;
+    }
 
     /**
      * Called by the owner to send a range change
