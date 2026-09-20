@@ -35,6 +35,9 @@
 #ifndef __MEM_CACHE_TAGS_SUPER_BLK_HH__
 #define __MEM_CACHE_TAGS_SUPER_BLK_HH__
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
 #include <vector>
 
 #include "mem/cache/tags/sector_blk.hh"
@@ -214,7 +217,7 @@ class SuperBlk : public SectorBlk
     /**
      * Initialize or reset the offset-to-slot indirection map to identity.
      */
-    void initOffsetToSlot();
+    void initOffsetToSlot() const;
 
     /**
      * Returns whether the superblock contains compressed blocks or not. By

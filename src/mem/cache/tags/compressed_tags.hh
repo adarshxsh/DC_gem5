@@ -46,6 +46,8 @@
 #ifndef __MEM_CACHE_TAGS_COMPRESSED_TAGS_HH__
 #define __MEM_CACHE_TAGS_COMPRESSED_TAGS_HH__
 
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "mem/cache/tags/sector_tags.hh"

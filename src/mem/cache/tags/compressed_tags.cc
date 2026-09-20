@@ -47,6 +47,8 @@
 
 #include <algorithm>
 #include <climits>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "base/trace.hh"

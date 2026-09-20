@@ -37,6 +37,9 @@
 #include <algorithm>
 #include <climits>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -197,7 +200,7 @@ SuperBlk::invalidate()
 }
 
 void
-SuperBlk::initOffsetToSlot()
+SuperBlk::initOffsetToSlot() const
 {
     const std::size_t num_sub_blks = blks.size();
     offsetToSlot.resize(num_sub_blks);
@@ -213,7 +216,7 @@ int
 SuperBlk::getSlotForOffset(int offset) const
 {
     if (offsetToSlot.size() != blks.size()) {
-        const_cast<SuperBlk *>(this)->initOffsetToSlot();
+        initOffsetToSlot();
     }
     if (offset >= 0 && offset < static_cast<int>(offsetToSlot.size())) {
         return offsetToSlot[offset];
@@ -322,6 +325,7 @@ SuperBlk::setBlkSize(const std::size_t blk_size)
 {
     assert(blkSize == 0);
     blkSize = blk_size;
+    initOffsetToSlot();
 }
 
 uint8_t
