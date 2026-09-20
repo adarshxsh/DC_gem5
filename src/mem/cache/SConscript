@@ -72,4 +72,5 @@ CompoundFlag('CacheAll', ['Cache', 'CacheComp', 'CachePort', 'CacheRepl',
 
 GTest('mshr.test', 'mshr.test.cc', 'mshr.cc', 'mshr_queue.cc',
       '#src/mem/packet.cc', '#src/base/types.cc', '#src/sim/bufval.cc',
-      '#src/cpu/reg_class.cc', with_tag('gem5 simobject'))
+      '#src/cpu/reg_class.cc', '#src/base/logging.cc', '#src/base/hostinfo.cc',
+      with_tag('gem5 simobject'))
