@@ -101,10 +101,12 @@ class BaseCache(ClockedObject):
     mshrs = Param.Unsigned("Number of MSHRs (max outstanding requests)")
     demand_mshr_reserve = Param.Unsigned(1, "MSHRs reserved for demand access")
     mshr_high_watermark = Param.Percent(
-        80, "MSHR occupancy high watermark percentage to trigger compression throttling"
+        80,
+        "MSHR occupancy high watermark percentage to trigger compression throttling",
     )
     mshr_low_watermark = Param.Percent(
-        50, "MSHR occupancy low watermark percentage to clear compression throttling"
+        50,
+        "MSHR occupancy low watermark percentage to clear compression throttling",
     )
     tgts_per_mshr = Param.Unsigned("Max number of accesses per MSHR")
     write_buffers = Param.Unsigned(8, "Number of write buffers")
