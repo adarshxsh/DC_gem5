@@ -30,8 +30,8 @@ class DummyCompressor : public Base
     {}
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks,
-             Cycles& comp_lat, Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         auto comp_data = std::make_unique<CompressionData>();
         comp_data->setSizeBits(mockCompressedSizeBits);
@@ -41,7 +41,7 @@ class DummyCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* data) override
+    decompress(const CompressionData *comp_data, uint64_t *data) override
     {}
 
     using Base::compress;
@@ -63,7 +63,7 @@ TEST(BaseCompressorTest, HysteresisWindowingBypassTransitions)
     p.hysteresis_low_threshold = 1.03;
     p.hysteresis_high_threshold = 1.08;
     p.sampling_interval = 1; // sample every compression
-    p.decay_shift = 2; // decay factor 1 - 2^-2 = 0.75
+    p.decay_shift = 2;       // decay factor 1 - 2^-2 = 0.75
 
     DummyCompressor compressor(p);
     compressor.regStats();
@@ -71,7 +71,8 @@ TEST(BaseCompressorTest, HysteresisWindowingBypassTransitions)
     uint64_t data[8] = {0};
     Cycles comp_lat(0), decomp_lat(0);
 
-    // 1. Excellent compression (256 bits compressed for 512 bits uncompressed => ratio 2.0 > 1.08)
+    // 1. Excellent compression (256 bits compressed for 512 bits uncompressed
+    // => ratio 2.0 > 1.08)
     compressor.mockCompressedSizeBits = 256;
     for (int i = 0; i < 30; ++i) {
         compressor.compress(data, comp_lat, decomp_lat);
@@ -80,7 +81,8 @@ TEST(BaseCompressorTest, HysteresisWindowingBypassTransitions)
     compressor.compress(data, comp_lat, decomp_lat);
     EXPECT_EQ(comp_lat, Cycles(2)); // Active compression
 
-    // 2. Mediocre compression (500 bits compressed => ratio 512/500 = 1.024 < 1.03)
+    // 2. Mediocre compression (500 bits compressed => ratio 512/500 = 1.024
+    // < 1.03)
     compressor.mockCompressedSizeBits = 500;
     for (int i = 0; i < 30; ++i) {
         compressor.compress(data, comp_lat, decomp_lat);
@@ -90,16 +92,19 @@ TEST(BaseCompressorTest, HysteresisWindowingBypassTransitions)
     compressor.compress(data, comp_lat, decomp_lat);
     EXPECT_EQ(comp_lat, Cycles(0)); // Bypassed
 
-    // 3. Modest compression improvement (490 bits compressed => ratio 512/490 = 1.045, between 1.03 and 1.08)
+    // 3. Modest compression improvement (490 bits compressed => ratio 512/490
+    // = 1.045, between 1.03 and 1.08)
     compressor.mockCompressedSizeBits = 490;
     for (int i = 0; i < 30; ++i) {
         compressor.compress(data, comp_lat, decomp_lat);
     }
-    // Observed ratio moves to ~1.045 (between 1.03 and 1.08), stays in bypass mode due to hysteresis
+    // Observed ratio moves to ~1.045 (between 1.03 and 1.08), stays in bypass
+    // mode due to hysteresis
     compressor.compress(data, comp_lat, decomp_lat);
     EXPECT_EQ(comp_lat, Cycles(0)); // Still bypassed due to hysteresis window!
 
-    // 4. Significant compression improvement (256 bits compressed => ratio 2.0 > 1.08)
+    // 4. Significant compression improvement (256 bits compressed => ratio 2.0
+    // > 1.08)
     compressor.mockCompressedSizeBits = 256;
     for (int i = 0; i < 30; ++i) {
         compressor.compress(data, comp_lat, decomp_lat);

@@ -104,7 +104,7 @@ Base::Base(const Params &p)
       stats(*this)
 {
     fatal_if(hysteresisLowThreshold > hysteresisHighThreshold,
-        "hysteresisLowThreshold must be <= hysteresisHighThreshold");
+             "hysteresisLowThreshold must be <= hysteresisHighThreshold");
     fatal_if(64 % chunkSizeBits,
         "64 must be a multiple of the chunk granularity.");
 
