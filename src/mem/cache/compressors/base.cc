@@ -92,6 +92,9 @@ Base::Base(const Params &p)
       decompExtraLatency(p.decomp_extra_latency),
       enableAdaptiveBypass(p.enable_adaptive_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
+      hysteresisLowThreshold(p.hysteresis_low_threshold),
+      hysteresisHighThreshold(p.hysteresis_high_threshold),
+      isBypassing(false),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
       totalCompressionRequests(0),
@@ -100,6 +103,8 @@ Base::Base(const Params &p)
       cache(nullptr),
       stats(*this)
 {
+    fatal_if(hysteresisLowThreshold > hysteresisHighThreshold,
+             "hysteresisLowThreshold must be <= hysteresisHighThreshold");
     fatal_if(64 % chunkSizeBits,
         "64 must be a multiple of the chunk granularity.");
 
@@ -167,10 +172,23 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     double observedRatio =
         (sampledCompressedBits > 0)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+            : (hysteresisHighThreshold + 1.0);
 
-    bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+    if (enableAdaptiveBypass) {
+        if (isBypassing) {
+            if (observedRatio > hysteresisHighThreshold) {
+                isBypassing = false;
+            }
+        } else {
+            if (observedRatio < hysteresisLowThreshold) {
+                isBypassing = true;
+            }
+        }
+    } else {
+        isBypassing = false;
+    }
+
+    bool shouldBypass = enableAdaptiveBypass && isBypassing;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -184,7 +202,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             CacheComp,
             "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
             "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+            observedRatio, hysteresisLowThreshold);
         return comp_data;
     }
 
@@ -276,11 +294,7 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0)
-                                   ? ((double)sampledUncompressedBits /
-                                      (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
-        if (observedRatio < latencyBreakevenThreshold) {
+        if (isBypassing) {
             stats.bypassedDecompressions += 1;
         }
     }

@@ -72,6 +72,14 @@ class BaseCacheCompressor(SimObject):
         1.0,
         "Observed compression ratio threshold below which compression is bypassed",
     )
+    hysteresis_low_threshold = Param.Float(
+        0.95,
+        "Lower bound compression ratio threshold to transition into bypass mode",
+    )
+    hysteresis_high_threshold = Param.Float(
+        1.05,
+        "Upper bound compression ratio threshold to exit bypass mode and re-enable compression",
+    )
     sampling_interval = Param.Unsigned(
         100,
         "Sampling interval (in number of compressions) to evaluate compression effectiveness",

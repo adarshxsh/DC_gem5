@@ -551,6 +551,21 @@ class MemCtrl : public qos::MemCtrl
 
     Tick prevArrival;
 
+    /** EWMA smoothing coefficient alpha for queue length tracking. */
+    const double ewmaAlpha;
+
+    /** EWMA tracked read queue length. */
+    double ewmaRdQLen;
+
+    /** EWMA tracked write queue length. */
+    double ewmaWrQLen;
+
+    /** Last tick read queue EWMA was updated. */
+    Tick lastRdEWMATick;
+
+    /** Last tick write queue EWMA was updated. */
+    Tick lastWrEWMATick;
+
     /**
      * The soonest you have to start thinking about the next request
      * is the longest access time that can occur before
