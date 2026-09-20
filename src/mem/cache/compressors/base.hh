@@ -137,6 +137,22 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether queue pressure throttling is enabled. */
+    const bool enableQueuePressureThrottling;
+
+    /** Memory queue pressure threshold percentage. */
+    const unsigned queuePressureThreshold;
+
+    /** Decay factor for exponential moving average pressure tracking. */
+    const float decayFactor;
+
+    /** EWMA smoothing factor alpha for pressure tracking. */
+    const float ewmaAlpha;
+
+    /** Hysteresis margin percentage for pressure threshold state transitions.
+     */
+    const unsigned hysteresisMarginPerc;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 

@@ -139,6 +139,11 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         latency_breakeven_threshold: float = 1.0,
         sampling_interval: int = 100,
         decay_shift: int = 4,
+        enable_queue_pressure_throttling: bool = False,
+        queue_pressure_threshold: float = 0.85,
+        decay_factor: float = 0.8,
+        ewma_alpha: float = 0.05,
+        hysteresis_margin_perc: float = 5.0,
         membus: Optional[BaseXBar] = None,
     ) -> None:
         """
@@ -169,6 +174,13 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._decay_shift = decay_shift
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
+        self._queue_pressure_threshold = queue_pressure_threshold
+        self._decay_factor = decay_factor
+        self._ewma_alpha = ewma_alpha
+        self._hysteresis_margin_perc = hysteresis_margin_perc
         self.membus = membus if membus else self._get_default_membus()
 
     @overrides(AbstractClassicCacheHierarchy)
@@ -198,11 +210,33 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
                 )
                 l2.compressor.sampling_interval = self._sampling_interval
                 l2.compressor.decay_shift = self._decay_shift
+
+            if self._enable_queue_pressure_throttling:
+                l2.compressor.enable_queue_pressure_throttling = True
+
+                thresh_val = self._queue_pressure_threshold
+                if 0 < thresh_val <= 1.0:
+                    thresh_val = int(thresh_val * 100)
+                else:
+                    thresh_val = int(thresh_val)
+                l2.compressor.queue_pressure_threshold = thresh_val
+
+                l2.compressor.decay_factor = self._decay_factor
+                l2.compressor.ewma_alpha = self._ewma_alpha
+
+                hyst_val = self._hysteresis_margin_perc
+                if 0 < hyst_val <= 1.0:
+                    hyst_val = int(hyst_val * 100)
+                else:
+                    hyst_val = int(hyst_val)
+                l2.compressor.hysteresis_margin_perc = hyst_val
+
             l2.tags = CompressedTags()
             print(
                 "[CompressionEval] L2 cache configured with BDI compressor "
                 "and CompressedTags (max_compression_ratio=2, "
-                f"adaptive_bypass={self._enable_adaptive_bypass})"
+                f"adaptive_bypass={self._enable_adaptive_bypass}, "
+                f"queue_pressure_throttling={self._enable_queue_pressure_throttling})"
             )
         else:
             print(
@@ -433,6 +467,46 @@ parser.add_argument(
     help="Bit shift for exponential decay factor (1 - 2^-k) applied to sampled bit counters (default: 4).",
 )
 
+parser.add_argument(
+    "--enable-queue-pressure-throttling",
+    action="store_true",
+    required=False,
+    default=False,
+    help="Enable compression throttling under high memory queue pressure.",
+)
+
+parser.add_argument(
+    "--queue-pressure-threshold",
+    type=float,
+    required=False,
+    default=0.85,
+    help="Memory queue pressure threshold percentage to trigger backpressure throttling (default: 0.85 or 85).",
+)
+
+parser.add_argument(
+    "--decay-factor",
+    type=float,
+    required=False,
+    default=0.8,
+    help="Decay factor for exponential moving average pressure tracking (default: 0.8).",
+)
+
+parser.add_argument(
+    "--ewma-alpha",
+    type=float,
+    required=False,
+    default=0.05,
+    help="EWMA smoothing factor alpha for pressure tracking (default: 0.05).",
+)
+
+parser.add_argument(
+    "--hysteresis-margin-perc",
+    type=float,
+    required=False,
+    default=5.0,
+    help="Hysteresis margin percentage for pressure threshold state transitions (default: 5.0 or 5).",
+)
+
 args = parser.parse_args()
 
 
@@ -492,6 +566,11 @@ cache_hierarchy = PrivateL1PrivateL2WithCompressionHierarchy(
     latency_breakeven_threshold=args.latency_breakeven_threshold,
     sampling_interval=args.sampling_interval,
     decay_shift=args.decay_shift,
+    enable_queue_pressure_throttling=args.enable_queue_pressure_throttling,
+    queue_pressure_threshold=args.queue_pressure_threshold,
+    decay_factor=args.decay_factor,
+    ewma_alpha=args.ewma_alpha,
+    hysteresis_margin_perc=args.hysteresis_margin_perc,
 )
 
 # Memory: Dual Channel DDR4 2400, 3 GiB (X86Board hard limit)
