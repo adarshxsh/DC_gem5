@@ -43,21 +43,30 @@ namespace gem5
 namespace memory
 {
 
-HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
-    MemCtrl(p),
-    retryRdReqPC1(false), retryWrReqPC1(false),
-    nextReqEventPC1([this] {processNextReqEvent(pc1Int, respQueuePC1,
-                         respondEventPC1, nextReqEventPC1, retryWrReqPC1);},
-                         name()),
-    respondEventPC1([this] {processRespondEvent(pc1Int, respQueuePC1,
-                         respondEventPC1, retryRdReqPC1); }, name()),
-    pc1Int(p.dram_2)
+HBMCtrl::HBMCtrl(const HBMCtrlParams &p)
+    : MemCtrl(p),
+      retryRdReqPC1(false),
+      retryWrReqPC1(false),
+      nextReqEventPC1(
+          [this] {
+              processNextReqEvent(pc1Int, respQueuePC1, respondEventPC1,
+                                  nextReqEventPC1, retryWrReqPC1);
+          },
+          name()),
+      respondEventPC1(
+          [this] {
+              processRespondEvent(pc1Int, respQueuePC1, respondEventPC1,
+                                  retryRdReqPC1);
+          },
+          name()),
+      pc1Int(p.dram_2),
+      minWriteReserve(p.min_write_reserve)
 {
     DPRINTF(MemCtrl, "Setting up HBM controller\n");
 
-    pc0Int = dynamic_cast<DRAMInterface*>(dram);
+    pc0Int = dynamic_cast<DRAMInterface *>(dram);
 
-    assert(dynamic_cast<DRAMInterface*>(p.dram_2) != nullptr);
+    assert(dynamic_cast<DRAMInterface *>(p.dram_2) != nullptr);
 
     readBufferSize = pc0Int->readBufferSize + pc1Int->readBufferSize;
     writeBufferSize = pc0Int->writeBufferSize + pc1Int->writeBufferSize;
@@ -68,8 +77,10 @@ HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
     pc0Int->setCtrl(this, commandWindow, 0);
     pc1Int->setCtrl(this, commandWindow, 1);
 
-    writeHighThreshold = (writeBufferSize/2 * p.write_high_thresh_perc)/100.0;
-    writeLowThreshold = (writeBufferSize/2 * p.write_low_thresh_perc)/100.0;
+    writeHighThreshold =
+        (writeBufferSize / 2 * p.write_high_thresh_perc) / 100.0;
+    writeLowThreshold =
+        (writeBufferSize / 2 * p.write_low_thresh_perc) / 100.0;
 }
 
 void
@@ -132,25 +143,22 @@ HBMCtrl::recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor)
         pc0Int->getBackdoor(backdoor);
     } else if (pc1Int && pc1Int->getAddrRange().contains(pkt->getAddr())) {
         pc1Int->getBackdoor(backdoor);
-    }
-    else {
-        panic("Can't handle address range for packet %s\n",
-              pkt->print());
+    } else {
+        panic("Can't handle address range for packet %s\n", pkt->print());
     }
     return latency;
 }
 
 void
 HBMCtrl::recvMemBackdoorReq(const MemBackdoorReq &req,
-        MemBackdoorPtr &backdoor)
+                            MemBackdoorPtr &backdoor)
 {
     auto &range = req.range();
     if (pc0Int && pc0Int->getAddrRange().isSubset(range)) {
         pc0Int->getBackdoor(backdoor);
     } else if (pc1Int && pc1Int->getAddrRange().isSubset(range)) {
         pc1Int->getBackdoor(backdoor);
-    }
-    else {
+    } else {
         panic("Can't handle address range for range %s\n", range.to_string());
     }
 }
@@ -158,49 +166,65 @@ HBMCtrl::recvMemBackdoorReq(const MemBackdoorReq &req,
 bool
 HBMCtrl::writeQueueFullPC0(unsigned int neededEntries) const
 {
-    DPRINTF(MemCtrl,
-            "Write queue limit %d, PC0 size %d, entries needed %d\n",
-            writeBufferSize/2, pc0Int->writeQueueSize, neededEntries);
+    unsigned int pc1_reserved =
+        std::max((unsigned int)pc1Int->writeQueueSize, minWriteReserve);
+    unsigned int max_pc0_cap = (writeBufferSize > pc1_reserved)
+                                   ? (writeBufferSize - pc1_reserved)
+                                   : 0;
+
+    DPRINTF(
+        MemCtrl,
+        "Write queue full check PC0: total limit %d, minReserve %d, PC1 size "
+        "%d (reserved %d), max PC0 cap %d, PC0 size %d, entries needed %d\n",
+        writeBufferSize, minWriteReserve, pc1Int->writeQueueSize, pc1_reserved,
+        max_pc0_cap, pc0Int->writeQueueSize, neededEntries);
 
     unsigned int wrsize_new = (pc0Int->writeQueueSize + neededEntries);
-    return wrsize_new > (writeBufferSize/2);
+    return wrsize_new > max_pc0_cap;
 }
 
 bool
 HBMCtrl::writeQueueFullPC1(unsigned int neededEntries) const
 {
-    DPRINTF(MemCtrl,
-            "Write queue limit %d, PC1 size %d, entries needed %d\n",
-            writeBufferSize/2, pc1Int->writeQueueSize, neededEntries);
+    unsigned int pc0_reserved =
+        std::max((unsigned int)pc0Int->writeQueueSize, minWriteReserve);
+    unsigned int max_pc1_cap = (writeBufferSize > pc0_reserved)
+                                   ? (writeBufferSize - pc0_reserved)
+                                   : 0;
+
+    DPRINTF(
+        MemCtrl,
+        "Write queue full check PC1: total limit %d, minReserve %d, PC0 size "
+        "%d (reserved %d), max PC1 cap %d, PC1 size %d, entries needed %d\n",
+        writeBufferSize, minWriteReserve, pc0Int->writeQueueSize, pc0_reserved,
+        max_pc1_cap, pc1Int->writeQueueSize, neededEntries);
 
     unsigned int wrsize_new = (pc1Int->writeQueueSize + neededEntries);
-    return wrsize_new > (writeBufferSize/2);
+    return wrsize_new > max_pc1_cap;
 }
 
 bool
 HBMCtrl::readQueueFullPC0(unsigned int neededEntries) const
 {
-    DPRINTF(MemCtrl,
-            "Read queue limit %d, PC0 size %d, entries needed %d\n",
-            readBufferSize/2, pc0Int->readQueueSize + respQueue.size(),
+    DPRINTF(MemCtrl, "Read queue limit %d, PC0 size %d, entries needed %d\n",
+            readBufferSize / 2, pc0Int->readQueueSize + respQueue.size(),
             neededEntries);
 
-    unsigned int rdsize_new = pc0Int->readQueueSize + respQueue.size()
-                                               + neededEntries;
-    return rdsize_new > (readBufferSize/2);
+    unsigned int rdsize_new =
+        pc0Int->readQueueSize + respQueue.size() + neededEntries;
+    return rdsize_new > (readBufferSize / 2);
 }
 
 bool
 HBMCtrl::readQueueFullPC1(unsigned int neededEntries) const
 {
-    DPRINTF(MemCtrl,
-            "Read queue limit %d, PC1 size %d, entries needed %d\n",
-            readBufferSize/2, pc1Int->readQueueSize + respQueuePC1.size(),
+    DPRINTF(MemCtrl, "Read queue limit %d, PC1 size %d, entries needed %d\n",
+            readBufferSize / 2, pc1Int->readQueueSize + respQueuePC1.size(),
             neededEntries);
 
-    unsigned int rdsize_new = pc1Int->readQueueSize + respQueuePC1.size()
-                                               + neededEntries;
-    return rdsize_new > (readBufferSize/2);
+    unsigned int rdsize_new =
+        pc1Int->readQueueSize + respQueuePC1.size() + neededEntries;
+    return rdsize_new > (readBufferSize / 2);
 }
 
 bool
@@ -211,10 +235,10 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
             pkt->cmdString(), pkt->getAddr(), pkt->getSize());
 
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
-                                        "is responding");
+                                     "is responding");
 
     panic_if(!(pkt->isRead() || pkt->isWrite()),
-                "Should only see read and writes at memory controller\n");
+             "Should only see read and writes at memory controller\n");
 
     // Calc avg gap between requests
     if (prevArrival != 0) {
@@ -377,8 +401,7 @@ HBMCtrl::verifySingleCmd(Tick cmd_tick, Tick max_cmds_per_burst, bool row_cmd)
             burst_tick += commandWindow;
             cmd_at = burst_tick;
         }
-        DPRINTF(MemCtrl, "Now can send a row cmd_at %d\n",
-                    cmd_at);
+        DPRINTF(MemCtrl, "Now can send a row cmd_at %d\n", cmd_at);
         rowBurstTicks.insert(burst_tick);
 
     } else {
@@ -388,8 +411,7 @@ HBMCtrl::verifySingleCmd(Tick cmd_tick, Tick max_cmds_per_burst, bool row_cmd)
             burst_tick += commandWindow;
             cmd_at = burst_tick;
         }
-        DPRINTF(MemCtrl, "Now can send a col cmd_at %d\n",
-                    cmd_at);
+        DPRINTF(MemCtrl, "Now can send a col cmd_at %d\n", cmd_at);
         colBurstTicks.insert(burst_tick);
     }
     return cmd_at;
@@ -427,8 +449,8 @@ HBMCtrl::verifyMultiCmd(Tick cmd_tick, Tick max_cmds_per_burst,
     while (!first_can_issue || !second_can_issue) {
         bool same_burst = (burst_tick == first_cmd_tick);
         auto first_cmd_count = rowBurstTicks.count(first_cmd_tick);
-        auto second_cmd_count = same_burst ?
-                        first_cmd_count + 1 : rowBurstTicks.count(burst_tick);
+        auto second_cmd_count =
+            same_burst ? first_cmd_count + 1 : rowBurstTicks.count(burst_tick);
 
         first_can_issue = first_cmd_count < max_cmds_per_burst;
         second_can_issue = second_cmd_count < max_cmds_per_burst;
@@ -443,8 +465,8 @@ HBMCtrl::verifyMultiCmd(Tick cmd_tick, Tick max_cmds_per_burst,
         // Verify max_multi_cmd_split isn't violated when command 2 is shifted
         // If commands initially were issued in same burst, they are
         // now in consecutive bursts and can still issue B2B
-        bool gap_violated = !same_burst &&
-                        ((burst_tick - first_cmd_tick) > max_multi_cmd_split);
+        bool gap_violated = !same_burst && ((burst_tick - first_cmd_tick) >
+                                            max_multi_cmd_split);
 
         if (!first_can_issue || (!second_can_issue && gap_violated)) {
             DPRINTF(MemCtrl, "Contention (cmd1) found on command bus at %d\n",
