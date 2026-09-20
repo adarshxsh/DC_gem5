@@ -256,7 +256,8 @@ class SuperBlk : public SectorBlk
     /**
      * Get sub-block density of this superblock.
      *
-     * @return Density value calculated as valid sub-block count times compression factor.
+     * @return Density value calculated as valid sub-block count times
+     * compression factor.
      */
     double getDensity() const;
 

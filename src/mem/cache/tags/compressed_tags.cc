@@ -148,7 +148,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     const uint64_t offset = extractSectorOffset(key.address);
 
     double max_density_score = -1e9;
-    std::size_t min_secondary_evictions = std::numeric_limits<std::size_t>::max();
+    std::size_t min_secondary_evictions =
+        std::numeric_limits<std::size_t>::max();
 
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
@@ -193,9 +194,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
                 (total_bits > 0)
                     ? (static_cast<double>(remaining_bits) / total_bits)
                     : 0.0;
-            const double density_score =
-                density + remaining_capacity_ratio -
-                (secondary_evictions * 1000.0);
+            const double density_score = density + remaining_capacity_ratio -
+                                         (secondary_evictions * 1000.0);
 
             if (victim_superblock == nullptr ||
                 density_score > max_density_score) {

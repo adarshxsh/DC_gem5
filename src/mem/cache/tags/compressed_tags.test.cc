@@ -562,7 +562,8 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
 
 TEST_F(SuperBlkTestFixture, HelperFunctionsAndDensityScore)
 {
-    // Initial empty superblock: valid count = 0, remaining capacity = 512 bits, density = 0.0
+    // Initial empty superblock: valid count = 0, remaining capacity = 512
+    // bits, density = 0.0
     ASSERT_EQ(superBlk.getValidSubBlkCount(), 0);
     ASSERT_EQ(superBlk.getRemainingBitCapacity(), 512);
     ASSERT_DOUBLE_EQ(superBlk.getDensity(), 0.0);
@@ -573,7 +574,7 @@ TEST_F(SuperBlkTestFixture, HelperFunctionsAndDensityScore)
 
     ASSERT_EQ(superBlk.getValidSubBlkCount(), 1);
     ASSERT_EQ(superBlk.getRemainingBitCapacity(), 448); // 512 - 64
-    ASSERT_DOUBLE_EQ(superBlk.getDensity(), 8.0); // 1 valid * CF 8
+    ASSERT_DOUBLE_EQ(superBlk.getDensity(), 8.0);       // 1 valid * CF 8
 
     // Insert sub-block 1: size 128 bits -> CF reduces to 4
     subBlks[1].insert({0x7000, false});
@@ -581,12 +582,13 @@ TEST_F(SuperBlkTestFixture, HelperFunctionsAndDensityScore)
 
     ASSERT_EQ(superBlk.getValidSubBlkCount(), 2);
     ASSERT_EQ(superBlk.getRemainingBitCapacity(), 320); // 512 - 192
-    ASSERT_DOUBLE_EQ(superBlk.getDensity(), 8.0); // 2 valid * CF 4
+    ASSERT_DOUBLE_EQ(superBlk.getDensity(), 8.0);       // 2 valid * CF 4
 }
 
 TEST_F(SuperBlkTestFixture, DensityAwareCandidateSelection)
 {
-    // Setup candidate superblock A (low density: 1 valid sub-block, 256 bits, CF=2)
+    // Setup candidate superblock A (low density: 1 valid sub-block, 256 bits,
+    // CF=2)
     SuperBlk sbA;
     sbA.setBlkSize(BlkSize);
     std::unique_ptr<CompressionBlk[]> subBlksA(new CompressionBlk[NumSubBlks]);
@@ -605,7 +607,8 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateSelection)
     ASSERT_EQ(sbA.getRemainingBitCapacity(), 256);
     ASSERT_DOUBLE_EQ(sbA.getDensity(), 2.0); // 1 * 2 = 2.0
 
-    // Setup candidate superblock B (high density: 2 valid sub-blocks, 64 bits each, CF=8)
+    // Setup candidate superblock B (high density: 2 valid sub-blocks, 64 bits
+    // each, CF=8)
     SuperBlk sbB;
     sbB.setBlkSize(BlkSize);
     std::unique_ptr<CompressionBlk[]> subBlksB(new CompressionBlk[NumSubBlks]);
@@ -626,7 +629,8 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateSelection)
     ASSERT_EQ(sbB.getRemainingBitCapacity(), 384);
     ASSERT_DOUBLE_EQ(sbB.getDensity(), 16.0); // 2 * 8 = 16.0
 
-    // Candidate evaluation ranking: sbB should be ranked higher than sbA due to higher density
+    // Candidate evaluation ranking: sbB should be ranked higher than sbA due
+    // to higher density
     std::vector<SuperBlk *> candidates = {&sbA, &sbB};
 
     SuperBlk *selected = nullptr;
@@ -641,15 +645,18 @@ TEST_F(SuperBlkTestFixture, DensityAwareCandidateSelection)
 
             uint8_t new_blk_cf = sb->calculateCompressionFactor(new_size);
             uint8_t current_cf = sb->getCompressionFactor();
-            uint8_t target_cf = (valid_count == 0) ? new_blk_cf
-                                                   : std::min(current_cf, new_blk_cf);
+            uint8_t target_cf = (valid_count == 0)
+                                    ? new_blk_cf
+                                    : std::min(current_cf, new_blk_cf);
 
-            std::size_t secondary_evictions = (target_cf > 0 && valid_count + 1 > target_cf)
-                                                  ? (valid_count + 1 - target_cf)
-                                                  : 0;
+            std::size_t secondary_evictions =
+                (target_cf > 0 && valid_count + 1 > target_cf)
+                    ? (valid_count + 1 - target_cf)
+                    : 0;
 
             double total_bits = static_cast<double>(BlkSize * CHAR_BIT);
-            double score = density + (static_cast<double>(remaining_bits) / total_bits) -
+            double score = density +
+                           (static_cast<double>(remaining_bits) / total_bits) -
                            (secondary_evictions * 1000.0);
 
             if (selected == nullptr || score > max_score) {
