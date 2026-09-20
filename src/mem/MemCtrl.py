@@ -102,6 +102,17 @@ class MemCtrl(QoSMemCtrl):
     command_window = Param.Latency("10ns", "Static backend latency")
     disable_sanity_check = Param.Bool(False, "Disable port resp Q size check")
 
+    # Dynamic pressure-aware arbitration parameters
+    enable_dynamic_arbitration = Param.Bool(
+        False, "Enable dynamic pressure-aware queue arbitration and watermarks"
+    )
+    adaptive_threshold_alpha = Param.Float(
+        0.5, "Sensitivity factor alpha for write queue fill velocity (dQ/dt)"
+    )
+    adaptive_threshold_beta = Param.Float(
+        0.5, "Sensitivity factor beta for relative write/read queue pressure ratio"
+    )
+
 
 add_citation(
     MemCtrl,
