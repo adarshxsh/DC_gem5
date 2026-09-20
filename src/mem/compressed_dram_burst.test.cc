@@ -14,8 +14,9 @@ namespace gem5
 namespace memory
 {
 
-Tick computeBurstTime(unsigned int compressedSize, uint32_t burstSize,
-                       uint32_t burstLength, Tick tBURST)
+Tick
+computeBurstTime(unsigned int compressedSize, uint32_t burstSize,
+                 uint32_t burstLength, Tick tBURST)
 {
     unsigned int c = compressedSize;
     if (c == 0 || c >= burstSize) {

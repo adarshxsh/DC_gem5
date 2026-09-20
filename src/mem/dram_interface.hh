@@ -747,7 +747,7 @@ class DRAMInterface : public MemInterface
     /**
      * Compute DRAM bus transfer time based on compressed payload size
      */
-    Tick getBurstTime(const MemPacket* mem_pkt) const;
+    Tick getBurstTime(const MemPacket *mem_pkt) const;
 
     std::pair<Tick, Tick>
     doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,

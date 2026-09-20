@@ -344,7 +344,7 @@ DRAMInterface::prechargeBank(Rank& rank_ref, Bank& bank, Tick pre_tick,
 }
 
 Tick
-DRAMInterface::getBurstTime(const MemPacket* mem_pkt) const
+DRAMInterface::getBurstTime(const MemPacket *mem_pkt) const
 {
     unsigned int c = mem_pkt->getCompressedSize();
     if (c == 0 || c >= burstSize) {
