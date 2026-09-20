@@ -71,4 +71,5 @@ CompoundFlag('CacheAll', ['Cache', 'CacheComp', 'CachePort', 'CacheRepl',
                           'PartitionPolicy'])
 
 GTest('mshr_compression_bypass.test', 'mshr_compression_bypass.test.cc',
-      '#src/base/types.cc', with_tag('gem5 simobject'))
+      '#src/base/types.cc', '#src/base/logging.cc', '#src/base/hostinfo.cc',
+      with_tag('gem5 simobject'))
