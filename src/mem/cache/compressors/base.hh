@@ -275,12 +275,20 @@ class Base : public SimObject
     /**
      * Increment bypassed compressions statistic counter.
      */
-    void incBypassedCompressions() { stats.bypassedCompressions++; }
+    void
+    incBypassedCompressions()
+    {
+        stats.bypassedCompressions++;
+    }
 
     /**
      * Increment bypassed decompressions statistic counter.
      */
-    void incBypassedDecompressions() { stats.bypassedDecompressions++; }
+    void
+    incBypassedDecompressions()
+    {
+        stats.bypassedDecompressions++;
+    }
 
     /**
      * Set the size of the compressed block, in bits.

@@ -152,12 +152,14 @@ class Queue : public Drainable, public Named
         return (allocated >= numEntries - numReserve);
     }
 
-    int numAllocated() const
+    int
+    numAllocated() const
     {
         return allocated;
     }
 
-    int capacity() const
+    int
+    capacity() const
     {
         return numEntries - numReserve;
     }
