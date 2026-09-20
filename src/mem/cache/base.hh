@@ -248,7 +248,11 @@ class BaseCache : public ClockedObject
         MemSidePort(const std::string &_name, BaseCache *_cache,
                     const std::string &_label);
 
-        double getQueuePressure() const { return getPeerQueuePressure(); }
+        double
+        getQueuePressure() const
+        {
+            return getPeerQueuePressure();
+        }
     };
 
     /**
@@ -272,7 +276,11 @@ class BaseCache : public ClockedObject
 
         bool isBlocked() const { return blocked; }
 
-        double getQueuePressure() const override { return cache.getQueuePressure(); }
+        double
+        getQueuePressure() const override
+        {
+            return cache.getQueuePressure();
+        }
 
       protected:
 
@@ -1281,7 +1289,11 @@ class BaseCache : public ClockedObject
     }
 
     double getQueuePressure() const;
-    double getDownstreamQueuePressure() const { return memSidePort.getQueuePressure(); }
+    double
+    getDownstreamQueuePressure() const
+    {
+        return memSidePort.getQueuePressure();
+    }
     double getCompressedCachePressure() const;
     bool canPrefetch() const;
 

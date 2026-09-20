@@ -91,7 +91,7 @@ double
 BaseXBar::getQueuePressure() const
 {
     double max_p = 0.0;
-    for (const auto* p : memSidePorts) {
+    for (const auto *p : memSidePorts) {
         if (p) {
             max_p = std::max(max_p, p->getPeerQueuePressure());
         }

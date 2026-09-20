@@ -188,10 +188,13 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 double
 MemCtrl::getQueuePressure() const
 {
-    double read_press = readBufferSize > 0 ?
-        (double)(totalReadQueueSize + respQueue.size()) / readBufferSize : 0.0;
-    double write_press = writeBufferSize > 0 ?
-        (double)totalWriteQueueSize / writeBufferSize : 0.0;
+    double read_press =
+        readBufferSize > 0
+            ? (double)(totalReadQueueSize + respQueue.size()) / readBufferSize
+            : 0.0;
+    double write_press = writeBufferSize > 0
+                             ? (double)totalWriteQueueSize / writeBufferSize
+                             : 0.0;
     return std::max(read_press, write_press);
 }
 

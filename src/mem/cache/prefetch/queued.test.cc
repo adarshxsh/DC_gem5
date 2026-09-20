@@ -277,7 +277,8 @@ TEST(QueuedQueuePressureTest, QueuePressureThrottling)
     Base::PrefetchInfo pfi(&pkt, testAddr, true);
     CacheAccessProbeArg probeArg(&pkt, mockCache);
 
-    // Scenario 1: Low queue pressure (0.0 < 0.80) -> prefetch generated and issued
+    // Scenario 1: Low queue pressure (0.0 < 0.80) -> prefetch generated and
+    // issued
     mockCache.queuePressure = 0.0;
     prefetcher.notify(probeArg, pfi);
     EXPECT_EQ(prefetcher.getPFQ().size(), 1);
@@ -285,11 +286,13 @@ TEST(QueuedQueuePressureTest, QueuePressureThrottling)
     EXPECT_NE(issuedPkt, nullptr);
     delete issuedPkt;
 
-    // Scenario 2: High queue pressure (0.90 >= 0.80) -> prefetch generation throttled
+    // Scenario 2: High queue pressure (0.90 >= 0.80) -> prefetch generation
+    // throttled
     prefetcher.getPFQ().clear();
     mockCache.queuePressure = 0.90;
     prefetcher.notify(probeArg, pfi);
-    // At 0.90 pressure (above 0.80 threshold), max permitted prefetches scaled down
+    // At 0.90 pressure (above 0.80 threshold), max permitted prefetches scaled
+    // down
     EXPECT_EQ(prefetcher.getPFQ().size(), 0);
 
     delete params.cht_indexing_policy;

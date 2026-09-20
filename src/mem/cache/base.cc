@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -95,7 +95,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -2015,24 +2015,29 @@ BaseCache::nextQueueReadyTime() const
     return nextReady;
 }
 
-
 double
 BaseCache::getCompressedCachePressure() const
 {
     if (!compressor) {
         return 0.0;
     }
-    return writeBuffer.getNumEntries() > 0 ?
-        (double)writeBuffer.getAllocated() / writeBuffer.getNumEntries() : 0.0;
+    return writeBuffer.getNumEntries() > 0
+               ? (double)writeBuffer.getAllocated() /
+                     writeBuffer.getNumEntries()
+               : 0.0;
 }
 
 double
 BaseCache::getQueuePressure() const
 {
-    double mshr_p = mshrQueue.getNumEntries() > 0 ?
-        (double)mshrQueue.getAllocated() / mshrQueue.getNumEntries() : 0.0;
-    double wb_p = writeBuffer.getNumEntries() > 0 ?
-        (double)writeBuffer.getAllocated() / writeBuffer.getNumEntries() : 0.0;
+    double mshr_p =
+        mshrQueue.getNumEntries() > 0
+            ? (double)mshrQueue.getAllocated() / mshrQueue.getNumEntries()
+            : 0.0;
+    double wb_p =
+        writeBuffer.getNumEntries() > 0
+            ? (double)writeBuffer.getAllocated() / writeBuffer.getNumEntries()
+            : 0.0;
     double ds_p = getDownstreamQueuePressure();
     double comp_p = getCompressedCachePressure();
     return std::max({mshr_p, wb_p, ds_p, comp_p});

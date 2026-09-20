@@ -399,7 +399,11 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      *
      * @return Normalized queue pressure from 0.0 (empty) to 1.0 (saturated).
      */
-    virtual double getQueuePressure() const { return 0.0; }
+    virtual double
+    getQueuePressure() const
+    {
+        return 0.0;
+    }
 
     /**
      * We let the request port do the work, so these don't do anything.

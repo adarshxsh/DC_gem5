@@ -180,13 +180,14 @@ Queued::getMaxPermittedPrefetches(size_t total) const
 
 size_t
 Queued::getMaxPermittedPrefetches(size_t total,
-                                 const CacheAccessor &cache) const
+                                  const CacheAccessor &cache) const
 {
     size_t max_pfs = getMaxPermittedPrefetches(total);
     double press = cache.getQueuePressure();
     if (press >= queuePressureThreshold && queuePressureThreshold < 1.0) {
         double range = 1.0 - queuePressureThreshold;
-        double excess = (range > 0.0) ? (press - queuePressureThreshold) / range : 1.0;
+        double excess =
+            (range > 0.0) ? (press - queuePressureThreshold) / range : 1.0;
         excess = std::min(1.0, std::max(0.0, excess));
         double pressure_factor = 1.0 - excess;
         max_pfs = (size_t)std::floor(max_pfs * pressure_factor);
@@ -280,7 +281,9 @@ Queued::getPacket()
     if (pfq.front().cache) {
         double press = pfq.front().cache->getQueuePressure();
         if (press >= queuePressureThreshold && queuePressureThreshold < 1.0) {
-            DPRINTF(HWPrefetch, "Throttling prefetch issue due to downstream queue pressure (%f >= %f).\n",
+            DPRINTF(HWPrefetch,
+                    "Throttling prefetch issue due to downstream queue "
+                    "pressure (%f >= %f).\n",
                     press, queuePressureThreshold);
             return nullptr;
         }
