@@ -89,21 +89,30 @@ class Queued : public Base
          * @param prio This prefetch priority
          */
         DeferredPacket(Queued *o, PrefetchInfo const &pfi, Tick t,
-            int32_t prio, const CacheAccessor &_cache)
-            : owner(o), pfInfo(pfi), tick(t), pkt(nullptr),
-            priority(prio), translationRequest(), tc(nullptr),
-            ongoingTranslation(false), cache(&_cache) {
-        }
+                       int32_t prio, const CacheAccessor &_cache)
+            : owner(o),
+              pfInfo(pfi),
+              tick(t),
+              pkt(nullptr),
+              priority(prio),
+              translationRequest(),
+              tc(nullptr),
+              ongoingTranslation(false),
+              cache(&_cache)
+        {}
 
-        bool operator>(const DeferredPacket& that) const
+        bool
+        operator>(const DeferredPacket &that) const
         {
             return priority > that.priority;
         }
-        bool operator<(const DeferredPacket& that) const
+        bool
+        operator<(const DeferredPacket &that) const
         {
             return priority < that.priority;
         }
-        bool operator<=(const DeferredPacket& that) const
+        bool
+        operator<=(const DeferredPacket &that) const
         {
             return !(*this > that);
         }
@@ -126,16 +135,18 @@ class Queued : public Base
          * of this request.
          * @param req The Request with the virtual address of this request
          */
-        void setTranslationRequest(const RequestPtr &req)
+        void
+        setTranslationRequest(const RequestPtr &req)
         {
             translationRequest = req;
         }
 
-        void markDelayed() override
+        void
+        markDelayed() override
         {}
 
         void finish(const Fault &fault, const RequestPtr &req,
-                            ThreadContext *tc, BaseMMU::Mode mode) override;
+                    ThreadContext *tc, BaseMMU::Mode mode) override;
 
         /**
          * Issues the translation request to the provided MMU
@@ -204,6 +215,126 @@ class Queued : public Base
     /** Minimum compression factor threshold for CHT filtering */
     const unsigned chtMinCFThreshold;
 
+    /** Enable PC-indexed compression filtering */
+    const bool enableCompressionFilter;
+
+    /** Threshold for compression confidence score */
+    const unsigned compressionConfidenceThreshold;
+
+    /** Number of entries in PC compression confidence table */
+    const unsigned compressionTableEntries;
+
+    /** Bits for saturating confidence counter */
+    const unsigned compressionCounterBits;
+
+  public:
+    struct CompressionConfidenceEntry
+    {
+        Addr pc = 0;
+        bool valid = false;
+        uint8_t confidence = 4;
+        Tick lastAccessTick = 0;
+    };
+
+    struct CompressionConfidenceTable
+    {
+        bool enabled = false;
+        unsigned threshold = 4;
+        unsigned tableEntries = 256;
+        unsigned counterBits = 3;
+        std::vector<CompressionConfidenceEntry> entries;
+
+        void
+        init(bool _enabled, unsigned _threshold, unsigned _tableEntries,
+             unsigned _counterBits)
+        {
+            enabled = _enabled;
+            threshold = _threshold;
+            tableEntries = _tableEntries;
+            counterBits = _counterBits;
+            entries.resize(tableEntries);
+        }
+
+        void
+        update(Addr pc, bool is_compressed)
+        {
+            if (tableEntries == 0 || pc == 0) {
+                return;
+            }
+
+            uint8_t max_counter = (1 << counterBits) - 1;
+            uint8_t init_counter = (max_counter + 1) / 2;
+
+            for (auto &entry : entries) {
+                if (entry.valid && entry.pc == pc) {
+                    if (is_compressed) {
+                        if (entry.confidence < max_counter) {
+                            entry.confidence++;
+                        }
+                    } else {
+                        if (entry.confidence > 0) {
+                            entry.confidence--;
+                        }
+                    }
+                    entry.lastAccessTick = curTick();
+                    return;
+                }
+            }
+
+            CompressionConfidenceEntry *victim = nullptr;
+            Tick min_tick = MaxTick;
+            for (auto &entry : entries) {
+                if (!entry.valid) {
+                    victim = &entry;
+                    break;
+                }
+                if (entry.lastAccessTick < min_tick) {
+                    min_tick = entry.lastAccessTick;
+                    victim = &entry;
+                }
+            }
+
+            if (victim) {
+                victim->pc = pc;
+                victim->valid = true;
+                if (is_compressed) {
+                    victim->confidence = std::min((unsigned)max_counter,
+                                                  (unsigned)init_counter + 1);
+                } else {
+                    victim->confidence =
+                        (init_counter > 0) ? init_counter - 1 : 0;
+                }
+                victim->lastAccessTick = curTick();
+            }
+        }
+
+        bool
+        check(Addr pc) const
+        {
+            if (!enabled || pc == 0 || tableEntries == 0) {
+                return true;
+            }
+            for (const auto &entry : entries) {
+                if (entry.valid && entry.pc == pc) {
+                    return entry.confidence >= threshold;
+                }
+            }
+            return true;
+        }
+    } compressionConfidenceTable;
+
+    void
+    updateCompressionConfidence(Addr pc, bool is_compressed)
+    {
+        compressionConfidenceTable.update(pc, is_compressed);
+    }
+
+    bool
+    checkCompressionConfidence(Addr pc) const
+    {
+        return compressionConfidenceTable.check(pc);
+    }
+
     struct QueuedStats : public statistics::Group
     {
         QueuedStats(statistics::Group *parent);
@@ -216,15 +347,17 @@ class Queued : public Base
         statistics::Scalar pfSpanPage;
         statistics::Scalar pfUsefulSpanPage;
         statistics::Scalar pfDroppedLowCompression;
+        statistics::Scalar pfRemovedCompressionFilter;
     } statsQueued;
+
   public:
     using AddrPriority = std::pair<Addr, int32_t>;
 
     Queued(const QueuedPrefetcherParams &p);
     virtual ~Queued();
 
-    void
-    notify(const CacheAccessProbeArg &acc, const PrefetchInfo &pfi) override;
+    void notify(const CacheAccessProbeArg &acc,
+                const PrefetchInfo &pfi) override;
 
     void notifyFill(const CacheAccessProbeArg &acc) override;
 
@@ -239,7 +372,8 @@ class Queued : public Base
                                    const CacheAccessor &cache) = 0;
     PacketPtr getPacket() override;
 
-    Tick nextPrefetchReadyTime() const override
+    Tick
+    nextPrefetchReadyTime() const override
     {
         return pfq.empty() ? MaxTick : pfq.front().tick;
     }
@@ -247,7 +381,6 @@ class Queued : public Base
     void printQueue(const std::list<DeferredPacket> &queue) const;
 
   private:
-
     /**
      * Adds a DeferredPacket to the specified queue
      * @param queue selected queue to use
@@ -297,7 +430,7 @@ class Queued : public Base
     size_t getMaxPermittedPrefetches(size_t total) const;
 
     RequestPtr createPrefetchRequest(Addr addr, PrefetchInfo const &pfi,
-                                        PacketPtr pkt);
+                                     PacketPtr pkt);
 };
 
 } // namespace prefetch
