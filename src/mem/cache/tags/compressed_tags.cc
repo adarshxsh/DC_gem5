@@ -45,6 +45,7 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <algorithm>
 #include <climits>
 
 #include "base/trace.hh"
@@ -137,7 +138,7 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     // Check if the superblock this address belongs to has been allocated. If
     // so, try co-allocating
     SuperBlk *victim_superblock = nullptr;
-    bool is_co_allocation = false;
+    [[maybe_unused]] bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
     const std::size_t uncompressed_size = blkSize * CHAR_BIT;
     const bool is_uncompressed_default =
@@ -243,16 +244,17 @@ CompressedTags::checkInvariants() const
     SectorTags::checkInvariants();
     for (const auto &super_blk : superBlks) {
         if (super_blk.isValid()) {
-            uint8_t num_valid = super_blk.getNumValid();
-            uint8_t cf = super_blk.getCompressionFactor();
-            std::size_t total_bits = 0;
+            [[maybe_unused]] uint8_t num_valid = super_blk.getNumValid();
+            [[maybe_unused]] uint8_t cf = super_blk.getCompressionFactor();
+            [[maybe_unused]] std::size_t total_bits = 0;
             for (const auto &blk : super_blk.blks) {
                 if (blk->isValid()) {
                     const CompressionBlk *cblk =
                         static_cast<const CompressionBlk *>(blk);
                     total_bits += cblk->getSizeBits();
-                    uint8_t blk_cf = super_blk.calculateCompressionFactor(
-                        cblk->getSizeBits());
+                    [[maybe_unused]] uint8_t blk_cf =
+                        super_blk.calculateCompressionFactor(
+                            cblk->getSizeBits());
                     assert(blk_cf >= cf);
                 }
             }
