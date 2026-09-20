@@ -45,6 +45,8 @@
 #include "mem/cache/mshr_queue.hh"
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include "debug/MSHR.hh"
 #include "mem/cache/mshr.hh"
@@ -61,7 +63,8 @@ MSHRQueue::MSHRQueue(const std::string &_label,
 
 MSHR *
 MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                    Tick when_ready, Counter order, bool alloc_on_fill)
+                    Tick when_ready, Counter order, bool alloc_on_fill,
+                    std::size_t comp_size_bits, uint8_t comp_factor)
 {
     assert(!freeList.empty());
     MSHR *mshr = freeList.front();
@@ -71,7 +74,8 @@ MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
     DPRINTF(MSHR, "Allocating new MSHR. Number in use will be %lu/%lu\n",
             allocatedList.size() + 1, numEntries);
 
-    mshr->allocate(blk_addr, blk_size, pkt, when_ready, order, alloc_on_fill);
+    mshr->allocate(blk_addr, blk_size, pkt, when_ready, order, alloc_on_fill,
+                   comp_size_bits, comp_factor);
     mshr->allocIter = allocatedList.insert(allocatedList.end(), mshr);
     mshr->readyIter = addToReadyList(mshr);
 

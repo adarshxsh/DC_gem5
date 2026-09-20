@@ -46,7 +46,9 @@
 #ifndef __MEM_CACHE_BASE_HH__
 #define __MEM_CACHE_BASE_HH__
 
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -60,6 +62,7 @@
 #include "enums/Clusivity.hh"
 #include "mem/cache/cache_blk.hh"
 #include "mem/cache/cache_probe_arg.hh"
+#include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/cache/tags/base.hh"
 #include "mem/cache/write_queue.hh"
@@ -1191,11 +1194,26 @@ class BaseCache : public ClockedObject
 
     const AddrRangeList &getAddrRanges() const { return addrRanges; }
 
-    MSHR *allocateMissBuffer(PacketPtr pkt, Tick time, bool sched_send = true)
+    MSHR *
+    allocateMissBuffer(PacketPtr pkt, Tick time, bool sched_send = true,
+                       std::size_t comp_size_bits = 0, uint8_t comp_factor = 1)
     {
-        MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
-                                        pkt, time, order++,
-                                        allocOnFill(pkt->cmd));
+        if (comp_size_bits == 0 && compressor && pkt->hasData()) {
+            Cycles comp_lat, decomp_lat;
+            const auto comp_data = compressor->compress(
+                pkt->getConstPtr<uint64_t>(), comp_lat, decomp_lat);
+            comp_size_bits = comp_data->getSizeBits();
+            if (blkSize > 0 && comp_size_bits > 0) {
+                comp_factor = (blkSize * 8) / comp_size_bits;
+                if (comp_factor < 1) {
+                    comp_factor = 1;
+                }
+            }
+        }
+
+        MSHR *mshr = mshrQueue.allocate(
+            pkt->getBlockAddr(blkSize), blkSize, pkt, time, order++,
+            allocOnFill(pkt->cmd), comp_size_bits, comp_factor);
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);

@@ -1765,6 +1765,11 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     Cycles compression_lat = Cycles(0);
     Cycles decompression_lat = Cycles(0);
 
+    const MSHR *mshr = mshrQueue.findMatch(addr, is_secure);
+    if (mshr && mshr->getCompressedSizeBits() > 0) {
+        blk_size_bits = mshr->getCompressedSizeBits();
+    }
+
     // If a compressor is being used, it is called to compress data before
     // insertion. Although in Gem5 the data is stored uncompressed, even if a
     // compressor is used, the compression/decompression methods are called to
@@ -1773,7 +1778,9 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     if (compressor && pkt->hasData()) {
         const auto comp_data = compressor->compress(
             pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
-        blk_size_bits = comp_data->getSizeBits();
+        if (!mshr || mshr->getCompressedSizeBits() == 0) {
+            blk_size_bits = comp_data->getSizeBits();
+        }
     }
 
     // get partitionId from Packet
