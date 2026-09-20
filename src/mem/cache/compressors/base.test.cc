@@ -24,9 +24,7 @@ using namespace compression;
 class DummyCompressor : public Base
 {
   public:
-    DummyCompressor(const BaseCacheCompressorParams &p)
-        : Base(p)
-    {}
+    DummyCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     std::unique_ptr<CompressionData>
     compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
@@ -35,8 +33,9 @@ class DummyCompressor : public Base
         return nullptr;
     }
 
-    void decompress(const CompressionData *comp_data,
-                    uint64_t *cache_line) override {}
+    void
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
+    {}
 };
 
 TEST(BaseCompressorTest, AdaptiveDecompressionThrottlingDisabled)

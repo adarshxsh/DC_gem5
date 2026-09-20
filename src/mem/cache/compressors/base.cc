@@ -276,12 +276,14 @@ Base::getDecompressionLatency(const CacheBlk* blk)
         // Check for adaptive queue-aware decompression throttling
         if (enableAdaptiveDecompressionThrottling ||
             (cache && cache->isQueueCongested())) {
-            double queue_occ = cache ? (cache->getQueueOccupancy() * 100.0) : 0.0;
+            double queue_occ =
+                cache ? (cache->getQueueOccupancy() * 100.0) : 0.0;
             if ((cache && cache->isQueueCongested()) ||
                 (queue_occ >= decompressionThrottleThreshold)) {
                 DPRINTF(CacheComp,
                         "Queue congestion detected (occupancy >= %d%%). "
-                        "Throttling decompression latency from %llu to 0 cycles.\n",
+                        "Throttling decompression latency from %llu to 0 "
+                        "cycles.\n",
                         decompressionThrottleThreshold, decomp_lat);
                 stats.bypassedDecompressions += 1;
                 return Cycles(0);

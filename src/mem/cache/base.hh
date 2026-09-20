@@ -1218,10 +1218,12 @@ class BaseCache : public ClockedObject
     void allocateWriteBuffer(PacketPtr pkt, Tick time);
 
     /**
-     * Get the current max memory queue occupancy ratio (MSHR and write buffer).
+     * Get the current max memory queue occupancy ratio (MSHR and write
+     * buffer).
      * @return Max occupancy ratio [0.0, 1.0].
      */
-    double getQueueOccupancy() const
+    double
+    getQueueOccupancy() const
     {
         double mshr_occ = mshrQueue.getOccupancyRatio();
         double wb_occ = writeBuffer.getOccupancyRatio();
@@ -1230,9 +1232,11 @@ class BaseCache : public ClockedObject
 
     /**
      * Check if memory queues/MSHRs are congested above throttling threshold.
-     * @return True if queue pressure exceeds threshold or queues are saturated.
+     * @return True if queue pressure exceeds threshold or queues are
+     * saturated.
      */
-    bool isQueueCongested() const
+    bool
+    isQueueCongested() const
     {
         if (!enableAdaptiveDecompressionThrottling) {
             return false;

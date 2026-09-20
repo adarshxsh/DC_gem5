@@ -131,7 +131,8 @@ class Base : public SimObject
     /** Whether adaptive queue-aware decompression throttling is enabled. */
     const bool enableAdaptiveDecompressionThrottling;
 
-    /** Queue occupancy percentage threshold above which decompression latency is throttled. */
+    /** Queue occupancy percentage threshold above which decompression latency
+     * is throttled. */
     const int decompressionThrottleThreshold;
 
     /** Compression ratio threshold below which compression is bypassed. */
