@@ -59,12 +59,139 @@
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
+#include "sim/serialize.hh"
 
 namespace gem5
 {
 
 namespace memory
 {
+
+/**
+ * Write queue occupancy sample for derivative tracking.
+ */
+struct OccupancySample
+{
+    Tick time;
+    uint32_t occupancy;
+};
+
+/**
+ * Fixed-capacity rolling history ring buffer for constant-time
+ * write queue growth derivative (dQ/dt) computation.
+ */
+class OccupancyHistory
+{
+  private:
+    std::vector<OccupancySample> buffer;
+    size_t head;
+    size_t count;
+    size_t capacity;
+
+  public:
+    OccupancyHistory(size_t cap = 10)
+        : head(0), count(0), capacity(cap)
+    {
+        if (capacity > 0) {
+            buffer.resize(capacity);
+        }
+    }
+
+    void init(size_t cap)
+    {
+        capacity = cap;
+        head = 0;
+        count = 0;
+        if (capacity > 0) {
+            buffer.resize(capacity);
+        } else {
+            buffer.clear();
+        }
+    }
+
+    void addSample(Tick t, uint32_t q)
+    {
+        if (capacity == 0) return;
+
+        if (count > 0) {
+            size_t latest_idx = (head + count - 1) % capacity;
+            if (buffer[latest_idx].time == t) {
+                buffer[latest_idx].occupancy = q;
+                return;
+            }
+        }
+
+        if (count < capacity) {
+            size_t idx = (head + count) % capacity;
+            buffer[idx] = {t, q};
+            count++;
+        } else {
+            buffer[head] = {t, q};
+            head = (head + 1) % capacity;
+        }
+    }
+
+    double getDerivative(Tick current_time, uint32_t current_occupancy) const
+    {
+        if (capacity == 0 || count < 2) {
+            return 0.0;
+        }
+
+        const OccupancySample& oldest = buffer[head];
+        size_t latest_idx = (head + count - 1) % capacity;
+        const OccupancySample& latest = buffer[latest_idx];
+
+        Tick t_latest = latest.time;
+        int32_t q_latest = static_cast<int32_t>(latest.occupancy);
+
+        Tick t_oldest = oldest.time;
+        int32_t q_oldest = static_cast<int32_t>(oldest.occupancy);
+
+        if (t_latest <= t_oldest) {
+            return 0.0;
+        }
+
+        double delta_q = static_cast<double>(q_latest - q_oldest);
+        double delta_t = static_cast<double>(t_latest - t_oldest);
+
+        return delta_q / delta_t;
+    }
+
+    void clear()
+    {
+        head = 0;
+        count = 0;
+    }
+
+    void serialize(CheckpointOut &cp, const std::string &section) const
+    {
+        paramOut(cp, section + ".count", count);
+        std::vector<Tick> times;
+        std::vector<uint32_t> occupancies;
+        for (size_t i = 0; i < count; ++i) {
+            size_t idx = (head + i) % capacity;
+            times.push_back(buffer[idx].time);
+            occupancies.push_back(buffer[idx].occupancy);
+        }
+        arrayParamOut(cp, section + ".times", times);
+        arrayParamOut(cp, section + ".occupancies", occupancies);
+    }
+
+    void unserialize(CheckpointIn &cp, const std::string &section)
+    {
+        clear();
+        size_t saved_count = 0;
+        if (paramIn(cp, section + ".count", saved_count)) {
+            std::vector<Tick> times;
+            std::vector<uint32_t> occupancies;
+            arrayParamIn(cp, section + ".times", times);
+            arrayParamIn(cp, section + ".occupancies", occupancies);
+            for (size_t i = 0; i < times.size() && i < occupancies.size(); ++i) {
+                addSample(times[i], occupancies[i]);
+            }
+        }
+    }
+};
 
 class MemInterface;
 class DRAMInterface;
@@ -518,6 +645,15 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
+    /** Rate-of-change predictive thresholding parameters */
+    const uint32_t rateSampleWindow;
+    const Tick predictiveHorizon;
+    const uint8_t rateThresholdPerc;
+    double rateThreshold;
+
+    /** Ring buffer tracking write queue occupancy history */
+    OccupancyHistory writeQueueHistory;
+
     /**
      * Memory controller configuration initialized based on parameter
      * values.
@@ -778,6 +914,9 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
+
+    void serialize(CheckpointOut &cp) const override;
+    void unserialize(CheckpointIn &cp) override;
 
   protected:
 

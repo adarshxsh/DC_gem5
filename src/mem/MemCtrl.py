@@ -89,6 +89,17 @@ class MemCtrl(QoSMemCtrl):
         16, "Minimum read bursts before switching to writes"
     )
 
+    # rate-of-change predictive write queue thresholding parameters
+    rate_sample_window = Param.Unsigned(
+        10, "Size of rolling sample buffer for rate-of-change tracking"
+    )
+    predictive_horizon = Param.Latency(
+        "0ns", "Time horizon for predictive write queue thresholding"
+    )
+    rate_threshold_perc = Param.Percent(
+        0, "Rate-of-change threshold percentage for early write bus switching"
+    )
+
     # scheduler, address map and page policy
     mem_sched_policy = Param.MemSched("frfcfs", "Memory scheduling policy")
 
