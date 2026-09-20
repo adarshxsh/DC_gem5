@@ -45,7 +45,9 @@
 
 #include "mem/cache/tags/compressed_tags.hh"
 
+#include <algorithm>
 #include <climits>
+#include <vector>
 
 #include "base/trace.hh"
 #include "debug/CacheComp.hh"
