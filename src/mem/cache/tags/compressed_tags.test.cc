@@ -608,14 +608,14 @@ TEST_F(SuperBlkTestFixture, VictimDensityFilterCandidateSelection)
     ASSERT_EQ(sblks[2].getNumValid(), 2);
     ASSERT_EQ(sblks[3].getNumValid(), 3);
 
-    std::vector<ReplaceableEntry*> superblock_entries = {
-        &sblks[0], &sblks[1], &sblks[2], &sblks[3]
-    };
+    std::vector<ReplaceableEntry *> superblock_entries = {
+        &sblks[0], &sblks[1], &sblks[2], &sblks[3]};
 
-    // Simulate candidate density filtering logic from CompressedTags::findVictim
+    // Simulate candidate density filtering logic from
+    // CompressedTags::findVictim
     uint8_t min_valid = std::numeric_limits<uint8_t>::max();
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         uint8_t num_valid = superblock->getNumValid();
         if (num_valid < min_valid) {
             min_valid = num_valid;
@@ -623,9 +623,9 @@ TEST_F(SuperBlkTestFixture, VictimDensityFilterCandidateSelection)
     }
     ASSERT_EQ(min_valid, 1);
 
-    std::vector<ReplaceableEntry*> filtered_entries;
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    std::vector<ReplaceableEntry *> filtered_entries;
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         if (superblock->getNumValid() == min_valid) {
             filtered_entries.push_back(entry);
         }
@@ -642,8 +642,8 @@ TEST_F(SuperBlkTestFixture, VictimDensityFilterCandidateSelection)
     ASSERT_EQ(sblks[3].getNumValid(), 1);
 
     min_valid = std::numeric_limits<uint8_t>::max();
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         uint8_t num_valid = superblock->getNumValid();
         if (num_valid < min_valid) {
             min_valid = num_valid;
@@ -652,8 +652,8 @@ TEST_F(SuperBlkTestFixture, VictimDensityFilterCandidateSelection)
     ASSERT_EQ(min_valid, 1);
 
     filtered_entries.clear();
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         if (superblock->getNumValid() == min_valid) {
             filtered_entries.push_back(entry);
         }
@@ -663,14 +663,15 @@ TEST_F(SuperBlkTestFixture, VictimDensityFilterCandidateSelection)
     ASSERT_EQ(filtered_entries[0], &sblks[1]);
     ASSERT_EQ(filtered_entries[1], &sblks[3]);
 
-    // Test empty/invalid superblock priority: invalidate all sub-blocks in sblks[2]
+    // Test empty/invalid superblock priority: invalidate all sub-blocks in
+    // sblks[2]
     cblks[2][0].invalidate();
     cblks[2][1].invalidate();
     ASSERT_EQ(sblks[2].getNumValid(), 0);
 
     min_valid = std::numeric_limits<uint8_t>::max();
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         uint8_t num_valid = superblock->getNumValid();
         if (num_valid < min_valid) {
             min_valid = num_valid;
@@ -679,8 +680,8 @@ TEST_F(SuperBlkTestFixture, VictimDensityFilterCandidateSelection)
     ASSERT_EQ(min_valid, 0);
 
     filtered_entries.clear();
-    for (const auto& entry : superblock_entries) {
-        const SuperBlk* superblock = static_cast<const SuperBlk*>(entry);
+    for (const auto &entry : superblock_entries) {
+        const SuperBlk *superblock = static_cast<const SuperBlk *>(entry);
         if (superblock->getNumValid() == min_valid) {
             filtered_entries.push_back(entry);
         }
