@@ -235,4 +235,3 @@ TEST_F(BaseCompressorTest, NumericalStabilityNearZero)
         EXPECT_GE(comp.getSampledCompressedBits(), 512ULL);
     }
 }
-
