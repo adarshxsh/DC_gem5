@@ -28,9 +28,62 @@
 
 #include <gtest/gtest.h>
 
+#include <list>
+
+#include "mem/cache/queue.hh"
 #include "mem/cache/tags/super_blk.hh"
 
 using namespace gem5;
+
+class TestQueueEntry : public QueueEntry
+{
+  public:
+    using List = std::list<TestQueueEntry *>;
+    using Iterator = List::iterator;
+
+    Iterator allocIter;
+    Iterator readyIter;
+
+    TestQueueEntry(const std::string &name = "test") : QueueEntry(name) {}
+
+    void
+    deallocate()
+    {}
+    bool
+    matchBlockAddr(const Addr addr, const bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    matchBlockAddr(const PacketPtr pkt) const override
+    {
+        return false;
+    }
+    bool
+    conflictAddr(const QueueEntry *entry) const override
+    {
+        return false;
+    }
+    bool
+    sendPacket(BaseCache &cache) override
+    {
+        return false;
+    }
+    Target *
+    getTarget() override
+    {
+        return nullptr;
+    }
+};
+
+class TestQueue : public Queue<TestQueueEntry>
+{
+  public:
+    TestQueue(const std::string &label, int num_entries, int reserve,
+              const std::string &name)
+        : Queue<TestQueueEntry>(label, num_entries, reserve, name)
+    {}
+};
 
 /**
  * Test that CompressionBlk correctly sets compression status for uncompressed
@@ -45,11 +98,13 @@ TEST(SuperBlkTest, UncompressedSubBlockDetection)
     blk.setSizeBits(512);
     EXPECT_FALSE(blk.isCompressed());
     EXPECT_EQ(blk.getSizeBits(), 512);
+    EXPECT_EQ(blk.getDecompressionLatency(), Cycles(2));
 
     // Compressed line (256 bits)
     blk.setSizeBits(256);
     EXPECT_TRUE(blk.isCompressed());
     EXPECT_EQ(blk.getSizeBits(), 256);
+    EXPECT_EQ(blk.getDecompressionLatency(), Cycles(2));
 }
 
 TEST(SuperBlkTest, SetUncompressedClearsCompressed)
@@ -132,4 +187,13 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
 
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
+}
+
+TEST(QueueTest, OccupancyAndSaturation)
+{
+    TestQueue queue("test_buffer", 8, 0, "test_queue");
+    EXPECT_EQ(queue.occupancy(), 0);
+    EXPECT_EQ(queue.capacity(), 8);
+    EXPECT_DOUBLE_EQ(queue.saturationRatio(), 0.0);
+    EXPECT_FALSE(queue.isFull());
 }

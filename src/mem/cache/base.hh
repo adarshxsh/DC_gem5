@@ -371,6 +371,12 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** Enable queue-aware adaptive decompression latency throttling. */
+    const bool enableQueueAwareDecompression;
+
+    /** MSHR / write buffer queue occupancy percentage threshold. */
+    const unsigned mshrQueueThrottlingThreshold;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -493,6 +499,18 @@ class BaseCache : public ClockedObject
      */
     Cycles calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
                                   const Cycles lookup_lat) const;
+
+    /**
+     * Check whether MSHR or write buffer queues are congested or exceed
+     * the saturation threshold.
+     */
+    bool isQueueCongested() const;
+
+    /**
+     * Calculate effective decompression latency for a block based on current
+     * queue congestion state.
+     */
+    virtual Cycles getEffectiveDecompressionLatency(const CacheBlk *blk) const;
 
     /**
      * Does all the processing necessary to perform the provided request.
