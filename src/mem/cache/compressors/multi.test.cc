@@ -107,6 +107,8 @@ class MultiCompressorTest : public ::testing::Test
         zero_p.dictionary_size = 64;
         zero_p.enable_adaptive_bypass = false;
         zero_p.latency_breakeven_threshold = 1.0;
+        zero_p.hysteresis_low_threshold = 0.95;
+        zero_p.hysteresis_high_threshold = 1.05;
         zero_p.sampling_interval = 100;
         zero_p.decay_shift = 4;
         zeroComp = new Zero(zero_p);
@@ -123,6 +125,8 @@ class MultiCompressorTest : public ::testing::Test
         rq_p.dictionary_size = 64;
         rq_p.enable_adaptive_bypass = false;
         rq_p.latency_breakeven_threshold = 1.0;
+        rq_p.hysteresis_low_threshold = 0.95;
+        rq_p.hysteresis_high_threshold = 1.05;
         rq_p.sampling_interval = 100;
         rq_p.decay_shift = 4;
         rqComp = new RepeatedQwords(rq_p);
@@ -139,6 +143,8 @@ class MultiCompressorTest : public ::testing::Test
         bdi_p.dictionary_size = 64;
         bdi_p.enable_adaptive_bypass = false;
         bdi_p.latency_breakeven_threshold = 1.0;
+        bdi_p.hysteresis_low_threshold = 0.95;
+        bdi_p.hysteresis_high_threshold = 1.05;
         bdi_p.sampling_interval = 100;
         bdi_p.decay_shift = 4;
         bdiComp = new Base16Delta8(bdi_p);
@@ -157,6 +163,8 @@ class MultiCompressorTest : public ::testing::Test
         multi_p.probe_interval = probe_interval;
         multi_p.enable_adaptive_bypass = false;
         multi_p.latency_breakeven_threshold = 1.0;
+        multi_p.hysteresis_low_threshold = 0.95;
+        multi_p.hysteresis_high_threshold = 1.05;
         multi_p.sampling_interval = 100;
         multi_p.decay_shift = 4;
         multi_p.compressors = {zeroComp, rqComp, bdiComp};

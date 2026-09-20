@@ -102,6 +102,10 @@ class MemCtrl(QoSMemCtrl):
     command_window = Param.Latency("10ns", "Static backend latency")
     disable_sanity_check = Param.Bool(False, "Disable port resp Q size check")
 
+    ewma_alpha = Param.Float(
+        0.1, "EWMA smoothing coefficient alpha for queue length tracking"
+    )
+
 
 add_citation(
     MemCtrl,

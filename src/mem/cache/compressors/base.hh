@@ -131,6 +131,15 @@ class Base : public SimObject
     /** Compression ratio threshold below which compression is bypassed. */
     const float latencyBreakevenThreshold;
 
+    /** Lower bound threshold to transition into bypass mode. */
+    const float hysteresisLowThreshold;
+
+    /** Upper bound threshold to exit bypass mode and re-enable compression. */
+    const float hysteresisHighThreshold;
+
+    /** Current adaptive bypass state. */
+    bool isBypassing;
+
     /** Sampling interval for tracking compression effectiveness. */
     const unsigned samplingInterval;
 

@@ -77,6 +77,11 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     backendLatency(p.static_backend_latency),
     commandWindow(p.command_window),
     prevArrival(0),
+    ewmaAlpha(p.ewma_alpha),
+    ewmaRdQLen(0.0),
+    ewmaWrQLen(0.0),
+    lastRdEWMATick(0),
+    lastWrEWMATick(0),
     stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
@@ -278,8 +283,18 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 
             mem_intr->readQueueSize++;
 
-            // Update stats
-            stats.avgRdQLen = totalReadQueueSize + respQueue.size();
+            // Update stats using Exponentially Weighted Moving Average (EWMA)
+            double currentLen = totalReadQueueSize + respQueue.size();
+            if (lastRdEWMATick == 0) {
+                ewmaRdQLen = currentLen;
+            } else {
+                Tick deltaTicks = curTick() - lastRdEWMATick;
+                uint64_t deltaCycles = clockPeriod() > 0 ? (deltaTicks / clockPeriod()) : deltaTicks;
+                double effAlpha = (deltaCycles > 0) ? (1.0 - std::pow(1.0 - ewmaAlpha, static_cast<double>(deltaCycles))) : ewmaAlpha;
+                ewmaRdQLen = effAlpha * currentLen + (1.0 - effAlpha) * ewmaRdQLen;
+            }
+            lastRdEWMATick = curTick();
+            stats.avgRdQLen = ewmaRdQLen;
         }
 
         // Starting address of next memory pkt (aligned to burst boundary)
@@ -354,8 +369,18 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
 
             assert(totalWriteQueueSize == isInWriteQueue.size());
 
-            // Update stats
-            stats.avgWrQLen = totalWriteQueueSize;
+            // Update stats using Exponentially Weighted Moving Average (EWMA)
+            double currentLen = totalWriteQueueSize;
+            if (lastWrEWMATick == 0) {
+                ewmaWrQLen = currentLen;
+            } else {
+                Tick deltaTicks = curTick() - lastWrEWMATick;
+                uint64_t deltaCycles = clockPeriod() > 0 ? (deltaTicks / clockPeriod()) : deltaTicks;
+                double effAlpha = (deltaCycles > 0) ? (1.0 - std::pow(1.0 - ewmaAlpha, static_cast<double>(deltaCycles))) : ewmaAlpha;
+                ewmaWrQLen = effAlpha * currentLen + (1.0 - effAlpha) * ewmaWrQLen;
+            }
+            lastWrEWMATick = curTick();
+            stats.avgWrQLen = ewmaWrQLen;
 
         } else {
             DPRINTF(MemCtrl,
