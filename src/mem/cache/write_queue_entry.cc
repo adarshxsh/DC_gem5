@@ -105,17 +105,21 @@ WriteQueueEntry::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
     if (sub_blk_size == 0) {
         sub_blk_size = 8;
         num_sub_blks = blkSize / sub_blk_size;
-        if (num_sub_blks == 0) num_sub_blks = 1;
+        if (num_sub_blks == 0) {
+            num_sub_blks = 1;
+        }
     }
     subBlockDirtyMask.assign(num_sub_blks, false);
 
     const Request::FlagsType special_flags =
-        Request::UNCACHEABLE | Request::STRICT_ORDER |
-        Request::PRIVILEGED | Request::LLSC | Request::MEM_SWAP |
-        Request::MEM_SWAP_COND | Request::SECURE | Request::LOCKED_RMW;
+        Request::UNCACHEABLE | Request::STRICT_ORDER | Request::PRIVILEGED |
+        Request::LLSC | Request::MEM_SWAP | Request::MEM_SWAP_COND |
+        Request::SECURE | Request::LOCKED_RMW;
     bool is_special = target->req->getFlags().isSet(special_flags);
 
-    if (_isUncacheable || is_special || target->cmd == MemCmd::WritebackDirty || target->getSize() >= blkSize) {
+    if (_isUncacheable || is_special ||
+        target->cmd == MemCmd::WritebackDirty ||
+        target->getSize() >= blkSize) {
         std::fill(subBlockDirtyMask.begin(), subBlockDirtyMask.end(), true);
     } else if (target->cmd == MemCmd::CleanEvict) {
         std::fill(subBlockDirtyMask.begin(), subBlockDirtyMask.end(), false);
@@ -164,7 +168,8 @@ WriteQueueEntry::trySatisfyFunctional(PacketPtr pkt)
         pkt->trySatisfyFunctional(this, blkAddr, isSecure, blkSize, nullptr);
         return false;
     } else {
-        if (!subBlockDirtyMask.empty() && pkt->matchBlockAddr(blkAddr, isSecure, blkSize)) {
+        if (!subBlockDirtyMask.empty() &&
+            pkt->matchBlockAddr(blkAddr, isSecure, blkSize)) {
             unsigned num_sub_blks = subBlockDirtyMask.size();
             unsigned sub_blk_size = blkSize / num_sub_blks;
             if (sub_blk_size > 0) {
@@ -174,7 +179,8 @@ WriteQueueEntry::trySatisfyFunctional(PacketPtr pkt)
                 unsigned end_sub = (offset + size - 1) / sub_blk_size;
 
                 bool overlaps_dirty = false;
-                for (unsigned i = start_sub; i <= end_sub && i < num_sub_blks; ++i) {
+                for (unsigned i = start_sub; i <= end_sub && i < num_sub_blks;
+                     ++i) {
                     if (subBlockDirtyMask[i]) {
                         overlaps_dirty = true;
                         break;

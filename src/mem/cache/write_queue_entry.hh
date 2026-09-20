@@ -121,16 +121,23 @@ class WriteQueueEntry : public QueueEntry, public Printable
         :   QueueEntry(name)
     {}
 
-    const std::vector<bool>& getSubBlockDirtyMask() const {
+    const std::vector<bool> &
+    getSubBlockDirtyMask() const
+    {
         return subBlockDirtyMask;
     }
 
-    bool isSubBlockDirty(unsigned idx) const {
+    bool
+    isSubBlockDirty(unsigned idx) const
+    {
         return idx < subBlockDirtyMask.size() && subBlockDirtyMask[idx];
     }
 
-    unsigned getNumDirtySubBlocks() const {
-        return std::count(subBlockDirtyMask.begin(), subBlockDirtyMask.end(), true);
+    unsigned
+    getNumDirtySubBlocks() const
+    {
+        return std::count(subBlockDirtyMask.begin(), subBlockDirtyMask.end(),
+                          true);
     }
 
     /**

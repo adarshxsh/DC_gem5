@@ -41,10 +41,19 @@
 #include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
-namespace gem5 {
-bool BaseCache::sendWriteQueuePacket(WriteQueueEntry* wq_entry) { return false; }
-bool BaseCache::sendMSHRQueuePacket(MSHR* mshr) { return false; }
+namespace gem5
+{
+bool
+BaseCache::sendWriteQueuePacket(WriteQueueEntry *wq_entry)
+{
+    return false;
 }
+bool
+BaseCache::sendMSHRQueuePacket(MSHR *mshr)
+{
+    return false;
+}
+} // namespace gem5
 
 using namespace gem5;
 
@@ -582,7 +591,7 @@ TEST_F(SuperBlkTestFixture, SubBlockDirtyMaskTracking)
     targetList.init(0x1000, 64, 8);
     targetList.updateWriteFlags(pkt);
 
-    const auto& mshrMask = targetList.getSubBlockDirtyMask();
+    const auto &mshrMask = targetList.getSubBlockDirtyMask();
     ASSERT_EQ(mshrMask.size(), 8);
     for (unsigned i = 0; i < 8; ++i) {
         if (i == 2) {
@@ -602,12 +611,13 @@ TEST_F(SuperBlkTestFixture, SubBlockDirtyMaskTracking)
     WriteQueueEntry wqEntry("test_wq_entry");
     wqEntry.allocate(0x1000, 64, wbPkt, mockTick, 1);
 
-    const auto& wqMask = wqEntry.getSubBlockDirtyMask();
+    const auto &wqMask = wqEntry.getSubBlockDirtyMask();
     ASSERT_EQ(wqMask.size(), 8);
     // WritebackDirty is full-line dirty
     EXPECT_EQ(wqEntry.getNumDirtySubBlocks(), 8);
 
-    // Test WriteQueueEntry matchBlockAddr with matching sub-block vs clean sub-block
+    // Test WriteQueueEntry matchBlockAddr with matching sub-block vs clean
+    // sub-block
     EXPECT_TRUE(wqEntry.matchBlockAddr(pkt));
 
     delete pkt;
