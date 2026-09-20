@@ -1062,6 +1062,10 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
     bool invalidate = pkt->isInvalidate();
     [[maybe_unused]] bool needs_writable = pkt->needsWritable();
 
+    if (invalidate) {
+        clearDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure());
+    }
+
     // at the moment we could get an uncacheable write which does not
     // have the invalidate flag, and we need a suitable way of dealing
     // with this case

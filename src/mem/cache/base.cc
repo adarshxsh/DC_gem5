@@ -1825,7 +1825,6 @@ BaseCache::invalidateBlock(CacheBlk *blk)
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {
-        clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
         tags->invalidate(blk);
     } else {
         tempBlock->invalidate();
