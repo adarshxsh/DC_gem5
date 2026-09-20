@@ -530,7 +530,8 @@ class MemCtrl : public qos::MemCtrl
     mutable uint32_t lastWriteQueueSize;
 
     /**
-     * Update queue pressure statistics (including write queue fill velocity dQ_write/dt)
+     * Update queue pressure statistics (including write queue fill velocity
+     * dQ_write/dt)
      */
     virtual void updateQueuePressureStats();
 
@@ -543,8 +544,8 @@ class MemCtrl : public qos::MemCtrl
      * @param dyn_min_writes Output adaptive minimum writes per switch
      */
     virtual void getDynamicWriteThresholds(uint32_t &dyn_high,
-                                          uint32_t &dyn_low,
-                                          uint32_t &dyn_min_writes) const;
+                                           uint32_t &dyn_low,
+                                           uint32_t &dyn_min_writes) const;
 
     /**
      * Memory controller configuration initialized based on parameter

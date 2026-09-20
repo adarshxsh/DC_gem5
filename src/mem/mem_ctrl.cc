@@ -60,33 +60,42 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    enableDynamicArbitration(p.enable_dynamic_arbitration),
-    adaptiveThresholdAlpha(p.adaptive_threshold_alpha),
-    adaptiveThresholdBeta(p.adaptive_threshold_beta),
-    writeQueueFillVelocity(0.0),
-    lastQueueStatsUpdateTick(0),
-    lastWriteQueueSize(0),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      enableDynamicArbitration(p.enable_dynamic_arbitration),
+      adaptiveThresholdAlpha(p.adaptive_threshold_alpha),
+      adaptiveThresholdBeta(p.adaptive_threshold_beta),
+      writeQueueFillVelocity(0.0),
+      lastQueueStatsUpdateTick(0),
+      lastWriteQueueSize(0),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -894,21 +903,25 @@ void
 MemCtrl::updateQueuePressureStats()
 {
     Tick current_tick = curTick();
-    if (lastQueueStatsUpdateTick > 0 && current_tick > lastQueueStatsUpdateTick) {
+    if (lastQueueStatsUpdateTick > 0 &&
+        current_tick > lastQueueStatsUpdateTick) {
         Tick delta_t = current_tick - lastQueueStatsUpdateTick;
-        int64_t delta_q = static_cast<int64_t>(totalWriteQueueSize) - static_cast<int64_t>(lastWriteQueueSize);
+        int64_t delta_q = static_cast<int64_t>(totalWriteQueueSize) -
+                          static_cast<int64_t>(lastWriteQueueSize);
         // Instantaneous velocity: delta_q per 10000 ticks (~10ns window)
-        double instant_velocity = (static_cast<double>(delta_q) / static_cast<double>(delta_t)) * 10000.0;
+        double instant_velocity =
+            (static_cast<double>(delta_q) / static_cast<double>(delta_t)) *
+            10000.0;
         // Exponentially weighted moving average (EMA)
-        writeQueueFillVelocity = 0.7 * writeQueueFillVelocity + 0.3 * instant_velocity;
+        writeQueueFillVelocity =
+            0.7 * writeQueueFillVelocity + 0.3 * instant_velocity;
     }
     lastQueueStatsUpdateTick = current_tick;
     lastWriteQueueSize = totalWriteQueueSize;
 }
 
 void
-MemCtrl::getDynamicWriteThresholds(uint32_t &dyn_high,
-                                   uint32_t &dyn_low,
+MemCtrl::getDynamicWriteThresholds(uint32_t &dyn_high, uint32_t &dyn_low,
                                    uint32_t &dyn_min_writes) const
 {
     if (!enableDynamicArbitration) {
@@ -918,42 +931,55 @@ MemCtrl::getDynamicWriteThresholds(uint32_t &dyn_high,
         return;
     }
 
-    double wr_pressure = writeBufferSize > 0 ?
-        static_cast<double>(totalWriteQueueSize) / writeBufferSize : 0.0;
-    double rd_occupancy = static_cast<double>(totalReadQueueSize + respQueue.size());
-    double rd_pressure = readBufferSize > 0 ? rd_occupancy / readBufferSize : 0.0;
+    double wr_pressure =
+        writeBufferSize > 0
+            ? static_cast<double>(totalWriteQueueSize) / writeBufferSize
+            : 0.0;
+    double rd_occupancy =
+        static_cast<double>(totalReadQueueSize + respQueue.size());
+    double rd_pressure =
+        readBufferSize > 0 ? rd_occupancy / readBufferSize : 0.0;
 
     // Relative read vs write pressure gradient: (P_read - P_write)
     double relative_pressure = rd_pressure - wr_pressure;
 
-    // Velocity adjustment: higher velocity -> lower high threshold to trigger writes early
+    // Velocity adjustment: higher velocity -> lower high threshold to trigger
+    // writes early
     double velocity_adj = adaptiveThresholdAlpha * writeQueueFillVelocity;
 
-    // Pressure adjustment: higher relative read pressure -> raise write high threshold
-    double pressure_adj = adaptiveThresholdBeta * relative_pressure * writeBufferSize;
+    // Pressure adjustment: higher relative read pressure -> raise write high
+    // threshold
+    double pressure_adj =
+        adaptiveThresholdBeta * relative_pressure * writeBufferSize;
 
-    double high_val = static_cast<double>(writeHighThreshold) - (velocity_adj * writeBufferSize) + pressure_adj;
+    double high_val = static_cast<double>(writeHighThreshold) -
+                      (velocity_adj * writeBufferSize) + pressure_adj;
 
     // Threshold Bounds Guardrails:
     // T_min_high >= 0.5 * writeBufferSize
     // T_max_high <= writeBufferSize - 1
     double min_high_bound = std::max(1.0, 0.5 * writeBufferSize);
-    double max_high_bound = static_cast<double>(writeBufferSize > 1 ? writeBufferSize - 1 : 1);
+    double max_high_bound =
+        static_cast<double>(writeBufferSize > 1 ? writeBufferSize - 1 : 1);
 
     high_val = std::clamp(high_val, min_high_bound, max_high_bound);
     dyn_high = static_cast<uint32_t>(std::round(high_val));
 
     // Dynamic low threshold: must remain strictly lower than dyn_high
-    double low_val = static_cast<double>(writeLowThreshold) - (velocity_adj * writeBufferSize) + pressure_adj;
-    double max_low_bound = static_cast<double>(dyn_high > 1 ? dyn_high - 1 : 1);
+    double low_val = static_cast<double>(writeLowThreshold) -
+                     (velocity_adj * writeBufferSize) + pressure_adj;
+    double max_low_bound =
+        static_cast<double>(dyn_high > 1 ? dyn_high - 1 : 1);
     low_val = std::clamp(low_val, 0.0, max_low_bound);
     dyn_low = static_cast<uint32_t>(std::round(low_val));
 
     // Adaptive minWritesPerSwitch burst scaling:
     // Scale minWritesPerSwitch upward during high write pressure
     if (wr_pressure > rd_pressure) {
-        double scale = 1.0 + adaptiveThresholdBeta * (wr_pressure - rd_pressure);
-        dyn_min_writes = static_cast<uint32_t>(std::round(minWritesPerSwitch * scale));
+        double scale =
+            1.0 + adaptiveThresholdBeta * (wr_pressure - rd_pressure);
+        dyn_min_writes =
+            static_cast<uint32_t>(std::round(minWritesPerSwitch * scale));
     } else {
         dyn_min_writes = minWritesPerSwitch;
     }
@@ -1123,9 +1149,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
             if ((mem_intr->writeQueueSize > dynHighThresh) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 
@@ -1211,7 +1237,8 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= dynMinWrites) ||
+            (mem_intr->readQueueSize &&
+             mem_intr->writesThisTime >= dynMinWrites) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again
