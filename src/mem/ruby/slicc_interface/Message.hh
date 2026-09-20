@@ -48,6 +48,7 @@
 #include "mem/packet.hh"
 #include "mem/ruby/common/NetDest.hh"
 #include "mem/ruby/common/WriteMask.hh"
+#include "mem/ruby/network/Network.hh"
 #include "mem/ruby/protocol/MessageSizeType.hh"
 
 namespace gem5
@@ -80,6 +81,17 @@ class Message
     { panic("MessageSizeType() called on wrong message!"); }
     virtual MessageSizeType& getMessageSize()
     { panic("MessageSizeType() called on wrong message!"); }
+
+    /**
+     * Returns the dynamic / functional payload size of the message in bytes.
+     * Derived message classes (e.g. compressed data responses) can override
+     * this to return actual dynamic payload byte sizes.
+     */
+    virtual int
+    getFunctionalSize() const
+    {
+        return Network::MessageSizeType_to_int(getMessageSize());
+    }
 
     /**
      * The two functions below are used for reading / writing the message
