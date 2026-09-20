@@ -89,15 +89,15 @@ class OccupancyHistory
     size_t capacity;
 
   public:
-    OccupancyHistory(size_t cap = 10)
-        : head(0), count(0), capacity(cap)
+    OccupancyHistory(size_t cap = 10) : head(0), count(0), capacity(cap)
     {
         if (capacity > 0) {
             buffer.resize(capacity);
         }
     }
 
-    void init(size_t cap)
+    void
+    init(size_t cap)
     {
         capacity = cap;
         head = 0;
@@ -109,9 +109,12 @@ class OccupancyHistory
         }
     }
 
-    void addSample(Tick t, uint32_t q)
+    void
+    addSample(Tick t, uint32_t q)
     {
-        if (capacity == 0) return;
+        if (capacity == 0) {
+            return;
+        }
 
         if (count > 0) {
             size_t latest_idx = (head + count - 1) % capacity;
@@ -131,15 +134,16 @@ class OccupancyHistory
         }
     }
 
-    double getDerivative(Tick current_time, uint32_t current_occupancy) const
+    double
+    getDerivative(Tick current_time, uint32_t current_occupancy) const
     {
         if (capacity == 0 || count < 2) {
             return 0.0;
         }
 
-        const OccupancySample& oldest = buffer[head];
+        const OccupancySample &oldest = buffer[head];
         size_t latest_idx = (head + count - 1) % capacity;
-        const OccupancySample& latest = buffer[latest_idx];
+        const OccupancySample &latest = buffer[latest_idx];
 
         Tick t_latest = latest.time;
         int32_t q_latest = static_cast<int32_t>(latest.occupancy);
@@ -157,13 +161,15 @@ class OccupancyHistory
         return delta_q / delta_t;
     }
 
-    void clear()
+    void
+    clear()
     {
         head = 0;
         count = 0;
     }
 
-    void serialize(CheckpointOut &cp, const std::string &section) const
+    void
+    serialize(CheckpointOut &cp, const std::string &section) const
     {
         paramOut(cp, section + ".count", count);
         std::vector<Tick> times;
@@ -177,7 +183,8 @@ class OccupancyHistory
         arrayParamOut(cp, section + ".occupancies", occupancies);
     }
 
-    void unserialize(CheckpointIn &cp, const std::string &section)
+    void
+    unserialize(CheckpointIn &cp, const std::string &section)
     {
         clear();
         size_t saved_count = 0;
@@ -186,7 +193,8 @@ class OccupancyHistory
             std::vector<uint32_t> occupancies;
             arrayParamIn(cp, section + ".times", times);
             arrayParamIn(cp, section + ".occupancies", occupancies);
-            for (size_t i = 0; i < times.size() && i < occupancies.size(); ++i) {
+            for (size_t i = 0; i < times.size() && i < occupancies.size();
+                 ++i) {
                 addSample(times[i], occupancies[i]);
             }
         }
