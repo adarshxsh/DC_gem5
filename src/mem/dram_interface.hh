@@ -744,6 +744,11 @@ class DRAMInterface : public MemInterface
      * @return pair, tick when current burst is issued and
      *               tick when next burst can issue
      */
+    /**
+     * Compute DRAM bus transfer time based on compressed payload size
+     */
+    Tick getBurstTime(const MemPacket *mem_pkt) const;
+
     std::pair<Tick, Tick>
     doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                   const std::vector<MemPacketQueue>& queue) override;

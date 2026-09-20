@@ -236,7 +236,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
                                 "Read to addr %#x with size %d serviced by "
                                 "write queue\n",
                                 addr, size);
-                        stats.bytesReadWrQ += burst_size;
+                        stats.bytesReadWrQ += pkt->getCompressedSize();
                         break;
                     }
                 }
@@ -823,10 +823,12 @@ MemCtrl::doBurstAccess(MemPacket* mem_pkt, MemInterface* mem_intr)
         // Update latency stats
         stats.requestorReadTotalLat[mem_pkt->requestorId()] +=
             mem_pkt->readyTime - mem_pkt->entryTime;
-        stats.requestorReadBytes[mem_pkt->requestorId()] += mem_pkt->size;
+        stats.requestorReadBytes[mem_pkt->requestorId()] +=
+            mem_pkt->getCompressedSize();
     } else {
         ++(mem_intr->writesThisTime);
-        stats.requestorWriteBytes[mem_pkt->requestorId()] += mem_pkt->size;
+        stats.requestorWriteBytes[mem_pkt->requestorId()] +=
+            mem_pkt->getCompressedSize();
         stats.requestorWriteTotalLat[mem_pkt->requestorId()] +=
             mem_pkt->readyTime - mem_pkt->entryTime;
     }
