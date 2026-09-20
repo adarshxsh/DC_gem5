@@ -775,9 +775,12 @@ class MemCtrl : public qos::MemCtrl
     /**
      * Get current write queue pressure as occupancy ratio [0.0, 1.0]
      */
-    double getWriteQueuePressure() const
+    double
+    getWriteQueuePressure() const
     {
-        return writeBufferSize > 0 ? (double)totalWriteQueueSize / (double)writeBufferSize : 0.0;
+        return writeBufferSize > 0
+                   ? (double)totalWriteQueueSize / (double)writeBufferSize
+                   : 0.0;
     }
 
     /**

@@ -2,7 +2,8 @@
  * Copyright (c) 2026
  * All rights reserved.
  *
- * Unit test for DRAMInterface dynamic refresh deferral and power-down inhibition.
+ * Unit test for DRAMInterface dynamic refresh deferral and power-down
+ * inhibition.
  */
 
 #include <gtest/gtest.h>
@@ -20,7 +21,9 @@ TEST(DRAMInterfaceTest, QueuePressureAndDrainingCheck)
     // Test write queue pressure computation
     uint32_t write_buffer_size = 64;
     uint32_t current_writes = 48;
-    double pressure = write_buffer_size > 0 ? (double)current_writes / (double)write_buffer_size : 0.0;
+    double pressure = write_buffer_size > 0
+                          ? (double)current_writes / (double)write_buffer_size
+                          : 0.0;
     EXPECT_DOUBLE_EQ(pressure, 0.75);
 
     // Test high write threshold pressure (> 85%)

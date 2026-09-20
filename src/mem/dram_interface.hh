@@ -483,8 +483,16 @@ class DRAMInterface : public MemInterface
         void processWakeUpEvent();
         EventFunctionWrapper wakeUpEvent;
 
-        void incRefreshDeferrals() { stats.numRefreshDeferrals++; }
-        void incPowerdownInhibits() { stats.numPowerdownInhibits++; }
+        void
+        incRefreshDeferrals()
+        {
+            stats.numRefreshDeferrals++;
+        }
+        void
+        incPowerdownInhibits()
+        {
+            stats.numPowerdownInhibits++;
+        }
 
       protected:
         RankStats stats;

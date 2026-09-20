@@ -795,7 +795,8 @@ MemCtrl::inWriteBusState(bool next_state, const MemInterface* mem_intr) const
 bool
 MemCtrl::isWriteDraining() const
 {
-    return (dram != nullptr && dram->busState == WRITE) || (totalWriteQueueSize >= writeHighThreshold);
+    return (dram != nullptr && dram->busState == WRITE) ||
+           (totalWriteQueueSize >= writeHighThreshold);
 }
 
 Tick
