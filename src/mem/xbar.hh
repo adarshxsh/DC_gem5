@@ -116,7 +116,6 @@ class BaseXBar : public ClockedObject
 
         const std::string name() const { return _name; }
 
-
         /**
          * Determine if the layer accepts a packet from a specific
          * port. If not, the port in question is also added to the
@@ -128,7 +127,7 @@ class BaseXBar : public ClockedObject
          *
          * @return True if the layer accepts the packet
          */
-        bool tryTiming(SrcType* src_port, PacketPtr pkt = nullptr);
+        bool tryTiming(SrcType *src_port, PacketPtr pkt = nullptr);
 
         /**
          * Deal with a destination port accepting a packet by potentially
@@ -211,10 +210,10 @@ class BaseXBar : public ClockedObject
          */
         struct WaitingPort
         {
-            SrcType* port;
+            SrcType *port;
             bool highPriority;
 
-            WaitingPort(SrcType* _port, bool _hp)
+            WaitingPort(SrcType *_port, bool _hp)
                 : port(_port), highPriority(_hp)
             {}
         };

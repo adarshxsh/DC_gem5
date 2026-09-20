@@ -49,7 +49,8 @@ TEST(XBarTest, PriorityAndDecompressionDecoupling)
     RequestPtr req_wb = std::make_shared<Request>(0x2000, 64, 0, 0);
     PacketPtr wb_pkt = new Packet(req_wb, MemCmd::WritebackDirty, 64);
 
-    // Verify ReadReq is read & demand, and WritebackDirty is writeback/eviction
+    // Verify ReadReq is read & demand, and WritebackDirty is
+    // writeback/eviction
     EXPECT_TRUE(read_pkt->isRead());
     EXPECT_TRUE(read_pkt->isDemand());
     EXPECT_FALSE(read_pkt->isWriteback());
@@ -62,13 +63,18 @@ TEST(XBarTest, PriorityAndDecompressionDecoupling)
     // Test 2: Decompression latency accounting
     wb_pkt->payloadDelay = 120; // 120 ticks decompression latency
 
-    // Physical transmission ticks calculation for bus width = 16 bytes, clock period = 1000 ticks
+    // Physical transmission ticks calculation for bus width = 16 bytes, clock
+    // period = 1000 ticks
     uint32_t bus_width = 16;
     Tick clock_period = 1000;
-    Tick phys_delay = wb_pkt->hasData() ? (divCeil(wb_pkt->getSize(), bus_width) * clock_period) : 0;
+    Tick phys_delay =
+        wb_pkt->hasData()
+            ? (divCeil(wb_pkt->getSize(), bus_width) * clock_period)
+            : 0;
 
     EXPECT_EQ(phys_delay, 4000); // 64 / 16 = 4 cycles = 4000 ticks
-    EXPECT_EQ(wb_pkt->payloadDelay, 120); // Endpoint retains decompression latency
+    EXPECT_EQ(wb_pkt->payloadDelay,
+              120); // Endpoint retains decompression latency
 
     delete read_pkt;
     delete wb_pkt;
@@ -79,23 +85,31 @@ TEST(XBarTest, RetryQueuePriorityOrdering)
     Tick mockTick = 0;
     Gem5Internal::_curTickPtr = &mockTick;
 
-    struct DummyPort {};
+    struct DummyPort
+    {
+    };
     DummyPort port1, port2, port3, port4;
 
     struct WaitingPort
     {
-        DummyPort* port;
+        DummyPort *port;
         bool highPriority;
-        WaitingPort(DummyPort* _port, bool _hp) : port(_port), highPriority(_hp) {}
+        WaitingPort(DummyPort *_port, bool _hp)
+            : port(_port), highPriority(_hp)
+        {}
     };
 
     std::deque<WaitingPort> waitingForLayer;
 
-    auto tryTimingSim = [&](DummyPort* src_port, PacketPtr pkt) {
-        bool high_pri = pkt ? (pkt->isRead() || (pkt->isDemand() && !pkt->isWriteback() && !pkt->isEviction())) : false;
+    auto tryTimingSim = [&](DummyPort *src_port, PacketPtr pkt) {
+        bool high_pri =
+            pkt ? (pkt->isRead() || (pkt->isDemand() && !pkt->isWriteback() &&
+                                     !pkt->isEviction()))
+                : false;
         if (high_pri) {
-            auto it = std::find_if(waitingForLayer.begin(), waitingForLayer.end(),
-                                   [](const WaitingPort& wp) { return !wp.highPriority; });
+            auto it = std::find_if(
+                waitingForLayer.begin(), waitingForLayer.end(),
+                [](const WaitingPort &wp) { return !wp.highPriority; });
             waitingForLayer.emplace(it, src_port, true);
         } else {
             waitingForLayer.emplace_back(src_port, false);
@@ -125,14 +139,16 @@ TEST(XBarTest, RetryQueuePriorityOrdering)
     EXPECT_EQ(waitingForLayer[0].port, &port1);
     EXPECT_EQ(waitingForLayer[1].port, &port2);
 
-    // 3. Read1 (demand read) arrives -> high priority, jumps ahead of WB1 and WB2!
+    // 3. Read1 (demand read) arrives -> high priority, jumps ahead of WB1 and
+    // WB2!
     tryTimingSim(&port3, read1_pkt);
     EXPECT_EQ(waitingForLayer.size(), 3);
     EXPECT_EQ(waitingForLayer[0].port, &port3); // Read1 jumps to head!
     EXPECT_EQ(waitingForLayer[1].port, &port1); // WB1
     EXPECT_EQ(waitingForLayer[2].port, &port2); // WB2
 
-    // 4. Read2 (demand read) arrives -> high priority, placed after Read1 but ahead of WB1 and WB2!
+    // 4. Read2 (demand read) arrives -> high priority, placed after Read1 but
+    // ahead of WB1 and WB2!
     tryTimingSim(&port4, read2_pkt);
     EXPECT_EQ(waitingForLayer.size(), 4);
     EXPECT_EQ(waitingForLayer[0].port, &port3); // Read1

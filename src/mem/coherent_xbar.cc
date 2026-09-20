@@ -189,8 +189,8 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
 
     // determine how long the crossbar layer is busy based strictly on
     // physical payload transmission latency (excluding decompression delay)
-    Tick packetFinishTime = clockEdge(headerLatency) +
-        calcPayloadTransmissionDelay(pkt);
+    Tick packetFinishTime =
+        clockEdge(headerLatency) + calcPayloadTransmissionDelay(pkt);
 
     // is this the destination point for this packet? (e.g. true if
     // this xbar is the PoC for a cache maintenance operation to the
@@ -482,8 +482,8 @@ CoherentXBar::recvTimingResp(PacketPtr pkt, PortID mem_side_port_id)
 
     // determine how long the crossbar layer is busy based strictly on
     // physical payload transmission latency (excluding decompression delay)
-    Tick packetFinishTime = clockEdge(headerLatency) +
-        calcPayloadTransmissionDelay(pkt);
+    Tick packetFinishTime =
+        clockEdge(headerLatency) + calcPayloadTransmissionDelay(pkt);
 
     if (snoopFilter && !system->bypassCaches()) {
         // let the snoop filter inspect the response and update its state
@@ -633,8 +633,8 @@ CoherentXBar::recvTimingSnoopResp(PacketPtr pkt, PortID cpu_side_port_id)
 
     // determine how long the crossbar layer is busy based strictly on
     // physical payload transmission latency (excluding decompression delay)
-    Tick packetFinishTime = clockEdge(headerLatency) +
-        calcPayloadTransmissionDelay(pkt);
+    Tick packetFinishTime =
+        clockEdge(headerLatency) + calcPayloadTransmissionDelay(pkt);
 
     // forward it either as a snoop response or a normal response
     if (forwardAsSnoop) {

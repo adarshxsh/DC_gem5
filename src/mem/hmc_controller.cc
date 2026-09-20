@@ -75,8 +75,8 @@ bool HMCController::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
     calcPacketTiming(pkt, xbar_delay);
 
     // determine how long to be layer is busy
-    Tick packetFinishTime = clockEdge(Cycles(1)) +
-        calcPayloadTransmissionDelay(pkt);
+    Tick packetFinishTime =
+        clockEdge(Cycles(1)) + calcPayloadTransmissionDelay(pkt);
 
     // before forwarding the packet (and possibly altering it),
     // remember if we are expecting a response
