@@ -152,6 +152,11 @@ class BaseXBar : public ClockedObject
         void occupyLayer(Tick until);
 
         /**
+         * Select the next waiting port to retry.
+         */
+        virtual SrcType *selectNextRetryPort();
+
+        /**
          * Send a retry to the port at the head of waitingForLayer. The
          * caller must ensure that the list is not empty.
          */
@@ -417,6 +422,9 @@ class BaseXBar : public ClockedObject
     /** A function used to return the port associated with this object. */
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
+
+    /** Return the queue pressure of a downstream memory-side port. */
+    float getPortQueuePressure(PortID mem_side_port_id) const;
 
     void regStats() override;
 };
