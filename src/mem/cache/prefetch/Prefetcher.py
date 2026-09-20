@@ -169,8 +169,8 @@ class QueuedPrefetcher(BasePrefetcher):
     enable_cht = Param.Bool(
         True, "Enable Compression History Table (CHT) filtering"
     )
-    cht_entries = Param.Unsigned(
-        64, "Number of entries in Compression History Table"
+    cht_entries = Param.MemorySize(
+        "64", "Number of entries in Compression History Table"
     )
     cht_assoc = Param.Unsigned(2, "Associativity of Compression History Table")
     cht_min_cf_threshold = Param.Unsigned(
