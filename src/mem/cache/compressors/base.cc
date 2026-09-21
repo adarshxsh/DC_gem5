@@ -94,6 +94,8 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      hysteresisDelta(p.hysteresis_delta),
+      bypassActive(false),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -167,10 +169,28 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     double observedRatio =
         (sampledCompressedBits > 0)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+            : (latencyBreakevenThreshold + hysteresisDelta + 1.0);
 
-    bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+    if (enableAdaptiveBypass) {
+        double lowWatermark = latencyBreakevenThreshold - hysteresisDelta;
+        double highWatermark = latencyBreakevenThreshold + hysteresisDelta;
+
+        if (!bypassActive && (observedRatio < lowWatermark)) {
+            bypassActive = true;
+            DPRINTF(CacheComp,
+                    "Adaptive bypass activated (observed ratio: %.4f < low "
+                    "watermark: %.4f).\n",
+                    observedRatio, lowWatermark);
+        } else if (bypassActive && (observedRatio > highWatermark)) {
+            bypassActive = false;
+            DPRINTF(CacheComp,
+                    "Adaptive bypass deactivated (observed ratio: %.4f > high "
+                    "watermark: %.4f).\n",
+                    observedRatio, highWatermark);
+        }
+    }
+
+    bool shouldBypass = enableAdaptiveBypass && bypassActive;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -182,9 +202,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.bypassedCompressions++;
         DPRINTF(
             CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+            "Adaptive bypass active (observed ratio: %.4f, threshold: %.4f, "
+            "delta: %.4f). Bypassing compression.\n",
+            observedRatio, latencyBreakevenThreshold, hysteresisDelta);
         return comp_data;
     }
 
@@ -276,11 +296,7 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0)
-                                   ? ((double)sampledUncompressedBits /
-                                      (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
-        if (observedRatio < latencyBreakevenThreshold) {
+        if (bypassActive) {
             stats.bypassedDecompressions += 1;
         }
     }

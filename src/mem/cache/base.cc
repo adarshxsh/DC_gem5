@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -94,7 +94,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -116,6 +116,9 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       missCount(p.max_miss_count),
       addrRanges(p.addr_ranges.begin(), p.addr_ranges.end()),
       system(p.system),
+      l2CompressionBypassActive(false),
+      l2BackpressureActive(false),
+      lastBackpressureTick(0),
       stats(*this)
 {
     // the MSHR queue has no reserve entries as we check the MSHR
@@ -2783,6 +2786,7 @@ CpuSidePort::CpuSidePort(const std::string &_name, BaseCache& _cache,
 bool
 BaseCache::MemSidePort::recvTimingResp(PacketPtr pkt)
 {
+    cache->receiveCompressionBackpressure(pkt);
     cache->recvTimingResp(pkt);
     return true;
 }
@@ -2793,6 +2797,8 @@ BaseCache::MemSidePort::recvTimingSnoopReq(PacketPtr pkt)
 {
     // Snoops shouldn't happen when bypassing caches
     assert(!cache->system->bypassCaches());
+
+    cache->receiveCompressionBackpressure(pkt);
 
     // handle snooping requests
     cache->recvTimingSnoopReq(pkt);

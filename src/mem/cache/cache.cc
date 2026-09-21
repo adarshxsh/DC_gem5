@@ -191,8 +191,31 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 void
 Cache::doWritebacks(PacketList& writebacks, Tick forward_time)
 {
+    const bool multi_block_eviction = (writebacks.size() > 1);
+    Tick stagger_offset = 0;
+    const Tick stagger_step = clockPeriod();
+
     while (!writebacks.empty()) {
         PacketPtr wbPkt = writebacks.front();
+        Tick current_send_time = forward_time + stagger_offset;
+
+        // Check if upper-level L1 cache should throttle/pace in response to L2
+        // backpressure
+        if (isL2BackpressureActive()) {
+            if (wbPkt->cmd == MemCmd::CleanEvict ||
+                wbPkt->cmd == MemCmd::WritebackClean) {
+                // Throttle non-urgent clean writeback
+                delete wbPkt;
+                writebacks.pop_front();
+                continue;
+            }
+            // Pace dirty writebacks if MSHR/write queues are not under full
+            // pressure (deadlock avoidance)
+            if (!writeBuffer.isFull() && !mshrQueue.isFull()) {
+                current_send_time += clockPeriod() * 2;
+            }
+        }
+
         // We use forwardLatency here because we are copying writebacks to
         // write buffer.
 
@@ -217,15 +240,20 @@ Cache::doWritebacks(PacketList& writebacks, Tick forward_time)
                 // the Writeback does not reset the bit corresponding to this
                 // address in the snoop filter below.
                 wbPkt->setBlockCached();
-                allocateWriteBuffer(wbPkt, forward_time);
+                allocateWriteBuffer(wbPkt, current_send_time);
             }
         } else {
             // If the block is not cached above, send packet below. Both
             // CleanEvict and Writeback with BLOCK_CACHED flag cleared will
             // reset the bit corresponding to this address in the snoop filter
             // below.
-            allocateWriteBuffer(wbPkt, forward_time);
+            allocateWriteBuffer(wbPkt, current_send_time);
         }
+
+        if (multi_block_eviction) {
+            stagger_offset += stagger_step;
+        }
+
         writebacks.pop_front();
     }
 }
