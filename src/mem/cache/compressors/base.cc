@@ -179,8 +179,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
-    bool shouldBypass = memoryPressure ||
-        (enableAdaptiveBypass && !isSampled && (observedRatio < latencyBreakevenThreshold));
+    bool shouldBypass =
+        memoryPressure || (enableAdaptiveBypass && !isSampled &&
+                           (observedRatio < latencyBreakevenThreshold));
 
     if (shouldBypass) {
         std::unique_ptr<CompressionData> comp_data =
@@ -190,10 +191,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Compression bypassed (memory pressure: %d, observed ratio: %.4f < threshold: %.4f).\n",
-            memoryPressure, observedRatio, latencyBreakevenThreshold);
+        DPRINTF(CacheComp,
+                "Compression bypassed (memory pressure: %d, observed ratio: "
+                "%.4f < threshold: %.4f).\n",
+                memoryPressure, observedRatio, latencyBreakevenThreshold);
         return comp_data;
     }
 

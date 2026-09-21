@@ -254,11 +254,23 @@ class Base : public SimObject
      * @param pressure True if downstream memory queue exceeds high watermark.
      */
     virtual void updateMemoryPressure(bool pressure);
-    virtual void updatePolicy(bool pressure) { updateMemoryPressure(pressure); }
-    virtual void updatePolicyThresholds(bool pressure) { updateMemoryPressure(pressure); }
+    virtual void
+    updatePolicy(bool pressure)
+    {
+        updateMemoryPressure(pressure);
+    }
+    virtual void
+    updatePolicyThresholds(bool pressure)
+    {
+        updateMemoryPressure(pressure);
+    }
 
     /** Returns true if memory pressure is currently detected. */
-    bool isMemoryPressure() const { return memoryPressure; }
+    bool
+    isMemoryPressure() const
+    {
+        return memoryPressure;
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

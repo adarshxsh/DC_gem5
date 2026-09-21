@@ -221,12 +221,11 @@ TEST(DictionaryCompressorTest, MemoryQueuePressurePolicyUpdate)
     Cycles comp_lat(0), decomp_lat(0);
     auto comp_data = compressor.compress(zero_data, comp_lat, decomp_lat);
 
-    // Under memory pressure, compression should be bypassed (size = uncompressed block size in bits)
+    // Under memory pressure, compression should be bypassed (size =
+    // uncompressed block size in bits)
     EXPECT_EQ(comp_data->getSizeBits(), 64 * 8);
 
     // Clear memory pressure
     compressor.updateMemoryPressure(false);
     EXPECT_FALSE(compressor.isMemoryPressure());
 }
-
-
