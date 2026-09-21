@@ -174,7 +174,8 @@ class Base : public SimObject
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
-    /** Returns the observed compression ratio (windowed if window_size > 0). */
+    /** Returns the observed compression ratio (windowed if window_size > 0).
+     */
     double getObservedRatio() const;
 
     struct BaseStats : public statistics::Group

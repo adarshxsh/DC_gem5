@@ -249,7 +249,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         if (windowSize > 0) {
             if (windowCount == windowSize) {
                 // Buffer is full; evict sample at windowHead
-                uint64_t evictedUncomp = ringBuffer[windowHead].uncompressedBits;
+                uint64_t evictedUncomp =
+                    ringBuffer[windowHead].uncompressedBits;
                 uint64_t evictedComp = ringBuffer[windowHead].compressedBits;
 
                 if (windowUncompressedBits >= evictedUncomp) {
@@ -415,9 +416,10 @@ Base::BaseStats::regStats()
                                    statistics::nonan);
     observedCompressionRatio = sampledUncompressedBits / sampledCompressedBits;
 
-    observedWindowCompressionRatio.flags(statistics::total | statistics::nozero |
-                                         statistics::nonan);
-    observedWindowCompressionRatio = windowUncompressedBits / windowCompressedBits;
+    observedWindowCompressionRatio.flags(
+        statistics::total | statistics::nozero | statistics::nonan);
+    observedWindowCompressionRatio =
+        windowUncompressedBits / windowCompressedBits;
 }
 
 } // namespace compression

@@ -30,11 +30,11 @@ class TestZeroCompressor : public Zero
     using Base::compress;
     using Base::getDecompressionLatency;
     using Base::getObservedRatio;
+    using Base::windowCompressedBits;
     using Base::windowCount;
     using Base::windowHead;
     using Base::windowSize;
     using Base::windowUncompressedBits;
-    using Base::windowCompressedBits;
     using Zero::Zero;
 };
 
@@ -76,7 +76,8 @@ TEST(BaseCompressorTest, SlidingWindowRingBufferUpdatesAndEvicts)
 
     Cycles c_lat(0), d_lat(0);
 
-    // Insert 1 zero block (64 bytes = 512 bits uncompressed, 0 bits compressed for zero)
+    // Insert 1 zero block (64 bytes = 512 bits uncompressed, 0 bits compressed
+    // for zero)
     compressor.compress(zero_block, c_lat, d_lat);
     EXPECT_EQ(compressor.windowCount, 1);
     EXPECT_EQ(compressor.windowUncompressedBits, 512);
@@ -90,8 +91,8 @@ TEST(BaseCompressorTest, SlidingWindowRingBufferUpdatesAndEvicts)
     EXPECT_EQ(compressor.windowUncompressedBits, 2048);
     EXPECT_EQ(compressor.windowCompressedBits, 0);
 
-    // Adding 5th sample (uncompressible block: 512 bits uncompressed, 512 bits compressed)
-    // Should evict 1 zero block
+    // Adding 5th sample (uncompressible block: 512 bits uncompressed, 512 bits
+    // compressed) Should evict 1 zero block
     compressor.compress(uncomp_block, c_lat, d_lat);
     EXPECT_EQ(compressor.windowCount, 4);
     EXPECT_EQ(compressor.windowUncompressedBits, 2048); // 3 * 512 + 512
@@ -156,7 +157,9 @@ TEST(BaseCompressorTest, FallbackWhenWindowSizeIsZero)
     EXPECT_EQ(compressor.windowUncompressedBits, 0);
     EXPECT_EQ(compressor.windowCompressedBits, 0);
 
-    // Observed ratio uses scalar counters (512 uncompressed / 0 compressed -> ratio defaults when comp bits is 0)
-    // When sampledCompressedBits is 0 (since zero block compressed bits = 0), ratio is latencyBreakevenThreshold + 1.0 = 2.5
+    // Observed ratio uses scalar counters (512 uncompressed / 0 compressed ->
+    // ratio defaults when comp bits is 0) When sampledCompressedBits is 0
+    // (since zero block compressed bits = 0), ratio is
+    // latencyBreakevenThreshold + 1.0 = 2.5
     EXPECT_NEAR(compressor.getObservedRatio(), 2.5, 1e-4);
 }
