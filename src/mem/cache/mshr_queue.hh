@@ -81,6 +81,20 @@ class MSHRQueue : public Queue<MSHR>
     MSHRQueue(const std::string &_label, int num_entries, int reserve,
               int demand_reserve, std::string cache_name);
 
+    /** Get total number of entries in the MSHR queue. */
+    int
+    getNumEntries() const
+    {
+        return numEntries;
+    }
+
+    /** Get number of entries reserved for demand accesses. */
+    int
+    getDemandReserve() const
+    {
+        return demandReserve;
+    }
+
     /**
      * Allocates a new MSHR for the request and size. This places the request
      * as the first target in the MSHR.
@@ -152,14 +166,31 @@ class MSHRQueue : public Queue<MSHR>
     }
 
     /**
-     * Returns true if sufficient mshrs for prefetch.
-     * @return True if sufficient mshrs for prefetch.
+     * Returns true if sufficient mshrs for prefetch and feedback metrics
+     * allow.
+     * @param mem_queue_occ Downstream memory queue occupancy.
+     * @param high_watermark Downstream memory queue high watermark threshold.
+     * @param decomp_lat Decompression latency.
+     * @param max_decomp_lat Decompression latency throttling threshold.
+     * @param extra_reserve Additional MSHRs to reserve due to queue pressure.
+     * @return True if prefetching is allowed.
      */
-    bool canPrefetch() const
+    bool
+    canPrefetch(size_t mem_queue_occ = 0,
+                size_t high_watermark = std::numeric_limits<size_t>::max(),
+                Cycles decomp_lat = Cycles(0),
+                Cycles max_decomp_lat = Cycles(0), int extra_reserve = 0) const
     {
-        // @todo we may want to revisit the +1, currently added to
-        // keep regressions unchanged
-        return (allocated < numEntries - (numReserve + 1 + demandReserve));
+        if (high_watermark > 0 &&
+            high_watermark != std::numeric_limits<size_t>::max() &&
+            mem_queue_occ >= high_watermark) {
+            return false;
+        }
+        if (max_decomp_lat > Cycles(0) && decomp_lat > max_decomp_lat) {
+            return false;
+        }
+        return (allocated <
+                numEntries - (numReserve + 1 + demandReserve + extra_reserve));
     }
 };
 
