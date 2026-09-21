@@ -532,8 +532,9 @@ class MemCtrl : public qos::MemCtrl
     /** Rolling window history of write request arrival ticks */
     std::deque<Tick> writeArrivals;
 
-    /** Updates effective write high/low thresholds based on measured queue pressure */
-    void updateDynamicThresholds(MemInterface* mem_intr);
+    /** Updates effective write high/low thresholds based on measured queue
+     * pressure */
+    void updateDynamicThresholds(MemInterface *mem_intr);
 
     /**
      * Memory controller configuration initialized based on parameter

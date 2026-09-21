@@ -52,10 +52,10 @@ namespace qos
 {
 
 TurnaroundPolicyIdeal::TurnaroundPolicyIdeal(const Params &p)
-  : TurnaroundPolicy(p),
-    minTurnaroundBurst(p.min_turnaround_burst),
-    currentBurstCount(0),
-    lastBusState(MemCtrl::READ)
+    : TurnaroundPolicy(p),
+      minTurnaroundBurst(p.min_turnaround_burst),
+      currentBurstCount(0),
+      lastBusState(MemCtrl::READ)
 {}
 
 TurnaroundPolicyIdeal::~TurnaroundPolicyIdeal()
@@ -90,12 +90,14 @@ TurnaroundPolicyIdeal::selectBusState()
             bus_state = MemCtrl::READ;
         } else {
             // readq_size > 0 && writeq_size > 0
-            // Both queues populated at top priority: enforce turnaround burst hysteresis
+            // Both queues populated at top priority: enforce turnaround burst
+            // hysteresis
             if (currentBurstCount < minTurnaroundBurst) {
                 bus_state = memCtrl->getBusState();
             } else {
-                bus_state = ((memCtrl->getBusState() == MemCtrl::READ) ?
-                        MemCtrl::WRITE : MemCtrl::READ);
+                bus_state = ((memCtrl->getBusState() == MemCtrl::READ)
+                                 ? MemCtrl::WRITE
+                                 : MemCtrl::READ);
             }
         }
 
