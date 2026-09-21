@@ -518,6 +518,23 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
+    /** Adaptive pressure-based dynamic threshold parameters */
+    const bool enableDynamicQueuePressure;
+    const Tick pressureWindowLength;
+    const double writeArrivalVelocityThreshold;
+
+    /** Dynamic effective thresholds and switch quotas */
+    uint32_t effectiveWriteHighThreshold;
+    uint32_t effectiveWriteLowThreshold;
+    uint32_t effectiveMinWritesPerSwitch;
+    uint32_t effectiveMinReadsPerSwitch;
+
+    /** Rolling window history of write request arrival ticks */
+    std::deque<Tick> writeArrivals;
+
+    /** Updates effective write high/low thresholds based on measured queue pressure */
+    void updateDynamicThresholds(MemInterface* mem_intr);
+
     /**
      * Memory controller configuration initialized based on parameter
      * values.
@@ -575,6 +592,7 @@ class MemCtrl : public qos::MemCtrl
         statistics::Scalar servicedByWrQ;
         statistics::Scalar mergedWrBursts;
         statistics::Scalar neitherReadNorWriteReqs;
+        statistics::Scalar numDynamicThresholdAdjustments;
         // Average queue lengths
         statistics::Average avgRdQLen;
         statistics::Average avgWrQLen;
