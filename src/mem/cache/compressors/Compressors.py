@@ -68,6 +68,14 @@ class BaseCacheCompressor(SimObject):
         False,
         "Enable adaptive bypass of compression/decompression when observed compression ratio is below threshold",
     )
+    enable_adaptive_decompression_throttling = Param.Bool(
+        False,
+        "Enable queue-aware adaptive decompression latency throttling under memory congestion",
+    )
+    decompression_throttle_threshold = Param.Percent(
+        80,
+        "Memory queue occupancy percentage threshold above which decompression latency is throttled",
+    )
     latency_breakeven_threshold = Param.Float(
         1.0,
         "Observed compression ratio threshold below which compression is bypassed",

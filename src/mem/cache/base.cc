@@ -82,19 +82,22 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      enableAdaptiveDecompressionThrottling(
+          p.enable_adaptive_decompression_throttling),
+      decompressionThrottleThreshold(p.decompression_throttle_threshold),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1608,13 +1611,16 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
 
             // When a block is compressed, it must first be decompressed
-            // before being read. This adds to the access latency.
-            if (compressor) {
+            // before being read. This adds to the access latency unless
+            // memory queue congestion or MSHR saturation is detected.
+            if (compressor && !isQueueCongested()) {
                 lat += compressor->getDecompressionLatency(blk);
             }
         } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
-            lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
-                  compressor->getDecompressionLatency(blk);
+            lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
+            if (!isQueueCongested()) {
+                lat += compressor->getDecompressionLatency(blk);
+            }
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
