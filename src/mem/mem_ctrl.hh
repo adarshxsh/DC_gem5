@@ -789,11 +789,10 @@ class MemCtrl : public qos::MemCtrl
     void regProbePoints() override;
     void checkQueuePressure();
 
-    void logRequest(BusState dir, RequestorID id, uint8_t _qos,
-                    Addr addr, uint64_t entries = 1) override;
-    void logResponse(BusState dir, RequestorID id, uint8_t _qos,
-                     Addr addr, uint64_t entries = 1,
-                     double delay = 0.0) override;
+    void logRequest(BusState dir, RequestorID id, uint8_t _qos, Addr addr,
+                    uint64_t entries = 1) override;
+    void logResponse(BusState dir, RequestorID id, uint8_t _qos, Addr addr,
+                     uint64_t entries = 1, double delay = 0.0) override;
 
   protected:
 

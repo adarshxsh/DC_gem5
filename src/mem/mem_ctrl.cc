@@ -57,31 +57,40 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    readHighThreshold(readBufferSize * p.read_high_thresh_perc / 100.0),
-    readLowThreshold(readBufferSize * p.read_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    ppQueuePressure(nullptr),
-    memQueuePressure(false),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      readHighThreshold(readBufferSize * p.read_high_thresh_perc / 100.0),
+      readLowThreshold(readBufferSize * p.read_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      ppQueuePressure(nullptr),
+      memQueuePressure(false),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -114,7 +123,8 @@ void
 MemCtrl::regProbePoints()
 {
     qos::MemCtrl::regProbePoints();
-    ppQueuePressure = new ProbePointArg<bool>(getProbeManager(), "QueuePressure");
+    ppQueuePressure =
+        new ProbePointArg<bool>(getProbeManager(), "QueuePressure");
 }
 
 void
@@ -139,16 +149,16 @@ MemCtrl::checkQueuePressure()
 }
 
 void
-MemCtrl::logRequest(BusState dir, RequestorID id, uint8_t _qos,
-                    Addr addr, uint64_t entries)
+MemCtrl::logRequest(BusState dir, RequestorID id, uint8_t _qos, Addr addr,
+                    uint64_t entries)
 {
     qos::MemCtrl::logRequest(dir, id, _qos, addr, entries);
     checkQueuePressure();
 }
 
 void
-MemCtrl::logResponse(BusState dir, RequestorID id, uint8_t _qos,
-                     Addr addr, uint64_t entries, double delay)
+MemCtrl::logResponse(BusState dir, RequestorID id, uint8_t _qos, Addr addr,
+                     uint64_t entries, double delay)
 {
     qos::MemCtrl::logResponse(dir, id, _qos, addr, entries, delay);
     checkQueuePressure();

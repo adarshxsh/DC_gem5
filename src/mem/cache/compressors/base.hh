@@ -263,7 +263,11 @@ class Base : public SimObject
     void handleQueuePressure(const bool &pressure);
 
     /** Query whether memory queue pressure is active. */
-    bool isMemQueuePressureActive() const { return memQueuePressure; }
+    bool
+    isMemQueuePressureActive() const
+    {
+        return memQueuePressure;
+    }
 
     /** Register probe listeners. */
     void regProbeListeners() override;

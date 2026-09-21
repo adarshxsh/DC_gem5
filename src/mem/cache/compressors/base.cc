@@ -127,7 +127,8 @@ void
 Base::handleQueuePressure(const bool &pressure)
 {
     memQueuePressure = pressure;
-    DPRINTF(CacheComp, "Memory queue pressure updated: %d\n", memQueuePressure);
+    DPRINTF(CacheComp, "Memory queue pressure updated: %d\n",
+            memQueuePressure);
 }
 
 void

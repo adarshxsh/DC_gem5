@@ -55,7 +55,8 @@ class BaseCompressorQueuePressureTest : public ::testing::Test
     uint64_t zeroLine[8];
     uint64_t nonZeroLine[8];
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         std::memset(zeroLine, 0, sizeof(zeroLine));
         for (int i = 0; i < 8; i++) {
