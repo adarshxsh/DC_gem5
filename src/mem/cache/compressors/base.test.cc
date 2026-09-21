@@ -34,12 +34,6 @@
 #include "mem/cache/compressors/zero.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "params/ZeroCompressor.hh"
-#include "sim/root.hh"
-
-namespace gem5
-{
-Root *Root::_root = nullptr;
-}
 
 using namespace gem5;
 using namespace gem5::compression;

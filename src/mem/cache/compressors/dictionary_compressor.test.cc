@@ -14,12 +14,6 @@
 #include "mem/cache/compressors/fpc.hh"
 #include "params/CPack.hh"
 #include "params/FPC.hh"
-#include "sim/root.hh"
-
-namespace gem5
-{
-Root *Root::_root = nullptr;
-}
 
 using namespace gem5;
 using namespace compression;

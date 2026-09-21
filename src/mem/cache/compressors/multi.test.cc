@@ -42,12 +42,6 @@
 #include "params/MultiCompressor.hh"
 #include "params/RepeatedQwordsCompressor.hh"
 #include "params/ZeroCompressor.hh"
-#include "sim/root.hh"
-
-namespace gem5
-{
-Root *Root::_root = nullptr;
-}
 
 using namespace gem5;
 using namespace gem5::compression;
