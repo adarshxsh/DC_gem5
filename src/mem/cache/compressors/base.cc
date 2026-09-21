@@ -43,6 +43,7 @@
 #include "debug/CacheComp.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/mem_ctrl.hh"
 #include "params/BaseCacheCompressor.hh"
 
 namespace gem5
@@ -97,6 +98,8 @@ Base::Base(const Params &p)
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
+      memQueuePressure(false),
+      memCtrl(p.mem_ctrl),
       cache(nullptr),
       stats(*this)
 {
@@ -118,6 +121,24 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+void
+Base::handleQueuePressure(const bool &pressure)
+{
+    memQueuePressure = pressure;
+    DPRINTF(CacheComp, "Memory queue pressure updated: %d\n", memQueuePressure);
+}
+
+void
+Base::regProbeListeners()
+{
+    SimObject::regProbeListeners();
+    if (memCtrl) {
+        listeners.push_back(
+            memCtrl->getProbeManager()->connect<ProbeListenerArg<Base, bool>>(
+                this, "QueuePressure", &Base::handleQueuePressure));
+    }
 }
 
 std::vector<Base::Chunk>
@@ -160,6 +181,19 @@ std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
     totalCompressionRequests++;
+
+    if (memQueuePressure) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.bypassedCompressions++;
+        DPRINTF(CacheComp,
+                "Memory queue pressure active. Bypassing compression.\n");
+        return comp_data;
+    }
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
@@ -263,6 +297,11 @@ Cycles
 Base::getDecompressionLatency(const CacheBlk* blk)
 {
     const CompressionBlk* comp_blk = static_cast<const CompressionBlk*>(blk);
+
+    if (memQueuePressure && comp_blk) {
+        stats.bypassedDecompressions += 1;
+        return Cycles(0);
+    }
 
     // If block is compressed and has a size strictly less than an uncompressed
     // line, return its decompression latency

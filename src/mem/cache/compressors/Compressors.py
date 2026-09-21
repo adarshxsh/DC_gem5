@@ -81,6 +81,16 @@ class BaseCacheCompressor(SimObject):
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
 
+    mem_ctrl = Param.MemCtrl(
+        NULL, "Downstream memory controller to monitor for queue pressure"
+    )
+
+    def listenToMemCtrl(self, mem_ctrl):
+        self.mem_ctrl = mem_ctrl
+
+    def addProbeListener(self, mem_ctrl):
+        self.mem_ctrl = mem_ctrl
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"

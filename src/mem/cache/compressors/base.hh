@@ -41,6 +41,7 @@
 #include "base/compiler.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "sim/probe/probe.hh"
 #include "sim/sim_object.hh"
 
 namespace gem5
@@ -49,6 +50,11 @@ namespace gem5
 class BaseCache;
 class CacheBlk;
 struct BaseCacheCompressorParams;
+
+namespace memory
+{
+class MemCtrl;
+}
 
 namespace compression
 {
@@ -145,6 +151,15 @@ class Base : public SimObject
 
     /** Total compressed bits of sampled blocks. */
     uint64_t sampledCompressedBits;
+
+    /** Memory queue pressure state flag. */
+    bool memQueuePressure;
+
+    /** Pointer to downstream memory controller for probe listener binding. */
+    memory::MemCtrl *memCtrl;
+
+    /** Vector of registered probe listeners. */
+    std::vector<ProbeListenerPtr<>> listeners;
 
     /** Pointer to the parent cache. */
     BaseCache* cache;
@@ -243,6 +258,15 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Callback for memory queue pressure probe point notifications. */
+    void handleQueuePressure(const bool &pressure);
+
+    /** Query whether memory queue pressure is active. */
+    bool isMemQueuePressureActive() const { return memQueuePressure; }
+
+    /** Register probe listeners. */
+    void regProbeListeners() override;
 
     /**
      * Apply the compression process to the cache line. Ignores compression

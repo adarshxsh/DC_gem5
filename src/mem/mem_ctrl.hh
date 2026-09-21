@@ -59,6 +59,7 @@
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
+#include "sim/probe/probe.hh"
 
 namespace gem5
 {
@@ -515,8 +516,14 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    uint32_t readHighThreshold;
+    uint32_t readLowThreshold;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
+
+    /** Probe point to notify listeners when queue pressure changes */
+    ProbePointArg<bool> *ppQueuePressure;
+    bool memQueuePressure;
 
     /**
      * Memory controller configuration initialized based on parameter
@@ -778,6 +785,15 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
+
+    void regProbePoints() override;
+    void checkQueuePressure();
+
+    void logRequest(BusState dir, RequestorID id, uint8_t _qos,
+                    Addr addr, uint64_t entries = 1) override;
+    void logResponse(BusState dir, RequestorID id, uint8_t _qos,
+                     Addr addr, uint64_t entries = 1,
+                     double delay = 0.0) override;
 
   protected:
 

@@ -192,7 +192,7 @@ class MemCtrl : public ClockedObject
      * @param addr packet address
      * @param entries number of entries to record
      */
-    void logRequest(BusState dir, RequestorID id, uint8_t _qos,
+    virtual void logRequest(BusState dir, RequestorID id, uint8_t _qos,
                     Addr addr, uint64_t entries);
 
     /**
@@ -206,7 +206,7 @@ class MemCtrl : public ClockedObject
      * @param entries number of entries to record
      * @param delay response delay
      */
-    void logResponse(BusState dir, RequestorID id, uint8_t _qos,
+    virtual void logResponse(BusState dir, RequestorID id, uint8_t _qos,
                      Addr addr, uint64_t entries, double delay);
 
     /**
