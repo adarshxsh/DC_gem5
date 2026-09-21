@@ -49,6 +49,8 @@ class DWLRURPTestF : public ::testing::Test
         Gem5Internal::_curTickPtr = &mockTick;
         DWLRURPParams params;
         params.eventq_index = 0;
+        params.queue_pressure_threshold = 0.7;
+        params.writeback_penalty_weight = 2.0;
         rp = std::make_shared<replacement_policy::DWLRU>(params);
     }
 };
@@ -189,4 +191,77 @@ TEST_F(DWLRUVictimizationTestF, AutomaticMetadataUpdate)
 
     secBlk.invalidateSubBlk();
     ASSERT_EQ(dw_data->validSubBlkCount, 0);
+}
+
+TEST_F(DWLRURPTestF, QueuePressureGetterSetter)
+{
+    ASSERT_DOUBLE_EQ(rp->getQueuePressure(), 0.0);
+    ASSERT_DOUBLE_EQ(rp->getMemWriteQueuePressure(), 0.0);
+
+    rp->setQueuePressure(0.2);
+    ASSERT_DOUBLE_EQ(rp->getQueuePressure(), 0.2);
+    ASSERT_DOUBLE_EQ(rp->getMemWriteQueuePressure(), 0.2);
+
+    rp->setMemWriteQueuePressure(0.9);
+    ASSERT_DOUBLE_EQ(rp->getQueuePressure(), 0.9);
+    ASSERT_DOUBLE_EQ(rp->getMemWriteQueuePressure(), 0.9);
+}
+
+TEST_F(DWLRUVictimizationTestF, QueuePressureCongestionLevels)
+{
+    mockTick = 500;
+    for (auto &entry : candidates) {
+        rp->reset(entry->replacementData);
+    }
+
+    // Setup candidate entries:
+    // Entry 0: 2 valid sub-blocks (density 0.5), clean (0 dirty sub-blocks)
+    // Entry 1: 1 valid sub-block (density 0.25), dirty (3 writeback chunks)
+    // Entry 2: 3 valid sub-blocks (density 0.75), clean
+    // Entry 3: 4 valid sub-blocks (density 1.0), clean
+    for (int k = 0; k < 2; ++k) {
+        entries[0].validateSubBlk();
+    }
+    entries[1].validateSubBlk();
+    for (int k = 0; k < 3; ++k) {
+        entries[2].validateSubBlk();
+    }
+    for (int k = 0; k < 4; ++k) {
+        entries[3].validateSubBlk();
+    }
+
+    auto data0 =
+        std::dynamic_pointer_cast<replacement_policy::DWLRU::DWLRUReplData>(
+            entries[0].replacementData);
+    auto data1 =
+        std::dynamic_pointer_cast<replacement_policy::DWLRU::DWLRUReplData>(
+            entries[1].replacementData);
+    data0->dirtySubBlkCount = 0;
+    data1->dirtySubBlkCount = 3;
+
+    mockTick = 1000;
+
+    // 1. Low Queue Pressure (P_queue = 0.2 < threshold 0.7)
+    // No writeback penalty. Entry 1 has lowest density (0.25) -> highest base
+    // score.
+    rp->setQueuePressure(0.2);
+    ASSERT_EQ(rp->getVictim(candidates), &entries[1]);
+
+    // 2. Moderate Queue Pressure (P_queue = 0.6 < threshold 0.7)
+    // Still below threshold 0.7, so no penalty applied. Entry 1 selected as
+    // victim.
+    rp->setQueuePressure(0.6);
+    ASSERT_EQ(rp->getVictim(candidates), &entries[1]);
+
+    // 3. Severe Queue Pressure (P_queue = 0.9 > threshold 0.7)
+    // Excess pressure = 0.2. Weight = 2.0.
+    // Entry 1 base score = 501 / 0.25 = 2004.
+    // Entry 1 penalty factor = 1.0 + (2.0 * 0.2 * 3) = 2.2.
+    // Entry 1 penalized score = 2004 / 2.2 = 910.9.
+    // Entry 0 base score = 501 / 0.5 = 1002.
+    // Entry 0 is clean -> penalty factor = 1.0 -> penalized score = 1002.
+    // Therefore, clean Entry 0 (score 1002) is prioritized over dirty Entry 1
+    // (score 910.9).
+    rp->setQueuePressure(0.9);
+    ASSERT_EQ(rp->getVictim(candidates), &entries[0]);
 }

@@ -59,15 +59,40 @@ class DWLRU : public LRU
         /** Total sub-block capacity of this superblock/sector. */
         int maxSubBlks;
 
+        /** Number of dirty sub-blocks / writeback chunks in this
+         * superblock/sector. */
+        int dirtySubBlkCount;
+
         /**
          * Default constructor.
          */
-        DWLRUReplData() : LRUReplData(), validSubBlkCount(0), maxSubBlks(1) {}
+        DWLRUReplData()
+            : LRUReplData(),
+              validSubBlkCount(0),
+              maxSubBlks(1),
+              dirtySubBlkCount(0)
+        {}
     };
 
     typedef DWLRURPParams Params;
     DWLRU(const Params &p);
     ~DWLRU() = default;
+
+    /**
+     * Set downstream memory write queue pressure signal P_queue in [0.0, 1.0].
+     *
+     * @param pressure Downstream memory write queue pressure.
+     */
+    void setQueuePressure(double pressure) const;
+    void setMemWriteQueuePressure(double pressure) const;
+
+    /**
+     * Get current downstream memory write queue pressure signal P_queue.
+     *
+     * @return Current queue pressure signal.
+     */
+    double getQueuePressure() const;
+    double getMemWriteQueuePressure() const;
 
     /**
      * Invalidate replacement data to set it as the next probable victim.
@@ -111,6 +136,16 @@ class DWLRU : public LRU
      * @return A shared pointer to the new replacement data.
      */
     std::shared_ptr<ReplacementData> instantiateEntry() override;
+
+  protected:
+    /** Downstream memory write queue pressure signal P_queue in [0.0, 1.0]. */
+    mutable double queuePressure;
+
+    /** Threshold above which writeback penalty is applied. */
+    double queuePressureThreshold;
+
+    /** Weight factor applied to dirty writeback chunks under pressure. */
+    double writebackPenaltyWeight;
 };
 
 } // namespace replacement_policy
