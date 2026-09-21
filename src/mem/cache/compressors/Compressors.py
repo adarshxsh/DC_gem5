@@ -80,6 +80,10 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    window_size = Param.Unsigned(
+        16,
+        "Size of the circular ring buffer for tracking recent sampled compression ratios (0 to use exponential decay)",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
