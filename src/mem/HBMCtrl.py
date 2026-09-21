@@ -46,3 +46,14 @@ class HBMCtrl(MemCtrl):
     # gives the best results with following min_r/w_per_switch
     min_reads_per_switch = 64
     min_writes_per_switch = 64
+
+    partitionedQ = Param.Bool(
+        True, "Partition read and write queues per pseudo channel"
+    )
+    interleave_bit = Param.Int(
+        6, "Bit selection for pseudo channel interleaving"
+    )
+    max_channel_buffer_ratio = Param.Percent(
+        100,
+        "Maximum buffer allocation ratio per pseudo channel when non-partitioned",
+    )
