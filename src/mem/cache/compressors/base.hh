@@ -273,6 +273,24 @@ class Base : public SimObject
     static void setDecompressionLatency(CacheBlk* blk, const Cycles lat);
 
     /**
+     * Increment bypassed compressions statistic counter.
+     */
+    void
+    incBypassedCompressions()
+    {
+        stats.bypassedCompressions++;
+    }
+
+    /**
+     * Increment bypassed decompressions statistic counter.
+     */
+    void
+    incBypassedDecompressions()
+    {
+        stats.bypassedDecompressions++;
+    }
+
+    /**
      * Set the size of the compressed block, in bits.
      *
      * @param blk The compressed block.

@@ -371,6 +371,15 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** MSHR occupancy high-watermark percentage for compression throttling. */
+    const double mshrHighWatermark;
+
+    /** MSHR occupancy low-watermark percentage for compression throttling. */
+    const double mshrLowWatermark;
+
+    /** Dynamic compression throttling signal state. */
+    mutable bool throttleCompression;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -569,6 +578,15 @@ class BaseCache : public ClockedObject
      */
     virtual void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
                                     CacheBlk *blk, PacketList &writebacks) = 0;
+
+    /**
+     * Compute and update dynamic compression throttling state.
+     * Checks MSHR queue occupancy and downstream memory port state.
+     * Uses hysteresis between mshrHighWatermark and mshrLowWatermark.
+     *
+     * @return True if compression should be throttled/bypassed.
+     */
+    bool updateCompressionThrottling() const;
 
     /**
      * Handles a response (cache line fill/write ack) from the bus.
@@ -1196,6 +1214,7 @@ class BaseCache : public ClockedObject
         MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
                                         pkt, time, order++,
                                         allocOnFill(pkt->cmd));
+        updateCompressionThrottling();
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);

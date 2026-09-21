@@ -82,19 +82,22 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      mshrHighWatermark(p.mshr_high_watermark),
+      mshrLowWatermark(p.mshr_low_watermark),
+      throttleCompression(false),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -536,6 +539,44 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
     cpuSidePort.schedTimingResp(pkt, completion_time);
 }
 
+bool
+BaseCache::updateCompressionThrottling() const
+{
+    if (!compressor) {
+        throttleCompression = false;
+        return false;
+    }
+
+    double occupancy = 0.0;
+    if (mshrQueue.capacity() > 0) {
+        occupancy = (static_cast<double>(mshrQueue.numAllocated()) /
+                     mshrQueue.capacity()) *
+                    100.0;
+    }
+    bool mem_blocked = isBlocked();
+
+    if (!throttleCompression) {
+        if (occupancy >= mshrHighWatermark || mem_blocked) {
+            throttleCompression = true;
+            DPRINTF(CacheComp,
+                    "Compression throttling activated: MSHR occupancy %.1f%% "
+                    "(high watermark %.1f%%), cache blocked: %d\n",
+                    occupancy, mshrHighWatermark, mem_blocked);
+        }
+    } else {
+        if (occupancy < mshrLowWatermark && !mem_blocked) {
+            throttleCompression = false;
+            DPRINTF(
+                CacheComp,
+                "Compression throttling deactivated: MSHR occupancy %.1f%% "
+                "(low watermark %.1f%%), cache blocked: %d\n",
+                occupancy, mshrLowWatermark, mem_blocked);
+        }
+    }
+
+    return throttleCompression;
+}
+
 void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
@@ -656,6 +697,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             if (was_full && !mshrQueue.isFull()) {
                 clearBlocked(Blocked_NoMSHRs);
             }
+            updateCompressionThrottling();
 
             // Request the bus for a prefetch if this deallocation freed enough
             // MSHRs for a prefetch to take place
@@ -1771,9 +1813,20 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // calculate the amount of extra cycles needed to read or write compressed
     // blocks.
     if (compressor && pkt->hasData()) {
-        const auto comp_data = compressor->compress(
-            pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
-        blk_size_bits = comp_data->getSizeBits();
+        if (updateCompressionThrottling()) {
+            blk_size_bits = blkSize * 8;
+            decompression_lat = Cycles(0);
+            compressor->incBypassedCompressions();
+            DPRINTF(CacheComp,
+                    "%s: Dynamic compression throttling active; "
+                    "bypassing compression for fill at addr %#llx\n",
+                    name(), (unsigned long long)pkt->getAddr());
+        } else {
+            const auto comp_data =
+                compressor->compress(pkt->getConstPtr<uint64_t>(),
+                                     compression_lat, decompression_lat);
+            blk_size_bits = comp_data->getSizeBits();
+        }
     }
 
     // get partitionId from Packet
