@@ -316,6 +316,18 @@ class BaseCache : public ClockedObject
         CpuSidePort(const std::string &_name, BaseCache& _cache,
                     const std::string &_label);
 
+        void schedTimingResp(PacketPtr pkt, Tick when)
+        {
+            cache.notifyCpuSidePortBackpressure(pkt);
+            CacheResponsePort::schedTimingResp(pkt, when);
+        }
+
+        void sendTimingSnoopReq(PacketPtr pkt)
+        {
+            cache.notifyCpuSidePortBackpressure(pkt);
+            CacheResponsePort::sendTimingSnoopReq(pkt);
+        }
+
     };
 
     CpuSidePort cpuSidePort;
@@ -1297,7 +1309,50 @@ class BaseCache : public ClockedObject
     /** Non-inclusive tag state tracking for detached L1 clean sub-blocks. */
     std::unordered_set<Addr> detachedL1CleanAddrs;
 
+    /** Cross-level compression backpressure active flag (for L2). */
+    bool l2CompressionBypassActive;
+
+    /** Cross-level compression backpressure signal received from downstream (for L1). */
+    bool l2BackpressureActive;
+
+    /** Tick when backpressure signal was last received. */
+    Tick lastBackpressureTick;
+
   public:
+    bool isCompressionBypassActive() const
+    {
+        return l2CompressionBypassActive || (compressor && compressor->isBypassActive());
+    }
+
+    void setL2CompressionBypassActive(bool active)
+    {
+        l2CompressionBypassActive = active;
+    }
+
+    void notifyCpuSidePortBackpressure(PacketPtr pkt)
+    {
+        if (pkt && isCompressionBypassActive()) {
+            pkt->setCompressionBackpressure();
+        }
+    }
+
+    void receiveCompressionBackpressure(PacketPtr pkt)
+    {
+        if (pkt) {
+            if (pkt->isCompressionBackpressure()) {
+                l2BackpressureActive = true;
+                lastBackpressureTick = curTick();
+            } else if (l2BackpressureActive) {
+                l2BackpressureActive = false;
+            }
+        }
+    }
+
+    bool isL2BackpressureActive() const
+    {
+        return l2BackpressureActive;
+    }
+
     void
     trackDetachedL1CleanBlock(Addr addr, bool is_secure)
     {

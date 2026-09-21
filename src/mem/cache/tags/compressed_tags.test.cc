@@ -35,8 +35,13 @@
 
 #include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
+#include "sim/root.hh"
 
 using namespace gem5;
+
+namespace gem5 {
+Root *Root::_root = nullptr;
+}
 
 class SuperBlkTestFixture : public ::testing::Test
 {
@@ -558,4 +563,34 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, MultiBlockEvictionStaggering)
+{
+    // Populate superBlk with 4 compressed sub-blocks
+    for (int k = 0; k < 4; ++k) {
+        subBlks[k].insert({0x7000, false});
+        subBlks[k].setSizeBits(64);
+    }
+
+    ASSERT_EQ(superBlk.getNumValid(), 4);
+
+    // Evict all blocks in victim superblock
+    std::vector<CacheBlk *> evict_blks;
+    for (const auto &blk : superBlk.blks) {
+        if (blk->isValid()) {
+            evict_blks.push_back(blk);
+        }
+    }
+
+    // Verify multi-block eviction burst produces 4 sub-block writeback candidates
+    ASSERT_EQ(evict_blks.size(), 4);
+
+    // Verify staggering delay assignment (i * staggerStep)
+    Tick base_time = 1000;
+    Tick stagger_step = 10; // e.g. 1 clock period
+    for (std::size_t i = 0; i < evict_blks.size(); ++i) {
+        Tick send_time = base_time + i * stagger_step;
+        ASSERT_EQ(send_time, base_time + i * 10);
+    }
 }

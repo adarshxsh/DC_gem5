@@ -116,6 +116,9 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       missCount(p.max_miss_count),
       addrRanges(p.addr_ranges.begin(), p.addr_ranges.end()),
       system(p.system),
+      l2CompressionBypassActive(false),
+      l2BackpressureActive(false),
+      lastBackpressureTick(0),
       stats(*this)
 {
     // the MSHR queue has no reserve entries as we check the MSHR
@@ -2783,6 +2786,7 @@ CpuSidePort::CpuSidePort(const std::string &_name, BaseCache& _cache,
 bool
 BaseCache::MemSidePort::recvTimingResp(PacketPtr pkt)
 {
+    cache->receiveCompressionBackpressure(pkt);
     cache->recvTimingResp(pkt);
     return true;
 }
@@ -2793,6 +2797,8 @@ BaseCache::MemSidePort::recvTimingSnoopReq(PacketPtr pkt)
 {
     // Snoops shouldn't happen when bypassing caches
     assert(!cache->system->bypassCaches());
+
+    cache->receiveCompressionBackpressure(pkt);
 
     // handle snooping requests
     cache->recvTimingSnoopReq(pkt);

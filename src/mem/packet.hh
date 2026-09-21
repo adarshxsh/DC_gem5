@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Cross-level compression backpressure signaling
+        COMPRESSION_BACKPRESSURE = 0x00020000
     };
 
     Flags flags;
@@ -657,6 +660,9 @@ class Packet : public Printable, public Extensible<Packet>
         flags.set(CACHE_RESPONDING);
     }
     bool cacheResponding() const { return flags.isSet(CACHE_RESPONDING); }
+
+    void setCompressionBackpressure() { flags.set(COMPRESSION_BACKPRESSURE); }
+    bool isCompressionBackpressure() const { return flags.isSet(COMPRESSION_BACKPRESSURE); }
     /**
      * On fills, the hasSharers flag is used by the caches in
      * combination with the cacheResponding flag, as clarified

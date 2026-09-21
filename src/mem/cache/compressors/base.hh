@@ -137,6 +137,12 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Hysteresis delta for adaptive compression bypass transitions. */
+    const float hysteresisDelta;
+
+    /** Active state of adaptive compression bypass. */
+    bool bypassActive;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -255,6 +261,11 @@ class Base : public SimObject
      */
     std::unique_ptr<CompressionData>
     compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat);
+
+    /**
+     * Check if adaptive compression bypass is currently active.
+     */
+    bool isBypassActive() const { return enableAdaptiveBypass && bypassActive; }
 
     /**
      * Get the decompression latency if the block is compressed. Latency is 0
