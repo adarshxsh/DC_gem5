@@ -94,6 +94,9 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      enableQueuePressureThrottling(p.enable_queue_pressure_throttling),
+      queuePressureThreshold(p.queue_pressure_threshold),
+      currentQueuePressure(0.0),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -156,10 +159,41 @@ Base::fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const
     }
 }
 
+bool
+Base::isQueuePressureExceeded() const
+{
+    if (!enableQueuePressureThrottling) {
+        return false;
+    }
+    if (currentQueuePressure >= queuePressureThreshold) {
+        return true;
+    }
+    if (cache && cache->getWriteQueuePressure() >= queuePressureThreshold) {
+        return true;
+    }
+    return false;
+}
+
 std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
     totalCompressionRequests++;
+
+    if (isQueuePressureExceeded()) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.bypassedCompressions++;
+        DPRINTF(CacheComp,
+                "Memory queue pressure bypass active (pressure: %.2f >= "
+                "threshold: %d). "
+                "Bypassing compression.\n",
+                currentQueuePressure, queuePressureThreshold);
+        return comp_data;
+    }
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);

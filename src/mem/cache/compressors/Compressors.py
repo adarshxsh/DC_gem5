@@ -81,6 +81,15 @@ class BaseCacheCompressor(SimObject):
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
 
+    enable_queue_pressure_throttling = Param.Bool(
+        False,
+        "Enable dynamic compression throttling/bypass based on downstream memory queue pressure",
+    )
+    queue_pressure_threshold = Param.Percent(
+        80,
+        "Downstream memory queue occupancy saturation threshold percentage (0-100) to trigger compression bypass",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"
