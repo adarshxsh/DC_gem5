@@ -774,7 +774,7 @@ class Packet : public Printable, public Extensible<Packet>
     bool
     hasQueuePressure() const
     {
-        return (flags.get() & QUEUE_PRESSURE_MASK) != 0;
+        return flags.isSet(QUEUE_PRESSURE_MASK);
     }
 
     bool

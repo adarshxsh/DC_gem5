@@ -34,6 +34,12 @@
 #include "mem/cache/compressors/zero.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "params/ZeroCompressor.hh"
+#include "sim/root.hh"
+
+namespace gem5
+{
+Root *Root::_root = nullptr;
+}
 
 using namespace gem5;
 using namespace gem5::compression;
@@ -43,11 +49,12 @@ TEST(BaseCompressorTest, MemoryQueuePressureDecompressionBypass)
     ZeroCompressorParams p{};
     p.eventq_index = 0;
     p.block_size = 64;
-    p.size_threshold = 64;
+    p.chunk_size_bits = 64;
+    p.size_threshold_percentage = 100;
     p.comp_chunks_per_cycle = 1;
-    p.comp_extra_latency = 1;
+    p.comp_extra_latency = Cycles(1);
     p.decomp_chunks_per_cycle = 1;
-    p.decomp_extra_latency = 2;
+    p.decomp_extra_latency = Cycles(2);
 
     Zero compressor(p);
 
@@ -57,8 +64,8 @@ TEST(BaseCompressorTest, MemoryQueuePressureDecompressionBypass)
 
     // Create a mock compression block
     CompressionBlk blk;
-    blk.setCompressed();
     blk.setSizeBits(0); // zero block
+    blk.setCompressed();
     blk.setDecompressionLatency(Cycles(2));
 
     // Under normal pressure, getDecompressionLatency should return the block's
