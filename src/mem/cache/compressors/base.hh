@@ -146,6 +146,9 @@ class Base : public SimObject
     /** Total compressed bits of sampled blocks. */
     uint64_t sampledCompressedBits;
 
+    /** Memory pressure status from downstream interconnect feedback. */
+    bool memoryPressure;
+
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
@@ -243,6 +246,31 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /**
+     * Notify compressor of downstream memory queue pressure.
+     * Adjusts compression policy thresholds accordingly.
+     *
+     * @param pressure True if downstream memory queue exceeds high watermark.
+     */
+    virtual void updateMemoryPressure(bool pressure);
+    virtual void
+    updatePolicy(bool pressure)
+    {
+        updateMemoryPressure(pressure);
+    }
+    virtual void
+    updatePolicyThresholds(bool pressure)
+    {
+        updateMemoryPressure(pressure);
+    }
+
+    /** Returns true if memory pressure is currently detected. */
+    bool
+    isMemoryPressure() const
+    {
+        return memoryPressure;
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

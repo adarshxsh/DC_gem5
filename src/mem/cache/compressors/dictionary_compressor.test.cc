@@ -84,7 +84,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
     }
 
     // 2. Non-zero block
-    uint64_t non_zero_data[8] = {0x1234567891011121ULL, 0x1314151617181920ULL,
+    uint64_t non_zero_data[8] = {0x0000000000000000ULL, 0x1314151617181920ULL,
                                  0x2122232425262728ULL, 0x2930313233343536ULL,
                                  0x3738394041424344ULL, 0x4546474849505152ULL,
                                  0x5354555657585960ULL, 0x6162636465666768ULL};
@@ -149,7 +149,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
     }
 
     // 2. Non-zero block
-    uint64_t non_zero_data[8] = {0x1234567891011121ULL, 0x1314151617181920ULL,
+    uint64_t non_zero_data[8] = {0x0000000000000000ULL, 0x1314151617181920ULL,
                                  0x2122232425262728ULL, 0x2930313233343536ULL,
                                  0x3738394041424344ULL, 0x4546474849505152ULL,
                                  0x5354555657585960ULL, 0x6162636465666768ULL};
@@ -191,3 +191,41 @@ TEST(DictionaryCompressorTest, DeltaPatternAsymmetricNegativeBound)
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_pos_bytes, base_bytes));
 }
 
+TEST(DictionaryCompressorTest, MemoryQueuePressurePolicyUpdate)
+{
+    CPackParams p{};
+    p.name = "cpack_pressure";
+    p.block_size = 64;
+    p.chunk_size_bits = 32;
+    p.dictionary_size = 4;
+    p.comp_chunks_per_cycle = 2;
+    p.comp_extra_latency = Cycles(5);
+    p.decomp_chunks_per_cycle = 2;
+    p.decomp_extra_latency = Cycles(1);
+    p.size_threshold_percentage = 100;
+    p.enable_adaptive_bypass = true;
+    p.latency_breakeven_threshold = 1.0;
+    p.sampling_interval = 100;
+    p.decay_shift = 4;
+
+    TestCPack compressor(p);
+    compressor.regStats();
+
+    EXPECT_FALSE(compressor.isMemoryPressure());
+
+    // Notify memory pressure
+    compressor.updateMemoryPressure(true);
+    EXPECT_TRUE(compressor.isMemoryPressure());
+
+    uint64_t zero_data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    Cycles comp_lat(0), decomp_lat(0);
+    auto comp_data = compressor.compress(zero_data, comp_lat, decomp_lat);
+
+    // Under memory pressure, compression should be bypassed (size =
+    // uncompressed block size in bits)
+    EXPECT_EQ(comp_data->getSizeBits(), 64 * 8);
+
+    // Clear memory pressure
+    compressor.updateMemoryPressure(false);
+    EXPECT_FALSE(compressor.isMemoryPressure());
+}

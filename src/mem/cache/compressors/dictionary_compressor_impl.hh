@@ -186,13 +186,15 @@ template <class T>
 T
 DictionaryCompressor<T>::decompressValue(const Pattern* pattern)
 {
-    // Search for matching entry
-    auto entry_it = dictionary.begin();
-    std::advance(entry_it, pattern->getMatchLocation());
+    DictionaryEntry dict_bytes{};
+    if (pattern->getMatchLocation() >= 0 &&
+        pattern->getMatchLocation() < dictionary.size()) {
+        dict_bytes = dictionary[pattern->getMatchLocation()];
+    }
 
     // Decompress the match. If the decompressed value must be added to
     // the dictionary, do it
-    const DictionaryEntry data = pattern->decompress(*entry_it);
+    const DictionaryEntry data = pattern->decompress(dict_bytes);
     if (pattern->shouldAllocate()) {
         addToDictionary(data);
     }
