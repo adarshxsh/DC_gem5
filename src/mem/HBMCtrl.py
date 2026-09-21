@@ -54,5 +54,6 @@ class HBMCtrl(MemCtrl):
         6, "Bit selection for pseudo channel interleaving"
     )
     max_channel_buffer_ratio = Param.Percent(
-        100, "Maximum buffer allocation ratio per pseudo channel when non-partitioned"
+        100,
+        "Maximum buffer allocation ratio per pseudo channel when non-partitioned",
     )
