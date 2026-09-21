@@ -57,29 +57,52 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      rateSampleWindow(p.rate_sample_window),
+      predictiveHorizon(p.predictive_horizon),
+      rateThresholdPerc(p.rate_threshold_perc),
+      writeQueueHistory(p.rate_sample_window),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
+
+    if (rateThresholdPerc > 0) {
+        double target_entries = writeBufferSize * (rateThresholdPerc / 100.0);
+        double horizon = (predictiveHorizon > 0)
+                             ? static_cast<double>(predictiveHorizon)
+                             : static_cast<double>(SimClock::Int::ns);
+        rateThreshold = target_entries / horizon;
+    } else {
+        rateThreshold = std::numeric_limits<double>::max();
+    }
 
     readQueue.resize(p.qos_priorities);
     writeQueue.resize(p.qos_priorities);
@@ -351,6 +374,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
                        pkt->qosValue(), mem_pkt->addr, 1);
 
             mem_intr->writeQueueSize++;
+            writeQueueHistory.addSample(curTick(), mem_intr->writeQueueSize);
 
             assert(totalWriteQueueSize == isInWriteQueue.size());
 
@@ -936,13 +960,23 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // track if we should switch or not
         bool switch_to_writes = false;
 
+        double dQ_dt = writeQueueHistory.getDerivative(
+            curTick(), mem_intr->writeQueueSize);
+        double Q_predictive = static_cast<double>(mem_intr->writeQueueSize) +
+                              dQ_dt * static_cast<double>(predictiveHorizon);
+
         if (mem_intr->readQueueSize == 0) {
             // In the case there is no read request to go next,
             // trigger writes if we have passed the low threshold (or
             // if we are draining)
+            bool write_low_pressure =
+                (mem_intr->writeQueueSize > writeLowThreshold) ||
+                (predictiveHorizon > 0 &&
+                 Q_predictive >= static_cast<double>(writeLowThreshold)) ||
+                (rateThresholdPerc > 0 && dQ_dt >= rateThreshold);
+
             if (!(mem_intr->writeQueueSize == 0) &&
-                (drainState() == DrainState::Draining ||
-                 mem_intr->writeQueueSize > writeLowThreshold)) {
+                (drainState() == DrainState::Draining || write_low_pressure)) {
 
                 DPRINTF(MemCtrl,
                         "Switching to writes due to read queue empty\n");
@@ -1036,10 +1070,16 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // there are no other writes that can issue
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+            bool write_high_pressure =
+                (mem_intr->writeQueueSize > writeHighThreshold) ||
+                (predictiveHorizon > 0 &&
+                 Q_predictive >= static_cast<double>(writeHighThreshold)) ||
+                (rateThresholdPerc > 0 && dQ_dt >= rateThreshold);
+
+            if (write_high_pressure &&
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 
@@ -1108,6 +1148,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                     mem_pkt->readyTime - mem_pkt->entryTime);
 
         mem_intr->writeQueueSize--;
+        writeQueueHistory.addSample(curTick(), mem_intr->writeQueueSize);
 
         // remove the request from the queue - the iterator is no longer valid
         writeQueue[mem_pkt->qosValue()].erase(to_write);
@@ -1120,12 +1161,28 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // writes, then switch to reads.
         // If we are interfacing to NVM and have filled the writeRespQueue,
         // with only NVM writes in Q, then switch to reads
+        double dQ_dt = writeQueueHistory.getDerivative(
+            curTick(), mem_intr->writeQueueSize);
+        double Q_predictive = static_cast<double>(mem_intr->writeQueueSize) +
+                              dQ_dt * static_cast<double>(predictiveHorizon);
+
+        bool write_burst_active =
+            (predictiveHorizon > 0 &&
+             Q_predictive >= static_cast<double>(writeLowThreshold) &&
+             dQ_dt > 0) ||
+            (rateThresholdPerc > 0 && dQ_dt >= rateThreshold) ||
+            (predictiveHorizon > 0 &&
+             Q_predictive >= static_cast<double>(writeHighThreshold));
+
         bool below_threshold =
             mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
 
         if (mem_intr->writeQueueSize == 0 ||
-            (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
+            (below_threshold && drainState() != DrainState::Draining &&
+             !write_burst_active) ||
+            (mem_intr->readQueueSize &&
+             mem_intr->writesThisTime >= minWritesPerSwitch &&
+             !write_burst_active) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again
@@ -1537,6 +1594,20 @@ void
 MemCtrl::MemoryPort::disableSanityCheck()
 {
     queue.disableSanityCheck();
+}
+
+void
+MemCtrl::serialize(CheckpointOut &cp) const
+{
+    qos::MemCtrl::serialize(cp);
+    writeQueueHistory.serialize(cp, "writeQueueHistory");
+}
+
+void
+MemCtrl::unserialize(CheckpointIn &cp)
+{
+    qos::MemCtrl::unserialize(cp);
+    writeQueueHistory.unserialize(cp, "writeQueueHistory");
 }
 
 } // namespace memory
