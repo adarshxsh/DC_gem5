@@ -81,7 +81,8 @@ TEST(MemCtrlTest, LowWatermarkOpportunisticNoDraining)
     uint32_t writeHighThreshold = 32;
     uint32_t writeQueueSize = 20;
 
-    // Simulate entering write mode when writeQueueSize <= writeHighThreshold (e.g. empty read queue)
+    // Simulate entering write mode when writeQueueSize <= writeHighThreshold
+    // (e.g. empty read queue)
     if (writeQueueSize > writeHighThreshold) {
         isWriteDraining = true;
     }
