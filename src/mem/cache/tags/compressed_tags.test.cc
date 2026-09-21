@@ -202,6 +202,54 @@ TEST_F(SuperBlkTestFixture, SubBlockMigration)
     verifyInvariants(superBlkB);
 }
 
+TEST_F(SuperBlkTestFixture, SubBlockExpansionRelocationPreservesNeighbors)
+{
+    // Setup second superblock (candidate relocation slot)
+    SuperBlk superBlkB;
+    superBlkB.setBlkSize(BlkSize);
+    std::unique_ptr<CompressionBlk[]> subBlksB(new CompressionBlk[NumSubBlks]);
+    superBlkB.blks.resize(NumSubBlks);
+    for (unsigned k = 0; k < NumSubBlks; ++k) {
+        superBlkB.blks[k] = &subBlksB[k];
+        subBlksB[k].setSectorBlock(&superBlkB);
+        subBlksB[k].setSectorOffset(k);
+        subBlksB[k].registerTagExtractor([](Addr addr) { return addr; });
+    }
+    superBlkB.registerTagExtractor([](Addr addr) { return addr; });
+
+    // Populate superBlk (A) with 2 co-allocated sub-blocks (64 bits each)
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    verifyInvariants(superBlk);
+
+    // subBlks[1] expands to 256 bits (CF=2).
+    // Relocate expanding sub-block subBlks[1] to candidate superblock
+    // superBlkB
+    subBlksB[1] = std::move(subBlks[1]);
+    subBlksB[1].setSizeBits(256);
+
+    // Verify co-allocated neighbor subBlks[0] in superBlk (A) survived and
+    // remains valid
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_EQ(subBlks[0].getSizeBits(), 64);
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Verify expanded sub-block in superBlkB (B) is valid with new size
+    ASSERT_TRUE(subBlksB[1].isValid());
+    ASSERT_EQ(subBlksB[1].getSizeBits(), 256);
+    ASSERT_EQ(superBlkB.getNumValid(), 1);
+    ASSERT_EQ(superBlkB.getCompressionFactor(), 2);
+
+    verifyInvariants(superBlk);
+    verifyInvariants(superBlkB);
+}
+
 TEST_F(SuperBlkTestFixture, ExpansionContractionCheck)
 {
     subBlks[0].insert({0x3000, false});
