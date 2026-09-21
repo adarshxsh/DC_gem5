@@ -206,7 +206,6 @@ class MemInterface : public AbstractMemory
     uint32_t writeQueueSize = 0;
     uint32_t writeQueueBytes = 0;
 
-
     MemCtrl::BusState busState = MemCtrl::READ;
 
     /** bus state for next request event triggered */
