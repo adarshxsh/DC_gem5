@@ -813,6 +813,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // the core.
                 completion_time += clockEdge(responseLatency) +
                     (transfer_offset ? pkt->payloadDelay : 0);
+                completion_time +=
+                    calculateTargetDecompressionLatency(tgt_pkt, blk);
 
                 assert(!tgt_pkt->req->isUncacheable());
 
