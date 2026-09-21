@@ -34,6 +34,7 @@
 
 #include "mem/cache/tags/super_blk.hh"
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 
@@ -225,25 +226,26 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         return false;
     }
 
-    const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
-    if (new_blk_cf <= 1) {
-        return false;
-    }
+    uint8_t target_cf = calculateCompressionFactor(compressed_size);
+    std::size_t bit_sum = compressed_size;
+    std::size_t total_count = 1;
 
-    std::size_t bit_sum = 0;
-    std::size_t count = 0;
     for (const auto &blk : blks) {
         if (blk->isValid()) {
             const CompressionBlk *cblk =
                 static_cast<const CompressionBlk *>(blk);
             bit_sum += cblk->getSizeBits();
-            if (++count >= 4) {
-                break;
-            }
+            total_count++;
+            const uint8_t scf = calculateCompressionFactor(cblk->getSizeBits());
+            target_cf = std::min(target_cf, scf);
         }
     }
 
-    return (bit_sum + compressed_size) <= (blkSize * CHAR_BIT);
+    if (target_cf <= 1 || total_count > target_cf) {
+        return false;
+    }
+
+    return bit_sum <= (blkSize * CHAR_BIT);
 }
 
 void
