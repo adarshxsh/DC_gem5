@@ -49,8 +49,9 @@ CPack::CPack(const Params &p)
 void
 CPack::addToDictionary(DictionaryEntry data)
 {
-    assert(numEntries < dictionarySize);
-    dictionary[numEntries++] = data;
+    if (numEntries < dictionarySize) {
+        dictionary[numEntries++] = data;
+    }
 }
 
 } // namespace compression

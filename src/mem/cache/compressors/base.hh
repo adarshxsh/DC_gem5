@@ -37,6 +37,7 @@
 #define __MEM_CACHE_COMPRESSORS_BASE_HH__
 
 #include <cstdint>
+#include <vector>
 
 #include "base/compiler.hh"
 #include "base/statistics.hh"
@@ -136,6 +137,32 @@ class Base : public SimObject
 
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
+
+    /** Size of circular ring buffer for tracking sampled ratios (0 =
+     * exponential decay). */
+    const unsigned windowSize;
+
+    /** Sample pair of uncompressed and compressed bit counts. */
+    struct Sample
+    {
+        uint64_t uncompressedBits = 0;
+        uint64_t compressedBits = 0;
+    };
+
+    /** Storage for sliding window ring buffer when windowSize > 0. */
+    std::vector<Sample> sampleRingBuffer;
+
+    /** Head index for ring buffer insertions. */
+    size_t ringBufferHead;
+
+    /** Current number of valid samples stored in ring buffer. */
+    size_t ringBufferCount;
+
+    /** Running window sum of uncompressed bits. */
+    uint64_t windowUncompressedBits;
+
+    /** Running window sum of compressed bits. */
+    uint64_t windowCompressedBits;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
@@ -279,6 +306,26 @@ class Base : public SimObject
      * @param size_bits The block size.
      */
     static void setSizeBits(CacheBlk* blk, const std::size_t size_bits);
+
+    /**
+     * Get the observed compression ratio from sampling.
+     * Uses windowed sums if windowSize > 0, or global bit accumulators if
+     * windowSize == 0.
+     */
+    double getObservedRatio() const;
+
+    /** Get current window (or exponential decay) uncompressed bits. */
+    uint64_t getSampledUncompressedBits() const;
+
+    /** Get current window (or exponential decay) compressed bits. */
+    uint64_t getSampledCompressedBits() const;
+
+    /** Get window size. */
+    unsigned
+    getWindowSize() const
+    {
+        return windowSize;
+    }
 };
 
 class Base::CompressionData
