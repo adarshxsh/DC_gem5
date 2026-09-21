@@ -1252,9 +1252,14 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
 
     // Do this last in case it deallocates block data or something
     // like that
-    if (blk_valid && invalidate) {
-        invalidateBlock(blk);
-        DPRINTF(Cache, "new state is %s\n", blk->print());
+    if (invalidate) {
+        if (isDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure())) {
+            clearDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure());
+        }
+        if (blk_valid) {
+            invalidateBlock(blk);
+            DPRINTF(Cache, "new state is %s\n", blk->print());
+        }
     }
 
     return snoop_delay;
