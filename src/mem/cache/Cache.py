@@ -107,13 +107,16 @@ class BaseCache(ClockedObject):
 
     prefetcher = Param.BasePrefetcher(NULL, "Prefetcher attached to cache")
     prefetch_high_watermark = Param.Unsigned(
-        0, "Downstream memory queue high-watermark threshold for prefetch throttling (0 = disabled)"
+        0,
+        "Downstream memory queue high-watermark threshold for prefetch throttling (0 = disabled)",
     )
     prefetch_low_watermark = Param.Unsigned(
-        0, "Downstream memory queue low-watermark threshold for prefetch throttling (0 = disabled)"
+        0,
+        "Downstream memory queue low-watermark threshold for prefetch throttling (0 = disabled)",
     )
     prefetch_compression_latency_threshold = Param.Cycles(
-        0, "Decompression latency threshold for prefetch throttling (0 = disabled)"
+        0,
+        "Decompression latency threshold for prefetch throttling (0 = disabled)",
     )
 
     tags = Param.BaseTags(BaseSetAssoc(), "Tag store")
