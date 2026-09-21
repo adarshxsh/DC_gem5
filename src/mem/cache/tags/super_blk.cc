@@ -236,7 +236,8 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
                 static_cast<const CompressionBlk *>(blk);
             bit_sum += cblk->getSizeBits();
             total_count++;
-            const uint8_t scf = calculateCompressionFactor(cblk->getSizeBits());
+            const uint8_t scf =
+                calculateCompressionFactor(cblk->getSizeBits());
             target_cf = std::min(target_cf, scf);
         }
     }
