@@ -559,3 +559,26 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, WriteQueueBackpressureCoAllocationFilter)
+{
+    // Insert a sub-block with size 64 bits (CF=8) into superBlk
+    subBlks[0].insert({0x7000, false});
+    subBlks[0].setSizeBits(64);
+
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Candidate block of 256 bits (CF=2) would reduce compression factor from
+    // 8 to 2
+    const std::size_t new_size = 256;
+
+    // Under normal conditions (no backpressure): co-allocation is permitted
+    EXPECT_TRUE(superBlk.canCoAllocate(new_size, false));
+
+    // Under write queue backpressure: co-allocation is suppressed to avoid
+    // compression factor degradation and sub-block evictions
+    EXPECT_FALSE(superBlk.canCoAllocate(new_size, true));
+
+    // Candidate block of 64 bits (CF=8) maintains current compression factor
+    EXPECT_TRUE(superBlk.canCoAllocate(64, true));
+}

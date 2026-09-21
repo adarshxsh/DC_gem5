@@ -56,6 +56,7 @@ namespace gem5
 
 class BaseCache;
 class CacheBlk;
+class WriteQueue;
 struct CompressedTagsParams;
 
 /**
@@ -87,6 +88,12 @@ class CompressedTags : public SectorTags
     /** The cache superblocks. */
     std::vector<SuperBlk> superBlks;
 
+    /** Pointer to the write queue to check backpressure status. */
+    const WriteQueue *writeQueue = nullptr;
+
+    /** Optional callback to query write queue backpressure status. */
+    std::function<bool()> writeQueueFullCallback = nullptr;
+
   public:
     /** Convenience typedef. */
      typedef CompressedTagsParams Params;
@@ -100,6 +107,29 @@ class CompressedTags : public SectorTags
      * Destructor.
      */
     virtual ~CompressedTags() {};
+
+    /**
+     * Set the write queue pointer for backpressure feedback.
+     */
+    void
+    setWriteQueue(const WriteQueue *wq)
+    {
+        writeQueue = wq;
+    }
+
+    /**
+     * Set a custom callback to check write queue backpressure status.
+     */
+    void
+    setWriteQueueFullCallback(std::function<bool()> cb)
+    {
+        writeQueueFullCallback = std::move(cb);
+    }
+
+    /**
+     * Check if write queue is under backpressure (full).
+     */
+    bool isWriteQueueFull() const;
 
     /**
      * Initialize blocks as SuperBlk and CompressionBlk instances.

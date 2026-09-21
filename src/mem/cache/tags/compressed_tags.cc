@@ -53,6 +53,7 @@
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
 #include "mem/cache/tags/indexing_policies/base.hh"
 #include "mem/cache/tags/partitioning_policies/partition_manager.hh"
+#include "mem/cache/write_queue.hh"
 #include "mem/packet.hh"
 #include "params/CompressedTags.hh"
 
@@ -62,6 +63,18 @@ namespace gem5
 CompressedTags::CompressedTags(const Params &p)
     : SectorTags(p)
 {
+}
+
+bool
+CompressedTags::isWriteQueueFull() const
+{
+    if (writeQueueFullCallback) {
+        return writeQueueFullCallback();
+    }
+    if (writeQueue) {
+        return writeQueue->isFull();
+    }
+    return false;
 }
 
 void
@@ -138,6 +151,9 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
             partition_id);
     }
 
+    // Check write queue backpressure status
+    const bool write_queue_full = isWriteQueueFull();
+
     // Check if the superblock this address belongs to has been allocated. If
     // so, try co-allocating
     SuperBlk* victim_superblock = nullptr;
@@ -145,11 +161,9 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
             superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+            superblock->canCoAllocate(compressed_size, write_queue_full)) {
             if (is_prefetch && superblock->hasValidDemand()) {
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);
