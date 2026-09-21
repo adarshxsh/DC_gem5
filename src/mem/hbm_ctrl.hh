@@ -200,6 +200,16 @@ class HBMCtrl : public MemCtrl
      */
     bool partitionedQ;
 
+    /**
+     * Bit selection for pseudo channel interleaving
+     */
+    int interleaveBit;
+
+    /**
+     * Maximum buffer allocation ratio per pseudo channel when non-partitioned
+     */
+    double maxChannelBufferRatio;
+
   public:
 
     /**
