@@ -280,17 +280,29 @@ class Base : public SimObject
     /**
      * Get current continuous EWMA compression ratio.
      */
-    double getEWMARatio() const { return ewmaRatio; }
+    double
+    getEWMARatio() const
+    {
+        return ewmaRatio;
+    }
 
     /**
      * Get last observed queue occupancy.
      */
-    double getLastQueueOccupancy() const { return lastQueueOccupancy; }
+    double
+    getLastQueueOccupancy() const
+    {
+        return lastQueueOccupancy;
+    }
 
     /**
      * Get last observed queue fill velocity (dQ/dt).
      */
-    double getLastDQdt() const { return lastDQdt; }
+    double
+    getLastDQdt() const
+    {
+        return lastDQdt;
+    }
 
     /**
      * Get the decompression latency if the block is compressed. Latency is 0

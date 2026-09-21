@@ -169,7 +169,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     totalCompressionRequests++;
 
     // Continuous memory queue occupancy tracking
-    double current_Q = (cache != nullptr) ? cache->getQueueOccupancyRatio() : 0.0;
+    double current_Q =
+        (cache != nullptr) ? cache->getQueueOccupancyRatio() : 0.0;
 
     // Calculate queue fill velocity dQ/dt
     Tick now = (Gem5Internal::_curTickPtr != nullptr) ? curTick() : 0;
@@ -181,15 +182,18 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     lastQueueUpdateTick = now;
     lastQueueOccupancy = current_Q;
 
-    // Estimate future queue occupancy across interconnect latency window tau_xbar
+    // Estimate future queue occupancy across interconnect latency window
+    // tau_xbar
     Tick tau_xbar_ticks = (cache != nullptr)
-        ? (cache->clockPeriod() * uint64_t(latencyXbar))
-        : (1000 * uint64_t(latencyXbar));
+                              ? (cache->clockPeriod() * uint64_t(latencyXbar))
+                              : (1000 * uint64_t(latencyXbar));
     double predicted_Q = current_Q + lastDQdt * (double)tau_xbar_ticks;
     predicted_Q = std::max(0.0, std::min(1.0, predicted_Q));
 
-    // Dynamically adjust effective breakeven threshold Teff proportional to predicted queue saturation
-    double effectiveThreshold = latencyBreakevenThreshold * (1.0 + predictiveGain * predicted_Q);
+    // Dynamically adjust effective breakeven threshold Teff proportional to
+    // predicted queue saturation
+    double effectiveThreshold =
+        latencyBreakevenThreshold * (1.0 + predictiveGain * predicted_Q);
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
@@ -213,11 +217,11 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.sampledUncompressedBits += blkSize * CHAR_BIT;
         stats.sampledCompressedBits += blkSize * CHAR_BIT;
 
-        DPRINTF(
-            CacheComp,
-            "Adaptive bypass active (ewmaRatio: %.4f < Teff: %.4f, pred_Q: %.4f). "
-            "Bypassing compression.\n",
-            ewmaRatio, effectiveThreshold, predicted_Q);
+        DPRINTF(CacheComp,
+                "Adaptive bypass active (ewmaRatio: %.4f < Teff: %.4f, "
+                "pred_Q: %.4f). "
+                "Bypassing compression.\n",
+                ewmaRatio, effectiveThreshold, predicted_Q);
         return comp_data;
     }
 
@@ -255,8 +259,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     // Continuous EWMA ratio update on compressed/sampled request
     uint64_t uncomp_bits = blkSize * CHAR_BIT;
     double sampleRatio = (comp_size_bits > 0)
-        ? ((double)uncomp_bits / (double)comp_size_bits)
-        : (double)uncomp_bits;
+                             ? ((double)uncomp_bits / (double)comp_size_bits)
+                             : (double)uncomp_bits;
 
     ewmaRatio = (1.0 - ewmaAlpha) * ewmaRatio + ewmaAlpha * sampleRatio;
 
@@ -315,12 +319,15 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double current_Q = (cache != nullptr) ? cache->getQueueOccupancyRatio() : 0.0;
-        Tick tau_xbar_ticks = (cache != nullptr)
-            ? (cache->clockPeriod() * uint64_t(latencyXbar))
-            : (1000 * uint64_t(latencyXbar));
-        double predicted_Q = std::max(0.0, std::min(1.0, current_Q + lastDQdt * (double)tau_xbar_ticks));
-        double effectiveThreshold = latencyBreakevenThreshold * (1.0 + predictiveGain * predicted_Q);
+        double current_Q =
+            (cache != nullptr) ? cache->getQueueOccupancyRatio() : 0.0;
+        Tick tau_xbar_ticks =
+            (cache != nullptr) ? (cache->clockPeriod() * uint64_t(latencyXbar))
+                               : (1000 * uint64_t(latencyXbar));
+        double predicted_Q = std::max(
+            0.0, std::min(1.0, current_Q + lastDQdt * (double)tau_xbar_ticks));
+        double effectiveThreshold =
+            latencyBreakevenThreshold * (1.0 + predictiveGain * predicted_Q);
 
         if (ewmaRatio < effectiveThreshold) {
             stats.bypassedDecompressions += 1;

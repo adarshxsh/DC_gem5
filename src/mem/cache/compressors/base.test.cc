@@ -35,8 +35,8 @@ class DummyCompressor : public Base
     DummyCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks,
-             Cycles& comp_lat, Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         std::unique_ptr<CompressionData> comp_data =
             std::make_unique<CompressionData>();
@@ -48,7 +48,7 @@ class DummyCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* data) override
+    decompress(const CompressionData *comp_data, uint64_t *data) override
     {
         std::memset(data, 0, blkSize);
     }
@@ -84,7 +84,8 @@ TEST(BaseCacheCompressorTest, ContinuousEWMATracking)
     uint64_t dummy_data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     Cycles comp_lat(0), decomp_lat(0);
 
-    // Request 1: should update EWMA ratio immediately without waiting for interval 100
+    // Request 1: should update EWMA ratio immediately without waiting for
+    // interval 100
     compressor.compress(dummy_data, comp_lat, decomp_lat);
     double ratio_1 = compressor.getEWMARatio();
 

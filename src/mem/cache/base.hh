@@ -1002,9 +1002,11 @@ class BaseCache : public ClockedObject
     /**
      * Get max queue occupancy ratio across write buffer and MSHR queue.
      */
-    double getQueueOccupancyRatio() const
+    double
+    getQueueOccupancyRatio() const
     {
-        return std::max(writeBuffer.occupancyRatio(), mshrQueue.occupancyRatio());
+        return std::max(writeBuffer.occupancyRatio(),
+                        mshrQueue.occupancyRatio());
     }
 
     /** System we are currently operating in. */

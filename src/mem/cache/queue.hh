@@ -157,17 +157,20 @@ class Queue : public Drainable, public Named
         return _numInService;
     }
 
-    int capacity() const
+    int
+    capacity() const
     {
         return numEntries;
     }
 
-    int size() const
+    int
+    size() const
     {
         return allocated;
     }
 
-    double occupancyRatio() const
+    double
+    occupancyRatio() const
     {
         return numEntries > 0 ? (double)allocated / (double)numEntries : 0.0;
     }
