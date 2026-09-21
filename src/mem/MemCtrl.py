@@ -104,13 +104,15 @@ class MemCtrl(QoSMemCtrl):
 
     # Parameters for adaptive pressure-based dynamic threshold scaling
     enable_dynamic_queue_pressure = Param.Bool(
-        False, "Enable dynamic write threshold and burst quota scaling based on write queue pressure"
+        False,
+        "Enable dynamic write threshold and burst quota scaling based on write queue pressure",
     )
     pressure_window_length = Param.Latency(
         "100ns", "Rolling window length for calculating write arrival velocity"
     )
     write_arrival_velocity_threshold = Param.Float(
-        0.5, "Growth rate threshold for write arrival velocity to trigger dynamic scaling"
+        0.5,
+        "Growth rate threshold for write arrival velocity to trigger dynamic scaling",
     )
 
 

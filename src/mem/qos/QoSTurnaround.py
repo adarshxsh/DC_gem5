@@ -51,5 +51,6 @@ class QoSTurnaroundPolicyIdeal(QoSTurnaroundPolicy):
     cxx_class = "gem5::memory::qos::TurnaroundPolicyIdeal"
 
     min_turnaround_burst = Param.Unsigned(
-        4, "Minimum burst count before allowing bus direction switch under equal priority"
+        4,
+        "Minimum burst count before allowing bus direction switch under equal priority",
     )
