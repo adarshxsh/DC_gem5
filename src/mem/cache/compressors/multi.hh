@@ -140,6 +140,17 @@ class Multi : public Base
 
     void setCache(BaseCache *_cache) override;
 
+    void
+    setBackpressure(bool bp) override
+    {
+        Base::setBackpressure(bp);
+        for (auto &comp : compressors) {
+            if (comp) {
+                comp->setBackpressure(bp);
+            }
+        }
+    }
+
     std::unique_ptr<Base::CompressionData> compress(
         const std::vector<Base::Chunk>& chunks,
         Cycles& comp_lat, Cycles& decomp_lat) override;

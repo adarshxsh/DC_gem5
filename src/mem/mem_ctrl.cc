@@ -635,6 +635,9 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
     if (needsResponse) {
         // access already turned the packet into a response
         assert(pkt->isResponse());
+        if (isBackpressured()) {
+            pkt->setBackpressure();
+        }
         // response_time consumes the static latency and is charged also
         // with headerDelay that takes into account the delay provided by
         // the xbar and also the payloadDelay that takes into account the
