@@ -33,6 +33,7 @@
 #include <streambuf>
 
 #include "base/gtest/logging.hh"
+#include "mem/port.hh"
 #include "sim/port.hh"
 
 using namespace gem5;
@@ -238,4 +239,31 @@ TEST(PortTest, Print)
 
     // Restore cout's streambuf
     std::cout.rdbuf(old);
+}
+
+class TestOccupancyPort : public Port
+{
+  public:
+    uint32_t occupancy;
+
+    TestOccupancyPort(PortID _id, uint32_t occ = 0)
+        : Port("TestOccupancyPort", _id), occupancy(occ) {}
+
+    uint32_t getQueueOccupancy() const override { return occupancy; }
+};
+
+/** Test queue occupancy interface on Port. */
+TEST(PortTest, QueueOccupancy)
+{
+    TestPort port1(0);
+    TestOccupancyPort port2(1, 15);
+
+    // Default Port returns 0 queue occupancy
+    EXPECT_EQ(port1.getQueueOccupancy(), 0);
+
+    // Overridden Port returns custom queue occupancy
+    EXPECT_EQ(port2.getQueueOccupancy(), 15);
+
+    port2.occupancy = 42;
+    EXPECT_EQ(port2.getQueueOccupancy(), 42);
 }

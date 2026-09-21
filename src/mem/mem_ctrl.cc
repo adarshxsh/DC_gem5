@@ -1486,6 +1486,12 @@ MemCtrl::MemoryPort::getAddrRanges() const
     return ctrl.getAddrRanges();
 }
 
+uint32_t
+MemCtrl::MemoryPort::getQueueOccupancy() const
+{
+    return ctrl.getQueueOccupancy();
+}
+
 void
 MemCtrl::MemoryPort::recvFunctional(PacketPtr pkt)
 {

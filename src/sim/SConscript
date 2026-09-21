@@ -122,7 +122,7 @@ GTest('byteswap.test', 'byteswap.test.cc', '../base/types.cc')
 GTest('globals.test', 'globals.test.cc', 'globals.cc',
     with_tag('gem5 serialize'))
 GTest('guest_abi.test', 'guest_abi.test.cc')
-GTest('port.test', 'port.test.cc', 'port.cc')
+GTest('port.test', 'port.test.cc', 'port.cc', '#src/base/logging.cc', '#src/base/hostinfo.cc')
 GTest('proxy_ptr.test', 'proxy_ptr.test.cc')
 GTest('serialize.test', 'serialize.test.cc', with_tag('gem5 serialize'))
 GTest('serialize_handlers.test', 'serialize_handlers.test.cc')
