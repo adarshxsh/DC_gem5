@@ -35,6 +35,8 @@
 #ifndef __MEM_CACHE_TAGS_SUPER_BLK_HH__
 #define __MEM_CACHE_TAGS_SUPER_BLK_HH__
 
+#include <cstdint>
+
 #include "mem/cache/tags/sector_blk.hh"
 
 namespace gem5
