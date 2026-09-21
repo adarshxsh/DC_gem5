@@ -211,6 +211,9 @@ class MemInterface : public AbstractMemory
     /** bus state for next request event triggered */
     MemCtrl::BusState busStateNext = MemCtrl::READ;
 
+    /** Flag to track if write mode was triggered by writeHighThreshold */
+    bool isWriteDraining = false;
+
     /**
      * pseudo channel number used for HBM modeling
      */

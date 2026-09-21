@@ -1054,6 +1054,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         if (switch_to_writes) {
             // transition to writing
             mem_intr->busStateNext = WRITE;
+            if (mem_intr->writeQueueSize > writeHighThreshold) {
+                mem_intr->isWriteDraining = true;
+            }
         }
     } else {
 
@@ -1114,6 +1117,14 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         delete mem_pkt;
 
+        // Update isWriteDraining status based on write queue size
+        if (mem_intr->writeQueueSize > writeHighThreshold) {
+            mem_intr->isWriteDraining = true;
+        } else if (mem_intr->writeQueueSize < writeLowThreshold ||
+                   mem_intr->writeQueueSize == 0) {
+            mem_intr->isWriteDraining = false;
+        }
+
         // If we emptied the write queue, or got sufficiently below the
         // threshold (using the minWritesPerSwitch as the hysteresis) and
         // are not draining, or we have reads waiting and have done enough
@@ -1125,11 +1136,13 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||
-            (mem_intr->readQueueSize && mem_intr->writesThisTime >= minWritesPerSwitch) ||
+            (!mem_intr->isWriteDraining && mem_intr->readQueueSize &&
+             mem_intr->writesThisTime >= minWritesPerSwitch) ||
             (mem_intr->readQueueSize && (nvmWriteBlock(mem_intr)))) {
 
             // turn the bus back around for reads again
             mem_intr->busStateNext = MemCtrl::READ;
+            mem_intr->isWriteDraining = false;
 
             // note that the we switch back to reads also in the idle
             // case, which eventually will check for any draining and
