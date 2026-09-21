@@ -157,6 +157,21 @@ class Queue : public Drainable, public Named
         return _numInService;
     }
 
+    int capacity() const
+    {
+        return numEntries;
+    }
+
+    int size() const
+    {
+        return allocated;
+    }
+
+    double occupancyRatio() const
+    {
+        return numEntries > 0 ? (double)allocated / (double)numEntries : 0.0;
+    }
+
     /**
      * Find the first entry that matches the provided address.
      *

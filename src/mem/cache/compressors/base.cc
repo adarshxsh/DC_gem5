@@ -94,9 +94,16 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      ewmaAlpha(p.ewma_alpha),
+      predictiveGain(p.predictive_gain),
+      latencyXbar(p.latency_xbar),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
+      ewmaRatio(p.latency_breakeven_threshold + 1.0),
+      lastQueueUpdateTick(0),
+      lastQueueOccupancy(0.0),
+      lastDQdt(0.0),
       cache(nullptr),
       stats(*this)
 {
@@ -161,18 +168,40 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
     totalCompressionRequests++;
 
+    // Continuous memory queue occupancy tracking
+    double current_Q = (cache != nullptr) ? cache->getQueueOccupancyRatio() : 0.0;
+
+    // Calculate queue fill velocity dQ/dt
+    Tick now = (Gem5Internal::_curTickPtr != nullptr) ? curTick() : 0;
+    if (lastQueueUpdateTick > 0 && now > lastQueueUpdateTick) {
+        Tick delta_t = now - lastQueueUpdateTick;
+        double delta_Q = current_Q - lastQueueOccupancy;
+        lastDQdt = delta_Q / (double)delta_t;
+    }
+    lastQueueUpdateTick = now;
+    lastQueueOccupancy = current_Q;
+
+    // Estimate future queue occupancy across interconnect latency window tau_xbar
+    Tick tau_xbar_ticks = (cache != nullptr)
+        ? (cache->clockPeriod() * uint64_t(latencyXbar))
+        : (1000 * uint64_t(latencyXbar));
+    double predicted_Q = current_Q + lastDQdt * (double)tau_xbar_ticks;
+    predicted_Q = std::max(0.0, std::min(1.0, predicted_Q));
+
+    // Dynamically adjust effective breakeven threshold Teff proportional to predicted queue saturation
+    double effectiveThreshold = latencyBreakevenThreshold * (1.0 + predictiveGain * predicted_Q);
+
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
 
-    double observedRatio =
-        (sampledCompressedBits > 0)
-            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
-
     bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+        enableAdaptiveBypass && (ewmaRatio < effectiveThreshold);
 
     if (shouldBypass && !isSampled) {
+        // Continuous EWMA ratio update on bypassed requests
+        double sampleRatio = 1.0;
+        ewmaRatio = (1.0 - ewmaAlpha) * ewmaRatio + ewmaAlpha * sampleRatio;
+
         std::unique_ptr<CompressionData> comp_data =
             std::make_unique<CompressionData>();
         comp_data->setSizeBits(blkSize * CHAR_BIT);
@@ -180,11 +209,15 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
+        stats.sampledCompressions++;
+        stats.sampledUncompressedBits += blkSize * CHAR_BIT;
+        stats.sampledCompressedBits += blkSize * CHAR_BIT;
+
         DPRINTF(
             CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
+            "Adaptive bypass active (ewmaRatio: %.4f < Teff: %.4f, pred_Q: %.4f). "
             "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+            ewmaRatio, effectiveThreshold, predicted_Q);
         return comp_data;
     }
 
@@ -219,18 +252,24 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
     }
 
-    if (isSampled) {
-        if (enableAdaptiveBypass && (decayShift > 0)) {
-            sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
-            sampledCompressedBits -= (sampledCompressedBits >> decayShift);
-        }
-        uint64_t uncomp_bits = blkSize * CHAR_BIT;
-        sampledUncompressedBits += uncomp_bits;
-        sampledCompressedBits += comp_size_bits;
-        stats.sampledCompressions++;
-        stats.sampledUncompressedBits += uncomp_bits;
-        stats.sampledCompressedBits += comp_size_bits;
+    // Continuous EWMA ratio update on compressed/sampled request
+    uint64_t uncomp_bits = blkSize * CHAR_BIT;
+    double sampleRatio = (comp_size_bits > 0)
+        ? ((double)uncomp_bits / (double)comp_size_bits)
+        : (double)uncomp_bits;
+
+    ewmaRatio = (1.0 - ewmaAlpha) * ewmaRatio + ewmaAlpha * sampleRatio;
+
+    if (enableAdaptiveBypass && (decayShift > 0)) {
+        sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
+        sampledCompressedBits -= (sampledCompressedBits >> decayShift);
     }
+    sampledUncompressedBits += uncomp_bits;
+    sampledCompressedBits += comp_size_bits;
+
+    stats.sampledCompressions++;
+    stats.sampledUncompressedBits += uncomp_bits;
+    stats.sampledCompressedBits += comp_size_bits;
 
     if (shouldBypass) {
         comp_lat = Cycles(0);
@@ -276,11 +315,14 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
-        double observedRatio = (sampledCompressedBits > 0)
-                                   ? ((double)sampledUncompressedBits /
-                                      (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
-        if (observedRatio < latencyBreakevenThreshold) {
+        double current_Q = (cache != nullptr) ? cache->getQueueOccupancyRatio() : 0.0;
+        Tick tau_xbar_ticks = (cache != nullptr)
+            ? (cache->clockPeriod() * uint64_t(latencyXbar))
+            : (1000 * uint64_t(latencyXbar));
+        double predicted_Q = std::max(0.0, std::min(1.0, current_Q + lastDQdt * (double)tau_xbar_ticks));
+        double effectiveThreshold = latencyBreakevenThreshold * (1.0 + predictiveGain * predicted_Q);
+
+        if (ewmaRatio < effectiveThreshold) {
             stats.bypassedDecompressions += 1;
         }
     }

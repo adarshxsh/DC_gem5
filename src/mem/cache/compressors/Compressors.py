@@ -80,6 +80,18 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    ewma_alpha = Param.Float(
+        0.05,
+        "EWMA smoothing factor (alpha) for continuous compression ratio estimation",
+    )
+    predictive_gain = Param.Float(
+        0.0,
+        "Predictive gain (k) for queue occupancy rate modeling",
+    )
+    latency_xbar = Param.Cycles(
+        10,
+        "Crossbar interconnect propagation delay latency window (tau_xbar)",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
