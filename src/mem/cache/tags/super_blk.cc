@@ -219,7 +219,8 @@ SuperBlk::hasValidDemand() const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size) const
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        bool write_queue_full) const
 {
     if (!isCompressed()) {
         return false;
@@ -228,6 +229,12 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
     const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
     if (new_blk_cf <= 1) {
         return false;
+    }
+
+    if (write_queue_full && getNumValid() > 0) {
+        if (new_blk_cf < getCompressionFactor()) {
+            return false;
+        }
     }
 
     std::size_t bit_sum = 0;

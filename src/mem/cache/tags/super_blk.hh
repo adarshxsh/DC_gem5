@@ -207,9 +207,11 @@ class SuperBlk : public SectorBlk
      * Checks whether a superblock can co-allocate given compressed data block.
      *
      * @param compressed_size Size, in bits, of new block to allocate.
+     * @param write_queue_full True if write queue is full / under backpressure.
      * @return True if block can be co-allocated in superblock.
      */
-    bool canCoAllocate(const std::size_t compressed_size) const;
+    bool canCoAllocate(const std::size_t compressed_size,
+                       bool write_queue_full = false) const;
 
     /**
      * Set block size. Should be called only once, when initializing blocks.

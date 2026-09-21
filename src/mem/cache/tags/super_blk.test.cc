@@ -133,3 +133,26 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
 }
+
+TEST_F(CanCoAllocateTest, WriteQueueBackpressureGuard)
+{
+    // Empty superblock allows co-allocation even when write queue is full
+    EXPECT_TRUE(superBlk.canCoAllocate(256, true));
+
+    // Add 1st sub-block (128 bits, CF=4) -> superblock CF = 4
+    subBlks[0].insert({0x3000, false});
+    subBlks[0].setSizeBits(128);
+
+    // Candidate block of 256 bits has CF=2 < current_cf (4).
+    // Uncongested (write_queue_full = false): should allow co-allocation
+    EXPECT_TRUE(superBlk.canCoAllocate(256, false));
+
+    // Under write queue backpressure (write_queue_full = true):
+    // must suppress co-allocation that causes compression factor reduction
+    EXPECT_FALSE(superBlk.canCoAllocate(256, true));
+
+    // Candidate block of 128 bits (CF=4 >= current_cf 4) or 64 bits (CF=8 >= current_cf 4):
+    // under write queue backpressure, co-allocation is permitted as CF is not degraded
+    EXPECT_TRUE(superBlk.canCoAllocate(128, true));
+    EXPECT_TRUE(superBlk.canCoAllocate(64, true));
+}
