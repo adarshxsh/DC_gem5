@@ -69,8 +69,10 @@ class SimpleMemDelay(MemDelay):
         0, "Queue occupancy threshold for backpressure scaling"
     )
     backpressure_multiplier = Param.Float(
-        1.0, "Latency scaling multiplier when backpressure threshold is exceeded"
+        1.0,
+        "Latency scaling multiplier when backpressure threshold is exceeded",
     )
     bypass_compressed = Param.Bool(
-        True, "Bypass dynamic latency scaling for compressed or bypassed packets"
+        True,
+        "Bypass dynamic latency scaling for compressed or bypassed packets",
     )
