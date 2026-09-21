@@ -138,7 +138,8 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
-    /** Size of circular ring buffer for tracking sampled ratios (0 = exponential decay). */
+    /** Size of circular ring buffer for tracking sampled ratios (0 =
+     * exponential decay). */
     const unsigned windowSize;
 
     /** Sample pair of uncompressed and compressed bit counts. */
@@ -308,7 +309,8 @@ class Base : public SimObject
 
     /**
      * Get the observed compression ratio from sampling.
-     * Uses windowed sums if windowSize > 0, or global bit accumulators if windowSize == 0.
+     * Uses windowed sums if windowSize > 0, or global bit accumulators if
+     * windowSize == 0.
      */
     double getObservedRatio() const;
 
@@ -319,7 +321,11 @@ class Base : public SimObject
     uint64_t getSampledCompressedBits() const;
 
     /** Get window size. */
-    unsigned getWindowSize() const { return windowSize; }
+    unsigned
+    getWindowSize() const
+    {
+        return windowSize;
+    }
 };
 
 class Base::CompressionData

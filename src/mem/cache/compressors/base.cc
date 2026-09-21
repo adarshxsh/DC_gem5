@@ -123,13 +123,13 @@ double
 Base::getObservedRatio() const
 {
     if (windowSize > 0) {
-        return (windowCompressedBits > 0)
-            ? ((double)windowUncompressedBits / (double)windowCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+        return (windowCompressedBits > 0) ? ((double)windowUncompressedBits /
+                                             (double)windowCompressedBits)
+                                          : (latencyBreakevenThreshold + 1.0);
     } else {
-        return (sampledCompressedBits > 0)
-            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+        return (sampledCompressedBits > 0) ? ((double)sampledUncompressedBits /
+                                              (double)sampledCompressedBits)
+                                           : (latencyBreakevenThreshold + 1.0);
     }
 }
 
@@ -268,8 +268,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             if (enableAdaptiveBypass && (decayShift > 0)) {
                 sampledUncompressedBits -=
                     (sampledUncompressedBits >> decayShift);
-                sampledCompressedBits -=
-                    (sampledCompressedBits >> decayShift);
+                sampledCompressedBits -= (sampledCompressedBits >> decayShift);
             }
             sampledUncompressedBits += uncomp_bits;
             sampledCompressedBits += comp_size_bits;
