@@ -111,12 +111,18 @@ class CompressedTags : public SectorTags
     /**
      * Set the write queue pointer for backpressure feedback.
      */
-    void setWriteQueue(const WriteQueue *wq) { writeQueue = wq; }
+    void
+    setWriteQueue(const WriteQueue *wq)
+    {
+        writeQueue = wq;
+    }
 
     /**
      * Set a custom callback to check write queue backpressure status.
      */
-    void setWriteQueueFullCallback(std::function<bool()> cb) {
+    void
+    setWriteQueueFullCallback(std::function<bool()> cb)
+    {
         writeQueueFullCallback = std::move(cb);
     }
 

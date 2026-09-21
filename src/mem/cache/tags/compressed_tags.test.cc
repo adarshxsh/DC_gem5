@@ -568,7 +568,8 @@ TEST_F(SuperBlkTestFixture, WriteQueueBackpressureCoAllocationFilter)
 
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
-    // Candidate block of 256 bits (CF=2) would reduce compression factor from 8 to 2
+    // Candidate block of 256 bits (CF=2) would reduce compression factor from
+    // 8 to 2
     const std::size_t new_size = 256;
 
     // Under normal conditions (no backpressure): co-allocation is permitted

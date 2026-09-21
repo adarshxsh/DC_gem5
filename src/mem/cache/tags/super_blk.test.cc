@@ -151,8 +151,9 @@ TEST_F(CanCoAllocateTest, WriteQueueBackpressureGuard)
     // must suppress co-allocation that causes compression factor reduction
     EXPECT_FALSE(superBlk.canCoAllocate(256, true));
 
-    // Candidate block of 128 bits (CF=4 >= current_cf 4) or 64 bits (CF=8 >= current_cf 4):
-    // under write queue backpressure, co-allocation is permitted as CF is not degraded
+    // Candidate block of 128 bits (CF=4 >= current_cf 4) or 64 bits (CF=8 >=
+    // current_cf 4): under write queue backpressure, co-allocation is
+    // permitted as CF is not degraded
     EXPECT_TRUE(superBlk.canCoAllocate(128, true));
     EXPECT_TRUE(superBlk.canCoAllocate(64, true));
 }

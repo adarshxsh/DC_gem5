@@ -135,14 +135,16 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
         prefetcher->setParentInfo(system, getProbeManager(), getBlockSize());
     }
 
-    CompressedTags *compressed_tags = dynamic_cast<CompressedTags*>(tags);
+    CompressedTags *compressed_tags = dynamic_cast<CompressedTags *>(tags);
     fatal_if(compressor && !compressed_tags,
-        "The tags of compressed cache %s must derive from CompressedTags",
-        name());
+             "The tags of compressed cache %s must derive from CompressedTags",
+             name());
     warn_if(!compressor && compressed_tags,
-        "Compressed cache %s does not have a compression algorithm", name());
-    if (compressed_tags)
+            "Compressed cache %s does not have a compression algorithm",
+            name());
+    if (compressed_tags) {
         compressed_tags->setWriteQueue(&writeBuffer);
+    }
     if (compressor)
         compressor->setCache(this);
 }
