@@ -34,6 +34,8 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -558,4 +560,34 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchFillRequestFlagsEvaluation)
+{
+    // Test 1: Demand ReadResp packet (no prefetch flag)
+    RequestPtr req_demand = std::make_shared<Request>(0x1000, 64, 0, 0);
+    Packet pkt_demand(req_demand, MemCmd::ReadResp);
+    bool is_prefetch_demand = pkt_demand.cmd.isPrefetch() ||
+                              (pkt_demand.req && pkt_demand.req->isPrefetch());
+    EXPECT_FALSE(is_prefetch_demand);
+
+    // Test 2: Prefetch fill ReadResp packet (Request::PREFETCH set)
+    RequestPtr req_pf =
+        std::make_shared<Request>(0x2000, 64, Request::PREFETCH, 0);
+    Packet pkt_pf_resp(req_pf, MemCmd::ReadResp);
+    bool is_prefetch_fill = pkt_pf_resp.cmd.isPrefetch() ||
+                            (pkt_pf_resp.req && pkt_pf_resp.req->isPrefetch());
+    EXPECT_TRUE(is_prefetch_fill);
+
+    // Test 3: Primary prefetch request packet (HardPFReq)
+    Packet pkt_pf_req(req_pf, MemCmd::HardPFReq);
+    bool is_prefetch_req = pkt_pf_req.cmd.isPrefetch() ||
+                           (pkt_pf_req.req && pkt_pf_req.req->isPrefetch());
+    EXPECT_TRUE(is_prefetch_req);
+
+    // Test 4: Packet without attached Request object (null req pointer)
+    RequestPtr null_req = nullptr;
+    bool is_prefetch_null =
+        pkt_pf_resp.cmd.isPrefetch() || (null_req && null_req->isPrefetch());
+    EXPECT_FALSE(is_prefetch_null);
 }
