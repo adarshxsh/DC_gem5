@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Signal downstream memory write queue pressure/congestion
+        MEMORY_QUEUE_PRESSURE = 0x00020000
     };
 
     Flags flags;
@@ -759,6 +762,9 @@ class Packet : public Printable, public Extensible<Packet>
     void setBlockCached()          { flags.set(BLOCK_CACHED); }
     bool isBlockCached() const     { return flags.isSet(BLOCK_CACHED); }
     void clearBlockCached()        { flags.clear(BLOCK_CACHED); }
+    void setMemoryQueuePressure()     { flags.set(MEMORY_QUEUE_PRESSURE); }
+    void clearMemoryQueuePressure()   { flags.clear(MEMORY_QUEUE_PRESSURE); }
+    bool isMemoryQueuePressure() const { return flags.isSet(MEMORY_QUEUE_PRESSURE); }
 
     /**
      * QoS Value getter

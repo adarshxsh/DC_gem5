@@ -97,6 +97,7 @@ Base::Base(const Params &p)
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
+      memoryPressure(false),
       cache(nullptr),
       stats(*this)
 {
@@ -118,6 +119,15 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+void
+Base::updateMemoryPressure(bool pressure)
+{
+    if (memoryPressure != pressure) {
+        memoryPressure = pressure;
+        DPRINTF(CacheComp, "Memory queue pressure updated to %d\n", pressure);
+    }
 }
 
 std::vector<Base::Chunk>
@@ -169,10 +179,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
-    bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+    bool shouldBypass = memoryPressure ||
+        (enableAdaptiveBypass && !isSampled && (observedRatio < latencyBreakevenThreshold));
 
-    if (shouldBypass && !isSampled) {
+    if (shouldBypass) {
         std::unique_ptr<CompressionData> comp_data =
             std::make_unique<CompressionData>();
         comp_data->setSizeBits(blkSize * CHAR_BIT);
@@ -182,9 +192,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         stats.bypassedCompressions++;
         DPRINTF(
             CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+            "Compression bypassed (memory pressure: %d, observed ratio: %.4f < threshold: %.4f).\n",
+            memoryPressure, observedRatio, latencyBreakevenThreshold);
         return comp_data;
     }
 
