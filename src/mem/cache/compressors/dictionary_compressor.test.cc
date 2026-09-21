@@ -14,12 +14,6 @@
 #include "mem/cache/compressors/fpc.hh"
 #include "params/CPack.hh"
 #include "params/FPC.hh"
-#include "sim/root.hh"
-
-namespace gem5
-{
-Root *Root::_root = nullptr;
-}
 
 using namespace gem5;
 using namespace compression;
@@ -190,4 +184,3 @@ TEST(DictionaryCompressorTest, DeltaPatternAsymmetricNegativeBound)
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_neg_bytes, base_bytes));
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_pos_bytes, base_bytes));
 }
-

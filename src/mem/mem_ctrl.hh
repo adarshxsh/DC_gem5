@@ -347,6 +347,11 @@ class MemCtrl : public qos::MemCtrl
                         MemInterface* mem_intr);
 
     /**
+     * Compute current memory queue pressure level based on queue occupancy.
+     */
+    uint8_t getQueuePressureLevel() const;
+
+    /**
      * Decode the incoming pkt, create a mem_pkt and push to the
      * back of the write queue. \If the write q length is more than
      * the threshold specified by the user, ie the queue is beginning
