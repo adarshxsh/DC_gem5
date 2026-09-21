@@ -43,18 +43,26 @@ namespace gem5
 namespace memory
 {
 
-HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
-    MemCtrl(p),
-    retryRdReqPC1(false), retryWrReqPC1(false),
-    nextReqEventPC1([this] {processNextReqEvent(pc1Int, respQueuePC1,
-                         respondEventPC1, nextReqEventPC1, retryWrReqPC1);},
-                         name()),
-    respondEventPC1([this] {processRespondEvent(pc1Int, respQueuePC1,
-                         respondEventPC1, retryRdReqPC1); }, name()),
-    pc1Int(p.dram_2),
-    partitionedQ(p.partitionedQ),
-    interleaveBit(p.interleave_bit),
-    maxChannelBufferRatio(p.max_channel_buffer_ratio / 100.0)
+HBMCtrl::HBMCtrl(const HBMCtrlParams &p)
+    : MemCtrl(p),
+      retryRdReqPC1(false),
+      retryWrReqPC1(false),
+      nextReqEventPC1(
+          [this] {
+              processNextReqEvent(pc1Int, respQueuePC1, respondEventPC1,
+                                  nextReqEventPC1, retryWrReqPC1);
+          },
+          name()),
+      respondEventPC1(
+          [this] {
+              processRespondEvent(pc1Int, respQueuePC1, respondEventPC1,
+                                  retryRdReqPC1);
+          },
+          name()),
+      pc1Int(p.dram_2),
+      partitionedQ(p.partitionedQ),
+      interleaveBit(p.interleave_bit),
+      maxChannelBufferRatio(p.max_channel_buffer_ratio / 100.0)
 {
     DPRINTF(MemCtrl, "Setting up HBM controller\n");
 
@@ -167,11 +175,10 @@ HBMCtrl::writeQueueFullPC0(unsigned int neededEntries) const
 
     unsigned int wrsize_new = (pc0Int->writeQueueSize + neededEntries);
     if (partitionedQ) {
-        return wrsize_new > (writeBufferSize/2);
+        return wrsize_new > (writeBufferSize / 2);
     } else {
-        unsigned int total_wrsize_new = pc0Int->writeQueueSize +
-                                        pc1Int->writeQueueSize +
-                                        neededEntries;
+        unsigned int total_wrsize_new =
+            pc0Int->writeQueueSize + pc1Int->writeQueueSize + neededEntries;
         return (total_wrsize_new > writeBufferSize) ||
                (wrsize_new > (writeBufferSize * maxChannelBufferRatio));
     }
@@ -186,11 +193,10 @@ HBMCtrl::writeQueueFullPC1(unsigned int neededEntries) const
 
     unsigned int wrsize_new = (pc1Int->writeQueueSize + neededEntries);
     if (partitionedQ) {
-        return wrsize_new > (writeBufferSize/2);
+        return wrsize_new > (writeBufferSize / 2);
     } else {
-        unsigned int total_wrsize_new = pc0Int->writeQueueSize +
-                                        pc1Int->writeQueueSize +
-                                        neededEntries;
+        unsigned int total_wrsize_new =
+            pc0Int->writeQueueSize + pc1Int->writeQueueSize + neededEntries;
         return (total_wrsize_new > writeBufferSize) ||
                (wrsize_new > (writeBufferSize * maxChannelBufferRatio));
     }
@@ -207,11 +213,11 @@ HBMCtrl::readQueueFullPC0(unsigned int neededEntries) const
     unsigned int rdsize_new = pc0Int->readQueueSize + respQueue.size()
                                                + neededEntries;
     if (partitionedQ) {
-        return rdsize_new > (readBufferSize/2);
+        return rdsize_new > (readBufferSize / 2);
     } else {
-        unsigned int total_rdsize_new = pc0Int->readQueueSize + respQueue.size() +
-                                        pc1Int->readQueueSize + respQueuePC1.size() +
-                                        neededEntries;
+        unsigned int total_rdsize_new =
+            pc0Int->readQueueSize + respQueue.size() + pc1Int->readQueueSize +
+            respQueuePC1.size() + neededEntries;
         return (total_rdsize_new > readBufferSize) ||
                (rdsize_new > (readBufferSize * maxChannelBufferRatio));
     }
@@ -228,11 +234,11 @@ HBMCtrl::readQueueFullPC1(unsigned int neededEntries) const
     unsigned int rdsize_new = pc1Int->readQueueSize + respQueuePC1.size()
                                                + neededEntries;
     if (partitionedQ) {
-        return rdsize_new > (readBufferSize/2);
+        return rdsize_new > (readBufferSize / 2);
     } else {
-        unsigned int total_rdsize_new = pc0Int->readQueueSize + respQueue.size() +
-                                        pc1Int->readQueueSize + respQueuePC1.size() +
-                                        neededEntries;
+        unsigned int total_rdsize_new =
+            pc0Int->readQueueSize + respQueue.size() + pc1Int->readQueueSize +
+            respQueuePC1.size() + neededEntries;
         return (total_rdsize_new > readBufferSize) ||
                (rdsize_new > (readBufferSize * maxChannelBufferRatio));
     }
