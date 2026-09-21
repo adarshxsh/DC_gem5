@@ -37,7 +37,8 @@ TEST(MSHRQueueTest, CanPrefetchWithDownstreamAndDecompressionFeedback)
     // MSHRQueue label, num_entries, reserve, demand_reserve, cache_name
     MSHRQueue mshrQueue("test_mshr_queue", 16, 0, 1, "test_cache");
 
-    // Initially with 0 allocated MSHRs and 0 occupancy / 0 latency, canPrefetch is true
+    // Initially with 0 allocated MSHRs and 0 occupancy / 0 latency,
+    // canPrefetch is true
     EXPECT_TRUE(mshrQueue.canPrefetch());
 
     // 1. Downstream memory queue occupancy >= high_watermark
@@ -52,7 +53,8 @@ TEST(MSHRQueueTest, CanPrefetchWithDownstreamAndDecompressionFeedback)
     EXPECT_FALSE(mshrQueue.canPrefetch(0, 0, Cycles(11), Cycles(10), 0));
 
     // 3. Dynamic extra reserve adjustment
-    // numEntries = 16, numReserve = 0, demandReserve = 1, +1 default offset = 2
-    // Max prefetchable allocated entries = 16 - 2 - extra_reserve = 14 - extra_reserve
+    // numEntries = 16, numReserve = 0, demandReserve = 1, +1 default offset =
+    // 2 Max prefetchable allocated entries = 16 - 2 - extra_reserve = 14 -
+    // extra_reserve
     EXPECT_TRUE(mshrQueue.canPrefetch(0, 0, Cycles(0), Cycles(0), 4));
 }

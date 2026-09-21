@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -93,12 +93,13 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       prefetcher(p.prefetcher),
       prefetchHighWatermark(p.prefetch_high_watermark),
       prefetchLowWatermark(p.prefetch_low_watermark),
-      prefetchCompressionLatencyThreshold(p.prefetch_compression_latency_threshold),
+      prefetchCompressionLatencyThreshold(
+          p.prefetch_compression_latency_threshold),
       lastDecompressionLatency(Cycles(0)),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -911,15 +912,18 @@ BaseCache::canPrefetch() const
 {
     size_t mem_occ = memSidePort.getOccupancy();
     int extra_reserve = 0;
-    if (prefetchHighWatermark > 0 && prefetchHighWatermark > prefetchLowWatermark &&
+    if (prefetchHighWatermark > 0 &&
+        prefetchHighWatermark > prefetchLowWatermark &&
         mem_occ > prefetchLowWatermark) {
         size_t range = prefetchHighWatermark - prefetchLowWatermark;
         size_t delta = mem_occ - prefetchLowWatermark;
-        extra_reserve = (delta * (mshrQueue.getNumEntries() - mshrQueue.getDemandReserve())) / range;
+        extra_reserve = (delta * (mshrQueue.getNumEntries() -
+                                  mshrQueue.getDemandReserve())) /
+                        range;
     }
-    return mshrQueue.canPrefetch(mem_occ, prefetchHighWatermark,
-                                lastDecompressionLatency, prefetchCompressionLatencyThreshold,
-                                extra_reserve);
+    return mshrQueue.canPrefetch(
+        mem_occ, prefetchHighWatermark, lastDecompressionLatency,
+        prefetchCompressionLatencyThreshold, extra_reserve);
 }
 
 PacketPtr
@@ -931,14 +935,18 @@ BaseCache::getPacket()
 
     size_t mem_occ = memSidePort.getOccupancy();
     if (prefetchHighWatermark > 0 && mem_occ >= prefetchHighWatermark) {
-        DPRINTF(HWPrefetch, "Throttling prefetch due to downstream memory queue occupancy (%u >= %u)\n",
+        DPRINTF(HWPrefetch,
+                "Throttling prefetch due to downstream memory queue occupancy "
+                "(%u >= %u)\n",
                 mem_occ, prefetchHighWatermark);
         return nullptr;
     }
 
     if (prefetchCompressionLatencyThreshold > Cycles(0) &&
         lastDecompressionLatency > prefetchCompressionLatencyThreshold) {
-        DPRINTF(HWPrefetch, "Deferring prefetch due to compression latency saturation (%d > %d)\n",
+        DPRINTF(HWPrefetch,
+                "Deferring prefetch due to compression latency saturation (%d "
+                "> %d)\n",
                 lastDecompressionLatency, prefetchCompressionLatencyThreshold);
         return nullptr;
     }

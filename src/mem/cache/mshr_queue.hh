@@ -82,10 +82,18 @@ class MSHRQueue : public Queue<MSHR>
               int demand_reserve, std::string cache_name);
 
     /** Get total number of entries in the MSHR queue. */
-    int getNumEntries() const { return numEntries; }
+    int
+    getNumEntries() const
+    {
+        return numEntries;
+    }
 
     /** Get number of entries reserved for demand accesses. */
-    int getDemandReserve() const { return demandReserve; }
+    int
+    getDemandReserve() const
+    {
+        return demandReserve;
+    }
 
     /**
      * Allocates a new MSHR for the request and size. This places the request
@@ -158,7 +166,8 @@ class MSHRQueue : public Queue<MSHR>
     }
 
     /**
-     * Returns true if sufficient mshrs for prefetch and feedback metrics allow.
+     * Returns true if sufficient mshrs for prefetch and feedback metrics
+     * allow.
      * @param mem_queue_occ Downstream memory queue occupancy.
      * @param high_watermark Downstream memory queue high watermark threshold.
      * @param decomp_lat Decompression latency.
@@ -166,20 +175,22 @@ class MSHRQueue : public Queue<MSHR>
      * @param extra_reserve Additional MSHRs to reserve due to queue pressure.
      * @return True if prefetching is allowed.
      */
-    bool canPrefetch(size_t mem_queue_occ = 0,
-                     size_t high_watermark = std::numeric_limits<size_t>::max(),
-                     Cycles decomp_lat = Cycles(0),
-                     Cycles max_decomp_lat = Cycles(0),
-                     int extra_reserve = 0) const
+    bool
+    canPrefetch(size_t mem_queue_occ = 0,
+                size_t high_watermark = std::numeric_limits<size_t>::max(),
+                Cycles decomp_lat = Cycles(0),
+                Cycles max_decomp_lat = Cycles(0), int extra_reserve = 0) const
     {
-        if (high_watermark > 0 && high_watermark != std::numeric_limits<size_t>::max() &&
+        if (high_watermark > 0 &&
+            high_watermark != std::numeric_limits<size_t>::max() &&
             mem_queue_occ >= high_watermark) {
             return false;
         }
         if (max_decomp_lat > Cycles(0) && decomp_lat > max_decomp_lat) {
             return false;
         }
-        return (allocated < numEntries - (numReserve + 1 + demandReserve + extra_reserve));
+        return (allocated <
+                numEntries - (numReserve + 1 + demandReserve + extra_reserve));
     }
 };
 
