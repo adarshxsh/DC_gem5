@@ -675,6 +675,12 @@ class MemCtrl : public qos::MemCtrl
 
   public:
 
+    /**
+     * Check if there are any pending requests in read or write queues
+     * targeting a specific rank and bank that match the given row.
+     */
+    bool hasPendingRowHit(uint8_t rank, uint8_t bank, uint32_t row) const;
+
     MemCtrl(const MemCtrlParams &p);
 
     /**

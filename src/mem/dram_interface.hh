@@ -410,10 +410,29 @@ class DRAMInterface : public MemInterface
         bool forceSelfRefreshExit() const;
 
         /**
+         * Maximum number of allowable deferred refreshes per JEDEC specification
+         */
+        static constexpr uint32_t max_deferred_refreshes = 8;
+
+        /**
+         * Check if rank refresh delay has reached maximum allowable threshold
+         */
+        bool refreshDelayMaxed() const;
+
+        /**
+         * Check if active write queue draining is in progress for this rank
+         */
+        bool isWriteDraining() const;
+
+        /**
+         * Check if there are pending row buffer hits for this rank in queue
+         */
+        bool hasPendingRowHits() const;
+
+        /**
          * Check if the command queue of current rank is idle
          *
          * @param Return true if the there are no commands in Q.
-         *                    Bus direction determines queue checked.
          */
         bool isQueueEmpty() const;
 
@@ -758,7 +777,8 @@ class DRAMInterface : public MemInterface
     bool
     burstReady(MemPacket* pkt) const override
     {
-        return ranks[pkt->rank]->inRefIdleState();
+        return ranks[pkt->rank]->inRefIdleState() ||
+               ranks[pkt->rank]->refreshState == REF_DRAIN;
     }
 
     /**
