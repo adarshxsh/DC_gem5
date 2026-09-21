@@ -495,6 +495,16 @@ class BaseCache : public ClockedObject
                                   const Cycles lookup_lat) const;
 
     /**
+     * Calculate target decompression latency for an MSHR target request.
+     *
+     * @param tgt_pkt The target packet being serviced.
+     * @param blk The cache block associated with the target.
+     * @return Decompression latency in ticks.
+     */
+    virtual Tick calculateTargetDecompressionLatency(const PacketPtr tgt_pkt,
+                                                     const CacheBlk *blk);
+
+    /**
      * Does all the processing necessary to perform the provided request.
      * @param pkt The memory request to perform.
      * @param blk The cache block to be updated.
