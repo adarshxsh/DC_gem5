@@ -61,3 +61,18 @@ class SimpleMemDelay(MemDelay):
 
     write_req = Param.Latency("0t", "Write request delay")
     write_resp = Param.Latency("0t", "Write response delay")
+
+    enable_backpressure = Param.Bool(
+        False, "Enable dynamic backpressure latency scaling"
+    )
+    backpressure_threshold = Param.Unsigned(
+        0, "Queue occupancy threshold for backpressure scaling"
+    )
+    backpressure_multiplier = Param.Float(
+        1.0,
+        "Latency scaling multiplier when backpressure threshold is exceeded",
+    )
+    bypass_compressed = Param.Bool(
+        True,
+        "Bypass dynamic latency scaling for compressed or bypassed packets",
+    )

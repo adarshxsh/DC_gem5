@@ -132,6 +132,49 @@ class MemDelay : public ClockedObject
     RespPacketQueue respQueue;
     SnoopRespPacketQueue snoopRespQueue;
 
+  public:
+    /** Get current request queue occupancy. */
+    size_t
+    getReqQueueSize() const
+    {
+        return reqQueue.size();
+    }
+
+    /** Get current response queue occupancy. */
+    size_t
+    getRespQueueSize() const
+    {
+        return respQueue.size();
+    }
+
+    /** Get current snoop response queue occupancy. */
+    size_t
+    getSnoopRespQueueSize() const
+    {
+        return snoopRespQueue.size();
+    }
+
+    /** Get total internal queue occupancy across all queues. */
+    size_t
+    getTotalQueueSize() const
+    {
+        return reqQueue.size() + respQueue.size() + snoopRespQueue.size();
+    }
+
+    /** Check if request queue is waiting on downstream retry. */
+    bool
+    isReqQueueBlocked() const
+    {
+        return reqQueue.isWaitingOnRetry();
+    }
+
+    /** Check if response queue is waiting on downstream retry. */
+    bool
+    isRespQueueBlocked() const
+    {
+        return respQueue.isWaitingOnRetry();
+    }
+
   protected:
     /**
      * Delay a request by some number of ticks.
@@ -178,6 +221,11 @@ class SimpleMemDelay : public MemDelay
 
     const Tick writeReqDelay;
     const Tick writeRespDelay;
+
+    const bool enableBackpressure;
+    const unsigned backpressureThreshold;
+    const double backpressureMultiplier;
+    const bool bypassCompressed;
 };
 
 } // namespace gem5

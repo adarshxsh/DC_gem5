@@ -167,6 +167,15 @@ class PacketQueue : public Drainable
     size_t size() const { return transmitList.size(); }
 
     /**
+     * Check if the queue is waiting on a retry from downstream port.
+     */
+    bool
+    isWaitingOnRetry() const
+    {
+        return waitingOnRetry;
+    }
+
+    /**
      * Get the next packet ready time.
      */
     Tick deferredPacketReadyTime() const

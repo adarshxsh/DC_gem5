@@ -37,6 +37,8 @@
 
 #include "mem/mem_delay.hh"
 
+#include <algorithm>
+
 #include "params/MemDelay.hh"
 #include "params/SimpleMemDelay.hh"
 
@@ -177,39 +179,87 @@ MemDelay::ResponsePort::recvTimingSnoopResp(PacketPtr pkt)
     return true;
 }
 
-
-
 SimpleMemDelay::SimpleMemDelay(const SimpleMemDelayParams &p)
     : MemDelay(p),
       readReqDelay(p.read_req),
       readRespDelay(p.read_resp),
       writeReqDelay(p.write_req),
-      writeRespDelay(p.write_resp)
+      writeRespDelay(p.write_resp),
+      enableBackpressure(p.enable_backpressure),
+      backpressureThreshold(p.backpressure_threshold),
+      backpressureMultiplier(p.backpressure_multiplier),
+      bypassCompressed(p.bypass_compressed)
 {
 }
 
 Tick
 SimpleMemDelay::delayReq(PacketPtr pkt)
 {
+    Tick base_delay = 0;
     if (pkt->isRead()) {
-        return readReqDelay;
+        base_delay = readReqDelay;
     } else if (pkt->isWrite()) {
-        return writeReqDelay;
+        base_delay = writeReqDelay;
     } else {
         return 0;
     }
+
+    if (!enableBackpressure || base_delay == 0) {
+        return base_delay;
+    }
+
+    if (bypassCompressed && (pkt->isCompressed() || pkt->isBypassed())) {
+        return base_delay;
+    }
+
+    const size_t q_size = getReqQueueSize();
+    const bool is_blocked = isReqQueueBlocked();
+
+    if (q_size > backpressureThreshold || is_blocked) {
+        const size_t excess = (q_size > backpressureThreshold)
+                                  ? (q_size - backpressureThreshold)
+                                  : 1;
+        const double factor =
+            std::max(1.0, 1.0 + (backpressureMultiplier - 1.0) * excess);
+        return static_cast<Tick>(base_delay * factor);
+    }
+
+    return base_delay;
 }
 
 Tick
 SimpleMemDelay::delayResp(PacketPtr pkt)
 {
+    Tick base_delay = 0;
     if (pkt->isRead()) {
-        return readRespDelay;
+        base_delay = readRespDelay;
     } else if (pkt->isWrite()) {
-        return writeRespDelay;
+        base_delay = writeRespDelay;
     } else {
         return 0;
     }
+
+    if (!enableBackpressure || base_delay == 0) {
+        return base_delay;
+    }
+
+    if (bypassCompressed && (pkt->isCompressed() || pkt->isBypassed())) {
+        return base_delay;
+    }
+
+    const size_t q_size = getRespQueueSize();
+    const bool is_blocked = isRespQueueBlocked();
+
+    if (q_size > backpressureThreshold || is_blocked) {
+        const size_t excess = (q_size > backpressureThreshold)
+                                  ? (q_size - backpressureThreshold)
+                                  : 1;
+        const double factor =
+            std::max(1.0, 1.0 + (backpressureMultiplier - 1.0) * excess);
+        return static_cast<Tick>(base_delay * factor);
+    }
+
+    return base_delay;
 }
 
 } // namespace gem5
