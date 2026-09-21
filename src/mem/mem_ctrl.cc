@@ -40,6 +40,9 @@
 
 #include "mem/mem_ctrl.hh"
 
+#include <algorithm>
+#include <cmath>
+
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/Drain.hh"
@@ -183,6 +186,36 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 
     auto wrsize_new = (totalWriteQueueSize + neededEntries);
     return  wrsize_new > writeBufferSize;
+}
+
+uint32_t
+MemCtrl::getEffectiveWriteHighThreshold(MemInterface* mem_intr) const
+{
+    if (!mem_intr || mem_intr->writeQueueSize == 0 || mem_intr->writeQueueBytes == 0) {
+        return writeHighThreshold;
+    }
+    double avg_size = static_cast<double>(mem_intr->writeQueueBytes) / mem_intr->writeQueueSize;
+    double burst_size = mem_intr->bytesPerBurst();
+    if (avg_size >= burst_size || avg_size <= 0.0) {
+        return writeHighThreshold;
+    }
+    double scale = burst_size / avg_size;
+    return std::round(writeHighThreshold * scale);
+}
+
+uint32_t
+MemCtrl::getEffectiveWriteLowThreshold(MemInterface* mem_intr) const
+{
+    if (!mem_intr || mem_intr->writeQueueSize == 0 || mem_intr->writeQueueBytes == 0) {
+        return writeLowThreshold;
+    }
+    double avg_size = static_cast<double>(mem_intr->writeQueueBytes) / mem_intr->writeQueueSize;
+    double burst_size = mem_intr->bytesPerBurst();
+    if (avg_size >= burst_size || avg_size <= 0.0) {
+        return writeLowThreshold;
+    }
+    double scale = burst_size / avg_size;
+    return std::max(1u, static_cast<uint32_t>(std::round(writeLowThreshold * scale)));
 }
 
 bool
@@ -351,6 +384,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
                        pkt->qosValue(), mem_pkt->addr, 1);
 
             mem_intr->writeQueueSize++;
+            mem_intr->writeQueueBytes += mem_pkt->size;
 
             assert(totalWriteQueueSize == isInWriteQueue.size());
 
@@ -942,7 +976,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // if we are draining)
             if (!(mem_intr->writeQueueSize == 0) &&
                 (drainState() == DrainState::Draining ||
-                 mem_intr->writeQueueSize > writeLowThreshold)) {
+                 mem_intr->writeQueueSize > getEffectiveWriteLowThreshold(mem_intr))) {
 
                 DPRINTF(MemCtrl,
                         "Switching to writes due to read queue empty\n");
@@ -1036,7 +1070,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // there are no other writes that can issue
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
+            if ((mem_intr->writeQueueSize > getEffectiveWriteHighThreshold(mem_intr)) &&
                (mem_intr->readsThisTime >= minReadsPerSwitch ||
                mem_intr->readQueueSize == 0)
                && !(nvmWriteBlock(mem_intr))) {
@@ -1108,6 +1142,14 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                     mem_pkt->readyTime - mem_pkt->entryTime);
 
         mem_intr->writeQueueSize--;
+        if (mem_intr->writeQueueBytes >= mem_pkt->size) {
+            mem_intr->writeQueueBytes -= mem_pkt->size;
+        } else {
+            mem_intr->writeQueueBytes = 0;
+        }
+        if (mem_intr->writeQueueSize == 0) {
+            mem_intr->writeQueueBytes = 0;
+        }
 
         // remove the request from the queue - the iterator is no longer valid
         writeQueue[mem_pkt->qosValue()].erase(to_write);
@@ -1121,7 +1163,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // If we are interfacing to NVM and have filled the writeRespQueue,
         // with only NVM writes in Q, then switch to reads
         bool below_threshold =
-            mem_intr->writeQueueSize + minWritesPerSwitch < writeLowThreshold;
+            mem_intr->writeQueueSize + minWritesPerSwitch < getEffectiveWriteLowThreshold(mem_intr);
 
         if (mem_intr->writeQueueSize == 0 ||
             (below_threshold && drainState() != DrainState::Draining) ||

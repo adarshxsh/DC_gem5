@@ -329,6 +329,16 @@ class MemCtrl : public qos::MemCtrl
     bool writeQueueFull(unsigned int pkt_count) const;
 
     /**
+     * Get effective write high threshold dynamically adjusted based on average write packet payload size.
+     */
+    virtual uint32_t getEffectiveWriteHighThreshold(MemInterface* mem_intr) const;
+
+    /**
+     * Get effective write low threshold dynamically adjusted based on average write packet payload size.
+     */
+    virtual uint32_t getEffectiveWriteLowThreshold(MemInterface* mem_intr) const;
+
+    /**
      * When a new read comes in, first check if the write q has a
      * pending request to the same address.\ If not, decode the
      * address to populate rank/bank/row, create one or mutliple
