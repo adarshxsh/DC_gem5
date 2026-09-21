@@ -199,7 +199,8 @@ Cache::doWritebacks(PacketList& writebacks, Tick forward_time)
         PacketPtr wbPkt = writebacks.front();
         Tick current_send_time = forward_time + stagger_offset;
 
-        // Check if upper-level L1 cache should throttle/pace in response to L2 backpressure
+        // Check if upper-level L1 cache should throttle/pace in response to L2
+        // backpressure
         if (isL2BackpressureActive()) {
             if (wbPkt->cmd == MemCmd::CleanEvict ||
                 wbPkt->cmd == MemCmd::WritebackClean) {
@@ -208,7 +209,8 @@ Cache::doWritebacks(PacketList& writebacks, Tick forward_time)
                 writebacks.pop_front();
                 continue;
             }
-            // Pace dirty writebacks if MSHR/write queues are not under full pressure (deadlock avoidance)
+            // Pace dirty writebacks if MSHR/write queues are not under full
+            // pressure (deadlock avoidance)
             if (!writeBuffer.isFull() && !mshrQueue.isFull()) {
                 current_send_time += clockPeriod() * 2;
             }

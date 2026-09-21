@@ -265,7 +265,11 @@ class Base : public SimObject
     /**
      * Check if adaptive compression bypass is currently active.
      */
-    bool isBypassActive() const { return enableAdaptiveBypass && bypassActive; }
+    bool
+    isBypassActive() const
+    {
+        return enableAdaptiveBypass && bypassActive;
+    }
 
     /**
      * Get the decompression latency if the block is compressed. Latency is 0

@@ -39,7 +39,8 @@
 
 using namespace gem5;
 
-namespace gem5 {
+namespace gem5
+{
 Root *Root::_root = nullptr;
 }
 
@@ -583,7 +584,8 @@ TEST_F(SuperBlkTestFixture, MultiBlockEvictionStaggering)
         }
     }
 
-    // Verify multi-block eviction burst produces 4 sub-block writeback candidates
+    // Verify multi-block eviction burst produces 4 sub-block writeback
+    // candidates
     ASSERT_EQ(evict_blks.size(), 4);
 
     // Verify staggering delay assignment (i * staggerStep)

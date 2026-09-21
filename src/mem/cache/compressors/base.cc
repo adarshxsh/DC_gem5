@@ -177,16 +177,16 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 
         if (!bypassActive && (observedRatio < lowWatermark)) {
             bypassActive = true;
-            DPRINTF(
-                CacheComp,
-                "Adaptive bypass activated (observed ratio: %.4f < low watermark: %.4f).\n",
-                observedRatio, lowWatermark);
+            DPRINTF(CacheComp,
+                    "Adaptive bypass activated (observed ratio: %.4f < low "
+                    "watermark: %.4f).\n",
+                    observedRatio, lowWatermark);
         } else if (bypassActive && (observedRatio > highWatermark)) {
             bypassActive = false;
-            DPRINTF(
-                CacheComp,
-                "Adaptive bypass deactivated (observed ratio: %.4f > high watermark: %.4f).\n",
-                observedRatio, highWatermark);
+            DPRINTF(CacheComp,
+                    "Adaptive bypass deactivated (observed ratio: %.4f > high "
+                    "watermark: %.4f).\n",
+                    observedRatio, highWatermark);
         }
     }
 

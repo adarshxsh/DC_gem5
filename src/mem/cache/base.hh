@@ -316,18 +316,19 @@ class BaseCache : public ClockedObject
         CpuSidePort(const std::string &_name, BaseCache& _cache,
                     const std::string &_label);
 
-        void schedTimingResp(PacketPtr pkt, Tick when)
+        void
+        schedTimingResp(PacketPtr pkt, Tick when)
         {
             cache.notifyCpuSidePortBackpressure(pkt);
             CacheResponsePort::schedTimingResp(pkt, when);
         }
 
-        void sendTimingSnoopReq(PacketPtr pkt)
+        void
+        sendTimingSnoopReq(PacketPtr pkt)
         {
             cache.notifyCpuSidePortBackpressure(pkt);
             CacheResponsePort::sendTimingSnoopReq(pkt);
         }
-
     };
 
     CpuSidePort cpuSidePort;
@@ -1312,31 +1313,37 @@ class BaseCache : public ClockedObject
     /** Cross-level compression backpressure active flag (for L2). */
     bool l2CompressionBypassActive;
 
-    /** Cross-level compression backpressure signal received from downstream (for L1). */
+    /** Cross-level compression backpressure signal received from downstream
+     * (for L1). */
     bool l2BackpressureActive;
 
     /** Tick when backpressure signal was last received. */
     Tick lastBackpressureTick;
 
   public:
-    bool isCompressionBypassActive() const
+    bool
+    isCompressionBypassActive() const
     {
-        return l2CompressionBypassActive || (compressor && compressor->isBypassActive());
+        return l2CompressionBypassActive ||
+               (compressor && compressor->isBypassActive());
     }
 
-    void setL2CompressionBypassActive(bool active)
+    void
+    setL2CompressionBypassActive(bool active)
     {
         l2CompressionBypassActive = active;
     }
 
-    void notifyCpuSidePortBackpressure(PacketPtr pkt)
+    void
+    notifyCpuSidePortBackpressure(PacketPtr pkt)
     {
         if (pkt && isCompressionBypassActive()) {
             pkt->setCompressionBackpressure();
         }
     }
 
-    void receiveCompressionBackpressure(PacketPtr pkt)
+    void
+    receiveCompressionBackpressure(PacketPtr pkt)
     {
         if (pkt) {
             if (pkt->isCompressionBackpressure()) {
@@ -1348,7 +1355,8 @@ class BaseCache : public ClockedObject
         }
     }
 
-    bool isL2BackpressureActive() const
+    bool
+    isL2BackpressureActive() const
     {
         return l2BackpressureActive;
     }

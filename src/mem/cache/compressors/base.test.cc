@@ -14,7 +14,8 @@
 using namespace gem5;
 using namespace compression;
 
-namespace gem5 {
+namespace gem5
+{
 Root *Root::_root = nullptr;
 }
 
@@ -23,15 +24,13 @@ class TestCompressor : public Base
   public:
     std::size_t mockCompSizeBits = 64;
 
-    TestCompressor(const BaseCacheCompressorParams &p)
-        : Base(p)
-    {}
+    TestCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     using Base::compress;
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
-             Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         std::unique_ptr<CompressionData> comp_data =
             std::make_unique<CompressionData>();
@@ -42,7 +41,7 @@ class TestCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* cache_line) override
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
     {}
 
     void
@@ -79,7 +78,8 @@ TEST(BaseCompressorTest, HysteresisStateTransitions)
     Cycles comp_lat, decomp_lat;
     uint64_t dummy_data[8] = {0};
 
-    // 1. Sampling with ratio > high watermark (e.g. 1.25): bypass stays inactive
+    // 1. Sampling with ratio > high watermark (e.g. 1.25): bypass stays
+    // inactive
     compressor.setMockSampling(1000, 800); // 1000 / 800 = 1.25 > 1.1
     compressor.compress(dummy_data, comp_lat, decomp_lat);
     EXPECT_FALSE(compressor.isBypassActive());
@@ -89,8 +89,10 @@ TEST(BaseCompressorTest, HysteresisStateTransitions)
     compressor.compress(dummy_data, comp_lat, decomp_lat);
     EXPECT_TRUE(compressor.isBypassActive());
 
-    // 3. Sampling with ratio in hysteresis band (e.g. 1.0): bypass remains active (dampening)
-    compressor.setMockSampling(1000, 1000); // 1000 / 1000 = 1.0 (between 0.9 and 1.1)
+    // 3. Sampling with ratio in hysteresis band (e.g. 1.0): bypass remains
+    // active (dampening)
+    compressor.setMockSampling(
+        1000, 1000); // 1000 / 1000 = 1.0 (between 0.9 and 1.1)
     compressor.compress(dummy_data, comp_lat, decomp_lat);
     EXPECT_TRUE(compressor.isBypassActive());
 
