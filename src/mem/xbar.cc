@@ -198,7 +198,7 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
         assert(std::find_if(waitingForLayer.begin(), waitingForLayer.end(),
-                            [src_port](const WaitingPort& wp) {
+                            [src_port](const WaitingPort &wp) {
                                 return wp.port == src_port;
                             }) == waitingForLayer.end());
 
@@ -290,13 +290,17 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     auto chosen_it = waitingForLayer.begin();
 
     if (waitingForLayer.size() > 1) {
-        // Starvation threshold: 50 crossbar clock cycles (or 50000 Ticks if clock period is 0)
+        // Starvation threshold: 50 crossbar clock cycles (or 50000 Ticks if
+        // clock period is 0)
         Tick clock_period = xbar.clockPeriod();
-        Tick starvation_thresh = (clock_period > 0) ? (50 * clock_period) : 50000;
+        Tick starvation_thresh =
+            (clock_period > 0) ? (50 * clock_period) : 50000;
 
-        for (auto it = waitingForLayer.begin(); it != waitingForLayer.end(); ++it) {
-            if (it == chosen_it)
+        for (auto it = waitingForLayer.begin(); it != waitingForLayer.end();
+             ++it) {
+            if (it == chosen_it) {
                 continue;
+            }
 
             Tick chosen_age = curTick() - chosen_it->entryTime;
             Tick current_age = curTick() - it->entryTime;
@@ -314,8 +318,11 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
                 }
             } else if (!chosen_starved) {
                 // Query downstream queue pressure for both
-                uint32_t chosen_occ = std::max(port.getQueueOccupancy(), chosen_it->port->getQueueOccupancy());
-                uint32_t current_occ = std::max(port.getQueueOccupancy(), it->port->getQueueOccupancy());
+                uint32_t chosen_occ =
+                    std::max(port.getQueueOccupancy(),
+                             chosen_it->port->getQueueOccupancy());
+                uint32_t current_occ = std::max(port.getQueueOccupancy(),
+                                                it->port->getQueueOccupancy());
 
                 if (current_occ < chosen_occ) {
                     switch_to_current = true;
@@ -332,7 +339,7 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
         }
     }
 
-    SrcType* retryingPort = chosen_it->port;
+    SrcType *retryingPort = chosen_it->port;
     waitingForLayer.erase(chosen_it);
 
     // tell the port to retry, which in some cases ends up calling the

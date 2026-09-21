@@ -274,7 +274,6 @@ class MemCtrl : public qos::MemCtrl
 
         AddrRangeList getAddrRanges() const override;
         uint32_t getQueueOccupancy() const override;
-
     };
 
     /**
@@ -679,11 +678,13 @@ class MemCtrl : public qos::MemCtrl
     MemCtrl(const MemCtrlParams &p);
 
     /**
-     * Get current total queue occupancy (read queue + write queue + response queue)
+     * Get current total queue occupancy (read queue + write queue + response
+     * queue)
      *
      * @return Total number of queued requests
      */
-    uint32_t getQueueOccupancy() const
+    uint32_t
+    getQueueOccupancy() const
     {
         return totalReadQueueSize + totalWriteQueueSize + respQueue.size();
     }

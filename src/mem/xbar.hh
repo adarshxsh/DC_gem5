@@ -72,7 +72,6 @@ class BaseXBar : public ClockedObject
 {
 
   public:
-
     /**
      * A layer is an internal crossbar arbitration point with its own
      * flow control. Each layer is a converging multiplexer tree. By
@@ -167,7 +166,11 @@ class BaseXBar : public ClockedObject
         /**
          * Query downstream target port queue pressure or occupancy status.
          */
-        uint32_t getQueueOccupancy() const { return port.getQueueOccupancy(); }
+        uint32_t
+        getQueueOccupancy() const
+        {
+            return port.getQueueOccupancy();
+        }
 
       protected:
 
@@ -211,11 +214,12 @@ class BaseXBar : public ClockedObject
 
         struct WaitingPort
         {
-            SrcType* port;
+            SrcType *port;
             Tick entryTime;
 
-            WaitingPort(SrcType* _port, Tick _time)
-                : port(_port), entryTime(_time) {}
+            WaitingPort(SrcType *_port, Tick _time)
+                : port(_port), entryTime(_time)
+            {}
         };
 
         /**

@@ -247,9 +247,14 @@ class TestOccupancyPort : public Port
     uint32_t occupancy;
 
     TestOccupancyPort(PortID _id, uint32_t occ = 0)
-        : Port("TestOccupancyPort", _id), occupancy(occ) {}
+        : Port("TestOccupancyPort", _id), occupancy(occ)
+    {}
 
-    uint32_t getQueueOccupancy() const override { return occupancy; }
+    uint32_t
+    getQueueOccupancy() const override
+    {
+        return occupancy;
+    }
 };
 
 /** Test queue occupancy interface on Port. */
