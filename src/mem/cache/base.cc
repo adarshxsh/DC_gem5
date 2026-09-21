@@ -553,14 +553,14 @@ BaseCache::updateCompressionThrottling() const
                      mshrQueue.capacity()) *
                     100.0;
     }
-    bool mem_blocked = memSidePort.isBlocked();
+    bool mem_blocked = isBlocked();
 
     if (!throttleCompression) {
         if (occupancy >= mshrHighWatermark || mem_blocked) {
             throttleCompression = true;
             DPRINTF(CacheComp,
                     "Compression throttling activated: MSHR occupancy %.1f%% "
-                    "(high watermark %.1f%%), memSidePort blocked: %d\n",
+                    "(high watermark %.1f%%), cache blocked: %d\n",
                     occupancy, mshrHighWatermark, mem_blocked);
         }
     } else {
@@ -569,7 +569,7 @@ BaseCache::updateCompressionThrottling() const
             DPRINTF(
                 CacheComp,
                 "Compression throttling deactivated: MSHR occupancy %.1f%% "
-                "(low watermark %.1f%%), memSidePort blocked: %d\n",
+                "(low watermark %.1f%%), cache blocked: %d\n",
                 occupancy, mshrLowWatermark, mem_blocked);
         }
     }
@@ -1820,7 +1820,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
             DPRINTF(CacheComp,
                     "%s: Dynamic compression throttling active; "
                     "bypassing compression for fill at addr %#llx\n",
-                    name(), pkt->getAddr());
+                    name(), (unsigned long long)pkt->getAddr());
         } else {
             const auto comp_data =
                 compressor->compress(pkt->getConstPtr<uint64_t>(),
