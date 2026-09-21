@@ -1524,11 +1524,14 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // A CleanEvict does not need to access the data array
         lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
 
-        if (blk) {
-            // Found the block in the tags, need to stop CleanEvict from
-            // propagating further down the hierarchy. Returning true will
-            // treat the CleanEvict like a satisfied write request and delete
-            // it.
+        if (blk || isDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure())) {
+            if (isDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure())) {
+                clearDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure());
+            }
+            // Found the block in the tags or as a detached clean block in L1,
+            // need to stop CleanEvict from propagating further down the
+            // hierarchy. Returning true will treat the CleanEvict like a
+            // satisfied write request and delete it.
             return true;
         }
         // We didn't find the block here, propagate the CleanEvict further
@@ -1825,7 +1828,6 @@ BaseCache::invalidateBlock(CacheBlk *blk)
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {
-        clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
         tags->invalidate(blk);
     } else {
         tempBlock->invalidate();
