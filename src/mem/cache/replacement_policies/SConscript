@@ -55,4 +55,5 @@ GTest('fifo_rp.test', 'fifo_rp.cc', 'fifo_rp.test.cc',
 GTest('lfu_rp.test', 'lfu_rp.cc', 'lfu_rp.test.cc', with_tag('gem5 simobject'))
 GTest('mru_rp.test', 'mru_rp.cc', 'mru_rp.test.cc', with_tag('gem5 simobject'))
 GTest('dwlru_rp.test', 'dwlru_rp.cc', 'lru_rp.cc', '../tags/sector_blk.cc',
+    '#src/base/logging.cc', '#src/base/hostinfo.cc',
     'dwlru_rp.test.cc', with_tag('gem5 simobject'))

@@ -181,6 +181,14 @@ class DWLRURP(LRURP):
     type = "DWLRURP"
     cxx_class = "gem5::replacement_policy::DWLRU"
     cxx_header = "mem/cache/replacement_policies/dwlru_rp.hh"
+    queue_pressure_threshold = Param.Float(
+        0.7,
+        "Downstream memory write queue pressure threshold for writeback penalty",
+    )
+    writeback_penalty_weight = Param.Float(
+        2.0,
+        "Penalty weight factor applied to dirty writebacks during write queue congestion",
+    )
 
 
 # Alias for backwards compatibility

@@ -42,7 +42,11 @@ namespace gem5
 namespace replacement_policy
 {
 
-DWLRU::DWLRU(const Params &p) : LRU(p)
+DWLRU::DWLRU(const Params &p)
+    : LRU(p),
+      queuePressure(0.0),
+      queuePressureThreshold(p.queue_pressure_threshold),
+      writebackPenaltyWeight(p.writeback_penalty_weight)
 {}
 
 void
@@ -51,6 +55,7 @@ DWLRU::invalidate(const std::shared_ptr<ReplacementData> &replacement_data)
     LRU::invalidate(replacement_data);
     auto dw_data = std::static_pointer_cast<DWLRUReplData>(replacement_data);
     dw_data->validSubBlkCount = 0;
+    dw_data->dirtySubBlkCount = 0;
 }
 
 void
@@ -63,6 +68,30 @@ void
 DWLRU::reset(const std::shared_ptr<ReplacementData> &replacement_data) const
 {
     LRU::reset(replacement_data);
+}
+
+void
+DWLRU::setQueuePressure(double pressure) const
+{
+    queuePressure = pressure;
+}
+
+void
+DWLRU::setMemWriteQueuePressure(double pressure) const
+{
+    queuePressure = pressure;
+}
+
+double
+DWLRU::getQueuePressure() const
+{
+    return queuePressure;
+}
+
+double
+DWLRU::getMemWriteQueuePressure() const
+{
+    return queuePressure;
 }
 
 ReplaceableEntry *
@@ -85,11 +114,37 @@ DWLRU::getVictim(const ReplacementCandidates &candidates) const
             if (!sec_blk->blks.empty()) {
                 candidate_data->maxSubBlks = sec_blk->blks.size();
             }
+            int actual_dirty = 0;
+            bool has_real_blks = false;
+            for (auto *sub_blk : sec_blk->blks) {
+                if (sub_blk) {
+                    has_real_blks = true;
+                    if (sub_blk->isValid() &&
+                        sub_blk->isSet(CacheBlk::DirtyBit)) {
+                        actual_dirty++;
+                    }
+                }
+            }
+            if (has_real_blks) {
+                candidate_data->dirtySubBlkCount = actual_dirty;
+            }
+        } else {
+            CacheBlk *cache_blk = dynamic_cast<CacheBlk *>(candidate);
+            if (cache_blk) {
+                if (cache_blk->isValid() &&
+                    cache_blk->isSet(CacheBlk::DirtyBit)) {
+                    candidate_data->dirtySubBlkCount =
+                        std::max(1, candidate_data->validSubBlkCount);
+                } else {
+                    candidate_data->dirtySubBlkCount = 0;
+                }
+            }
         }
 
         int valid_count = candidate_data->validSubBlkCount;
         int max_blks =
             candidate_data->maxSubBlks > 0 ? candidate_data->maxSubBlks : 1;
+        int dirty_count = candidate_data->dirtySubBlkCount;
 
         double score;
         if (valid_count <= 0) {
@@ -99,6 +154,14 @@ DWLRU::getVictim(const ReplacementCandidates &candidates) const
             double density = static_cast<double>(valid_count) / max_blks;
             Tick age = curTick() - candidate_data->lastTouchTick;
             score = static_cast<double>(age + 1) / density;
+
+            if (queuePressure > queuePressureThreshold && dirty_count > 0) {
+                double excess_pressure =
+                    queuePressure - queuePressureThreshold;
+                double penalty_factor = 1.0 + (writebackPenaltyWeight *
+                                               excess_pressure * dirty_count);
+                score /= penalty_factor;
+            }
         }
 
         if (score > max_score) {
