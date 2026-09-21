@@ -137,6 +137,15 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** EWMA smoothing factor (alpha) for continuous ratio estimation. */
+    const float ewmaAlpha;
+
+    /** Predictive gain (k) for queue occupancy rate modeling. */
+    const float predictiveGain;
+
+    /** Crossbar interconnect propagation delay latency window (tau_xbar). */
+    const Cycles latencyXbar;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -145,6 +154,18 @@ class Base : public SimObject
 
     /** Total compressed bits of sampled blocks. */
     uint64_t sampledCompressedBits;
+
+    /** Continuous exponentially weighted moving average ratio. */
+    double ewmaRatio;
+
+    /** Last tick when memory queue pressure was sampled. */
+    Tick lastQueueUpdateTick;
+
+    /** Last sampled memory queue occupancy Q(t). */
+    double lastQueueOccupancy;
+
+    /** Queue fill velocity dQ/dt. */
+    double lastDQdt;
 
     /** Pointer to the parent cache. */
     BaseCache* cache;
@@ -255,6 +276,33 @@ class Base : public SimObject
      */
     std::unique_ptr<CompressionData>
     compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat);
+
+    /**
+     * Get current continuous EWMA compression ratio.
+     */
+    double
+    getEWMARatio() const
+    {
+        return ewmaRatio;
+    }
+
+    /**
+     * Get last observed queue occupancy.
+     */
+    double
+    getLastQueueOccupancy() const
+    {
+        return lastQueueOccupancy;
+    }
+
+    /**
+     * Get last observed queue fill velocity (dQ/dt).
+     */
+    double
+    getLastDQdt() const
+    {
+        return lastDQdt;
+    }
 
     /**
      * Get the decompression latency if the block is compressed. Latency is 0

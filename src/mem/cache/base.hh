@@ -999,6 +999,16 @@ class BaseCache : public ClockedObject
     const AddrRangeList addrRanges;
 
   public:
+    /**
+     * Get max queue occupancy ratio across write buffer and MSHR queue.
+     */
+    double
+    getQueueOccupancyRatio() const
+    {
+        return std::max(writeBuffer.occupancyRatio(),
+                        mshrQueue.occupancyRatio());
+    }
+
     /** System we are currently operating in. */
     System *system;
 
