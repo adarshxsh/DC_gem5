@@ -502,7 +502,7 @@ class BaseCache : public ClockedObject
      * @return Decompression latency in ticks.
      */
     virtual Tick calculateTargetDecompressionLatency(const PacketPtr tgt_pkt,
-                                                     const CacheBlk* blk);
+                                                     const CacheBlk *blk);
 
     /**
      * Does all the processing necessary to perform the provided request.
