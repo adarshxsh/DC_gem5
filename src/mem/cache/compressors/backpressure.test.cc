@@ -11,7 +11,6 @@
 
 #include "base/output.hh"
 #include "mem/cache/compressors/base.hh"
-#include "mem/cache/compressors/dictionary_compressor_impl.hh"
 #include "mem/cache/compressors/zero.hh"
 #include "mem/packet.hh"
 #include "params/ZeroCompressor.hh"
