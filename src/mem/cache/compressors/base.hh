@@ -137,6 +137,31 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Number of recent samples in sliding window buffer. */
+    const unsigned windowSize;
+
+    /** Structure to hold sample data in the sliding window ring buffer. */
+    struct Sample
+    {
+        uint64_t uncompressedBits = 0;
+        uint64_t compressedBits = 0;
+    };
+
+    /** Ring buffer recording uncompressed and compressed bit sizes. */
+    std::vector<Sample> ringBuffer;
+
+    /** Current head index in the ring buffer. */
+    std::size_t windowHead;
+
+    /** Current number of valid samples in the ring buffer. */
+    std::size_t windowCount;
+
+    /** Running total of uncompressed bits in the sliding window. */
+    uint64_t windowUncompressedBits;
+
+    /** Running total of compressed bits in the sliding window. */
+    uint64_t windowCompressedBits;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -148,6 +173,10 @@ class Base : public SimObject
 
     /** Pointer to the parent cache. */
     BaseCache* cache;
+
+    /** Returns the observed compression ratio (windowed if window_size > 0).
+     */
+    double getObservedRatio() const;
 
     struct BaseStats : public statistics::Group
     {
@@ -192,6 +221,15 @@ class Base : public SimObject
 
         /** Observed compression ratio from sampling. */
         statistics::Formula observedCompressionRatio;
+
+        /** Total uncompressed bits in sliding window. */
+        statistics::Scalar windowUncompressedBits;
+
+        /** Total compressed bits in sliding window. */
+        statistics::Scalar windowCompressedBits;
+
+        /** Observed sliding window compression ratio. */
+        statistics::Formula observedWindowCompressionRatio;
     } stats;
 
     /**
