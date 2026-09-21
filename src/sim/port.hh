@@ -113,6 +113,18 @@ class Port
     /** Get the port id. */
     PortID getId() const { return id; }
 
+    /**
+     * Query downstream target port queue pressure or occupancy status.
+     *
+     * @return Queue occupancy metric (default is 0 for
+     * uncongested/unsupported)
+     */
+    virtual uint32_t
+    getQueueOccupancy() const
+    {
+        return 0;
+    }
+
     /** Attach to a peer port. */
     virtual void
     bind(Port &peer)

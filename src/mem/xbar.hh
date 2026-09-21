@@ -71,8 +71,7 @@ namespace gem5
 class BaseXBar : public ClockedObject
 {
 
-  protected:
-
+  public:
     /**
      * A layer is an internal crossbar arbitration point with its own
      * flow control. Each layer is a converging multiplexer tree. By
@@ -164,6 +163,15 @@ class BaseXBar : public ClockedObject
          */
         void recvRetry();
 
+        /**
+         * Query downstream target port queue pressure or occupancy status.
+         */
+        uint32_t
+        getQueueOccupancy() const
+        {
+            return port.getQueueOccupancy();
+        }
+
       protected:
 
         /**
@@ -204,11 +212,21 @@ class BaseXBar : public ClockedObject
 
         State state;
 
+        struct WaitingPort
+        {
+            SrcType *port;
+            Tick entryTime;
+
+            WaitingPort(SrcType *_port, Tick _time)
+                : port(_port), entryTime(_time)
+            {}
+        };
+
         /**
          * A deque of ports that retry should be called on because
          * the original send was delayed due to a busy layer.
          */
-        std::deque<SrcType*> waitingForLayer;
+        std::deque<WaitingPort> waitingForLayer;
 
         /**
          * Track who is waiting for the retry when receiving it from a

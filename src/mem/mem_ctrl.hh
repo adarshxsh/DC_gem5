@@ -273,7 +273,7 @@ class MemCtrl : public qos::MemCtrl
         bool recvTimingReq(PacketPtr) override;
 
         AddrRangeList getAddrRanges() const override;
-
+        uint32_t getQueueOccupancy() const override;
     };
 
     /**
@@ -676,6 +676,18 @@ class MemCtrl : public qos::MemCtrl
   public:
 
     MemCtrl(const MemCtrlParams &p);
+
+    /**
+     * Get current total queue occupancy (read queue + write queue + response
+     * queue)
+     *
+     * @return Total number of queued requests
+     */
+    uint32_t
+    getQueueOccupancy() const
+    {
+        return totalReadQueueSize + totalWriteQueueSize + respQueue.size();
+    }
 
     /**
      * Ensure that all interfaced have drained commands

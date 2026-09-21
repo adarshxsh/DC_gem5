@@ -45,6 +45,7 @@
 
 #include "mem/xbar.hh"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 
@@ -196,14 +197,16 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
     // for a retry from the peer
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
-        assert(std::find(waitingForLayer.begin(), waitingForLayer.end(),
-                         src_port) == waitingForLayer.end());
+        assert(std::find_if(waitingForLayer.begin(), waitingForLayer.end(),
+                            [src_port](const WaitingPort &wp) {
+                                return wp.port == src_port;
+                            }) == waitingForLayer.end());
 
         // put the port at the end of the retry list waiting for the
         // layer to be freed up (and in the case of a busy peer, for
         // that transaction to go through, and then the layer to free
         // up)
-        waitingForLayer.push_back(src_port);
+        waitingForLayer.emplace_back(src_port, curTick());
         return false;
     }
 
@@ -283,10 +286,61 @@ BaseXBar::Layer<SrcType, DstType>::retryWaiting()
     // update the state
     state = RETRY;
 
-    // set the retrying port to the front of the retry list and pop it
-    // off the list
-    SrcType* retryingPort = waitingForLayer.front();
-    waitingForLayer.pop_front();
+    // Select candidate port based on pressure-aware arbitration
+    auto chosen_it = waitingForLayer.begin();
+
+    if (waitingForLayer.size() > 1) {
+        // Starvation threshold: 50 crossbar clock cycles (or 50000 Ticks if
+        // clock period is 0)
+        Tick clock_period = xbar.clockPeriod();
+        Tick starvation_thresh =
+            (clock_period > 0) ? (50 * clock_period) : 50000;
+
+        for (auto it = waitingForLayer.begin(); it != waitingForLayer.end();
+             ++it) {
+            if (it == chosen_it) {
+                continue;
+            }
+
+            Tick chosen_age = curTick() - chosen_it->entryTime;
+            Tick current_age = curTick() - it->entryTime;
+
+            bool chosen_starved = (chosen_age >= starvation_thresh);
+            bool current_starved = (current_age >= starvation_thresh);
+
+            bool switch_to_current = false;
+
+            if (current_starved && !chosen_starved) {
+                switch_to_current = true;
+            } else if (current_starved && chosen_starved) {
+                if (current_age > chosen_age) {
+                    switch_to_current = true;
+                }
+            } else if (!chosen_starved) {
+                // Query downstream queue pressure for both
+                uint32_t chosen_occ =
+                    std::max(port.getQueueOccupancy(),
+                             chosen_it->port->getQueueOccupancy());
+                uint32_t current_occ = std::max(port.getQueueOccupancy(),
+                                                it->port->getQueueOccupancy());
+
+                if (current_occ < chosen_occ) {
+                    switch_to_current = true;
+                } else if (current_occ == chosen_occ) {
+                    if (current_age > chosen_age) {
+                        switch_to_current = true;
+                    }
+                }
+            }
+
+            if (switch_to_current) {
+                chosen_it = it;
+            }
+        }
+    }
+
+    SrcType *retryingPort = chosen_it->port;
+    waitingForLayer.erase(chosen_it);
 
     // tell the port to retry, which in some cases ends up calling the
     // layer again
@@ -316,7 +370,7 @@ BaseXBar::Layer<SrcType, DstType>::recvRetry()
     // add the port where the failed packet originated to the front of
     // the waiting ports for the layer, this allows us to call retry
     // on the port immediately if the crossbar layer is idle
-    waitingForLayer.push_front(waitingForPeer);
+    waitingForLayer.emplace_front(waitingForPeer, curTick());
 
     // we are no longer waiting for the peer
     waitingForPeer = NULL;
