@@ -91,6 +91,10 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       compressor(p.compressor),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
+      prefetchHighWatermark(p.prefetch_high_watermark),
+      prefetchLowWatermark(p.prefetch_low_watermark),
+      prefetchCompressionLatencyThreshold(p.prefetch_compression_latency_threshold),
+      lastDecompressionLatency(Cycles(0)),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
@@ -659,7 +663,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
             // Request the bus for a prefetch if this deallocation freed enough
             // MSHRs for a prefetch to take place
-            if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+            if (prefetcher && canPrefetch() && !isBlocked()) {
                 Tick next_pf_time = std::max(
                     prefetcher->nextPrefetchReadyTime(), clockEdge());
                 if (next_pf_time != MaxTick)
@@ -902,6 +906,46 @@ BaseCache::cmpAndSwap(CacheBlk *blk, PacketPtr pkt)
     }
 }
 
+bool
+BaseCache::canPrefetch() const
+{
+    size_t mem_occ = memSidePort.getOccupancy();
+    int extra_reserve = 0;
+    if (prefetchHighWatermark > 0 && prefetchHighWatermark > prefetchLowWatermark &&
+        mem_occ > prefetchLowWatermark) {
+        size_t range = prefetchHighWatermark - prefetchLowWatermark;
+        size_t delta = mem_occ - prefetchLowWatermark;
+        extra_reserve = (delta * (mshrQueue.getNumEntries() - mshrQueue.getDemandReserve())) / range;
+    }
+    return mshrQueue.canPrefetch(mem_occ, prefetchHighWatermark,
+                                lastDecompressionLatency, prefetchCompressionLatencyThreshold,
+                                extra_reserve);
+}
+
+PacketPtr
+BaseCache::getPacket()
+{
+    if (!prefetcher || isBlocked()) {
+        return nullptr;
+    }
+
+    size_t mem_occ = memSidePort.getOccupancy();
+    if (prefetchHighWatermark > 0 && mem_occ >= prefetchHighWatermark) {
+        DPRINTF(HWPrefetch, "Throttling prefetch due to downstream memory queue occupancy (%u >= %u)\n",
+                mem_occ, prefetchHighWatermark);
+        return nullptr;
+    }
+
+    if (prefetchCompressionLatencyThreshold > Cycles(0) &&
+        lastDecompressionLatency > prefetchCompressionLatencyThreshold) {
+        DPRINTF(HWPrefetch, "Deferring prefetch due to compression latency saturation (%d > %d)\n",
+                lastDecompressionLatency, prefetchCompressionLatencyThreshold);
+        return nullptr;
+    }
+
+    return prefetcher->getPacket();
+}
+
 QueueEntry*
 BaseCache::getNextQueueEntry()
 {
@@ -953,9 +997,9 @@ BaseCache::getNextQueueEntry()
 
     // fall through... no pending requests.  Try a prefetch.
     assert(!miss_mshr && !wq_entry);
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    if (prefetcher && canPrefetch() && !isBlocked()) {
         // If we have a miss queue slot, we can try a prefetch
-        PacketPtr pkt = prefetcher->getPacket();
+        PacketPtr pkt = getPacket();
         if (pkt) {
             Addr pf_addr = pkt->getBlockAddr(blkSize);
             if (tags->findBlock({pf_addr, pkt->isSecure()})) {
@@ -1078,6 +1122,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     Cycles decompression_lat = Cycles(0);
     const auto comp_data =
         compressor->compress(data, compression_lat, decompression_lat);
+    lastDecompressionLatency = decompression_lat;
     std::size_t compression_size = comp_data->getSizeBits();
 
     // Get previous compressed size
@@ -1610,7 +1655,9 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // When a block is compressed, it must first be decompressed
             // before being read. This adds to the access latency.
             if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
+                Cycles decomp_lat = compressor->getDecompressionLatency(blk);
+                lat += decomp_lat;
+                lastDecompressionLatency = decomp_lat;
             }
         } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
@@ -1774,6 +1821,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         const auto comp_data = compressor->compress(
             pkt->getConstPtr<uint64_t>(), compression_lat, decompression_lat);
         blk_size_bits = comp_data->getSizeBits();
+        lastDecompressionLatency = decompression_lat;
     }
 
     // get partitionId from Packet
@@ -1885,7 +1933,9 @@ BaseCache::writebackBlk(CacheBlk *blk)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        Cycles dlat = compressor->getDecompressionLatency(blk);
+        pkt->payloadDelay = dlat;
+        lastDecompressionLatency = dlat;
     }
 
     return pkt;
@@ -1930,7 +1980,9 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     // When a block is compressed, it must first be decompressed before being
     // sent for writeback.
     if (compressor) {
-        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+        Cycles dlat = compressor->getDecompressionLatency(blk);
+        pkt->payloadDelay = dlat;
+        lastDecompressionLatency = dlat;
     }
 
     return pkt;
@@ -2006,7 +2058,7 @@ BaseCache::nextQueueReadyTime() const
 
     // Don't signal prefetch ready time if no MSHRs available
     // Will signal once enoguh MSHRs are deallocated
-    if (prefetcher && mshrQueue.canPrefetch() && !isBlocked()) {
+    if (prefetcher && canPrefetch() && !isBlocked()) {
         nextReady = std::min(nextReady,
                              prefetcher->nextPrefetchReadyTime());
     }

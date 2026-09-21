@@ -247,6 +247,8 @@ class BaseCache : public ClockedObject
 
         MemSidePort(const std::string &_name, BaseCache *_cache,
                     const std::string &_label);
+
+        size_t getOccupancy() const { return _reqQueue.size(); }
     };
 
     /**
@@ -376,6 +378,18 @@ class BaseCache : public ClockedObject
 
     /** Prefetcher */
     prefetch::Base *prefetcher;
+
+    /** High watermark for downstream memory queue prefetch throttling. */
+    const unsigned prefetchHighWatermark;
+
+    /** Low watermark for downstream memory queue prefetch throttling. */
+    const unsigned prefetchLowWatermark;
+
+    /** Compression/decompression latency threshold for prefetch throttling. */
+    const Cycles prefetchCompressionLatencyThreshold;
+
+    /** Last observed cache decompression latency in cycles. */
+    mutable Cycles lastDecompressionLatency;
 
     /** To probe when a cache hit occurs */
     ProbePointArg<CacheAccessProbeArg> *ppHit;
@@ -878,6 +892,18 @@ class BaseCache : public ClockedObject
      * want the to write them to memory.
      */
     virtual void memInvalidate() override;
+
+    /**
+     * Evaluate whether MSHR allocation allows prefetch, considering downstream
+     * memory queue occupancy and compression latency feedback.
+     */
+    virtual bool canPrefetch() const;
+
+    /**
+     * Get prefetch packet from prefetcher, checking downstream queue and
+     * compression latency feedback to defer/drop prefetch if saturated.
+     */
+    virtual PacketPtr getPacket();
 
     /**
      * Determine if there are any dirty blocks in the cache.
