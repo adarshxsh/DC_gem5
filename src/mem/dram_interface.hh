@@ -410,7 +410,8 @@ class DRAMInterface : public MemInterface
         bool forceSelfRefreshExit() const;
 
         /**
-         * Maximum number of allowable deferred refreshes per JEDEC specification
+         * Maximum number of allowable deferred refreshes per JEDEC
+         * specification
          */
         static constexpr uint32_t max_deferred_refreshes = 8;
 

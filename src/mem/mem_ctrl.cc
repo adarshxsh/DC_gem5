@@ -1536,18 +1536,19 @@ MemCtrl::MemoryPort::recvTimingReq(PacketPtr pkt)
 bool
 MemCtrl::hasPendingRowHit(uint8_t rank, uint8_t bank, uint32_t row) const
 {
-    if (row == uint32_t(-1))
+    if (row == uint32_t(-1)) {
         return false;
+    }
 
-    for (const auto& q : readQueue) {
-        for (const auto& pkt : q) {
+    for (const auto &q : readQueue) {
+        for (const auto &pkt : q) {
             if (pkt->rank == rank && pkt->bank == bank && pkt->row == row) {
                 return true;
             }
         }
     }
-    for (const auto& q : writeQueue) {
-        for (const auto& pkt : q) {
+    for (const auto &q : writeQueue) {
+        for (const auto &pkt : q) {
             if (pkt->rank == rank && pkt->bank == bank && pkt->row == row) {
                 return true;
             }

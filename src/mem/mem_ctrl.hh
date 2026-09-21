@@ -674,7 +674,6 @@ class MemCtrl : public qos::MemCtrl
     virtual void pruneBurstTick();
 
   public:
-
     /**
      * Check if there are any pending requests in read or write queues
      * targeting a specific rank and bank that match the given row.
