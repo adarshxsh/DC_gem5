@@ -79,6 +79,17 @@ class MemCtrl(QoSMemCtrl):
     # queue is empty
     write_low_thresh_perc = Param.Percent(50, "Threshold to start writes")
 
+    # read queue high and low pressure thresholds in percent
+    read_high_thresh_perc = Param.Percent(
+        85, "Threshold for read queue high pressure"
+    )
+    read_low_thresh_perc = Param.Percent(
+        50, "Threshold for read queue low pressure"
+    )
+
+    def addCompressorListener(self, compressor):
+        compressor.mem_ctrl = self
+
     # minimum write bursts to schedule before switching back to reads
     min_writes_per_switch = Param.Unsigned(
         16, "Minimum write bursts before switching to reads"
