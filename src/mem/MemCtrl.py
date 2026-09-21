@@ -102,6 +102,19 @@ class MemCtrl(QoSMemCtrl):
     command_window = Param.Latency("10ns", "Static backend latency")
     disable_sanity_check = Param.Bool(False, "Disable port resp Q size check")
 
+    # Parameters for adaptive pressure-based dynamic threshold scaling
+    enable_dynamic_queue_pressure = Param.Bool(
+        False,
+        "Enable dynamic write threshold and burst quota scaling based on write queue pressure",
+    )
+    pressure_window_length = Param.Latency(
+        "100ns", "Rolling window length for calculating write arrival velocity"
+    )
+    write_arrival_velocity_threshold = Param.Float(
+        0.5,
+        "Growth rate threshold for write arrival velocity to trigger dynamic scaling",
+    )
+
 
 add_citation(
     MemCtrl,

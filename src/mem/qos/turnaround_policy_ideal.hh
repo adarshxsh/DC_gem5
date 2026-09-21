@@ -40,6 +40,7 @@
 
 #include "base/compiler.hh"
 #include "mem/qos/turnaround_policy.hh"
+#include "params/QoSTurnaroundPolicyIdeal.hh"
 
 namespace gem5
 {
@@ -60,6 +61,19 @@ namespace qos
  */
 class TurnaroundPolicyIdeal: public TurnaroundPolicy
 {
+  public:
+    using Params = QoSTurnaroundPolicyIdealParams;
+
+  protected:
+    /** Minimum turnaround burst hysteresis count */
+    const uint32_t minTurnaroundBurst;
+
+    /** Number of consecutive requests serviced in current bus state */
+    uint32_t currentBurstCount;
+
+    /** Last bus state selected */
+    MemCtrl::BusState lastBusState;
+
   public:
     TurnaroundPolicyIdeal(const Params &);
 
