@@ -379,7 +379,8 @@ class MSHR : public QueueEntry, public Printable
      *
      * @return true if targets or deferredTargets contains a demand request
      */
-    bool hasDemandTarget() const
+    bool
+    hasDemandTarget() const
     {
         return targets.hasDemandTarget() || deferredTargets.hasDemandTarget();
     }

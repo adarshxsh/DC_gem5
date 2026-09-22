@@ -295,7 +295,6 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
     }
 }
 
-
 bool
 MSHR::TargetList::hasDemandTarget() const
 {
@@ -307,7 +306,6 @@ MSHR::TargetList::hasDemandTarget() const
     }
     return false;
 }
-
 
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,

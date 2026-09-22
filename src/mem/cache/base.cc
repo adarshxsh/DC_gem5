@@ -1780,11 +1780,13 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     const auto partition_id = partitionManager ?
         partitionManager->readPacketPartitionID(pkt) : 0;
 
-    // Evaluate prefetch status using packet command attributes and request flags
-    bool is_prefetch = pkt->cmd.isPrefetch() ||
-                       (pkt->req && pkt->req->isPrefetch());
+    // Evaluate prefetch status using packet command attributes and request
+    // flags
+    bool is_prefetch =
+        pkt->cmd.isPrefetch() || (pkt->req && pkt->req->isPrefetch());
 
-    // Check MSHR target list so fills with merged demand targets set is_prefetch = false
+    // Check MSHR target list so fills with merged demand targets set
+    // is_prefetch = false
     MSHR *mshr = mshrQueue.findMatch(addr, is_secure);
     if (mshr && mshr->hasDemandTarget()) {
         is_prefetch = false;
@@ -1792,9 +1794,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
-    CacheBlk *victim =
-        tags->findVictim({addr, is_secure}, blk_size_bits, evict_blks,
-                         partition_id, is_prefetch);
+    CacheBlk *victim = tags->findVictim({addr, is_secure}, blk_size_bits,
+                                        evict_blks, partition_id, is_prefetch);
 
     // It is valid to return nullptr if there is no victim
     if (!victim)
