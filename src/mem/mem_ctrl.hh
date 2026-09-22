@@ -55,10 +55,12 @@
 #include "base/callback.hh"
 #include "base/statistics.hh"
 #include "enums/MemSched.hh"
+#include "enums/MemoryQueuePressure.hh"
 #include "mem/qos/mem_ctrl.hh"
 #include "mem/qport.hh"
 #include "params/MemCtrl.hh"
 #include "sim/eventq.hh"
+#include "sim/probe/probe.hh"
 
 namespace gem5
 {
@@ -524,6 +526,11 @@ class MemCtrl : public qos::MemCtrl
      */
     enums::MemSched memSchedPolicy;
 
+    /** Queue pressure probe point and state tracking */
+    ProbePointArg<enums::MemoryQueuePressure> *ppQueuePressure;
+    enums::MemoryQueuePressure currentQueuePressureState;
+    void checkQueuePressure();
+
     /**
      * Pipeline latency of the controller frontend. The frontend
      * contribution is added to writes (that complete when they are in
@@ -778,6 +785,12 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
+    void regProbePoints() override;
+
+    enums::MemoryQueuePressure getQueuePressureState() const
+    {
+        return currentQueuePressureState;
+    }
 
   protected:
 

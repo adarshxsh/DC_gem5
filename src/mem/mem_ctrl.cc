@@ -77,7 +77,9 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     backendLatency(p.static_backend_latency),
     commandWindow(p.command_window),
     prevArrival(0),
-    stats(*this)
+    stats(*this),
+    ppQueuePressure(nullptr),
+    currentQueuePressureState(enums::NORMAL)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -280,6 +282,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 
             // Update stats
             stats.avgRdQLen = totalReadQueueSize + respQueue.size();
+            checkQueuePressure();
         }
 
         // Starting address of next memory pkt (aligned to burst boundary)
@@ -356,6 +359,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
 
             // Update stats
             stats.avgWrQLen = totalWriteQueueSize;
+            checkQueuePressure();
 
         } else {
             DPRINTF(MemCtrl,
@@ -1046,6 +1050,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // remove the request from the queue
             // the iterator is no longer valid .
             readQueue[mem_pkt->qosValue()].erase(to_read);
+            checkQueuePressure();
         }
 
         // switching to writes, either because the read queue is empty
@@ -1111,6 +1116,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 
         // remove the request from the queue - the iterator is no longer valid
         writeQueue[mem_pkt->qosValue()].erase(to_write);
+        checkQueuePressure();
 
         delete mem_pkt;
 
@@ -1538,6 +1544,45 @@ MemCtrl::MemoryPort::disableSanityCheck()
 {
     queue.disableSanityCheck();
 }
+
+void
+MemCtrl::regProbePoints()
+{
+    qos::MemCtrl::regProbePoints();
+    ppQueuePressure = new ProbePointArg<enums::MemoryQueuePressure>(
+        getProbeManager(), "QueuePressure");
+}
+
+void
+MemCtrl::checkQueuePressure()
+{
+    enums::MemoryQueuePressure nextState = currentQueuePressureState;
+
+    if (totalWriteQueueSize >= writeBufferSize ||
+        (totalWriteQueueSize >= writeHighThreshold &&
+         totalReadQueueSize >= readBufferSize * 0.8)) {
+        nextState = enums::CRITICAL_PRESSURE;
+    } else if (totalWriteQueueSize >= writeHighThreshold) {
+        nextState = enums::HIGH_PRESSURE;
+    } else if (totalWriteQueueSize <= writeLowThreshold) {
+        nextState = enums::NORMAL;
+    } else if (currentQueuePressureState == enums::CRITICAL_PRESSURE &&
+               totalWriteQueueSize < writeHighThreshold) {
+        nextState = enums::HIGH_PRESSURE;
+    }
+
+    if (nextState != currentQueuePressureState) {
+        currentQueuePressureState = nextState;
+        DPRINTF(MemCtrl,
+                "Queue pressure state transition to %d (wrQ: %llu, rdQ: %llu)\n",
+                (int)currentQueuePressureState, totalWriteQueueSize,
+                totalReadQueueSize);
+        if (ppQueuePressure) {
+            ppQueuePressure->notify(currentQueuePressureState);
+        }
+    }
+}
+
 
 } // namespace memory
 } // namespace gem5

@@ -80,6 +80,15 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    mem_ctrl = Param.MemCtrl(
+        NULL, "Memory controller to monitor for queue pressure probe events"
+    )
+    high_pressure_multiplier = Param.Float(
+        1.5, "Breakeven threshold multiplier under HIGH_PRESSURE"
+    )
+    critical_pressure_multiplier = Param.Float(
+        3.0, "Breakeven threshold multiplier under CRITICAL_PRESSURE"
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
