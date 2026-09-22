@@ -1369,6 +1369,17 @@ BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
     return lat;
 }
 
+Cycles
+BaseCache::calculateDecompressionLatency(const CacheBlk *blk,
+                                         const PacketPtr pkt) const
+{
+    if (compressor && blk &&
+        (pkt->isRead() || !pkt->isWholeLineWrite(blkSize))) {
+        return compressor->getDecompressionLatency(blk);
+    }
+    return Cycles(0);
+}
+
 bool
 BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                   PacketList &writebacks)
@@ -1605,16 +1616,11 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
         // Calculate access latency based on the need to access the data array
         if (pkt->isRead()) {
-            lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
-
-            // When a block is compressed, it must first be decompressed
-            // before being read. This adds to the access latency.
-            if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
-            }
+            lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
+                  calculateDecompressionLatency(blk, pkt);
         } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
-                  compressor->getDecompressionLatency(blk);
+                  calculateDecompressionLatency(blk, pkt);
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }

@@ -495,6 +495,17 @@ class BaseCache : public ClockedObject
                                   const Cycles lookup_lat) const;
 
     /**
+     * Calculate decompression latency if the block is compressed and the
+     * packet requires decompression.
+     *
+     * @param blk The cache block accessed.
+     * @param pkt The packet causing the access.
+     * @return The decompression latency in cycles.
+     */
+    Cycles calculateDecompressionLatency(const CacheBlk *blk,
+                                         const PacketPtr pkt) const;
+
+    /**
      * Does all the processing necessary to perform the provided request.
      * @param pkt The memory request to perform.
      * @param blk The cache block to be updated.
