@@ -64,17 +64,17 @@
 namespace gem5
 {
 
+namespace compression
+{
+class Base;
+}
+
 namespace memory
 {
 
 class MemInterface;
 class DRAMInterface;
 class NVMInterface;
-
-namespace compression
-{
-class Base;
-}
 
 /**
  * A burst helper helps organize and manage a packet that is larger than

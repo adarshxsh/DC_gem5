@@ -299,7 +299,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         DPRINTF(CacheComp,
                 "Compressed cache line from %d to %d bits. "
                 "Compression latency: %llu, decompression latency: %llu\n",
-                blkSize * 8, comp_size_bits, comp_lat, decomp_lat);
+                blkSize * 8, comp_size_bits, (uint64_t)comp_lat,
+                (uint64_t)decomp_lat);
     }
 
     return comp_data;
@@ -316,7 +317,7 @@ Base::getDecompressionLatency(const CacheBlk* blk)
         (comp_blk->getSizeBits() < blkSize * CHAR_BIT)) {
         const Cycles decomp_lat = comp_blk->getDecompressionLatency();
         DPRINTF(CacheComp, "Decompressing block: %s (%d cycles)\n",
-                comp_blk->print(), decomp_lat);
+                comp_blk->print(), (uint64_t)decomp_lat);
         stats.decompressions += 1;
         return decomp_lat;
     }
