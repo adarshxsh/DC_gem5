@@ -57,35 +57,44 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    lastWriteArrivalTick(0),
-    writeCountInCurrentTick(0),
-    writeArrivalRate(0.0),
-    enableRateAwareThreshold(p.enable_rate_aware_threshold),
-    writeRateAlpha(p.write_rate_alpha),
-    writeRateThreshold(p.write_rate_threshold),
-    tSwitch(p.t_switch),
-    rateSensitivity(p.rate_sensitivity),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      lastWriteArrivalTick(0),
+      writeCountInCurrentTick(0),
+      writeArrivalRate(0.0),
+      enableRateAwareThreshold(p.enable_rate_aware_threshold),
+      writeRateAlpha(p.write_rate_alpha),
+      writeRateThreshold(p.write_rate_threshold),
+      tSwitch(p.t_switch),
+      rateSensitivity(p.rate_sensitivity),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -311,8 +320,9 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 void
 MemCtrl::updateWriteArrivalRate(unsigned int pkt_count)
 {
-    if (!enableRateAwareThreshold)
+    if (!enableRateAwareThreshold) {
         return;
+    }
 
     Tick now = curTick();
     if (now > lastWriteArrivalTick && lastWriteArrivalTick > 0) {
@@ -334,14 +344,18 @@ MemCtrl::updateWriteArrivalRate(unsigned int pkt_count)
 uint32_t
 MemCtrl::getDynamicWriteHighThreshold() const
 {
-    if (!enableRateAwareThreshold)
+    if (!enableRateAwareThreshold) {
         return writeHighThreshold;
+    }
 
     if (writeArrivalRate > writeRateThreshold) {
         double excess_rate = writeArrivalRate - writeRateThreshold;
-        double lower_amount = rateSensitivity * excess_rate * static_cast<double>(tSwitch);
-        double dynamic_threshold = static_cast<double>(writeHighThreshold) - lower_amount;
-        double min_threshold = static_cast<double>(writeLowThreshold + minWritesPerSwitch);
+        double lower_amount =
+            rateSensitivity * excess_rate * static_cast<double>(tSwitch);
+        double dynamic_threshold =
+            static_cast<double>(writeHighThreshold) - lower_amount;
+        double min_threshold =
+            static_cast<double>(writeLowThreshold + minWritesPerSwitch);
         dynamic_threshold = std::max(min_threshold, dynamic_threshold);
         return static_cast<uint32_t>(dynamic_threshold);
     }
@@ -350,11 +364,12 @@ MemCtrl::getDynamicWriteHighThreshold() const
 }
 
 double
-MemCtrl::getProjectedWriteQueueSize(MemInterface* mem_intr) const
+MemCtrl::getProjectedWriteQueueSize(MemInterface *mem_intr) const
 {
     double current_size = static_cast<double>(mem_intr->writeQueueSize);
-    if (!enableRateAwareThreshold)
+    if (!enableRateAwareThreshold) {
         return current_size;
+    }
 
     return current_size + writeArrivalRate * static_cast<double>(tSwitch);
 }
@@ -1100,15 +1115,16 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             uint32_t dynWriteHighThreshold = getDynamicWriteHighThreshold();
             double projWrQLen = getProjectedWriteQueueSize(mem_intr);
 
-            bool write_threshold_reached = enableRateAwareThreshold ?
-                (projWrQLen >= dynWriteHighThreshold ||
-                 mem_intr->writeQueueSize > dynWriteHighThreshold) :
-                (mem_intr->writeQueueSize > writeHighThreshold);
+            bool write_threshold_reached =
+                enableRateAwareThreshold
+                    ? (projWrQLen >= dynWriteHighThreshold ||
+                       mem_intr->writeQueueSize > dynWriteHighThreshold)
+                    : (mem_intr->writeQueueSize > writeHighThreshold);
 
             if (write_threshold_reached &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 

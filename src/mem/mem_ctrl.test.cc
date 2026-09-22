@@ -46,7 +46,8 @@ class MemCtrlTestFixture : public ::testing::Test
   protected:
     Tick mockTick = 0;
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         Gem5Internal::_curTickPtr = &mockTick;
     }
@@ -67,8 +68,10 @@ TEST_F(MemCtrlTestFixture, WriteArrivalRateEWMA)
     // Arrival 2 at tick 1100 (delta = 100 ticks, pkt_count = 1)
     mockTick = 1100;
     Tick delta_t = mockTick - lastArrival;
-    double inst_rate = static_cast<double>(currentCount) / static_cast<double>(delta_t); // 1.0 / 100 = 0.01
-    rate = alpha * inst_rate + (1.0 - alpha) * rate; // 0.5 * 0.01 + 0.5 * 0 = 0.005
+    double inst_rate = static_cast<double>(currentCount) /
+                       static_cast<double>(delta_t); // 1.0 / 100 = 0.01
+    rate = alpha * inst_rate +
+           (1.0 - alpha) * rate; // 0.5 * 0.01 + 0.5 * 0 = 0.005
     lastArrival = mockTick;
     currentCount = 1;
 
@@ -77,8 +80,10 @@ TEST_F(MemCtrlTestFixture, WriteArrivalRateEWMA)
     // Arrival 3 at tick 1200 (delta = 100 ticks, pkt_count = 1)
     mockTick = 1200;
     delta_t = mockTick - lastArrival;
-    inst_rate = static_cast<double>(currentCount) / static_cast<double>(delta_t); // 1.0 / 100 = 0.01
-    rate = alpha * inst_rate + (1.0 - alpha) * rate; // 0.5 * 0.01 + 0.5 * 0.005 = 0.0075
+    inst_rate = static_cast<double>(currentCount) /
+                static_cast<double>(delta_t); // 1.0 / 100 = 0.01
+    rate = alpha * inst_rate +
+           (1.0 - alpha) * rate; // 0.5 * 0.01 + 0.5 * 0.005 = 0.0075
 
     EXPECT_NEAR(rate, 0.0075, 1e-6);
 }
@@ -94,10 +99,15 @@ TEST_F(MemCtrlTestFixture, DynamicThresholdLoweringAndHysteresis)
 
     double writeArrivalRate = 0.003; // rate > threshold by 0.002
     double excessRate = writeArrivalRate - writeRateThreshold; // 0.002
-    double lowerAmount = rateSensitivity * excessRate * static_cast<double>(tSwitch); // 0.002 * 10000 = 20 entries
-    double dynamicThreshold = static_cast<double>(writeHighThreshold) - lowerAmount; // 54 - 20 = 34
-    double minThreshold = static_cast<double>(writeLowThreshold + minWritesPerSwitch); // 32 + 16 = 48
-    dynamicThreshold = std::max(minThreshold, dynamicThreshold); // clamped to 48
+    double lowerAmount =
+        rateSensitivity * excessRate *
+        static_cast<double>(tSwitch); // 0.002 * 10000 = 20 entries
+    double dynamicThreshold =
+        static_cast<double>(writeHighThreshold) - lowerAmount; // 54 - 20 = 34
+    double minThreshold = static_cast<double>(
+        writeLowThreshold + minWritesPerSwitch); // 32 + 16 = 48
+    dynamicThreshold =
+        std::max(minThreshold, dynamicThreshold); // clamped to 48
 
     EXPECT_EQ(static_cast<uint32_t>(dynamicThreshold), 48u);
 }
@@ -106,9 +116,12 @@ TEST_F(MemCtrlTestFixture, ProjectedQueueOccupancyCalculation)
 {
     double currentQueueSize = 40.0;
     double writeArrivalRate = 0.002; // 2 writes per 1000 ticks
-    Tick tSwitch = 5000; // 5000 ticks
+    Tick tSwitch = 5000;             // 5000 ticks
 
-    double projectedSize = currentQueueSize + writeArrivalRate * static_cast<double>(tSwitch); // 40 + 0.002 * 5000 = 50
+    double projectedSize =
+        currentQueueSize +
+        writeArrivalRate *
+            static_cast<double>(tSwitch); // 40 + 0.002 * 5000 = 50
     EXPECT_DOUBLE_EQ(projectedSize, 50.0);
 }
 
