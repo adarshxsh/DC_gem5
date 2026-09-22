@@ -54,21 +54,22 @@ namespace qos
 {
 
 TurnaroundPolicyPressure::TurnaroundPolicyPressure(const Params &p)
-  : TurnaroundPolicy(p),
-    alpha(p.pressure_alpha),
-    hysteresis(p.turnaround_hysteresis),
-    minBurstLength(p.min_burst_length),
-    readPressure(0.0),
-    writePressure(0.0),
-    readFillRate(0.0),
-    writeFillRate(0.0),
-    prevReadQueueSize(0),
-    prevWriteQueueSize(0),
-    burstCount(0),
-    initialized(false)
+    : TurnaroundPolicy(p),
+      alpha(p.pressure_alpha),
+      hysteresis(p.turnaround_hysteresis),
+      minBurstLength(p.min_burst_length),
+      readPressure(0.0),
+      writePressure(0.0),
+      readFillRate(0.0),
+      writeFillRate(0.0),
+      prevReadQueueSize(0),
+      prevWriteQueueSize(0),
+      burstCount(0),
+      initialized(false)
 {
-    fatal_if(alpha <= 0.0 || alpha > 1.0,
-             "QoSTurnaroundPolicyPressure: pressure_alpha must be in (0.0, 1.0]");
+    fatal_if(
+        alpha <= 0.0 || alpha > 1.0,
+        "QoSTurnaroundPolicyPressure: pressure_alpha must be in (0.0, 1.0]");
 }
 
 TurnaroundPolicyPressure::~TurnaroundPolicyPressure()
