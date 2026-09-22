@@ -68,6 +68,12 @@ class BaseCacheCompressor(SimObject):
         False,
         "Enable adaptive bypass of compression/decompression when observed compression ratio is below threshold",
     )
+    queue_congestion_threshold_pct = Param.Percent(
+        80, "Threshold percentage for downstream memory queue congestion bypass"
+    )
+    enable_congestion_bypass = Param.Bool(
+        True, "Enable compression bypass on downstream memory queue congestion"
+    )
     latency_breakeven_threshold = Param.Float(
         1.0,
         "Observed compression ratio threshold below which compression is bypassed",

@@ -91,6 +91,7 @@ Base::Base(const Params &p)
       decompChunksPerCycle(p.decomp_chunks_per_cycle),
       decompExtraLatency(p.decomp_extra_latency),
       enableAdaptiveBypass(p.enable_adaptive_bypass),
+      enableCongestionBypass(p.enable_congestion_bypass),
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
@@ -118,6 +119,12 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+bool
+Base::isDownstreamCongested() const
+{
+    return cache && cache->isDownstreamCongested();
 }
 
 std::vector<Base::Chunk>
@@ -160,6 +167,21 @@ std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
     totalCompressionRequests++;
+
+    bool is_mem_congested = enableCongestionBypass && isDownstreamCongested();
+    if (is_mem_congested) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.bypassedCompressions++;
+        stats.bypassedCompressionsMemCongestion++;
+        DPRINTF(CacheComp,
+            "Downstream memory queue pressure exceeds threshold. Bypassing compression.\n");
+        return comp_data;
+    }
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
@@ -329,6 +351,8 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of decompressions"),
       ADD_STAT(bypassedCompressions, statistics::units::Count::get(),
                "Total number of bypassed compressions"),
+      ADD_STAT(bypassedCompressionsMemCongestion, statistics::units::Count::get(),
+               "Total number of compressions bypassed due to downstream memory queue pressure"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),

@@ -616,4 +616,15 @@ BaseXBar::Layer<SrcType, DstType>::drain()
 template class BaseXBar::Layer<ResponsePort, RequestPort>;
 template class BaseXBar::Layer<RequestPort, ResponsePort>;
 
+bool
+BaseXBar::isCongested() const
+{
+    for (const auto* port : memSidePorts) {
+        if (port && port->isCongested()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace gem5

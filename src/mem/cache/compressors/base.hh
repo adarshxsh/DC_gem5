@@ -128,6 +128,9 @@ class Base : public SimObject
     /** Whether adaptive compression bypass is enabled. */
     const bool enableAdaptiveBypass;
 
+    /** Whether compression bypass on downstream memory congestion is enabled. */
+    const bool enableCongestionBypass;
+
     /** Compression ratio threshold below which compression is bypassed. */
     const float latencyBreakevenThreshold;
 
@@ -177,6 +180,9 @@ class Base : public SimObject
 
         /** Number of compressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedCompressions;
+
+        /** Number of compressions bypassed due to downstream memory congestion. */
+        statistics::Scalar bypassedCompressionsMemCongestion;
 
         /** Number of decompressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedDecompressions;
@@ -243,6 +249,9 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Check if downstream memory queue is congested via attached cache. */
+    virtual bool isDownstreamCongested() const;
 
     /**
      * Apply the compression process to the cache line. Ignores compression

@@ -108,6 +108,8 @@ class NoncoherentXBar : public BaseXBar
             return xbar.recvTimingReq(pkt, id);
         }
 
+        bool isCongested() const override { return xbar.isCongested(); }
+
         Tick
         recvAtomic(PacketPtr pkt) override
         {

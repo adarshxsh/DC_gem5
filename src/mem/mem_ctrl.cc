@@ -70,6 +70,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeBufferSize(dram->writeBufferSize),
     writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+    queueCongestionThresholdPct(p.queue_congestion_threshold_pct),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),
@@ -183,6 +184,22 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 
     auto wrsize_new = (totalWriteQueueSize + neededEntries);
     return  wrsize_new > writeBufferSize;
+}
+
+double
+MemCtrl::getQueuePressure() const
+{
+    double rd_pressure = (readBufferSize > 0) ?
+        (double)(totalReadQueueSize + respQueue.size()) / readBufferSize : 0.0;
+    double wr_pressure = (writeBufferSize > 0) ?
+        (double)totalWriteQueueSize / writeBufferSize : 0.0;
+    return std::max(rd_pressure, wr_pressure);
+}
+
+bool
+MemCtrl::isCongested() const
+{
+    return (getQueuePressure() * 100.0) >= queueCongestionThresholdPct;
 }
 
 bool
@@ -1531,6 +1548,12 @@ MemCtrl::MemoryPort::recvTimingReq(PacketPtr pkt)
 {
     // pass it to the memory controller
     return ctrl.recvTimingReq(pkt);
+}
+
+bool
+MemCtrl::MemoryPort::isCongested() const
+{
+    return ctrl.isCongested();
 }
 
 void

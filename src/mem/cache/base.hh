@@ -1220,6 +1220,24 @@ class BaseCache : public ClockedObject
     }
 
     /**
+     * Expose downstream memory congestion status from memory-side port.
+     *
+     * @return true if downstream memory interface is congested.
+     */
+    virtual bool isDownstreamCongested() const
+    {
+        return memSidePort.isConnected() && memSidePort.isCongested();
+    }
+
+    /**
+     * Returns true if downstream memory is congested.
+     */
+    virtual bool isCongested() const
+    {
+        return isDownstreamCongested();
+    }
+
+    /**
      * Marks the access path of the cache as blocked for the given cause. This
      * also sets the blocked flag in the response interface.
      * @param cause The reason for the cache blocking.
