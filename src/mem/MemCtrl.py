@@ -76,7 +76,9 @@ class MemCtrl(QoSMemCtrl):
     write_high_thresh_perc = Param.Percent(85, "Threshold to force writes")
 
     # threshold in percent for when to signal read queue pressure
-    read_high_thresh_perc = Param.Percent(85, "Threshold to signal read queue pressure")
+    read_high_thresh_perc = Param.Percent(
+        85, "Threshold to signal read queue pressure"
+    )
 
     # threshold in percentage for when to start writes if the read
     # queue is empty
