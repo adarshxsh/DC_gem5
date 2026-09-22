@@ -113,6 +113,12 @@ class CoherentXBar : public BaseXBar
         }
 
         bool
+        isCongested() const override
+        {
+            return xbar.isCongested();
+        }
+
+        bool
         recvTimingSnoopResp(PacketPtr pkt) override
         {
             return xbar.recvTimingSnoopResp(pkt, id);

@@ -274,6 +274,7 @@ class MemCtrl : public qos::MemCtrl
 
         AddrRangeList getAddrRanges() const override;
 
+        bool isCongested() const override;
     };
 
     /**
@@ -515,6 +516,7 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    const double queueCongestionThresholdPct;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
@@ -674,6 +676,21 @@ class MemCtrl : public qos::MemCtrl
     virtual void pruneBurstTick();
 
   public:
+    /**
+     * Get memory queue pressure as maximum relative fill ratio
+     * across read and write queues.
+     *
+     * @return Pressure ratio between 0.0 and 1.0.
+     */
+    double getQueuePressure() const;
+
+    /**
+     * Check if memory queue pressure meets or exceeds the high-water mark
+     * threshold.
+     *
+     * @return true if congested, false otherwise.
+     */
+    bool isCongested() const;
 
     MemCtrl(const MemCtrlParams &p);
 

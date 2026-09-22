@@ -414,6 +414,13 @@ class BaseXBar : public ClockedObject
 
     virtual ~BaseXBar();
 
+    /**
+     * Check if any connected memory-side port is congested.
+     *
+     * @return true if any downstream memory port is congested.
+     */
+    virtual bool isCongested() const;
+
     /** A function used to return the port associated with this object. */
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
