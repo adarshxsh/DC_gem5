@@ -77,10 +77,11 @@ Cache::Cache(const CacheParams &p)
 
 void
 Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                      bool deferred_response, bool pending_downgrade)
+                      bool deferred_response, bool pending_downgrade,
+                      Cycles &comp_lat)
 {
     BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
-                              pending_downgrade);
+                              pending_downgrade, comp_lat);
 
     if (pkt->isRead()) {
         // determine if this read is from a (coherent) cache or not
