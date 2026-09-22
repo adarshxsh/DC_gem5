@@ -94,6 +94,10 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      enableQueuePressureThrottling(p.enable_queue_pressure_throttling),
+      memoryQueueHighThreshold(p.memory_queue_high_threshold),
+      memoryQueueLowThreshold(p.memory_queue_low_threshold),
+      memoryQueueHighPressure(false),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -111,6 +115,13 @@ Base::Base(const Params &p)
         "chunks in the input");
 
     fatal_if(blkSize < sizeThreshold, "Compressed data must fit in a block");
+
+    if (enableQueuePressureThrottling &&
+        memoryQueueLowThreshold >= memoryQueueHighThreshold) {
+        fatal("Memory queue pressure low threshold (%f) must be smaller than "
+              "high threshold (%f)\n", memoryQueueLowThreshold,
+              memoryQueueHighThreshold);
+    }
 }
 
 void
@@ -118,6 +129,27 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+void
+Base::registerQueuePressureCallback(std::function<void(bool)> callback)
+{
+    if (callback) {
+        queuePressureCallbacks.push_back(callback);
+    }
+}
+
+void
+Base::updateQueuePressureState(bool high_pressure)
+{
+    memoryQueueHighPressure = high_pressure;
+    DPRINTF(CacheComp, "Memory queue pressure state updated to: %s\n",
+            high_pressure ? "HIGH" : "LOW");
+    for (auto& cb : queuePressureCallbacks) {
+        if (cb) {
+            cb(high_pressure);
+        }
+    }
 }
 
 std::vector<Base::Chunk>
@@ -160,6 +192,21 @@ std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
     totalCompressionRequests++;
+
+    if (enableQueuePressureThrottling && memoryQueueHighPressure) {
+        std::unique_ptr<CompressionData> comp_data =
+            std::make_unique<CompressionData>();
+        comp_data->setSizeBits(blkSize * CHAR_BIT);
+        comp_lat = Cycles(0);
+        decomp_lat = Cycles(0);
+
+        stats.bypassedCompressions++;
+        DPRINTF(
+            CacheComp,
+            "Memory queue pressure throttling active (high pressure). "
+            "Bypassing compression.\n");
+        return comp_data;
+    }
 
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);

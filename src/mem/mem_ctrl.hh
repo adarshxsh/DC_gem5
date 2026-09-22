@@ -47,6 +47,7 @@
 #define __MEM_CTRL_HH__
 
 #include <deque>
+#include <functional>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -69,6 +70,11 @@ namespace memory
 class MemInterface;
 class DRAMInterface;
 class NVMInterface;
+
+namespace compression
+{
+class Base;
+}
 
 /**
  * A burst helper helps organize and manage a packet that is larger than
@@ -515,6 +521,11 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    uint32_t queuePressureHighThreshold;
+    uint32_t queuePressureLowThreshold;
+    bool isQueueHighPressure;
+    std::vector<std::function<void(bool)>> queuePressureCallbacks;
+    compression::Base* attachedCompressor;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
@@ -778,6 +789,21 @@ class MemCtrl : public qos::MemCtrl
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
+
+    /** Register callback for queue pressure notification. */
+    void registerQueuePressureCallback(std::function<void(bool)> callback);
+
+    /** Register compressor attached to this memory controller. */
+    void registerCompressor(compression::Base* compressor);
+
+    /** Update current queue pressure state and notify callbacks/compressor. */
+    void updateQueuePressureState(bool high_pressure);
+
+    /** Check current queue occupancy and update pressure state if thresholds breached. */
+    void checkQueuePressure();
+
+    /** Query whether the queue is currently in high pressure state. */
+    bool isQueueHighPressureState() const { return isQueueHighPressure; }
 
   protected:
 

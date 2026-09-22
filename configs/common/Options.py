@@ -169,6 +169,24 @@ def addNoISAOptions(parser):
         default=0,
         help="Memory channels interleave",
     )
+    parser.add_argument(
+        "--enable-queue-pressure-throttling",
+        action="store_true",
+        default=False,
+        help="Enable memory queue pressure throttling for cache compression",
+    )
+    parser.add_argument(
+        "--mem-queue-high-thresh",
+        type=float,
+        default=80.0,
+        help="Memory write queue high pressure threshold percentage",
+    )
+    parser.add_argument(
+        "--mem-queue-low-thresh",
+        type=float,
+        default=40.0,
+        help="Memory write queue low pressure threshold percentage",
+    )
 
     parser.add_argument("--memchecker", action="store_true")
 

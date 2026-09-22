@@ -37,6 +37,8 @@
 #define __MEM_CACHE_COMPRESSORS_BASE_HH__
 
 #include <cstdint>
+#include <functional>
+#include <vector>
 
 #include "base/compiler.hh"
 #include "base/statistics.hh"
@@ -136,6 +138,21 @@ class Base : public SimObject
 
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
+
+    /** Whether memory queue pressure throttling is enabled. */
+    const bool enableQueuePressureThrottling;
+
+    /** Memory queue high pressure threshold percentage. */
+    const float memoryQueueHighThreshold;
+
+    /** Memory queue low pressure threshold percentage. */
+    const float memoryQueueLowThreshold;
+
+    /** Current state of memory queue pressure. */
+    bool memoryQueueHighPressure;
+
+    /** Callbacks registered to receive queue pressure notifications. */
+    std::vector<std::function<void(bool)>> queuePressureCallbacks;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
@@ -279,6 +296,15 @@ class Base : public SimObject
      * @param size_bits The block size.
      */
     static void setSizeBits(CacheBlk* blk, const std::size_t size_bits);
+
+    /** Register callback for memory queue pressure notifications. */
+    void registerQueuePressureCallback(std::function<void(bool)> callback);
+
+    /** Update memory queue pressure state. */
+    void updateQueuePressureState(bool high_pressure);
+
+    /** Query current memory queue pressure state. */
+    bool isQueueHighPressure() const { return memoryQueueHighPressure; }
 };
 
 class Base::CompressionData

@@ -46,6 +46,7 @@
 #include "debug/MemCtrl.hh"
 #include "debug/NVM.hh"
 #include "debug/QOS.hh"
+#include "mem/cache/compressors/base.hh"
 #include "mem/dram_interface.hh"
 #include "mem/mem_interface.hh"
 #include "mem/nvm_interface.hh"
@@ -70,6 +71,10 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeBufferSize(dram->writeBufferSize),
     writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+    queuePressureHighThreshold(writeBufferSize * p.queue_pressure_high_thresh_perc / 100.0),
+    queuePressureLowThreshold(writeBufferSize * p.queue_pressure_low_thresh_perc / 100.0),
+    isQueueHighPressure(false),
+    attachedCompressor(p.compressor),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),
@@ -91,6 +96,10 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
         fatal("Write buffer low threshold %d must be smaller than the "
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
+    if (p.queue_pressure_low_thresh_perc >= p.queue_pressure_high_thresh_perc)
+        fatal("Queue pressure low threshold %d must be smaller than the "
+              "high threshold %d\n", p.queue_pressure_low_thresh_perc,
+              p.queue_pressure_high_thresh_perc);
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
@@ -356,6 +365,8 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
 
             // Update stats
             stats.avgWrQLen = totalWriteQueueSize;
+
+            checkQueuePressure();
 
         } else {
             DPRINTF(MemCtrl,
@@ -1112,6 +1123,8 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         // remove the request from the queue - the iterator is no longer valid
         writeQueue[mem_pkt->qosValue()].erase(to_write);
 
+        checkQueuePressure();
+
         delete mem_pkt;
 
         // If we emptied the write queue, or got sufficiently below the
@@ -1145,6 +1158,46 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
     if (retry_wr_req && mem_intr->writeQueueSize < writeBufferSize) {
         retry_wr_req = false;
         port.sendRetryReq();
+    }
+}
+
+void
+MemCtrl::registerQueuePressureCallback(std::function<void(bool)> callback)
+{
+    if (callback) {
+        queuePressureCallbacks.push_back(callback);
+    }
+}
+
+void
+MemCtrl::registerCompressor(compression::Base* compressor)
+{
+    attachedCompressor = compressor;
+}
+
+void
+MemCtrl::updateQueuePressureState(bool high_pressure)
+{
+    isQueueHighPressure = high_pressure;
+    DPRINTF(MemCtrl, "Queue pressure state updated to: %s\n",
+            high_pressure ? "HIGH" : "LOW");
+    for (auto& cb : queuePressureCallbacks) {
+        if (cb) {
+            cb(high_pressure);
+        }
+    }
+    if (attachedCompressor) {
+        attachedCompressor->updateQueuePressureState(high_pressure);
+    }
+}
+
+void
+MemCtrl::checkQueuePressure()
+{
+    if (totalWriteQueueSize >= queuePressureHighThreshold && !isQueueHighPressure) {
+        updateQueuePressureState(true);
+    } else if (totalWriteQueueSize <= queuePressureLowThreshold && isQueueHighPressure) {
+        updateQueuePressureState(false);
     }
 }
 
