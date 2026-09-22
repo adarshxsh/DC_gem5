@@ -887,6 +887,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
     if (turnPolicy) {
         // select bus state - only done if QoS algorithms are in use
         busStateNext = selectNextBusState();
+        mem_intr->busStateNext = busStateNext;
     }
 
     // detect bus state change
