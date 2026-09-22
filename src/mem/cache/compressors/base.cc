@@ -142,32 +142,32 @@ Base::handleMemoryQueuePressure(enums::MemoryQueuePressure pressure)
 {
     currentBackpressureState = pressure;
     switch (pressure) {
-      case enums::HIGH_PRESSURE:
-        backpressureMultiplier = highPressureMultiplier;
-        instantaneousBypass = false;
-        DPRINTF(CacheComp,
-                "Memory queue pressure: HIGH_PRESSURE. "
-                "Backpressure multiplier set to %.2f (effective breakeven: %.4f)\n",
-                backpressureMultiplier, getEffectiveBreakevenThreshold());
-        break;
+        case enums::HIGH_PRESSURE:
+            backpressureMultiplier = highPressureMultiplier;
+            instantaneousBypass = false;
+            DPRINTF(CacheComp,
+                    "Memory queue pressure: HIGH_PRESSURE. "
+                    "Backpressure multiplier set to %.2f (effective "
+                    "breakeven: %.4f)\n",
+                    backpressureMultiplier, getEffectiveBreakevenThreshold());
+            break;
 
-      case enums::CRITICAL_PRESSURE:
-        backpressureMultiplier = criticalPressureMultiplier;
-        instantaneousBypass = true;
-        DPRINTF(CacheComp,
-                "Memory queue pressure: CRITICAL_PRESSURE. "
-                "Instantaneous bypass enabled.\n");
-        break;
+        case enums::CRITICAL_PRESSURE:
+            backpressureMultiplier = criticalPressureMultiplier;
+            instantaneousBypass = true;
+            DPRINTF(CacheComp, "Memory queue pressure: CRITICAL_PRESSURE. "
+                               "Instantaneous bypass enabled.\n");
+            break;
 
-      case enums::NORMAL:
-      default:
-        backpressureMultiplier = 1.0f;
-        instantaneousBypass = false;
-        DPRINTF(CacheComp,
-                "Memory queue pressure: NORMAL. "
-                "Breakeven threshold restored to baseline %.4f\n",
-                latencyBreakevenThreshold);
-        break;
+        case enums::NORMAL:
+        default:
+            backpressureMultiplier = 1.0f;
+            instantaneousBypass = false;
+            DPRINTF(CacheComp,
+                    "Memory queue pressure: NORMAL. "
+                    "Breakeven threshold restored to baseline %.4f\n",
+                    latencyBreakevenThreshold);
+            break;
     }
 }
 
@@ -228,7 +228,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (effectiveBreakeven + 1.0);
 
-    bool shouldBypass = instantaneousBypass ||
+    bool shouldBypass =
+        instantaneousBypass ||
         (enableAdaptiveBypass && (observedRatio < effectiveBreakeven));
 
     if (shouldBypass && !isSampled) {

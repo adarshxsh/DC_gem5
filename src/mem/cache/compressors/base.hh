@@ -145,7 +145,7 @@ class Base : public SimObject
     const unsigned decayShift;
 
     /** Memory controller to monitor for queue pressure probes. */
-    memory::MemCtrl* memCtrl;
+    memory::MemCtrl *memCtrl;
 
     /** Multipliers for elevated queue pressure. */
     const float highPressureMultiplier;
@@ -170,9 +170,9 @@ class Base : public SimObject
       public:
         MemoryQueuePressureListener(Base &_parent, std::string name)
             : ProbeListenerArgBase(std::move(name)), parent(_parent)
-        {
-        }
-        void notify(const enums::MemoryQueuePressure &pressure) override
+        {}
+        void
+        notify(const enums::MemoryQueuePressure &pressure) override
         {
             parent.handleMemoryQueuePressure(pressure);
         }
@@ -295,14 +295,23 @@ class Base : public SimObject
     /** Get effective breakeven threshold accounting for backpressure. */
     float getEffectiveBreakevenThreshold() const;
 
-    enums::MemoryQueuePressure getBackpressureState() const
+    enums::MemoryQueuePressure
+    getBackpressureState() const
     {
         return currentBackpressureState;
     }
 
-    float getBackpressureMultiplier() const { return backpressureMultiplier; }
+    float
+    getBackpressureMultiplier() const
+    {
+        return backpressureMultiplier;
+    }
 
-    bool isInstantaneousBypass() const { return instantaneousBypass; }
+    bool
+    isInstantaneousBypass() const
+    {
+        return instantaneousBypass;
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

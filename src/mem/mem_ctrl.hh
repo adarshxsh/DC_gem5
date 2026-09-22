@@ -787,7 +787,8 @@ class MemCtrl : public qos::MemCtrl
     virtual void drainResume() override;
     void regProbePoints() override;
 
-    enums::MemoryQueuePressure getQueuePressureState() const
+    enums::MemoryQueuePressure
+    getQueuePressureState() const
     {
         return currentQueuePressureState;
     }

@@ -8,9 +8,9 @@
 #include <cstring>
 #include <memory>
 
+#include "enums/MemoryQueuePressure.hh"
 #include "mem/cache/compressors/zero.hh"
 #include "params/ZeroCompressor.hh"
-#include "enums/MemoryQueuePressure.hh"
 #include "sim/root.hh"
 
 #ifndef GEM5_ROOT_DEFINED
@@ -31,7 +31,8 @@ class BaseCompressorProbeTest : public ::testing::Test
     uint64_t zeroLine[8];
     uint64_t randomLine[8];
 
-    void SetUp() override
+    void
+    SetUp() override
     {
         std::memset(zeroLine, 0, sizeof(zeroLine));
         for (int i = 0; i < 8; ++i) {
@@ -89,9 +90,11 @@ TEST_F(BaseCompressorProbeTest, CriticalPressureInstantaneousBypass)
     EXPECT_TRUE(zeroComp->isInstantaneousBypass());
 
     Cycles comp_lat, decomp_lat;
-    auto comp_data = zeroComp->Base::compress(randomLine, comp_lat, decomp_lat);
+    auto comp_data =
+        zeroComp->Base::compress(randomLine, comp_lat, decomp_lat);
 
-    // Under instantaneous bypass, compressed size is uncompressed (512 bits) and latencies are 0
+    // Under instantaneous bypass, compressed size is uncompressed (512 bits)
+    // and latencies are 0
     EXPECT_EQ(comp_data->getSizeBits(), 512);
     EXPECT_EQ(comp_lat, Cycles(0));
     EXPECT_EQ(decomp_lat, Cycles(0));
@@ -122,7 +125,8 @@ TEST_F(BaseCompressorProbeTest, StressTest1000CycleWriteBurstThrottling)
         }
 
         Cycles comp_lat, decomp_lat;
-        auto comp_data = zeroComp->Base::compress(zeroLine, comp_lat, decomp_lat);
+        auto comp_data =
+            zeroComp->Base::compress(zeroLine, comp_lat, decomp_lat);
 
         if (zeroComp->isInstantaneousBypass()) {
             EXPECT_EQ(comp_data->getSizeBits(), 512);
