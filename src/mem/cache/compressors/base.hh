@@ -248,8 +248,16 @@ class Base : public SimObject
     virtual void setCache(BaseCache *_cache);
 
     /** Update memory controller queue pressure throttling state. */
-    void setMemQueuePressure(bool pressure) { memQueuePressure = pressure; }
-    bool getMemQueuePressure() const { return memQueuePressure; }
+    void
+    setMemQueuePressure(bool pressure)
+    {
+        memQueuePressure = pressure;
+    }
+    bool
+    getMemQueuePressure() const
+    {
+        return memQueuePressure;
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

@@ -170,9 +170,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
-    bool shouldBypass =
-        (enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold)) ||
-        memQueuePressure;
+    bool shouldBypass = (enableAdaptiveBypass &&
+                         (observedRatio < latencyBreakevenThreshold)) ||
+                        memQueuePressure;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
