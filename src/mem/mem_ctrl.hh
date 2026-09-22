@@ -518,6 +518,47 @@ class MemCtrl : public qos::MemCtrl
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
+  public:
+    /**
+     * Write queue arrival rate tracking state.
+     */
+    Tick lastWriteArrivalTick;
+    uint32_t writeCountInCurrentTick;
+    double writeArrivalRate;
+
+    /**
+     * Updates write queue arrival rate tracking upon packet enqueue.
+     *
+     * @param pkt_count Number of write bursts added
+     */
+    void updateWriteArrivalRate(unsigned int pkt_count);
+
+    /**
+     * Compute dynamic write high threshold based on current arrival rate.
+     *
+     * @return Dynamic write high threshold in entries
+     */
+    uint32_t getDynamicWriteHighThreshold() const;
+
+    /**
+     * Compute projected write queue occupancy accounting for turnaround
+     * latency.
+     *
+     * @param mem_intr Memory interface
+     * @return Projected write queue occupancy in entries
+     */
+    double getProjectedWriteQueueSize(MemInterface *mem_intr) const;
+
+  protected:
+    /**
+     * Parameters for rate-aware predictive write thresholding.
+     */
+    const bool enableRateAwareThreshold;
+    const double writeRateAlpha;
+    const double writeRateThreshold;
+    const Tick tSwitch;
+    const double rateSensitivity;
+
     /**
      * Memory controller configuration initialized based on parameter
      * values.

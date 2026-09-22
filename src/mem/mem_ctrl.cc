@@ -57,27 +57,44 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      lastWriteArrivalTick(0),
+      writeCountInCurrentTick(0),
+      writeArrivalRate(0.0),
+      enableRateAwareThreshold(p.enable_rate_aware_threshold),
+      writeRateAlpha(p.write_rate_alpha),
+      writeRateThreshold(p.write_rate_threshold),
+      tSwitch(p.t_switch),
+      rateSensitivity(p.rate_sensitivity),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -301,12 +318,71 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
 }
 
 void
+MemCtrl::updateWriteArrivalRate(unsigned int pkt_count)
+{
+    if (!enableRateAwareThreshold) {
+        return;
+    }
+
+    Tick now = curTick();
+    if (now > lastWriteArrivalTick && lastWriteArrivalTick > 0) {
+        Tick delta_t = now - lastWriteArrivalTick;
+        double inst_rate = static_cast<double>(writeCountInCurrentTick) /
+                           static_cast<double>(delta_t);
+        writeArrivalRate = writeRateAlpha * inst_rate +
+                           (1.0 - writeRateAlpha) * writeArrivalRate;
+        lastWriteArrivalTick = now;
+        writeCountInCurrentTick = pkt_count;
+    } else if (now == lastWriteArrivalTick) {
+        writeCountInCurrentTick += pkt_count;
+    } else { // lastWriteArrivalTick == 0
+        lastWriteArrivalTick = now;
+        writeCountInCurrentTick = pkt_count;
+    }
+}
+
+uint32_t
+MemCtrl::getDynamicWriteHighThreshold() const
+{
+    if (!enableRateAwareThreshold) {
+        return writeHighThreshold;
+    }
+
+    if (writeArrivalRate > writeRateThreshold) {
+        double excess_rate = writeArrivalRate - writeRateThreshold;
+        double lower_amount =
+            rateSensitivity * excess_rate * static_cast<double>(tSwitch);
+        double dynamic_threshold =
+            static_cast<double>(writeHighThreshold) - lower_amount;
+        double min_threshold =
+            static_cast<double>(writeLowThreshold + minWritesPerSwitch);
+        dynamic_threshold = std::max(min_threshold, dynamic_threshold);
+        return static_cast<uint32_t>(dynamic_threshold);
+    }
+
+    return writeHighThreshold;
+}
+
+double
+MemCtrl::getProjectedWriteQueueSize(MemInterface *mem_intr) const
+{
+    double current_size = static_cast<double>(mem_intr->writeQueueSize);
+    if (!enableRateAwareThreshold) {
+        return current_size;
+    }
+
+    return current_size + writeArrivalRate * static_cast<double>(tSwitch);
+}
+
+void
 MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count,
                                 MemInterface* mem_intr)
 {
     // only add to the write queue here. whenever the request is
     // eventually done, set the readyTime, and call schedule()
     assert(pkt->isWrite());
+
+    updateWriteArrivalRate(pkt_count);
 
     // if the request size is larger than burst size, the pkt is split into
     // multiple packets
@@ -1036,10 +1112,19 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // there are no other writes that can issue
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
-            if ((mem_intr->writeQueueSize > writeHighThreshold) &&
-               (mem_intr->readsThisTime >= minReadsPerSwitch ||
-               mem_intr->readQueueSize == 0)
-               && !(nvmWriteBlock(mem_intr))) {
+            uint32_t dynWriteHighThreshold = getDynamicWriteHighThreshold();
+            double projWrQLen = getProjectedWriteQueueSize(mem_intr);
+
+            bool write_threshold_reached =
+                enableRateAwareThreshold
+                    ? (projWrQLen >= dynWriteHighThreshold ||
+                       mem_intr->writeQueueSize > dynWriteHighThreshold)
+                    : (mem_intr->writeQueueSize > writeHighThreshold);
+
+            if (write_threshold_reached &&
+                (mem_intr->readsThisTime >= minReadsPerSwitch ||
+                 mem_intr->readQueueSize == 0) &&
+                !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
 

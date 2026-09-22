@@ -102,6 +102,24 @@ class MemCtrl(QoSMemCtrl):
     command_window = Param.Latency("10ns", "Static backend latency")
     disable_sanity_check = Param.Bool(False, "Disable port resp Q size check")
 
+    # Rate-aware predictive write thresholding parameters
+    enable_rate_aware_threshold = Param.Bool(
+        False, "Enable rate-aware dynamic write thresholding"
+    )
+    write_rate_alpha = Param.Float(
+        0.25, "EWMA smoothing factor for write arrival rate calculation"
+    )
+    write_rate_threshold = Param.Float(
+        0.0, "Velocity baseline threshold for rate-aware adjustment"
+    )
+    t_switch = Param.Latency(
+        "10ns", "Turnaround latency horizon for projected occupancy"
+    )
+    rate_sensitivity = Param.Float(
+        1.0,
+        "Sensitivity factor for lowering write high threshold based on arrival rate",
+    )
+
 
 add_citation(
     MemCtrl,
