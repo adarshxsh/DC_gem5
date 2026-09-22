@@ -277,8 +277,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // responseLatency is the latency of the return path
             // from lower level caches/memory to an upper level cache or
             // the core.
-            Cycles decomp_lat = calculateDecompressionLatency(blk, tgt_pkt);
-            completion_time += clockEdge(responseLatency + decomp_lat) +
+            completion_time += clockEdge(responseLatency +
+                                         calculateDecompressionLatency(blk, tgt_pkt)) +
                                (transfer_offset ? pkt->payloadDelay : 0);
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
