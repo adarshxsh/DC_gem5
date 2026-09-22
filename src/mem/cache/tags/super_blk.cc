@@ -34,8 +34,10 @@
 
 #include "mem/cache/tags/super_blk.hh"
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 
 #include "base/bitfield.hh"
 
@@ -43,7 +45,11 @@ namespace gem5
 {
 
 CompressionBlk::CompressionBlk()
-    : SectorSubBlk(), _size(0), _decompressionLatency(0), _compressed(false)
+    : SectorSubBlk(),
+      _size(0),
+      _decompressionLatency(0),
+      _compressed(false),
+      _qosValue(0)
 {
 }
 
@@ -58,6 +64,7 @@ CompressionBlk&
 CompressionBlk::operator=(CompressionBlk&& other)
 {
     _size = other._size;
+    _qosValue = other._qosValue;
     setDecompressionLatency(other.getDecompressionLatency());
     if (other.isCompressed()) {
         setCompressed();
@@ -144,12 +151,25 @@ CompressionBlk::setDecompressionLatency(const Cycles lat)
     _decompressionLatency = lat;
 }
 
+uint8_t
+CompressionBlk::getQoSValue() const
+{
+    return _qosValue;
+}
+
+void
+CompressionBlk::setQoSValue(const uint8_t qos_value)
+{
+    _qosValue = qos_value;
+}
+
 void
 CompressionBlk::invalidate()
 {
     SectorSubBlk::invalidate();
     setUncompressed();
     _size = 0;
+    _qosValue = 0;
     SuperBlk *superblock = static_cast<SuperBlk *>(getSectorBlock());
     if (superblock) {
         superblock->updateCompressionFactor();
@@ -207,6 +227,20 @@ SuperBlk::isCompressed(const CompressionBlk* ignored_blk) const
     return true;
 }
 
+uint8_t
+SuperBlk::getMaxQoSValue() const
+{
+    uint8_t max_qos = 0;
+    for (const auto &blk : blks) {
+        if (blk->isValid()) {
+            const CompressionBlk *cblk =
+                static_cast<const CompressionBlk *>(blk);
+            max_qos = std::max(max_qos, cblk->getQoSValue());
+        }
+    }
+    return max_qos;
+}
+
 bool
 SuperBlk::hasValidDemand() const
 {
@@ -219,9 +253,14 @@ SuperBlk::hasValidDemand() const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size) const
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        const uint8_t qos) const
 {
     if (!isCompressed()) {
+        return false;
+    }
+
+    if (qos < getMaxQoSValue()) {
         return false;
     }
 
