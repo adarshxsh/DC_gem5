@@ -121,8 +121,8 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     subBlks[0].insert({0x2000, false});
     subBlks[0].setSizeBits(256);
 
-    // With 1 sub-block of 256 bits (CF=2), evaluating a 2nd 128-bit block (CF=4):
-    // target_cf = min(2, 4) = 2, valid_count = 2 <= 2 -> allowed!
+    // With 1 sub-block of 256 bits (CF=2), evaluating a 2nd 128-bit block
+    // (CF=4): target_cf = min(2, 4) = 2, valid_count = 2 <= 2 -> allowed!
     EXPECT_TRUE(superBlk.canCoAllocate(128));
 
     // Add 2nd sub-block (128 bits, CF=4) -> sum = 384 bits, min_cf = 2
@@ -150,6 +150,7 @@ TEST_F(CanCoAllocateTest, CountConstraintRejection)
 
     // Total valid sub-blocks = 2, target_cf = 2.
     // Attempting to co-allocate a 3rd 64-bit sub-block (CF=8):
-    // target_cf = min(2, 2, 8) = 2. valid_count = 3 > target_cf (2) -> rejected
+    // target_cf = min(2, 2, 8) = 2. valid_count = 3 > target_cf (2) ->
+    // rejected
     EXPECT_FALSE(superBlk.canCoAllocate(64));
 }

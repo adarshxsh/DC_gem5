@@ -248,8 +248,7 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         }
     }
 
-    return (target_cf > 1) &&
-           (valid_count <= target_cf) &&
+    return (target_cf > 1) && (valid_count <= target_cf) &&
            (bit_sum <= (blkSize * CHAR_BIT));
 }
 
