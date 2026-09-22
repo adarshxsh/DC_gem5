@@ -116,7 +116,8 @@ class MemCtrl(QoSMemCtrl):
         "10ns", "Turnaround latency horizon for projected occupancy"
     )
     rate_sensitivity = Param.Float(
-        1.0, "Sensitivity factor for lowering write high threshold based on arrival rate"
+        1.0,
+        "Sensitivity factor for lowering write high threshold based on arrival rate",
     )
 
 
