@@ -41,12 +41,14 @@ SimObject('QoSMemSinkInterface.py', sim_objects=['QoSMemSinkInterface'])
 SimObject('QoSPolicy.py', sim_objects=[
     'QoSPolicy', 'QoSFixedPriorityPolicy', 'QoSPropFairPolicy'])
 SimObject('QoSTurnaround.py', sim_objects=[
-    'QoSTurnaroundPolicy', 'QoSTurnaroundPolicyIdeal'])
+    'QoSTurnaroundPolicy', 'QoSTurnaroundPolicyIdeal',
+    'QoSTurnaroundPolicyPressure'])
 
 Source('policy.cc')
 Source('policy_fixed_prio.cc')
 Source('policy_pf.cc')
 Source('turnaround_policy_ideal.cc')
+Source('turnaround_policy_pressure.cc')
 Source('q_policy.cc')
 Source('mem_ctrl.cc')
 Source('mem_sink.cc')

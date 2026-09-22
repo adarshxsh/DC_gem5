@@ -33,6 +33,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.params import *
 from m5.SimObject import SimObject
 
 
@@ -48,3 +49,19 @@ class QoSTurnaroundPolicyIdeal(QoSTurnaroundPolicy):
     type = "QoSTurnaroundPolicyIdeal"
     cxx_header = "mem/qos/turnaround_policy_ideal.hh"
     cxx_class = "gem5::memory::qos::TurnaroundPolicyIdeal"
+
+
+class QoSTurnaroundPolicyPressure(QoSTurnaroundPolicy):
+    type = "QoSTurnaroundPolicyPressure"
+    cxx_header = "mem/qos/turnaround_policy_pressure.hh"
+    cxx_class = "gem5::memory::qos::TurnaroundPolicyPressure"
+
+    pressure_alpha = Param.Float(
+        0.25, "EWMA decay factor for queue pressure tracking"
+    )
+    turnaround_hysteresis = Param.Unsigned(
+        8, "Minimum hysteresis threshold for bus turnaround"
+    )
+    min_burst_length = Param.Unsigned(
+        8, "Minimum burst length in requests before bus turnaround"
+    )
