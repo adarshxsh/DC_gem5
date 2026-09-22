@@ -68,6 +68,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     dram(p.dram),
     readBufferSize(dram->readBufferSize),
     writeBufferSize(dram->writeBufferSize),
+    readHighThreshold(readBufferSize * p.read_high_thresh_perc / 100.0),
     writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
@@ -635,6 +636,14 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
     if (needsResponse) {
         // access already turned the packet into a response
         assert(pkt->isResponse());
+
+        if (totalWriteQueueSize > writeHighThreshold ||
+            totalReadQueueSize > readHighThreshold ||
+            mem_intr->writeQueueSize > writeHighThreshold ||
+            mem_intr->readQueueSize > readHighThreshold) {
+            pkt->setMemQueuePressure();
+        }
+
         // response_time consumes the static latency and is charged also
         // with headerDelay that takes into account the delay provided by
         // the xbar and also the payloadDelay that takes into account the

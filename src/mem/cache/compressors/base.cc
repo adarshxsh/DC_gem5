@@ -98,6 +98,7 @@ Base::Base(const Params &p)
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
       cache(nullptr),
+      memQueuePressure(false),
       stats(*this)
 {
     fatal_if(64 % chunkSizeBits,
@@ -170,7 +171,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             : (latencyBreakevenThreshold + 1.0);
 
     bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+        (enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold)) ||
+        memQueuePressure;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =

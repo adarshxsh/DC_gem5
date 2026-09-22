@@ -149,6 +149,9 @@ class Base : public SimObject
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
+    /** Memory controller queue pressure signal. */
+    bool memQueuePressure;
+
     struct BaseStats : public statistics::Group
     {
         const Base& compressor;
@@ -243,6 +246,10 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /** Update memory controller queue pressure throttling state. */
+    void setMemQueuePressure(bool pressure) { memQueuePressure = pressure; }
+    bool getMemQueuePressure() const { return memQueuePressure; }
 
     /**
      * Apply the compression process to the cache line. Ignores compression
