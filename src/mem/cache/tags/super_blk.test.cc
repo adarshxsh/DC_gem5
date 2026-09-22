@@ -133,3 +133,34 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
 }
+
+TEST_F(CanCoAllocateTest, WouldDegradeCompressionFactor)
+{
+    // Empty superblock: no existing valid blocks to degrade
+    EXPECT_FALSE(superBlk.wouldDegradeCompressionFactor(256));
+    EXPECT_FALSE(superBlk.wouldDegradeCompressionFactor(64));
+
+    // Add 1st sub-block (64 bits, max CF=4 for 4 sub-blocks)
+    subBlks[0].insert({0x3000, false});
+    subBlks[0].setSizeBits(64);
+    EXPECT_EQ(superBlk.getCompressionFactor(), 4);
+
+    // Block with lower compression factor (256 bits, CF=2 < 4) degrades CF
+    EXPECT_TRUE(superBlk.wouldDegradeCompressionFactor(256));
+
+    // Block with equal or higher compression factor (64 bits, CF=4) does not
+    // degrade CF
+    EXPECT_FALSE(superBlk.wouldDegradeCompressionFactor(64));
+
+    // Clear and test with a prefetch-only sub-block
+    subBlks[0].invalidate();
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setPrefetched();
+    subBlks[0].setSizeBits(64);
+    EXPECT_FALSE(superBlk.hasValidDemand());
+    EXPECT_EQ(superBlk.getCompressionFactor(), 4);
+
+    // Degradation is correctly detected for prefetch-only superblocks
+    EXPECT_TRUE(superBlk.wouldDegradeCompressionFactor(256));
+    EXPECT_FALSE(superBlk.wouldDegradeCompressionFactor(64));
+}

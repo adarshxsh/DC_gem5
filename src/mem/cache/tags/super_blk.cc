@@ -219,6 +219,17 @@ SuperBlk::hasValidDemand() const
 }
 
 bool
+SuperBlk::wouldDegradeCompressionFactor(
+    const std::size_t compressed_size) const
+{
+    if (getNumValid() == 0) {
+        return false;
+    }
+    const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
+    return new_blk_cf < getCompressionFactor();
+}
+
+bool
 SuperBlk::canCoAllocate(const std::size_t compressed_size) const
 {
     if (!isCompressed()) {
