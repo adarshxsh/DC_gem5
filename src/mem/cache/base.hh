@@ -502,8 +502,8 @@ class BaseCache : public ClockedObject
      * @param pkt The packet causing the access.
      * @return The decompression latency in cycles.
      */
-    Cycles calculateDecompressionLatency(const CacheBlk* blk,
-                                          const PacketPtr pkt) const;
+    Cycles calculateDecompressionLatency(const CacheBlk *blk,
+                                         const PacketPtr pkt) const;
 
     /**
      * Does all the processing necessary to perform the provided request.

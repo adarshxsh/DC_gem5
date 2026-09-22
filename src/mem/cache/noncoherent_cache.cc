@@ -279,7 +279,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // the core.
             Cycles decomp_lat = calculateDecompressionLatency(blk, tgt_pkt);
             completion_time += clockEdge(responseLatency + decomp_lat) +
-                (transfer_offset ? pkt->payloadDelay : 0);
+                               (transfer_offset ? pkt->payloadDelay : 0);
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
             stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=
