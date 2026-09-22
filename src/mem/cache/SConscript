@@ -69,3 +69,8 @@ DebugFlag('PartitionPolicy')
 CompoundFlag('CacheAll', ['Cache', 'CacheComp', 'CachePort', 'CacheRepl',
                           'CacheVerbose', 'HWPrefetch', 'MSHR',
                           'PartitionPolicy'])
+
+GTest('mshr.test', 'mshr.test.cc', 'mshr.cc', '#src/base/types.cc',
+      '#src/base/logging.cc', '#src/base/hostinfo.cc', '#src/mem/packet.cc',
+      '#src/cpu/reg_class.cc', '#src/sim/bufval.cc',
+      with_tag('gem5 simobject'))

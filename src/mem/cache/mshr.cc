@@ -296,6 +296,19 @@ MSHR::TargetList::print(std::ostream &os, int verbosity,
 }
 
 
+bool
+MSHR::TargetList::hasDemandTarget() const
+{
+    for (const auto &target : *this) {
+        if (target.pkt && target.pkt->isDemand() &&
+            !(target.pkt->req && target.pkt->req->isPrefetch())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 void
 MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
                Tick when_ready, Counter _order, bool alloc_on_fill)

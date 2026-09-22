@@ -273,6 +273,13 @@ class MSHR : public QueueEntry, public Printable
                    const std::string &prefix) const;
 
         /**
+         * Check if any target in this list represents a demand request.
+         *
+         * @return True if at least one target is a demand request.
+         */
+        bool hasDemandTarget() const;
+
+        /**
          * Check if this list contains writes that cover an entire
          * cache line. This is used as part of the miss-packet
          * creation. Note that new requests may arrive after a
@@ -365,6 +372,17 @@ class MSHR : public QueueEntry, public Printable
      * @return true if Targets list contains a LockedRMWRead
      */
     bool hasLockedRMWReadTarget();
+
+    /**
+     * Determine if there are any demand request targets in either targets or
+     * deferredTargets list.
+     *
+     * @return true if targets or deferredTargets contains a demand request
+     */
+    bool hasDemandTarget() const
+    {
+        return targets.hasDemandTarget() || deferredTargets.hasDemandTarget();
+    }
 
   private:
     /**
