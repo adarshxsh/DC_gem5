@@ -451,37 +451,54 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
     // Evaluate co-allocation of a block of size 256 bits (CF = 2)
-    const std::size_t new_size = 256;
-    ASSERT_TRUE(superBlk.canCoAllocate(new_size));
+    const std::size_t low_cf_size = 256;
+    ASSERT_TRUE(superBlk.canCoAllocate(low_cf_size));
+    ASSERT_TRUE(superBlk.wouldDegradeCompressionFactor(low_cf_size));
 
-    const uint8_t new_blk_cf = superBlk.calculateCompressionFactor(new_size);
-    const uint8_t current_cf = superBlk.getCompressionFactor();
-    const uint8_t new_cf = (superBlk.getNumValid() == 0)
-                               ? new_blk_cf
-                               : std::min(current_cf, new_blk_cf);
-
-    ASSERT_EQ(new_blk_cf, 2);
-    ASSERT_EQ(new_cf, 2);
-    ASSERT_LT(new_cf, current_cf);
-
-    // Prefetch demand-protection guard logic verification:
-    // If request is prefetch AND superblock has valid demand AND new_cf <
-    // current_cf, co-allocation is disallowed.
+    // For prefetch requests targeting demand-backed superblocks, degradation is disallowed.
     bool is_prefetch = true;
     bool co_alloc_allowed_for_prefetch =
-        superBlk.canCoAllocate(new_size) &&
-        !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+        superBlk.canCoAllocate(low_cf_size) &&
+        !(is_prefetch &&
+          superBlk.wouldDegradeCompressionFactor(low_cf_size));
 
     ASSERT_FALSE(co_alloc_allowed_for_prefetch);
 
-    // For demand requests (is_prefetch = false), co-allocation remains
-    // allowed.
+    // For demand requests, co-allocation remains allowed even if CF degrades.
     is_prefetch = false;
     bool co_alloc_allowed_for_demand =
-        superBlk.canCoAllocate(new_size) &&
-        !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+        superBlk.canCoAllocate(low_cf_size) &&
+        !(is_prefetch &&
+          superBlk.wouldDegradeCompressionFactor(low_cf_size));
 
     ASSERT_TRUE(co_alloc_allowed_for_demand);
+
+    // Now test with a prefetch-only superblock (no demand lines)
+    subBlks[0].invalidate();
+    subBlks[0].insert({0x6000, false});
+    subBlks[0].setPrefetched();
+    subBlks[0].setSizeBits(64);
+    ASSERT_FALSE(superBlk.hasValidDemand());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Prefetch request with low CF must NOT co-allocate into prefetch-only superblock
+    is_prefetch = true;
+    bool prefetch_into_prefetch_only_degrade =
+        superBlk.canCoAllocate(low_cf_size) &&
+        !(is_prefetch &&
+          superBlk.wouldDegradeCompressionFactor(low_cf_size));
+
+    ASSERT_FALSE(prefetch_into_prefetch_only_degrade);
+
+    // Prefetch request with equal or higher CF (64 bits -> CF=8) CAN co-allocate into prefetch-only superblock
+    const std::size_t high_cf_size = 64;
+    ASSERT_FALSE(superBlk.wouldDegradeCompressionFactor(high_cf_size));
+    bool prefetch_into_prefetch_only_same_cf =
+        superBlk.canCoAllocate(high_cf_size) &&
+        !(is_prefetch &&
+          superBlk.wouldDegradeCompressionFactor(high_cf_size));
+
+    ASSERT_TRUE(prefetch_into_prefetch_only_same_cf);
 }
 
 TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)

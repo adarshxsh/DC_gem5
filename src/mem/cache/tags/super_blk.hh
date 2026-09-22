@@ -204,6 +204,16 @@ class SuperBlk : public SectorBlk
     bool hasValidDemand() const;
 
     /**
+     * Checks whether co-allocating a compressed block with the given size
+     * would degrade (lower) the current compression factor of the superblock.
+     *
+     * @param compressed_size Size, in bits, of new block to allocate.
+     * @return True if co-allocation would lower the compression factor.
+     */
+    bool wouldDegradeCompressionFactor(
+        const std::size_t compressed_size) const;
+
+    /**
      * Checks whether a superblock can co-allocate given compressed data block.
      *
      * @param compressed_size Size, in bits, of new block to allocate.
