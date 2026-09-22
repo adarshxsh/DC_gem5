@@ -50,6 +50,11 @@ class MemSched(Enum):
     vals = ["fcfs", "frfcfs"]
 
 
+# Enum for memory controller queue pressure states
+class MemoryQueuePressure(Enum):
+    vals = ["NORMAL", "HIGH_PRESSURE", "CRITICAL_PRESSURE"]
+
+
 # MemCtrl is a single-channel single-ported Memory controller model
 # that aims to model the most important system-level performance
 # effects of a memory controller, interfacing with media specific

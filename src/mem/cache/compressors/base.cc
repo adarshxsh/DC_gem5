@@ -43,6 +43,7 @@
 #include "debug/CacheComp.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/mem_ctrl.hh"
 #include "params/BaseCacheCompressor.hh"
 
 namespace gem5
@@ -94,6 +95,12 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      memCtrl(p.mem_ctrl),
+      highPressureMultiplier(p.high_pressure_multiplier),
+      criticalPressureMultiplier(p.critical_pressure_multiplier),
+      backpressureMultiplier(1.0f),
+      instantaneousBypass(false),
+      currentBackpressureState(enums::NORMAL),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -118,6 +125,56 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+void
+Base::regProbeListeners()
+{
+    if (memCtrl) {
+        listeners.push_back(
+            memCtrl->getProbeManager()->connect<MemoryQueuePressureListener>(
+                *this, "QueuePressure"));
+    }
+}
+
+void
+Base::handleMemoryQueuePressure(enums::MemoryQueuePressure pressure)
+{
+    currentBackpressureState = pressure;
+    switch (pressure) {
+        case enums::HIGH_PRESSURE:
+            backpressureMultiplier = highPressureMultiplier;
+            instantaneousBypass = false;
+            DPRINTF(CacheComp,
+                    "Memory queue pressure: HIGH_PRESSURE. "
+                    "Backpressure multiplier set to %.2f (effective "
+                    "breakeven: %.4f)\n",
+                    backpressureMultiplier, getEffectiveBreakevenThreshold());
+            break;
+
+        case enums::CRITICAL_PRESSURE:
+            backpressureMultiplier = criticalPressureMultiplier;
+            instantaneousBypass = true;
+            DPRINTF(CacheComp, "Memory queue pressure: CRITICAL_PRESSURE. "
+                               "Instantaneous bypass enabled.\n");
+            break;
+
+        case enums::NORMAL:
+        default:
+            backpressureMultiplier = 1.0f;
+            instantaneousBypass = false;
+            DPRINTF(CacheComp,
+                    "Memory queue pressure: NORMAL. "
+                    "Breakeven threshold restored to baseline %.4f\n",
+                    latencyBreakevenThreshold);
+            break;
+    }
+}
+
+float
+Base::getEffectiveBreakevenThreshold() const
+{
+    return latencyBreakevenThreshold * backpressureMultiplier;
 }
 
 std::vector<Base::Chunk>
@@ -164,13 +221,16 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     bool isSampled = !enableAdaptiveBypass || (samplingInterval == 0) ||
                      ((totalCompressionRequests - 1) % samplingInterval == 0);
 
+    float effectiveBreakeven = getEffectiveBreakevenThreshold();
+
     double observedRatio =
         (sampledCompressedBits > 0)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
-            : (latencyBreakevenThreshold + 1.0);
+            : (effectiveBreakeven + 1.0);
 
     bool shouldBypass =
-        enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+        instantaneousBypass ||
+        (enableAdaptiveBypass && (observedRatio < effectiveBreakeven));
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -184,7 +244,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             CacheComp,
             "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
             "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+            observedRatio, effectiveBreakeven);
         return comp_data;
     }
 
@@ -276,11 +336,12 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     }
 
     if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
+        float effectiveBreakeven = getEffectiveBreakevenThreshold();
         double observedRatio = (sampledCompressedBits > 0)
                                    ? ((double)sampledUncompressedBits /
                                       (double)sampledCompressedBits)
-                                   : (latencyBreakevenThreshold + 1.0);
-        if (observedRatio < latencyBreakevenThreshold) {
+                                   : (effectiveBreakeven + 1.0);
+        if (instantaneousBypass || observedRatio < effectiveBreakeven) {
             stats.bypassedDecompressions += 1;
         }
     }

@@ -41,6 +41,8 @@
 #include "base/compiler.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "enums/MemoryQueuePressure.hh"
+#include "sim/probe/probe.hh"
 #include "sim/sim_object.hh"
 
 namespace gem5
@@ -49,6 +51,11 @@ namespace gem5
 class BaseCache;
 class CacheBlk;
 struct BaseCacheCompressorParams;
+
+namespace memory
+{
+class MemCtrl;
+}
 
 namespace compression
 {
@@ -136,6 +143,42 @@ class Base : public SimObject
 
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
+
+    /** Memory controller to monitor for queue pressure probes. */
+    memory::MemCtrl *memCtrl;
+
+    /** Multipliers for elevated queue pressure. */
+    const float highPressureMultiplier;
+    const float criticalPressureMultiplier;
+
+    /** Current backpressure multiplier state. */
+    float backpressureMultiplier;
+
+    /** Whether instantaneous bypass is active due to critical pressure. */
+    bool instantaneousBypass;
+
+    /** Current memory queue pressure state. */
+    enums::MemoryQueuePressure currentBackpressureState;
+
+    /** Listener class for memory queue pressure events. */
+    class MemoryQueuePressureListener
+        : public ProbeListenerArgBase<enums::MemoryQueuePressure>
+    {
+      protected:
+        Base &parent;
+
+      public:
+        MemoryQueuePressureListener(Base &_parent, std::string name)
+            : ProbeListenerArgBase(std::move(name)), parent(_parent)
+        {}
+        void
+        notify(const enums::MemoryQueuePressure &pressure) override
+        {
+            parent.handleMemoryQueuePressure(pressure);
+        }
+    };
+
+    std::vector<ProbeListenerPtr<MemoryQueuePressureListener>> listeners;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
@@ -243,6 +286,32 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    void regProbeListeners() override;
+
+    /** Handle queue pressure updates from probe listener. */
+    void handleMemoryQueuePressure(enums::MemoryQueuePressure pressure);
+
+    /** Get effective breakeven threshold accounting for backpressure. */
+    float getEffectiveBreakevenThreshold() const;
+
+    enums::MemoryQueuePressure
+    getBackpressureState() const
+    {
+        return currentBackpressureState;
+    }
+
+    float
+    getBackpressureMultiplier() const
+    {
+        return backpressureMultiplier;
+    }
+
+    bool
+    isInstantaneousBypass() const
+    {
+        return instantaneousBypass;
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression
