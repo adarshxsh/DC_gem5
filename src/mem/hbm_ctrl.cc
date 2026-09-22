@@ -70,6 +70,8 @@ HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
 
     writeHighThreshold = (writeBufferSize/2 * p.write_high_thresh_perc)/100.0;
     writeLowThreshold = (writeBufferSize/2 * p.write_low_thresh_perc)/100.0;
+    writeHighByteThreshold = (writeBufferSize/2 * pc0Int->bytesPerBurst() * p.write_high_thresh_perc)/100.0;
+    writeLowByteThreshold = (writeBufferSize/2 * pc0Int->bytesPerBurst() * p.write_low_thresh_perc)/100.0;
 }
 
 void
