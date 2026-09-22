@@ -79,6 +79,10 @@ HeteroMemCtrl::HeteroMemCtrl(const HeteroMemCtrlParams &p) :
 
     writeHighThreshold = writeBufferSize * p.write_high_thresh_perc / 100.0;
     writeLowThreshold = writeBufferSize * p.write_low_thresh_perc / 100.0;
+    writeHighByteThreshold = writeBufferSize * dram->bytesPerBurst() *
+                             p.write_high_thresh_perc / 100.0;
+    writeLowByteThreshold = writeBufferSize * dram->bytesPerBurst() *
+                            p.write_low_thresh_perc / 100.0;
 
     // perform a basic check of the write thresholds
     if (p.write_low_thresh_perc >= p.write_high_thresh_perc)
