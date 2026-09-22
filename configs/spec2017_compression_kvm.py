@@ -104,7 +104,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._l2_size = l2_size
         self._l2_assoc = l2_assoc
         self._compressor_choice = compressor.lower()
-        self._enable_queue_pressure_throttling = enable_queue_pressure_throttling
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
         self._mem_queue_high_thresh = mem_queue_high_thresh
         self._mem_queue_low_thresh = mem_queue_low_thresh
         self.membus = membus if membus else self._get_default_membus()

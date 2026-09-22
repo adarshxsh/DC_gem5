@@ -172,7 +172,9 @@ class PrivateL1PrivateL2WithCompressionHierarchy(
         self._latency_breakeven_threshold = latency_breakeven_threshold
         self._sampling_interval = sampling_interval
         self._decay_shift = decay_shift
-        self._enable_queue_pressure_throttling = enable_queue_pressure_throttling
+        self._enable_queue_pressure_throttling = (
+            enable_queue_pressure_throttling
+        )
         self._mem_queue_high_thresh = mem_queue_high_thresh
         self._mem_queue_low_thresh = mem_queue_low_thresh
         self.membus = membus if membus else self._get_default_membus()
