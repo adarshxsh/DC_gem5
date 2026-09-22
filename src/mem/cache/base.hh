@@ -1224,7 +1224,8 @@ class BaseCache : public ClockedObject
      *
      * @return true if downstream memory interface is congested.
      */
-    virtual bool isDownstreamCongested() const
+    virtual bool
+    isDownstreamCongested() const
     {
         return memSidePort.isConnected() && memSidePort.isCongested();
     }
@@ -1232,7 +1233,8 @@ class BaseCache : public ClockedObject
     /**
      * Returns true if downstream memory is congested.
      */
-    virtual bool isCongested() const
+    virtual bool
+    isCongested() const
     {
         return isDownstreamCongested();
     }

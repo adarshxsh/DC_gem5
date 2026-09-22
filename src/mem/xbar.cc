@@ -619,7 +619,7 @@ template class BaseXBar::Layer<RequestPort, ResponsePort>;
 bool
 BaseXBar::isCongested() const
 {
-    for (const auto* port : memSidePorts) {
+    for (const auto *port : memSidePorts) {
         if (port && port->isCongested()) {
             return true;
         }

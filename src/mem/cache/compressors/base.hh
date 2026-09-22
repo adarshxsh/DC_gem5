@@ -128,7 +128,8 @@ class Base : public SimObject
     /** Whether adaptive compression bypass is enabled. */
     const bool enableAdaptiveBypass;
 
-    /** Whether compression bypass on downstream memory congestion is enabled. */
+    /** Whether compression bypass on downstream memory congestion is enabled.
+     */
     const bool enableCongestionBypass;
 
     /** Compression ratio threshold below which compression is bypassed. */
@@ -181,7 +182,8 @@ class Base : public SimObject
         /** Number of compressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedCompressions;
 
-        /** Number of compressions bypassed due to downstream memory congestion. */
+        /** Number of compressions bypassed due to downstream memory
+         * congestion. */
         statistics::Scalar bypassedCompressionsMemCongestion;
 
         /** Number of decompressions bypassed due to low compression ratio. */

@@ -178,8 +178,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 
         stats.bypassedCompressions++;
         stats.bypassedCompressionsMemCongestion++;
-        DPRINTF(CacheComp,
-            "Downstream memory queue pressure exceeds threshold. Bypassing compression.\n");
+        DPRINTF(CacheComp, "Downstream memory queue pressure exceeds "
+                           "threshold. Bypassing compression.\n");
         return comp_data;
     }
 
@@ -351,8 +351,10 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of decompressions"),
       ADD_STAT(bypassedCompressions, statistics::units::Count::get(),
                "Total number of bypassed compressions"),
-      ADD_STAT(bypassedCompressionsMemCongestion, statistics::units::Count::get(),
-               "Total number of compressions bypassed due to downstream memory queue pressure"),
+      ADD_STAT(bypassedCompressionsMemCongestion,
+               statistics::units::Count::get(),
+               "Total number of compressions bypassed due to downstream "
+               "memory queue pressure"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),

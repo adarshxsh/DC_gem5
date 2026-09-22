@@ -29,13 +29,14 @@ class TestZero : public Zero
     using Base::compress;
     using Zero::Zero;
 
-    bool isDownstreamCongested() const override
+    bool
+    isDownstreamCongested() const override
     {
         return mockCongested;
     }
 };
-}
-}
+} // namespace compression
+} // namespace gem5
 
 using namespace gem5;
 using namespace compression;
@@ -74,7 +75,8 @@ TEST(BaseCacheCompressorTest, MemCtrlCongestionBypassTest)
     compressor.mockCongested = true;
     comp_data = compressor.compress(zero_data, comp_lat, decomp_lat);
 
-    // Latency must be bypassed (0 cycles) and size set to uncompressed line (512 bits)
+    // Latency must be bypassed (0 cycles) and size set to uncompressed line
+    // (512 bits)
     EXPECT_EQ(comp_lat, Cycles(0));
     EXPECT_EQ(decomp_lat, Cycles(0));
     EXPECT_EQ(comp_data->getSizeBits(), 512);

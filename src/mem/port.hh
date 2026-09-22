@@ -175,7 +175,8 @@ class RequestPort: public Port, public AtomicRequestProtocol,
     virtual bool isSnooping() const { return false; }
 
     /**
-     * Check if the connected response port or underlying responder is congested.
+     * Check if the connected response port or underlying responder is
+     * congested.
      *
      * @return true if congested, false otherwise
      */
@@ -386,7 +387,11 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      *
      * @return true if congested, false otherwise
      */
-    virtual bool isCongested() const { return false; }
+    virtual bool
+    isCongested() const
+    {
+        return false;
+    }
 
     /**
      * Called by the owner to send a range change
