@@ -57,27 +57,37 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      readHighThreshold(readBufferSize * p.read_high_thresh_perc / 100.0),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -635,6 +645,14 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
     if (needsResponse) {
         // access already turned the packet into a response
         assert(pkt->isResponse());
+
+        if (totalWriteQueueSize > writeHighThreshold ||
+            totalReadQueueSize > readHighThreshold ||
+            mem_intr->writeQueueSize > writeHighThreshold ||
+            mem_intr->readQueueSize > readHighThreshold) {
+            pkt->setMemQueuePressure();
+        }
+
         // response_time consumes the static latency and is charged also
         // with headerDelay that takes into account the delay provided by
         // the xbar and also the payloadDelay that takes into account the
