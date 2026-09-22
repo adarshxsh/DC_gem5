@@ -455,12 +455,12 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
     ASSERT_TRUE(superBlk.canCoAllocate(low_cf_size));
     ASSERT_TRUE(superBlk.wouldDegradeCompressionFactor(low_cf_size));
 
-    // For prefetch requests targeting demand-backed superblocks, degradation is disallowed.
+    // For prefetch requests targeting demand-backed superblocks, degradation
+    // is disallowed.
     bool is_prefetch = true;
     bool co_alloc_allowed_for_prefetch =
         superBlk.canCoAllocate(low_cf_size) &&
-        !(is_prefetch &&
-          superBlk.wouldDegradeCompressionFactor(low_cf_size));
+        !(is_prefetch && superBlk.wouldDegradeCompressionFactor(low_cf_size));
 
     ASSERT_FALSE(co_alloc_allowed_for_prefetch);
 
@@ -468,8 +468,7 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
     is_prefetch = false;
     bool co_alloc_allowed_for_demand =
         superBlk.canCoAllocate(low_cf_size) &&
-        !(is_prefetch &&
-          superBlk.wouldDegradeCompressionFactor(low_cf_size));
+        !(is_prefetch && superBlk.wouldDegradeCompressionFactor(low_cf_size));
 
     ASSERT_TRUE(co_alloc_allowed_for_demand);
 
@@ -481,22 +480,22 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
     ASSERT_FALSE(superBlk.hasValidDemand());
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
-    // Prefetch request with low CF must NOT co-allocate into prefetch-only superblock
+    // Prefetch request with low CF must NOT co-allocate into prefetch-only
+    // superblock
     is_prefetch = true;
     bool prefetch_into_prefetch_only_degrade =
         superBlk.canCoAllocate(low_cf_size) &&
-        !(is_prefetch &&
-          superBlk.wouldDegradeCompressionFactor(low_cf_size));
+        !(is_prefetch && superBlk.wouldDegradeCompressionFactor(low_cf_size));
 
     ASSERT_FALSE(prefetch_into_prefetch_only_degrade);
 
-    // Prefetch request with equal or higher CF (64 bits -> CF=8) CAN co-allocate into prefetch-only superblock
+    // Prefetch request with equal or higher CF (64 bits -> CF=8) CAN
+    // co-allocate into prefetch-only superblock
     const std::size_t high_cf_size = 64;
     ASSERT_FALSE(superBlk.wouldDegradeCompressionFactor(high_cf_size));
     bool prefetch_into_prefetch_only_same_cf =
         superBlk.canCoAllocate(high_cf_size) &&
-        !(is_prefetch &&
-          superBlk.wouldDegradeCompressionFactor(high_cf_size));
+        !(is_prefetch && superBlk.wouldDegradeCompressionFactor(high_cf_size));
 
     ASSERT_TRUE(prefetch_into_prefetch_only_same_cf);
 }

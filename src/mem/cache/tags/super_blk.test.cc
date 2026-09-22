@@ -148,7 +148,8 @@ TEST_F(CanCoAllocateTest, WouldDegradeCompressionFactor)
     // Block with lower compression factor (256 bits, CF=2 < 4) degrades CF
     EXPECT_TRUE(superBlk.wouldDegradeCompressionFactor(256));
 
-    // Block with equal or higher compression factor (64 bits, CF=4) does not degrade CF
+    // Block with equal or higher compression factor (64 bits, CF=4) does not
+    // degrade CF
     EXPECT_FALSE(superBlk.wouldDegradeCompressionFactor(64));
 
     // Clear and test with a prefetch-only sub-block
@@ -163,4 +164,3 @@ TEST_F(CanCoAllocateTest, WouldDegradeCompressionFactor)
     EXPECT_TRUE(superBlk.wouldDegradeCompressionFactor(256));
     EXPECT_FALSE(superBlk.wouldDegradeCompressionFactor(64));
 }
-
