@@ -79,6 +79,16 @@ class MemCtrl(QoSMemCtrl):
     # queue is empty
     write_low_thresh_perc = Param.Percent(50, "Threshold to start writes")
 
+    queue_pressure_high_thresh_perc = Param.Percent(
+        80, "Threshold percentage to trigger memory queue high pressure"
+    )
+    queue_pressure_low_thresh_perc = Param.Percent(
+        40, "Threshold percentage to clear memory queue high pressure"
+    )
+    compressor = Param.BaseCacheCompressor(
+        NULL, "Optional cache compressor for queue pressure throttling"
+    )
+
     # minimum write bursts to schedule before switching back to reads
     min_writes_per_switch = Param.Unsigned(
         16, "Minimum write bursts before switching to reads"
