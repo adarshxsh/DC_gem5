@@ -304,7 +304,11 @@ class Base : public SimObject
     void updateQueuePressureState(bool high_pressure);
 
     /** Query current memory queue pressure state. */
-    bool isQueueHighPressure() const { return memoryQueueHighPressure; }
+    bool
+    isQueueHighPressure() const
+    {
+        return memoryQueueHighPressure;
+    }
 };
 
 class Base::CompressionData

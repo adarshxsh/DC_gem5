@@ -525,7 +525,7 @@ class MemCtrl : public qos::MemCtrl
     uint32_t queuePressureLowThreshold;
     bool isQueueHighPressure;
     std::vector<std::function<void(bool)>> queuePressureCallbacks;
-    compression::Base* attachedCompressor;
+    compression::Base *attachedCompressor;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
@@ -794,16 +794,21 @@ class MemCtrl : public qos::MemCtrl
     void registerQueuePressureCallback(std::function<void(bool)> callback);
 
     /** Register compressor attached to this memory controller. */
-    void registerCompressor(compression::Base* compressor);
+    void registerCompressor(compression::Base *compressor);
 
     /** Update current queue pressure state and notify callbacks/compressor. */
     void updateQueuePressureState(bool high_pressure);
 
-    /** Check current queue occupancy and update pressure state if thresholds breached. */
+    /** Check current queue occupancy and update pressure state if thresholds
+     * breached. */
     void checkQueuePressure();
 
     /** Query whether the queue is currently in high pressure state. */
-    bool isQueueHighPressureState() const { return isQueueHighPressure; }
+    bool
+    isQueueHighPressureState() const
+    {
+        return isQueueHighPressure;
+    }
 
   protected:
 

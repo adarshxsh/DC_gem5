@@ -58,31 +58,42 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    queuePressureHighThreshold(writeBufferSize * p.queue_pressure_high_thresh_perc / 100.0),
-    queuePressureLowThreshold(writeBufferSize * p.queue_pressure_low_thresh_perc / 100.0),
-    isQueueHighPressure(false),
-    attachedCompressor(p.compressor),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      queuePressureHighThreshold(writeBufferSize *
+                                 p.queue_pressure_high_thresh_perc / 100.0),
+      queuePressureLowThreshold(writeBufferSize *
+                                p.queue_pressure_low_thresh_perc / 100.0),
+      isQueueHighPressure(false),
+      attachedCompressor(p.compressor),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -96,10 +107,13 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
         fatal("Write buffer low threshold %d must be smaller than the "
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
-    if (p.queue_pressure_low_thresh_perc >= p.queue_pressure_high_thresh_perc)
+    if (p.queue_pressure_low_thresh_perc >=
+        p.queue_pressure_high_thresh_perc) {
         fatal("Queue pressure low threshold %d must be smaller than the "
-              "high threshold %d\n", p.queue_pressure_low_thresh_perc,
+              "high threshold %d\n",
+              p.queue_pressure_low_thresh_perc,
               p.queue_pressure_high_thresh_perc);
+    }
     if (p.disable_sanity_check) {
         port.disableSanityCheck();
     }
@@ -1170,7 +1184,7 @@ MemCtrl::registerQueuePressureCallback(std::function<void(bool)> callback)
 }
 
 void
-MemCtrl::registerCompressor(compression::Base* compressor)
+MemCtrl::registerCompressor(compression::Base *compressor)
 {
     attachedCompressor = compressor;
 }
@@ -1181,7 +1195,7 @@ MemCtrl::updateQueuePressureState(bool high_pressure)
     isQueueHighPressure = high_pressure;
     DPRINTF(MemCtrl, "Queue pressure state updated to: %s\n",
             high_pressure ? "HIGH" : "LOW");
-    for (auto& cb : queuePressureCallbacks) {
+    for (auto &cb : queuePressureCallbacks) {
         if (cb) {
             cb(high_pressure);
         }
@@ -1194,9 +1208,11 @@ MemCtrl::updateQueuePressureState(bool high_pressure)
 void
 MemCtrl::checkQueuePressure()
 {
-    if (totalWriteQueueSize >= queuePressureHighThreshold && !isQueueHighPressure) {
+    if (totalWriteQueueSize >= queuePressureHighThreshold &&
+        !isQueueHighPressure) {
         updateQueuePressureState(true);
-    } else if (totalWriteQueueSize <= queuePressureLowThreshold && isQueueHighPressure) {
+    } else if (totalWriteQueueSize <= queuePressureLowThreshold &&
+               isQueueHighPressure) {
         updateQueuePressureState(false);
     }
 }

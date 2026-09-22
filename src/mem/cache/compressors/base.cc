@@ -119,8 +119,8 @@ Base::Base(const Params &p)
     if (enableQueuePressureThrottling &&
         memoryQueueLowThreshold >= memoryQueueHighThreshold) {
         fatal("Memory queue pressure low threshold (%f) must be smaller than "
-              "high threshold (%f)\n", memoryQueueLowThreshold,
-              memoryQueueHighThreshold);
+              "high threshold (%f)\n",
+              memoryQueueLowThreshold, memoryQueueHighThreshold);
     }
 }
 
@@ -145,7 +145,7 @@ Base::updateQueuePressureState(bool high_pressure)
     memoryQueueHighPressure = high_pressure;
     DPRINTF(CacheComp, "Memory queue pressure state updated to: %s\n",
             high_pressure ? "HIGH" : "LOW");
-    for (auto& cb : queuePressureCallbacks) {
+    for (auto &cb : queuePressureCallbacks) {
         if (cb) {
             cb(high_pressure);
         }
@@ -201,10 +201,9 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Memory queue pressure throttling active (high pressure). "
-            "Bypassing compression.\n");
+        DPRINTF(CacheComp,
+                "Memory queue pressure throttling active (high pressure). "
+                "Bypassing compression.\n");
         return comp_data;
     }
 
