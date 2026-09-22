@@ -563,7 +563,8 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
 TEST(CompressedCacheLatencyTest, PartialWriteHitRecompressionLatency)
 {
     // Verify that partial write hits on compressed lines accumulate both
-    // decompression latency and re-compression latency into total access latency.
+    // decompression latency and re-compression latency into total access
+    // latency.
     CompressionBlk blk;
     Cycles decomp_lat(3);
     Cycles comp_lat(7);
@@ -571,16 +572,19 @@ TEST(CompressedCacheLatencyTest, PartialWriteHitRecompressionLatency)
 
     blk.setDecompressionLatency(decomp_lat);
 
-    // Initial partial write hit access latency includes tag/data lookup + decompression latency
+    // Initial partial write hit access latency includes tag/data lookup +
+    // decompression latency
     Cycles lat = base_access_lat + blk.getDecompressionLatency();
     ASSERT_EQ(lat, Cycles(5));
 
-    // satisfyRequest propagates re-compression latency from updateCompressionData
+    // satisfyRequest propagates re-compression latency from
+    // updateCompressionData
     Cycles output_comp_lat = comp_lat;
 
     // access() accumulates re-compression latency into overall access latency
     lat += output_comp_lat;
 
-    // Verify final latency includes both decompression (3) and re-compression (7) penalties
+    // Verify final latency includes both decompression (3) and re-compression
+    // (7) penalties
     ASSERT_EQ(lat, Cycles(12));
 }
