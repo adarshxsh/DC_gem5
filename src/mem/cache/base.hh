@@ -579,7 +579,9 @@ class BaseCache : public ClockedObject
      */
     virtual void recvTimingResp(PacketPtr pkt);
 
-    void updateMemoryPressure(bool moderate, bool high) {
+    void
+    updateMemoryPressure(bool moderate, bool high)
+    {
         if (high) {
             memPressureControlRegister = 2;
         } else if (moderate) {
@@ -592,7 +594,11 @@ class BaseCache : public ClockedObject
         }
     }
 
-    uint32_t getMemoryPressureControlRegister() const { return memPressureControlRegister; }
+    uint32_t
+    getMemoryPressureControlRegister() const
+    {
+        return memPressureControlRegister;
+    }
 
     /**
      * Snoops bus transactions to maintain coherence.

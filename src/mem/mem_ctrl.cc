@@ -57,29 +57,38 @@ namespace gem5
 namespace memory
 {
 
-MemCtrl::MemCtrl(const MemCtrlParams &p) :
-    qos::MemCtrl(p),
-    port(name() + ".port", *this), isTimingMode(false),
-    retryRdReq(false), retryWrReq(false),
-    nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
-    respondEvent([this] {processRespondEvent(dram, respQueue,
-                         respondEvent, retryRdReq); }, name()),
-    dram(p.dram),
-    readBufferSize(dram->readBufferSize),
-    writeBufferSize(dram->writeBufferSize),
-    writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
-    writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
-    minPressureThreshPerc(p.min_pressure_thresh_perc),
-    highPressureThreshPerc(p.high_pressure_thresh_perc),
-    minWritesPerSwitch(p.min_writes_per_switch),
-    minReadsPerSwitch(p.min_reads_per_switch),
-    memSchedPolicy(p.mem_sched_policy),
-    frontendLatency(p.static_frontend_latency),
-    backendLatency(p.static_backend_latency),
-    commandWindow(p.command_window),
-    prevArrival(0),
-    stats(*this)
+MemCtrl::MemCtrl(const MemCtrlParams &p)
+    : qos::MemCtrl(p),
+      port(name() + ".port", *this),
+      isTimingMode(false),
+      retryRdReq(false),
+      retryWrReq(false),
+      nextReqEvent(
+          [this] {
+              processNextReqEvent(dram, respQueue, respondEvent, nextReqEvent,
+                                  retryWrReq);
+          },
+          name()),
+      respondEvent(
+          [this] {
+              processRespondEvent(dram, respQueue, respondEvent, retryRdReq);
+          },
+          name()),
+      dram(p.dram),
+      readBufferSize(dram->readBufferSize),
+      writeBufferSize(dram->writeBufferSize),
+      writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
+      writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+      minPressureThreshPerc(p.min_pressure_thresh_perc),
+      highPressureThreshPerc(p.high_pressure_thresh_perc),
+      minWritesPerSwitch(p.min_writes_per_switch),
+      minReadsPerSwitch(p.min_reads_per_switch),
+      memSchedPolicy(p.mem_sched_policy),
+      frontendLatency(p.static_frontend_latency),
+      backendLatency(p.static_backend_latency),
+      commandWindow(p.command_window),
+      prevArrival(0),
+      stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
 
@@ -623,7 +632,8 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
 void
 MemCtrl::annotateResponsePressure(PacketPtr pkt)
 {
-    uint32_t current_occupancy = totalReadQueueSize + totalWriteQueueSize + respQueue.size();
+    uint32_t current_occupancy =
+        totalReadQueueSize + totalWriteQueueSize + respQueue.size();
     uint32_t total_capacity = readBufferSize + writeBufferSize;
 
     pkt->clearMemPressureFlags();
@@ -632,11 +642,15 @@ MemCtrl::annotateResponsePressure(PacketPtr pkt)
         uint32_t occ_perc = (current_occupancy * 100) / total_capacity;
         if (occ_perc >= highPressureThreshPerc) {
             pkt->setMemPressureHigh();
-            DPRINTF(MemCtrl, "Annotated response packet with MEM_PRESSURE_HIGH (occ: %d/%d, %d%%)\n",
+            DPRINTF(MemCtrl,
+                    "Annotated response packet with MEM_PRESSURE_HIGH (occ: "
+                    "%d/%d, %d%%)\n",
                     current_occupancy, total_capacity, occ_perc);
         } else if (occ_perc >= minPressureThreshPerc) {
             pkt->setMemPressureModerate();
-            DPRINTF(MemCtrl, "Annotated response packet with MEM_PRESSURE_MODERATE (occ: %d/%d, %d%%)\n",
+            DPRINTF(MemCtrl,
+                    "Annotated response packet with MEM_PRESSURE_MODERATE "
+                    "(occ: %d/%d, %d%%)\n",
                     current_occupancy, total_capacity, occ_perc);
         }
     }

@@ -5,8 +5,8 @@
 
 #include <gtest/gtest.h>
 
-#include "mem/packet.hh"
 #include "mem/cache/compressors/base.hh"
+#include "mem/packet.hh"
 
 namespace gem5
 {
@@ -17,7 +17,8 @@ TEST(PacketPressureTest, FlagBitDefinitions)
     EXPECT_EQ(0x00040000, Packet::MEM_PRESSURE_HIGH);
 
     // Verify bitwise flags fit within responder flags
-    EXPECT_TRUE((Packet::RESPONDER_FLAGS & Packet::MEM_PRESSURE_MODERATE) != 0);
+    EXPECT_TRUE((Packet::RESPONDER_FLAGS & Packet::MEM_PRESSURE_MODERATE) !=
+                0);
     EXPECT_TRUE((Packet::RESPONDER_FLAGS & Packet::MEM_PRESSURE_HIGH) != 0);
 }
 
@@ -65,33 +66,38 @@ class TestCompressor : public compression::Base
     TestCompressor() : compression::Base(nullptr) {}
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks,
-             Cycles& comp_lat, Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         return nullptr;
     }
 
-    void decompress(const CompressionData* comp_data,
-                    uint64_t* cache_line) override {}
+    void
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
+    {}
 };
 
 TEST(PacketPressureTest, CacheCompressorPolicyReaction)
 {
     TestCompressor compressor;
 
-    EXPECT_EQ(compression::Base::PRESSURE_NONE, compressor.getMemoryPressureState());
+    EXPECT_EQ(compression::Base::PRESSURE_NONE,
+              compressor.getMemoryPressureState());
     EXPECT_EQ(0, compressor.getMemoryPressureControlRegister());
 
     compressor.setMemoryPressure(true, false);
-    EXPECT_EQ(compression::Base::PRESSURE_MODERATE, compressor.getMemoryPressureState());
+    EXPECT_EQ(compression::Base::PRESSURE_MODERATE,
+              compressor.getMemoryPressureState());
     EXPECT_EQ(1, compressor.getMemoryPressureControlRegister());
 
     compressor.setMemoryPressure(false, true);
-    EXPECT_EQ(compression::Base::PRESSURE_HIGH, compressor.getMemoryPressureState());
+    EXPECT_EQ(compression::Base::PRESSURE_HIGH,
+              compressor.getMemoryPressureState());
     EXPECT_EQ(2, compressor.getMemoryPressureControlRegister());
 
     compressor.setMemoryPressure(false, false);
-    EXPECT_EQ(compression::Base::PRESSURE_NONE, compressor.getMemoryPressureState());
+    EXPECT_EQ(compression::Base::PRESSURE_NONE,
+              compressor.getMemoryPressureState());
     EXPECT_EQ(0, compressor.getMemoryPressureControlRegister());
 }
 
