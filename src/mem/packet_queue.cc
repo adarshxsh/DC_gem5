@@ -47,15 +47,100 @@
 namespace gem5
 {
 
-PacketQueue::PacketQueue(EventManager& _em, const std::string& _label,
-                         const std::string& _sendEventName,
-                         bool force_order,
-                         bool disable_sanity_check)
-    : em(_em), sendEvent([this]{ processSendEvent(); }, _sendEventName),
+PacketQueue::PacketQueue(EventManager &_em, const std::string &_label,
+                         const std::string &_sendEventName, bool force_order,
+                         bool disable_sanity_check, size_t high_watermark,
+                         size_t low_watermark)
+    : em(_em),
+      sendEvent([this] { processSendEvent(); }, _sendEventName),
       _disableSanityCheck(disable_sanity_check),
       forceOrder(force_order),
-      label(_label), waitingOnRetry(false)
+      highWatermark(high_watermark),
+      lowWatermark(low_watermark),
+      backpressureActive(false),
+      label(_label),
+      waitingOnRetry(false)
 {
+}
+
+void
+PacketQueue::setHighWatermark(size_t high)
+{
+    highWatermark = high;
+    updateBackpressure();
+}
+
+void
+PacketQueue::setLowWatermark(size_t low)
+{
+    lowWatermark = low;
+    updateBackpressure();
+}
+
+void
+PacketQueue::setWatermarks(size_t high, size_t low)
+{
+    highWatermark = high;
+    lowWatermark = low;
+    updateBackpressure();
+}
+
+void
+PacketQueue::registerBackpressureCallback(BackpressureCallback cb)
+{
+    if (cb) {
+        backpressureCallbacks.push_back(cb);
+    }
+}
+
+void
+PacketQueue::registerBackpressureListener(BackpressureListener *listener)
+{
+    if (listener) {
+        backpressureListeners.push_back(listener);
+    }
+}
+
+void
+PacketQueue::setBackpressureCallback(BackpressureCallback cb)
+{
+    backpressureCallbacks.clear();
+    if (cb) {
+        backpressureCallbacks.push_back(cb);
+    }
+}
+
+void
+PacketQueue::updateBackpressure()
+{
+    size_t qsz = transmitList.size();
+    if (!backpressureActive && qsz >= highWatermark) {
+        backpressureActive = true;
+        notifyBackpressure(true);
+    } else if (backpressureActive && qsz <= lowWatermark) {
+        backpressureActive = false;
+        notifyBackpressure(false);
+    }
+}
+
+void
+PacketQueue::notifyBackpressure(bool active)
+{
+    DPRINTF(PacketQueue,
+            "Queue %s backpressure state changed to %s "
+            "(size %zu, high %zu, low %zu)\n",
+            name(), active ? "active" : "inactive", transmitList.size(),
+            highWatermark, lowWatermark);
+    for (auto &cb : backpressureCallbacks) {
+        if (cb) {
+            cb(active);
+        }
+    }
+    for (auto listener : backpressureListeners) {
+        if (listener) {
+            listener->onBackpressure(active);
+        }
+    }
 }
 
 PacketQueue::~PacketQueue()
@@ -142,12 +227,14 @@ PacketQueue::schedSendTiming(PacketPtr pkt, Tick when)
             // emplace inserts the element before the position pointed to by
             // the iterator, so advance it one step
             transmitList.emplace(++it, when, pkt);
+            updateBackpressure();
             return;
         }
     }
     // either the packet list is empty or this has to be inserted
     // before every other packet
     transmitList.emplace_front(when, pkt);
+    updateBackpressure();
     schedSendEvent(when);
 }
 
@@ -210,6 +297,7 @@ PacketQueue::sendDeferredPacket()
     // if we succeeded and are not waiting for a retry, schedule the
     // next send
     if (!waitingOnRetry) {
+        updateBackpressure();
         schedSendEvent(deferredPacketReadyTime());
     } else {
         // put the packet back at the front of the list
@@ -235,9 +323,11 @@ PacketQueue::drain()
     }
 }
 
-ReqPacketQueue::ReqPacketQueue(EventManager& _em, RequestPort& _mem_side_port,
-                               const std::string _label)
-    : PacketQueue(_em, _label, name(_mem_side_port, _label)),
+ReqPacketQueue::ReqPacketQueue(EventManager &_em, RequestPort &_mem_side_port,
+                               const std::string _label, size_t high_watermark,
+                               size_t low_watermark)
+    : PacketQueue(_em, _label, name(_mem_side_port, _label), false, false,
+                  high_watermark, low_watermark),
       memSidePort(_mem_side_port)
 {
 }
@@ -248,11 +338,11 @@ ReqPacketQueue::sendTiming(PacketPtr pkt)
     return memSidePort.sendTimingReq(pkt);
 }
 
-SnoopRespPacketQueue::SnoopRespPacketQueue(EventManager& _em,
-                                           RequestPort& _mem_side_port,
-                                           bool force_order,
-                                           const std::string _label)
-    : PacketQueue(_em, _label, name(_mem_side_port, _label), force_order),
+SnoopRespPacketQueue::SnoopRespPacketQueue(
+    EventManager &_em, RequestPort &_mem_side_port, bool force_order,
+    const std::string _label, size_t high_watermark, size_t low_watermark)
+    : PacketQueue(_em, _label, name(_mem_side_port, _label), force_order,
+                  false, high_watermark, low_watermark),
       memSidePort(_mem_side_port)
 {
 }
@@ -263,11 +353,12 @@ SnoopRespPacketQueue::sendTiming(PacketPtr pkt)
     return memSidePort.sendTimingSnoopResp(pkt);
 }
 
-RespPacketQueue::RespPacketQueue(EventManager& _em,
-                                 ResponsePort& _cpu_side_port,
-                                 bool force_order,
-                                 const std::string _label)
-    : PacketQueue(_em, _label, name(_cpu_side_port, _label), force_order),
+RespPacketQueue::RespPacketQueue(EventManager &_em,
+                                 ResponsePort &_cpu_side_port,
+                                 bool force_order, const std::string _label,
+                                 size_t high_watermark, size_t low_watermark)
+    : PacketQueue(_em, _label, name(_cpu_side_port, _label), force_order,
+                  false, high_watermark, low_watermark),
       cpuSidePort(_cpu_side_port)
 {
 }

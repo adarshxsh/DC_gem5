@@ -49,7 +49,9 @@
  * for the flow control of the port.
  */
 
+#include <functional>
 #include <list>
+#include <vector>
 
 #include "mem/port.hh"
 #include "sim/drain.hh"
@@ -104,6 +106,39 @@ class PacketQueue : public Drainable
      */
     bool forceOrder;
 
+    /**
+     * High-watermark and low-watermark threshold parameters for queue
+     * occupancy and backpressure signaling.
+     */
+    size_t highWatermark;
+    size_t lowWatermark;
+    bool backpressureActive;
+
+  public:
+    using BackpressureCallback = std::function<void(bool active)>;
+
+    class BackpressureListener
+    {
+      public:
+        virtual ~BackpressureListener() = default;
+        virtual void onBackpressure(bool active) = 0;
+    };
+
+  private:
+    std::vector<BackpressureCallback> backpressureCallbacks;
+    std::vector<BackpressureListener *> backpressureListeners;
+
+    /**
+     * Check transmit queue occupancy against watermarks and update
+     * backpressure state.
+     */
+    void updateBackpressure();
+
+    /**
+     * Notify registered callbacks/listeners of backpressure state changes.
+     */
+    void notifyBackpressure(bool active);
+
   protected:
 
     /** Label to use for print request packets label stack. */
@@ -142,10 +177,10 @@ class PacketQueue : public Drainable
      * @param disable_sanity_check Flag used to disable the sanity check
      *        on the size of the transmitList. The check is enabled by default.
      */
-    PacketQueue(EventManager& _em, const std::string& _label,
-                const std::string& _sendEventName,
-                bool force_order = false,
-                bool disable_sanity_check = false);
+    PacketQueue(EventManager &_em, const std::string &_label,
+                const std::string &_sendEventName, bool force_order = false,
+                bool disable_sanity_check = false, size_t high_watermark = 16,
+                size_t low_watermark = 4);
 
     /**
      * Virtual desctructor since the class may be used as a base class.
@@ -153,6 +188,46 @@ class PacketQueue : public Drainable
     virtual ~PacketQueue();
 
   public:
+    /**
+     * Get and set high-watermark threshold.
+     */
+    size_t
+    getHighWatermark() const
+    {
+        return highWatermark;
+    }
+    void setHighWatermark(size_t high);
+
+    /**
+     * Get and set low-watermark threshold.
+     */
+    size_t
+    getLowWatermark() const
+    {
+        return lowWatermark;
+    }
+    void setLowWatermark(size_t low);
+
+    /**
+     * Set high and low watermark occupancy thresholds.
+     */
+    void setWatermarks(size_t high, size_t low);
+
+    /**
+     * Check if backpressure signal is active.
+     */
+    bool
+    isBackpressureActive() const
+    {
+        return backpressureActive;
+    }
+
+    /**
+     * Register backpressure callback function or listener.
+     */
+    void registerBackpressureCallback(BackpressureCallback cb);
+    void registerBackpressureListener(BackpressureListener *listener);
+    void setBackpressureCallback(BackpressureCallback cb);
 
     /**
      * Provide a name to simplify debugging.
@@ -247,8 +322,9 @@ class ReqPacketQueue : public PacketQueue
      * @param _mem_side_port Mem_side port used to send the packets
      * @param _label Label to push on the label stack for print request packets
      */
-    ReqPacketQueue(EventManager& _em, RequestPort& _mem_side_port,
-                   const std::string _label = "ReqPacketQueue");
+    ReqPacketQueue(EventManager &_em, RequestPort &_mem_side_port,
+                   const std::string _label = "ReqPacketQueue",
+                   size_t high_watermark = 16, size_t low_watermark = 4);
 
     virtual ~ReqPacketQueue() { }
 
@@ -284,9 +360,10 @@ class SnoopRespPacketQueue : public PacketQueue
      * @param force_order Force insertion order for packets with same address
      * @param _label Label to push on the label stack for print request packets
      */
-    SnoopRespPacketQueue(EventManager& _em, RequestPort& _mem_side_port,
+    SnoopRespPacketQueue(EventManager &_em, RequestPort &_mem_side_port,
                          bool force_order = false,
-                         const std::string _label = "SnoopRespPacketQueue");
+                         const std::string _label = "SnoopRespPacketQueue",
+                         size_t high_watermark = 16, size_t low_watermark = 4);
 
     virtual ~SnoopRespPacketQueue() { }
 
@@ -322,9 +399,10 @@ class RespPacketQueue : public PacketQueue
      * @param force_order Force insertion order for packets with same address
      * @param _label Label to push on the label stack for print request packets
      */
-    RespPacketQueue(EventManager& _em, ResponsePort& _cpu_side_port,
+    RespPacketQueue(EventManager &_em, ResponsePort &_cpu_side_port,
                     bool force_order = false,
-                    const std::string _label = "RespPacketQueue");
+                    const std::string _label = "RespPacketQueue",
+                    size_t high_watermark = 16, size_t low_watermark = 4);
 
     virtual ~RespPacketQueue() { }
 

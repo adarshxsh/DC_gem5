@@ -41,6 +41,7 @@
 #include "base/compiler.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
+#include "mem/packet_queue.hh"
 #include "sim/sim_object.hh"
 
 namespace gem5
@@ -61,7 +62,7 @@ namespace compression
  * typically divide the input into multiple *chunks*, and parse them one at
  * a cycle.
  */
-class Base : public SimObject
+class Base : public SimObject, public PacketQueue::BackpressureListener
 {
   public:
     /**
@@ -148,6 +149,9 @@ class Base : public SimObject
 
     /** Pointer to the parent cache. */
     BaseCache* cache;
+
+    /** Backpressure signal state from memory/port queue. */
+    bool backpressureActive;
 
     struct BaseStats : public statistics::Group
     {
@@ -243,6 +247,25 @@ class Base : public SimObject
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);
+
+    /**
+     * Backpressure state management methods.
+     */
+    virtual void
+    setBackpressure(bool active)
+    {
+        backpressureActive = active;
+    }
+    bool
+    isBackpressureActive() const
+    {
+        return backpressureActive;
+    }
+    void
+    onBackpressure(bool active) override
+    {
+        setBackpressure(active);
+    }
 
     /**
      * Apply the compression process to the cache line. Ignores compression

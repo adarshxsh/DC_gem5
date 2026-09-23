@@ -82,19 +82,20 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      writebackPaused(false),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -203,6 +204,27 @@ BaseCache::init()
         fatal("Cache ports on %s are not connected\n", name());
     cpuSidePort.sendRangeChange();
     forwardSnoops = cpuSidePort.isSnooping();
+
+    memSidePort.getReqQueue().registerBackpressureCallback(
+        [this](bool active) { handleBackpressure(active); });
+    if (compressor) {
+        memSidePort.getReqQueue().registerBackpressureListener(compressor);
+    }
+}
+
+void
+BaseCache::handleBackpressure(bool active)
+{
+    DPRINTF(Cache, "%s writeback backpressure state changed to %s\n", name(),
+            active ? "active (pausing writebacks)"
+                   : "inactive (resuming writebacks)");
+    writebackPaused = active;
+    if (compressor) {
+        compressor->setBackpressure(active);
+    }
+    if (!active && (!writeBuffer.empty() || !mshrQueue.empty())) {
+        memSidePort.getReqQueue().schedSendEvent(clockEdge());
+    }
 }
 
 Port &
@@ -910,6 +932,12 @@ BaseCache::getNextQueueEntry()
     // simply be that it is not ready
     MSHR *miss_mshr  = mshrQueue.getNext();
     WriteQueueEntry *wq_entry = writeBuffer.getNext();
+
+    // If writebacks are paused due to backpressure, skip writeback releases
+    // unless write buffer is full
+    if (writebackPaused && wq_entry && !writeBuffer.isFull()) {
+        wq_entry = nullptr;
+    }
 
     // If we got a write buffer request ready, first priority is a
     // full write buffer, otherwise we favour the miss requests
