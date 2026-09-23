@@ -541,6 +541,11 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
 
+    // Inspect response packet flags for memory queue pressure
+    bool is_mod_pressure = pkt->isMemPressureModerate();
+    bool is_high_pressure = pkt->isMemPressureHigh();
+    updateMemoryPressure(is_mod_pressure, is_high_pressure);
+
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above
     panic_if(pkt->headerDelay != 0 && pkt->cmd != MemCmd::HardPFResp,

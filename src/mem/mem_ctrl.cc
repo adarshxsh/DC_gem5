@@ -70,6 +70,8 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeBufferSize(dram->writeBufferSize),
     writeHighThreshold(writeBufferSize * p.write_high_thresh_perc / 100.0),
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
+    minPressureThreshPerc(p.min_pressure_thresh_perc),
+    highPressureThreshPerc(p.high_pressure_thresh_perc),
     minWritesPerSwitch(p.min_writes_per_switch),
     minReadsPerSwitch(p.min_reads_per_switch),
     memSchedPolicy(p.mem_sched_policy),
@@ -619,6 +621,28 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay,
 }
 
 void
+MemCtrl::annotateResponsePressure(PacketPtr pkt)
+{
+    uint32_t current_occupancy = totalReadQueueSize + totalWriteQueueSize + respQueue.size();
+    uint32_t total_capacity = readBufferSize + writeBufferSize;
+
+    pkt->clearMemPressureFlags();
+
+    if (total_capacity > 0) {
+        uint32_t occ_perc = (current_occupancy * 100) / total_capacity;
+        if (occ_perc >= highPressureThreshPerc) {
+            pkt->setMemPressureHigh();
+            DPRINTF(MemCtrl, "Annotated response packet with MEM_PRESSURE_HIGH (occ: %d/%d, %d%%)\n",
+                    current_occupancy, total_capacity, occ_perc);
+        } else if (occ_perc >= minPressureThreshPerc) {
+            pkt->setMemPressureModerate();
+            DPRINTF(MemCtrl, "Annotated response packet with MEM_PRESSURE_MODERATE (occ: %d/%d, %d%%)\n",
+                    current_occupancy, total_capacity, occ_perc);
+        }
+    }
+}
+
+void
 MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
                                                 MemInterface* mem_intr)
 {
@@ -635,6 +659,7 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency,
     if (needsResponse) {
         // access already turned the packet into a response
         assert(pkt->isResponse());
+        annotateResponsePressure(pkt);
         // response_time consumes the static latency and is charged also
         // with headerDelay that takes into account the delay provided by
         // the xbar and also the payloadDelay that takes into account the

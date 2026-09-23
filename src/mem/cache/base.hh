@@ -371,6 +371,9 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** Memory pressure control register */
+    uint32_t memPressureControlRegister = 0;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -575,6 +578,21 @@ class BaseCache : public ClockedObject
      * @param pkt The response packet
      */
     virtual void recvTimingResp(PacketPtr pkt);
+
+    void updateMemoryPressure(bool moderate, bool high) {
+        if (high) {
+            memPressureControlRegister = 2;
+        } else if (moderate) {
+            memPressureControlRegister = 1;
+        } else {
+            memPressureControlRegister = 0;
+        }
+        if (compressor) {
+            compressor->setMemoryPressure(moderate, high);
+        }
+    }
+
+    uint32_t getMemoryPressureControlRegister() const { return memPressureControlRegister; }
 
     /**
      * Snoops bus transactions to maintain coherence.

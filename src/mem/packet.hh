@@ -304,7 +304,7 @@ class Packet : public Printable, public Extensible<Packet>
         COPY_FLAGS             = 0x000000FF,
 
         // Flags that are used to create reponse packets
-        RESPONDER_FLAGS        = 0x00000009,
+        RESPONDER_FLAGS        = 0x00000009 | 0x00020000 | 0x00040000,
 
         // Does this packet have sharers (which means it should not be
         // considered writable) or not. See setHasSharers below.
@@ -360,7 +360,11 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Memory controller queue pressure flags
+        MEM_PRESSURE_MODERATE = 0x00020000,
+        MEM_PRESSURE_HIGH     = 0x00040000
     };
 
     Flags flags;
@@ -657,6 +661,12 @@ class Packet : public Printable, public Extensible<Packet>
         flags.set(CACHE_RESPONDING);
     }
     bool cacheResponding() const { return flags.isSet(CACHE_RESPONDING); }
+
+    bool isMemPressureModerate() const { return flags.isSet(MEM_PRESSURE_MODERATE); }
+    bool isMemPressureHigh() const     { return flags.isSet(MEM_PRESSURE_HIGH); }
+    void setMemPressureModerate()      { flags.set(MEM_PRESSURE_MODERATE); }
+    void setMemPressureHigh()          { flags.set(MEM_PRESSURE_HIGH); }
+    void clearMemPressureFlags()       { flags.clear(MEM_PRESSURE_MODERATE | MEM_PRESSURE_HIGH); }
     /**
      * On fills, the hasSharers flag is used by the caches in
      * combination with the cacheResponding flag, as clarified
