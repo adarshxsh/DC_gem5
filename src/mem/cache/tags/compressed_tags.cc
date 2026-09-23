@@ -238,8 +238,9 @@ CompressedTags::anyBlk(std::function<bool(CacheBlk &)> visitor)
 bool
 CompressedTags::hasCapacityPressure() const
 {
-    if (superBlks.empty())
+    if (superBlks.empty()) {
         return SectorTags::hasCapacityPressure();
+    }
     unsigned valid_superblks = 0;
     for (const auto &sb : superBlks) {
         if (sb.isValid()) {

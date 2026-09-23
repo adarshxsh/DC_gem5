@@ -289,17 +289,29 @@ class Base : public SimObject
     /**
      * Check if adaptive compression bypass is currently active.
      */
-    bool isAdaptiveBypassActive() const { return adaptiveBypassActive; }
+    bool
+    isAdaptiveBypassActive() const
+    {
+        return adaptiveBypassActive;
+    }
 
     /**
      * Check if compressor is experiencing capacity pressure.
      */
-    bool hasCapacityPressure() const { return adaptiveBypassActive || capacityPressureState; }
+    bool
+    hasCapacityPressure() const
+    {
+        return adaptiveBypassActive || capacityPressureState;
+    }
 
     /**
      * Set capacity pressure flag manually if required.
      */
-    void setCapacityPressure(bool val) { capacityPressureState = val; }
+    void
+    setCapacityPressure(bool val)
+    {
+        capacityPressureState = val;
+    }
 };
 
 class Base::CompressionData

@@ -213,19 +213,17 @@ TEST(BaseCompressorThrottlingTest, AdaptiveBypassFlagSetting)
 
     Cycles comp_lat(0), decomp_lat(0);
     uint64_t uncompressible_data[8] = {
-        0x1234567891011121ULL, 0x1314151617181920ULL,
-        0x2122232425262728ULL, 0x2930313233343536ULL,
-        0x3738394041424344ULL, 0x4546474849505152ULL,
-        0x5354555657585960ULL, 0x6162636465666768ULL
-    };
+        0x1234567891011121ULL, 0x1314151617181920ULL, 0x2122232425262728ULL,
+        0x2930313233343536ULL, 0x3738394041424344ULL, 0x4546474849505152ULL,
+        0x5354555657585960ULL, 0x6162636465666768ULL};
 
     // First compress call updates sampled statistics
-    auto comp_data = compressor.compress(uncompressible_data, comp_lat, decomp_lat);
-    // Second compress call evaluates shouldBypass and sets adaptiveBypassActive flag
+    auto comp_data =
+        compressor.compress(uncompressible_data, comp_lat, decomp_lat);
+    // Second compress call evaluates shouldBypass and sets
+    // adaptiveBypassActive flag
     comp_data = compressor.compress(uncompressible_data, comp_lat, decomp_lat);
 
     EXPECT_TRUE(compressor.isAdaptiveBypassActive());
     EXPECT_TRUE(compressor.hasCapacityPressure());
 }
-
-

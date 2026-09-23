@@ -588,4 +588,3 @@ TEST(PacketCompressionPressureTest, SnoopPacketFlagInheritance)
     ASSERT_TRUE(snoopPkt.isExpressSnoop());
     ASSERT_TRUE(snoopPkt.hasCompressionPressure());
 }
-

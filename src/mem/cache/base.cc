@@ -905,7 +905,8 @@ BaseCache::cmpAndSwap(CacheBlk *blk, PacketPtr pkt)
 bool
 BaseCache::hasCompressionPressure() const
 {
-    if (compressor && (compressor->isAdaptiveBypassActive() || compressor->hasCapacityPressure())) {
+    if (compressor && (compressor->isAdaptiveBypassActive() ||
+                       compressor->hasCapacityPressure())) {
         return true;
     }
     if (tags && tags->hasCapacityPressure()) {
@@ -931,8 +932,8 @@ BaseCache::getNextQueueEntry()
     MSHR *miss_mshr  = mshrQueue.getNext();
     WriteQueueEntry *wq_entry = writeBuffer.getNext();
 
-    bool is_non_essential_wb = wq_entry && wq_entry->getTarget() &&
-        wq_entry->getTarget()->pkt &&
+    bool is_non_essential_wb =
+        wq_entry && wq_entry->getTarget() && wq_entry->getTarget()->pkt &&
         (wq_entry->getTarget()->pkt->cmd == MemCmd::WritebackDirty ||
          wq_entry->getTarget()->pkt->cmd == MemCmd::WritebackClean);
 

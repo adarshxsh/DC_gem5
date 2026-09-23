@@ -188,7 +188,8 @@ DictionaryCompressor<T>::decompressValue(const Pattern* pattern)
 {
     // Search for matching entry
     DictionaryEntry dict_entry = toDictionaryEntry(0);
-    if (!dictionary.empty() && pattern->getMatchLocation() < dictionary.size()) {
+    if (!dictionary.empty() &&
+        pattern->getMatchLocation() < dictionary.size()) {
         dict_entry = dictionary[pattern->getMatchLocation()];
     }
 

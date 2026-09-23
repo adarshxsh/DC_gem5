@@ -578,7 +578,11 @@ class BaseCache : public ClockedObject
     /**
      * Check if downstream cache signaled compression pressure to this cache.
      */
-    bool isDownstreamCompressionPressureActive() const { return downstreamCompressionPressure; }
+    bool
+    isDownstreamCompressionPressureActive() const
+    {
+        return downstreamCompressionPressure;
+    }
 
     /**
      * Update downstream compression pressure from incoming packet.
@@ -959,7 +963,8 @@ class BaseCache : public ClockedObject
     /** Do we forward snoops from mem side port through to cpu side port? */
     bool forwardSnoops;
 
-    /** Indicates whether downstream (L2) cache has signaled compression pressure. */
+    /** Indicates whether downstream (L2) cache has signaled compression
+     * pressure. */
     bool downstreamCompressionPressure = false;
 
     /**
