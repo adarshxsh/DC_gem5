@@ -87,7 +87,30 @@ class CompressedTags : public SectorTags
     /** The cache superblocks. */
     std::vector<SuperBlk> superBlks;
 
+    /** Whether write queue backpressure guard is enabled. */
+    const bool enableWriteQueueGuard;
+    /** Threshold for write queue occupancy to trigger backpressure guard. */
+    const unsigned writeQueueHighThreshold;
+    /** Current write queue occupancy. */
+    mutable unsigned writeQueueOccupancy;
+
   public:
+    /**
+     * Set current write queue occupancy.
+     */
+    void setWriteQueueOccupancy(unsigned occupancy) const { writeQueueOccupancy = occupancy; }
+
+    /**
+     * Get current write queue occupancy.
+     */
+    unsigned getWriteQueueOccupancy() const { return writeQueueOccupancy; }
+
+    /**
+     * Check if write queue backpressure is active.
+     */
+    bool isWriteQueueHigh() const {
+        return enableWriteQueueGuard && (writeQueueOccupancy >= writeQueueHighThreshold);
+    }
     /** Convenience typedef. */
      typedef CompressedTagsParams Params;
 
