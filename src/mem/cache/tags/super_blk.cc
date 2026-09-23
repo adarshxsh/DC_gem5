@@ -219,7 +219,8 @@ SuperBlk::hasValidDemand() const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size) const
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        bool write_queue_pressure) const
 {
     if (!isCompressed()) {
         return false;
@@ -243,7 +244,42 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         }
     }
 
-    return (bit_sum + compressed_size) <= (blkSize * CHAR_BIT);
+    if ((bit_sum + compressed_size) > (blkSize * CHAR_BIT)) {
+        return false;
+    }
+
+    if (write_queue_pressure) {
+        const uint8_t current_cf = getCompressionFactor();
+        const uint8_t new_cf = (getNumValid() == 0)
+                                   ? new_blk_cf
+                                   : std::min(current_cf, new_blk_cf);
+
+        // Under write queue backpressure, reject marginal co-allocations:
+        // 1. Degrading existing compression factor
+        // 2. Low compression factor (new_cf <= 2)
+        // 3. High capacity utilization (> 50% capacity used)
+        if (getNumValid() > 0 && new_cf < current_cf) {
+            return false;
+        }
+        if (new_cf <= 2) {
+            return false;
+        }
+        if ((bit_sum + compressed_size) > (blkSize * CHAR_BIT) / 2) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        unsigned write_queue_occupancy,
+                        unsigned write_queue_threshold) const
+{
+    bool pressure = (write_queue_threshold > 0) &&
+                    (write_queue_occupancy >= write_queue_threshold);
+    return canCoAllocate(compressed_size, pressure);
 }
 
 void

@@ -60,7 +60,10 @@ namespace gem5
 {
 
 CompressedTags::CompressedTags(const Params &p)
-    : SectorTags(p)
+    : SectorTags(p),
+      enableWriteQueueGuard(p.enable_write_queue_guard),
+      writeQueueHighThreshold(p.write_queue_high_threshold),
+      writeQueueOccupancy(0)
 {
 }
 
@@ -143,13 +146,13 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     SuperBlk* victim_superblock = nullptr;
     bool is_co_allocation = false;
     const uint64_t offset = extractSectorOffset(key.address);
+    const bool write_queue_pressure = isWriteQueueHigh();
+
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
             superblock->isCompressed() &&
-            superblock->canCoAllocate(compressed_size))
-        {
+            superblock->canCoAllocate(compressed_size, write_queue_pressure)) {
             if (is_prefetch && superblock->hasValidDemand()) {
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);

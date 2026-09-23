@@ -161,6 +161,14 @@ class CompressedTags(SectorTags):
     # the cache size by the compression ratio
     size = Parent.size * Self.max_compression_ratio
 
+    enable_write_queue_guard = Param.Bool(
+        False, "Enable write queue backpressure guard for co-allocation"
+    )
+    write_queue_high_threshold = Param.Unsigned(
+        32,
+        "Write queue occupancy threshold above which co-allocation is throttled",
+    )
+
 
 class FALRU(BaseTags):
     type = "FALRU"
