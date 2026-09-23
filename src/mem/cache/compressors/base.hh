@@ -46,6 +46,11 @@
 namespace gem5
 {
 
+namespace memory
+{
+class MemCtrl;
+}
+
 class BaseCache;
 class CacheBlk;
 struct BaseCacheCompressorParams;
@@ -137,6 +142,15 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether dynamic memory pressure compression bypass is enabled. */
+    const bool enableMemPressureBypass;
+
+    /** Memory queue pressure threshold above which compression is bypassed. */
+    const float memPressureThreshold;
+
+    /** Pointer to associated memory controller for pressure feedback. */
+    memory::MemCtrl *memCtrl;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -148,6 +162,9 @@ class Base : public SimObject
 
     /** Pointer to the parent cache. */
     BaseCache* cache;
+
+    /** Get current memory queue pressure ratio. */
+    virtual double getMemQueuePressure() const;
 
     struct BaseStats : public statistics::Group
     {

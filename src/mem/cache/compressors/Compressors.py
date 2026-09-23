@@ -81,6 +81,19 @@ class BaseCacheCompressor(SimObject):
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
 
+    enable_mem_pressure_bypass = Param.Bool(
+        False,
+        "Enable dynamic compression bypass when memory queue pressure exceeds threshold",
+    )
+    mem_pressure_threshold = Param.Float(
+        0.75,
+        "Memory queue pressure threshold above which compression is bypassed",
+    )
+    mem_ctrl = Param.MemCtrl(
+        NULL,
+        "Optional pointer to associated memory controller for pressure feedback",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"

@@ -286,6 +286,16 @@ class RequestPort: public Port, public AtomicRequestProtocol,
      */
     virtual void sendRetryResp();
 
+    /**
+     * Get memory queue pressure ratio from connected peer response port.
+     */
+    double getQueuePressure() const;
+
+    /**
+     * Check if connected peer response port indicates memory congestion.
+     */
+    bool isCongested() const;
+
   protected:
     /**
      * Called to receive an address range change from the peer response
@@ -393,6 +403,24 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
      */
     void unbind() override {}
     void bind(Port &peer) override {}
+
+    /**
+     * Query memory queue pressure ratio from downstream memory controller.
+     */
+    virtual double
+    getQueuePressure() const
+    {
+        return 0.0;
+    }
+
+    /**
+     * Check if downstream memory controller is congested.
+     */
+    virtual bool
+    isCongested() const
+    {
+        return false;
+    }
 
   public:
     /* The atomic protocol. */
@@ -547,6 +575,20 @@ class [[deprecated]] SlavePort : public ResponsePort
   public:
     using ResponsePort::ResponsePort;
 };
+
+inline double
+RequestPort::getQueuePressure() const
+{
+    return (_responsePort && isConnected()) ? _responsePort->getQueuePressure()
+                                            : 0.0;
+}
+
+inline bool
+RequestPort::isCongested() const
+{
+    return (_responsePort && isConnected()) ? _responsePort->isCongested()
+                                            : false;
+}
 
 inline Tick
 RequestPort::sendAtomic(PacketPtr pkt)

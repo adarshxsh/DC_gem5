@@ -43,6 +43,7 @@
 #include "debug/CacheComp.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/mem_ctrl.hh"
 #include "params/BaseCacheCompressor.hh"
 
 namespace gem5
@@ -94,6 +95,9 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      enableMemPressureBypass(p.enable_mem_pressure_bypass),
+      memPressureThreshold(p.mem_pressure_threshold),
+      memCtrl(p.mem_ctrl),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -118,6 +122,18 @@ Base::setCache(BaseCache *_cache)
 {
     assert(!cache);
     cache = _cache;
+}
+
+double
+Base::getMemQueuePressure() const
+{
+    if (memCtrl) {
+        return memCtrl->getQueuePressure();
+    }
+    if (cache) {
+        return cache->getMemSidePort().getQueuePressure();
+    }
+    return 0.0;
 }
 
 std::vector<Base::Chunk>
@@ -169,8 +185,14 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
-    bool shouldBypass =
+    bool shouldAdaptiveBypass =
         enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+
+    double queuePressure = getMemQueuePressure();
+    bool shouldMemPressureBypass =
+        enableMemPressureBypass && (queuePressure >= memPressureThreshold);
+
+    bool shouldBypass = shouldAdaptiveBypass || shouldMemPressureBypass;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -180,11 +202,19 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
 
         stats.bypassedCompressions++;
-        DPRINTF(
-            CacheComp,
-            "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-            "Bypassing compression.\n",
-            observedRatio, latencyBreakevenThreshold);
+        if (shouldMemPressureBypass) {
+            DPRINTF(CacheComp,
+                    "Memory pressure bypass active (pressure: %.4f >= "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    queuePressure, memPressureThreshold);
+        } else {
+            DPRINTF(CacheComp,
+                    "Adaptive bypass active (observed ratio: %.4f < "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    observedRatio, latencyBreakevenThreshold);
+        }
         return comp_data;
     }
 
@@ -237,8 +267,16 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         decomp_lat = Cycles(0);
         comp_data->setSizeBits(blkSize * CHAR_BIT);
         stats.bypassedCompressions++;
-        DPRINTF(CacheComp, "Adaptive bypass active (sampled request). "
-                           "Bypassing compression.\n");
+        if (shouldMemPressureBypass) {
+            DPRINTF(CacheComp,
+                    "Memory pressure bypass active (pressure: %.4f >= "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    queuePressure, memPressureThreshold);
+        } else {
+            DPRINTF(CacheComp, "Adaptive bypass active (sampled request). "
+                               "Bypassing compression.\n");
+        }
     } else {
         // Update stats
         stats.compressions++;
@@ -275,12 +313,17 @@ Base::getDecompressionLatency(const CacheBlk* blk)
         return decomp_lat;
     }
 
-    if (enableAdaptiveBypass && comp_blk && !comp_blk->isCompressed()) {
+    if ((enableAdaptiveBypass || enableMemPressureBypass) && comp_blk &&
+        !comp_blk->isCompressed()) {
         double observedRatio = (sampledCompressedBits > 0)
                                    ? ((double)sampledUncompressedBits /
                                       (double)sampledCompressedBits)
                                    : (latencyBreakevenThreshold + 1.0);
-        if (observedRatio < latencyBreakevenThreshold) {
+        double queuePressure = getMemQueuePressure();
+        if ((enableAdaptiveBypass &&
+             observedRatio < latencyBreakevenThreshold) ||
+            (enableMemPressureBypass &&
+             queuePressure >= memPressureThreshold)) {
             stats.bypassedDecompressions += 1;
         }
     }

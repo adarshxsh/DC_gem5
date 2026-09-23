@@ -100,6 +100,24 @@ class NoncoherentXBar : public BaseXBar
               queue(_xbar, *this)
         { }
 
+        double
+        getQueuePressure() const override
+        {
+            double max_p = 0.0;
+            for (const auto *port : xbar.memSidePorts) {
+                if (port) {
+                    max_p = std::max(max_p, port->getQueuePressure());
+                }
+            }
+            return max_p;
+        }
+
+        bool
+        isCongested() const override
+        {
+            return getQueuePressure() >= 0.8;
+        }
+
       protected:
 
         bool
