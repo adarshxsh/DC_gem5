@@ -98,6 +98,7 @@ Base::Base(const Params &p)
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
       cache(nullptr),
+      backpressureActive(false),
       stats(*this)
 {
     fatal_if(64 % chunkSizeBits,

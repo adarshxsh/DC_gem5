@@ -371,6 +371,10 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** Flag indicating whether writeback packet generation/release is paused
+     * due to backpressure. */
+    bool writebackPaused;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -642,6 +646,16 @@ class BaseCache : public ClockedObject
      * Handle doing the Compare and Swap function for SPARC.
      */
     void cmpAndSwap(CacheBlk *blk, PacketPtr pkt);
+
+    /**
+     * Handle backpressure signal from downstream memory port or packet queue.
+     */
+    void handleBackpressure(bool active);
+    bool
+    isWritebackPaused() const
+    {
+        return writebackPaused;
+    }
 
     /**
      * Return the next queue entry to service, either a pending miss

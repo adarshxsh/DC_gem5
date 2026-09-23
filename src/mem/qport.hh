@@ -98,6 +98,17 @@ class QueuedResponsePort : public ResponsePort
      * functional request. */
     bool trySatisfyFunctional(PacketPtr pkt)
     { return respQueue.trySatisfyFunctional(pkt); }
+
+    RespPacketQueue &
+    getRespQueue()
+    {
+        return respQueue;
+    }
+    const RespPacketQueue &
+    getRespQueue() const
+    {
+        return respQueue;
+    }
 };
 
 /**
@@ -165,6 +176,28 @@ class QueuedRequestPort : public RequestPort
     {
         return reqQueue.trySatisfyFunctional(pkt) ||
             snoopRespQueue.trySatisfyFunctional(pkt);
+    }
+
+    ReqPacketQueue &
+    getReqQueue()
+    {
+        return reqQueue;
+    }
+    const ReqPacketQueue &
+    getReqQueue() const
+    {
+        return reqQueue;
+    }
+
+    SnoopRespPacketQueue &
+    getSnoopRespQueue()
+    {
+        return snoopRespQueue;
+    }
+    const SnoopRespPacketQueue &
+    getSnoopRespQueue() const
+    {
+        return snoopRespQueue;
     }
 };
 
