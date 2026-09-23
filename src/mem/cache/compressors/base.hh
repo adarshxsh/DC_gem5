@@ -149,7 +149,7 @@ class Base : public SimObject
     const float memPressureThreshold;
 
     /** Pointer to associated memory controller for pressure feedback. */
-    memory::MemCtrl* memCtrl;
+    memory::MemCtrl *memCtrl;
 
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;

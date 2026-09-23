@@ -265,8 +265,16 @@ class MemCtrl : public qos::MemCtrl
         MemoryPort(const std::string& name, MemCtrl& _ctrl);
         void disableSanityCheck();
 
-        double getQueuePressure() const override { return ctrl.getQueuePressure(); }
-        bool isCongested() const override { return ctrl.isCongested(); }
+        double
+        getQueuePressure() const override
+        {
+            return ctrl.getQueuePressure();
+        }
+        bool
+        isCongested() const override
+        {
+            return ctrl.isCongested();
+        }
 
       protected:
 
@@ -686,20 +694,26 @@ class MemCtrl : public qos::MemCtrl
     MemCtrl(const MemCtrlParams &p);
 
     /**
-     * Compute normalized queue pressure ratio using read and write queue occupancy.
+     * Compute normalized queue pressure ratio using read and write queue
+     * occupancy.
      */
-    double getQueuePressure() const
+    double
+    getQueuePressure() const
     {
-        uint64_t total_capacity = (uint64_t)readBufferSize + (uint64_t)writeBufferSize;
-        if (total_capacity == 0)
+        uint64_t total_capacity =
+            (uint64_t)readBufferSize + (uint64_t)writeBufferSize;
+        if (total_capacity == 0) {
             return 0.0;
-        return (double)(totalReadQueueSize + totalWriteQueueSize) / (double)total_capacity;
+        }
+        return (double)(totalReadQueueSize + totalWriteQueueSize) /
+               (double)total_capacity;
     }
 
     /**
      * Check if memory controller queues are congested.
      */
-    bool isCongested() const
+    bool
+    isCongested() const
     {
         return getQueuePressure() >= 0.8;
     }

@@ -47,20 +47,19 @@ using namespace gem5::compression;
 class MockCompressor : public Base
 {
   public:
-    MockCompressor(const BaseCacheCompressorParams &p)
-        : Base(p)
-    {}
+    MockCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     double overridePressure = 0.0;
 
-    double getMemQueuePressure() const override
+    double
+    getMemQueuePressure() const override
     {
         return overridePressure;
     }
 
-    std::unique_ptr<CompressionData> compress(
-        const std::vector<Chunk>& chunks, Cycles& comp_lat,
-        Cycles& decomp_lat) override
+    std::unique_ptr<CompressionData>
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         comp_lat = Cycles(2);
         decomp_lat = Cycles(2);
@@ -69,8 +68,8 @@ class MockCompressor : public Base
         return comp_data;
     }
 
-    void decompress(const CompressionData* comp_data,
-                    uint64_t* cache_line) override
+    void
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
     {}
 };
 
@@ -104,7 +103,8 @@ TEST(BaseCompressorTest, MemPressureBypassTransitions)
     Cycles comp_lat(0);
     Cycles decomp_lat(0);
 
-    // Phase 1: Low memory pressure (0.20 < 0.75 threshold) -> Compression active (128 bits, 2 cycles)
+    // Phase 1: Low memory pressure (0.20 < 0.75 threshold) -> Compression
+    // active (128 bits, 2 cycles)
     test_comp->overridePressure = 0.20;
     comp_lat = Cycles(0);
     decomp_lat = Cycles(0);
@@ -112,14 +112,16 @@ TEST(BaseCompressorTest, MemPressureBypassTransitions)
     EXPECT_GT(comp_lat, Cycles(0));
     EXPECT_EQ(comp_data_low->getSizeBits(), 128);
 
-    // Phase 2: High memory pressure (0.80 >= 0.75 threshold) -> Compression bypassed (512 bits, 0 cycles)
+    // Phase 2: High memory pressure (0.80 >= 0.75 threshold) -> Compression
+    // bypassed (512 bits, 0 cycles)
     test_comp->overridePressure = 0.80;
     comp_lat = Cycles(0);
     decomp_lat = Cycles(0);
     auto comp_data_high = comp->compress(data, comp_lat, decomp_lat);
     EXPECT_EQ(comp_lat, Cycles(0));
     EXPECT_EQ(decomp_lat, Cycles(0));
-    EXPECT_EQ(comp_data_high->getSizeBits(), 64 * 8); // uncompressed size (512 bits)
+    EXPECT_EQ(comp_data_high->getSizeBits(),
+              64 * 8); // uncompressed size (512 bits)
 
     // Phase 3: Pressure relief (0.30 < 0.75 threshold) -> Compression resumes
     test_comp->overridePressure = 0.30;
@@ -160,7 +162,8 @@ TEST(BaseCompressorTest, MemPressureBypassDisabledBehavior)
     Cycles comp_lat(0);
     Cycles decomp_lat(0);
 
-    // Even with 95% queue pressure, when enable_mem_pressure_bypass = false, compression is NOT bypassed
+    // Even with 95% queue pressure, when enable_mem_pressure_bypass = false,
+    // compression is NOT bypassed
     test_comp->overridePressure = 0.95;
     auto comp_data = comp->compress(data, comp_lat, decomp_lat);
     EXPECT_GT(comp_lat, Cycles(0));

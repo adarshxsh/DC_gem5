@@ -1179,8 +1179,16 @@ class BaseCache : public ClockedObject
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
-    RequestPort &getMemSidePort() { return memSidePort; }
-    const RequestPort &getMemSidePort() const { return memSidePort; }
+    RequestPort &
+    getMemSidePort()
+    {
+        return memSidePort;
+    }
+    const RequestPort &
+    getMemSidePort() const
+    {
+        return memSidePort;
+    }
 
     /**
      * Query block size of a cache.

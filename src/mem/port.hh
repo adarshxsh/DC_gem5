@@ -407,12 +407,20 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
     /**
      * Query memory queue pressure ratio from downstream memory controller.
      */
-    virtual double getQueuePressure() const { return 0.0; }
+    virtual double
+    getQueuePressure() const
+    {
+        return 0.0;
+    }
 
     /**
      * Check if downstream memory controller is congested.
      */
-    virtual bool isCongested() const { return false; }
+    virtual bool
+    isCongested() const
+    {
+        return false;
+    }
 
   public:
     /* The atomic protocol. */
@@ -571,13 +579,15 @@ class [[deprecated]] SlavePort : public ResponsePort
 inline double
 RequestPort::getQueuePressure() const
 {
-    return (_responsePort && isConnected()) ? _responsePort->getQueuePressure() : 0.0;
+    return (_responsePort && isConnected()) ? _responsePort->getQueuePressure()
+                                            : 0.0;
 }
 
 inline bool
 RequestPort::isCongested() const
 {
-    return (_responsePort && isConnected()) ? _responsePort->isCongested() : false;
+    return (_responsePort && isConnected()) ? _responsePort->isCongested()
+                                            : false;
 }
 
 inline Tick

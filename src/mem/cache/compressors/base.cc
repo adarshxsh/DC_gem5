@@ -203,17 +203,17 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 
         stats.bypassedCompressions++;
         if (shouldMemPressureBypass) {
-            DPRINTF(
-                CacheComp,
-                "Memory pressure bypass active (pressure: %.4f >= threshold: %.4f). "
-                "Bypassing compression.\n",
-                queuePressure, memPressureThreshold);
+            DPRINTF(CacheComp,
+                    "Memory pressure bypass active (pressure: %.4f >= "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    queuePressure, memPressureThreshold);
         } else {
-            DPRINTF(
-                CacheComp,
-                "Adaptive bypass active (observed ratio: %.4f < threshold: %.4f). "
-                "Bypassing compression.\n",
-                observedRatio, latencyBreakevenThreshold);
+            DPRINTF(CacheComp,
+                    "Adaptive bypass active (observed ratio: %.4f < "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    observedRatio, latencyBreakevenThreshold);
         }
         return comp_data;
     }
@@ -268,8 +268,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         comp_data->setSizeBits(blkSize * CHAR_BIT);
         stats.bypassedCompressions++;
         if (shouldMemPressureBypass) {
-            DPRINTF(CacheComp, "Memory pressure bypass active (pressure: %.4f >= threshold: %.4f). "
-                               "Bypassing compression.\n",
+            DPRINTF(CacheComp,
+                    "Memory pressure bypass active (pressure: %.4f >= "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
                     queuePressure, memPressureThreshold);
         } else {
             DPRINTF(CacheComp, "Adaptive bypass active (sampled request). "
@@ -311,14 +313,17 @@ Base::getDecompressionLatency(const CacheBlk* blk)
         return decomp_lat;
     }
 
-    if ((enableAdaptiveBypass || enableMemPressureBypass) && comp_blk && !comp_blk->isCompressed()) {
+    if ((enableAdaptiveBypass || enableMemPressureBypass) && comp_blk &&
+        !comp_blk->isCompressed()) {
         double observedRatio = (sampledCompressedBits > 0)
                                    ? ((double)sampledUncompressedBits /
                                       (double)sampledCompressedBits)
                                    : (latencyBreakevenThreshold + 1.0);
         double queuePressure = getMemQueuePressure();
-        if ((enableAdaptiveBypass && observedRatio < latencyBreakevenThreshold) ||
-            (enableMemPressureBypass && queuePressure >= memPressureThreshold)) {
+        if ((enableAdaptiveBypass &&
+             observedRatio < latencyBreakevenThreshold) ||
+            (enableMemPressureBypass &&
+             queuePressure >= memPressureThreshold)) {
             stats.bypassedDecompressions += 1;
         }
     }
