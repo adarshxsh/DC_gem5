@@ -237,9 +237,47 @@ class Base : public SimObject
                               uint64_t* cache_line) = 0;
 
   public:
+    enum MemoryPressureState
+    {
+        PRESSURE_NONE = 0,
+        PRESSURE_MODERATE = 1,
+        PRESSURE_HIGH = 2
+    };
+
+  protected:
+    MemoryPressureState memPressureState = PRESSURE_NONE;
+    uint32_t memPressureControlRegister = 0;
+
+  public:
     typedef BaseCacheCompressorParams Params;
     Base(const Params &p);
     virtual ~Base() = default;
+
+    void
+    setMemoryPressure(bool moderate, bool high)
+    {
+        if (high) {
+            memPressureState = PRESSURE_HIGH;
+            memPressureControlRegister = 2;
+        } else if (moderate) {
+            memPressureState = PRESSURE_MODERATE;
+            memPressureControlRegister = 1;
+        } else {
+            memPressureState = PRESSURE_NONE;
+            memPressureControlRegister = 0;
+        }
+    }
+
+    MemoryPressureState
+    getMemoryPressureState() const
+    {
+        return memPressureState;
+    }
+    uint32_t
+    getMemoryPressureControlRegister() const
+    {
+        return memPressureControlRegister;
+    }
 
     /** The cache can only be set once. */
     virtual void setCache(BaseCache *_cache);

@@ -385,6 +385,13 @@ class MemCtrl : public qos::MemCtrl
                                                 MemInterface* mem_intr);
 
     /**
+     * Annotate a timing response packet with memory queue pressure flags.
+     *
+     * @param pkt The response packet to annotate
+     */
+    void annotateResponsePressure(PacketPtr pkt);
+
+    /**
      * Determine if there is a packet that can issue.
      *
      * @param pkt The packet to evaluate
@@ -515,6 +522,8 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    const uint32_t minPressureThreshPerc;
+    const uint32_t highPressureThreshPerc;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
