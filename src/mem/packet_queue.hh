@@ -169,7 +169,11 @@ class PacketQueue : public Drainable
     /**
      * Check if the queue is waiting on a retry.
      */
-    bool isWaitingRetry() const { return waitingOnRetry; }
+    bool
+    isWaitingRetry() const
+    {
+        return waitingOnRetry;
+    }
 
     /**
      * Get the next packet ready time.

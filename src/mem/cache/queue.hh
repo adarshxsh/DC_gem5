@@ -147,7 +147,8 @@ class Queue : public Drainable, public Named
         return allocated == 0;
     }
 
-    int numAllocated() const
+    int
+    numAllocated() const
     {
         return allocated;
     }

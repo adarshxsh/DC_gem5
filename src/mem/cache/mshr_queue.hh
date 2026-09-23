@@ -154,7 +154,8 @@ class MSHRQueue : public Queue<MSHR>
     /**
      * Returns true if sufficient mshrs and queue capacity for prefetch.
      * @param write_buf_alloc Number of allocated write buffer entries.
-     * @param mem_side_retry True if downstream memory port is waiting for retry.
+     * @param mem_side_retry True if downstream memory port is waiting for
+     * retry.
      * @param decomp_lat Decompression latency of compressed cache.
      * @return True if sufficient mshrs and queue headroom for prefetch.
      */

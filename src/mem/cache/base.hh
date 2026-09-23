@@ -249,7 +249,11 @@ class BaseCache : public ClockedObject
                     const std::string &_label);
 
         /** Check if the request queue is waiting on a retry from memory. */
-        bool isWaitingRetry() const { return _reqQueue.isWaitingRetry(); }
+        bool
+        isWaitingRetry() const
+        {
+            return _reqQueue.isWaitingRetry();
+        }
     };
 
     /**

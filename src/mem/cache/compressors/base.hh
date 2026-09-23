@@ -259,7 +259,11 @@ class Base : public SimObject
     /**
      * Get the decompression extra latency.
      */
-    Cycles getDecompExtraLatency() const { return decompExtraLatency; }
+    Cycles
+    getDecompExtraLatency() const
+    {
+        return decompExtraLatency;
+    }
 
     /**
      * Get the decompression latency if the block is compressed. Latency is 0

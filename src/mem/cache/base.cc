@@ -659,11 +659,13 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
             // Request the bus for a prefetch if this deallocation freed enough
             // MSHRs for a prefetch to take place
-            const Cycles decomp_lat = compressor ?
-                compressor->getDecompExtraLatency() : Cycles(0);
-            if (prefetcher && mshrQueue.canPrefetch(writeBuffer.numAllocated(),
-                                                   memSidePort.isWaitingRetry(),
-                                                   decomp_lat) && !isBlocked()) {
+            const Cycles decomp_lat =
+                compressor ? compressor->getDecompExtraLatency() : Cycles(0);
+            if (prefetcher &&
+                mshrQueue.canPrefetch(writeBuffer.numAllocated(),
+                                      memSidePort.isWaitingRetry(),
+                                      decomp_lat) &&
+                !isBlocked()) {
                 Tick next_pf_time = std::max(
                     prefetcher->nextPrefetchReadyTime(), clockEdge());
                 if (next_pf_time != MaxTick)
@@ -957,11 +959,12 @@ BaseCache::getNextQueueEntry()
 
     // fall through... no pending requests.  Try a prefetch.
     assert(!miss_mshr && !wq_entry);
-    const Cycles decomp_lat = compressor ?
-        compressor->getDecompExtraLatency() : Cycles(0);
-    if (prefetcher && mshrQueue.canPrefetch(writeBuffer.numAllocated(),
-                                           memSidePort.isWaitingRetry(),
-                                           decomp_lat) && !isBlocked()) {
+    const Cycles decomp_lat =
+        compressor ? compressor->getDecompExtraLatency() : Cycles(0);
+    if (prefetcher &&
+        mshrQueue.canPrefetch(writeBuffer.numAllocated(),
+                              memSidePort.isWaitingRetry(), decomp_lat) &&
+        !isBlocked()) {
         // If we have a miss queue slot, we can try a prefetch
         PacketPtr pkt = prefetcher->getPacket();
         if (pkt) {
@@ -2014,11 +2017,12 @@ BaseCache::nextQueueReadyTime() const
 
     // Don't signal prefetch ready time if no MSHRs available
     // Will signal once enoguh MSHRs are deallocated
-    const Cycles decomp_lat = compressor ?
-        compressor->getDecompExtraLatency() : Cycles(0);
-    if (prefetcher && mshrQueue.canPrefetch(writeBuffer.numAllocated(),
-                                           memSidePort.isWaitingRetry(),
-                                           decomp_lat) && !isBlocked()) {
+    const Cycles decomp_lat =
+        compressor ? compressor->getDecompExtraLatency() : Cycles(0);
+    if (prefetcher &&
+        mshrQueue.canPrefetch(writeBuffer.numAllocated(),
+                              memSidePort.isWaitingRetry(), decomp_lat) &&
+        !isBlocked()) {
         nextReady = std::min(nextReady,
                              prefetcher->nextPrefetchReadyTime());
     }
