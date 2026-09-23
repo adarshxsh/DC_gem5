@@ -84,10 +84,10 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
     }
 
     // 2. Non-zero block
-    uint64_t non_zero_data[8] = {0x1234567891011121ULL, 0x1314151617181920ULL,
-                                 0x2122232425262728ULL, 0x2930313233343536ULL,
-                                 0x3738394041424344ULL, 0x4546474849505152ULL,
-                                 0x5354555657585960ULL, 0x6162636465666768ULL};
+    uint64_t non_zero_data[8] = {0x0000000100000002ULL, 0x0000000300000004ULL,
+                                 0x0000000500000006ULL, 0x0000000700000008ULL,
+                                 0x000000090000000aULL, 0x0000000b0000000cULL,
+                                 0x0000000d0000000eULL, 0x0000000f00000010ULL};
     comp_data = compressor.compress(non_zero_data, comp_lat, decomp_lat);
 
     // Decompression latency for non-zero block retains standard calculated
@@ -149,10 +149,10 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
     }
 
     // 2. Non-zero block
-    uint64_t non_zero_data[8] = {0x1234567891011121ULL, 0x1314151617181920ULL,
-                                 0x2122232425262728ULL, 0x2930313233343536ULL,
-                                 0x3738394041424344ULL, 0x4546474849505152ULL,
-                                 0x5354555657585960ULL, 0x6162636465666768ULL};
+    uint64_t non_zero_data[8] = {0x0000000100000002ULL, 0x0000000300000004ULL,
+                                 0x0000000500000006ULL, 0x0000000700000008ULL,
+                                 0x000000090000000aULL, 0x0000000b0000000cULL,
+                                 0x0000000d0000000eULL, 0x0000000f00000010ULL};
     comp_data = compressor.compress(non_zero_data, comp_lat, decomp_lat);
 
     // Standard decompression latency for FPC: 1 + (16 / 4) = 5 cycles
@@ -191,3 +191,39 @@ TEST(DictionaryCompressorTest, DeltaPatternAsymmetricNegativeBound)
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_pos_bytes, base_bytes));
 }
 
+TEST(BaseCompressorThrottlingTest, AdaptiveBypassFlagSetting)
+{
+    CPackParams p{};
+    p.name = "cpack_bypass_test";
+    p.block_size = 64;
+    p.chunk_size_bits = 32;
+    p.dictionary_size = 16;
+    p.comp_chunks_per_cycle = 2;
+    p.comp_extra_latency = Cycles(0);
+    p.decomp_chunks_per_cycle = 2;
+    p.decomp_extra_latency = Cycles(0);
+    p.enable_adaptive_bypass = true;
+    p.latency_breakeven_threshold = 2.0; // requires >= 2.0 compression ratio
+    p.sampling_interval = 1;
+    p.decay_shift = 1;
+
+    TestCPack compressor(p);
+    compressor.regStats();
+    EXPECT_FALSE(compressor.isAdaptiveBypassActive());
+
+    Cycles comp_lat(0), decomp_lat(0);
+    uint64_t uncompressible_data[8] = {
+        0x1234567891011121ULL, 0x1314151617181920ULL, 0x2122232425262728ULL,
+        0x2930313233343536ULL, 0x3738394041424344ULL, 0x4546474849505152ULL,
+        0x5354555657585960ULL, 0x6162636465666768ULL};
+
+    // First compress call updates sampled statistics
+    auto comp_data =
+        compressor.compress(uncompressible_data, comp_lat, decomp_lat);
+    // Second compress call evaluates shouldBypass and sets
+    // adaptiveBypassActive flag
+    comp_data = compressor.compress(uncompressible_data, comp_lat, decomp_lat);
+
+    EXPECT_TRUE(compressor.isAdaptiveBypassActive());
+    EXPECT_TRUE(compressor.hasCapacityPressure());
+}

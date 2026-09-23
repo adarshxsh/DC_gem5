@@ -49,7 +49,7 @@ Source('zero.cc')
 
 GTest('dictionary_compressor.test', 'dictionary_compressor.test.cc',
       'base.cc', 'base_dictionary_compressor.cc', 'cpack.cc', 'fpc.cc',
-      '#src/base/logging.cc', '#src/base/hostinfo.cc',
+      '#src/base/hostinfo.cc',
       '#src/mem/cache/tags/super_blk.cc', '#src/mem/cache/tags/sector_blk.cc',
       '#src/base/statistics.cc', '#src/base/stats/info.cc',
       '#src/base/stats/storage.cc', '#src/base/stats/text.cc',

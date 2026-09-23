@@ -136,6 +136,11 @@ class CompressedTags : public SectorTags
     bool anyBlk(std::function<bool(CacheBlk &)> visitor) override;
 
     /**
+     * Check if compressed tag store is experiencing capacity pressure.
+     */
+    bool hasCapacityPressure() const override;
+
+    /**
      * Check tag store invariants for compressed tags and superblocks.
      *
      * @return True if all invariants hold.

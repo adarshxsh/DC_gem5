@@ -236,6 +236,21 @@ CompressedTags::anyBlk(std::function<bool(CacheBlk &)> visitor)
 }
 
 bool
+CompressedTags::hasCapacityPressure() const
+{
+    if (superBlks.empty()) {
+        return SectorTags::hasCapacityPressure();
+    }
+    unsigned valid_superblks = 0;
+    for (const auto &sb : superBlks) {
+        if (sb.isValid()) {
+            valid_superblks++;
+        }
+    }
+    return ((double)valid_superblks / superBlks.size()) >= 0.90;
+}
+
+bool
 CompressedTags::checkInvariants() const
 {
     SectorTags::checkInvariants();

@@ -231,6 +231,16 @@ class BaseTags : public ClockedObject
     }
 
     /**
+     * Check if tag store is experiencing high capacity pressure or sector
+     * utilization limit.
+     */
+    virtual bool
+    hasCapacityPressure() const
+    {
+        return false;
+    }
+
+    /**
      * Limit the allocation for the cache ways.
      * @param ways The maximum number of ways available for replacement.
      */
