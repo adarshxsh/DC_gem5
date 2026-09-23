@@ -181,6 +181,12 @@ class Base : public SimObject
         /** Number of decompressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedDecompressions;
 
+        /** Number of decompressions bypassed due to queue congestion. */
+        statistics::Scalar queueCongestionBypassedDecompressions;
+
+        /** Number of decompression cycles bypassed due to queue congestion. */
+        statistics::Scalar queueCongestionBypassedCycles;
+
         /** Number of compression attempts sampled. */
         statistics::Scalar sampledCompressions;
 
@@ -263,6 +269,34 @@ class Base : public SimObject
      * @param blk The compressed block.
      */
     Cycles getDecompressionLatency(const CacheBlk* blk);
+
+    /**
+     * Record a decompression latency bypass due to memory queue congestion.
+     *
+     * @param cycles Decompression latency cycles bypassed.
+     */
+    void incQueueCongestionBypassed(Cycles cycles);
+
+    /** Get total bypassed decompressions count. */
+    uint64_t
+    getBypassedDecompressions() const
+    {
+        return stats.bypassedDecompressions.value();
+    }
+
+    /** Get queue congestion bypassed decompressions count. */
+    uint64_t
+    getQueueCongestionBypassedDecompressions() const
+    {
+        return stats.queueCongestionBypassedDecompressions.value();
+    }
+
+    /** Get queue congestion bypassed cycles count. */
+    uint64_t
+    getQueueCongestionBypassedCycles() const
+    {
+        return stats.queueCongestionBypassedCycles.value();
+    }
 
     /**
      * Set the decompression latency of compressed block.
