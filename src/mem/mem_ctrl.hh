@@ -63,6 +63,11 @@
 namespace gem5
 {
 
+namespace compression
+{
+class Base;
+}
+
 namespace memory
 {
 
@@ -259,6 +264,9 @@ class MemCtrl : public qos::MemCtrl
 
         MemoryPort(const std::string& name, MemCtrl& _ctrl);
         void disableSanityCheck();
+
+        double getQueuePressure() const override { return ctrl.getQueuePressure(); }
+        bool isCongested() const override { return ctrl.isCongested(); }
 
       protected:
 
@@ -676,6 +684,25 @@ class MemCtrl : public qos::MemCtrl
   public:
 
     MemCtrl(const MemCtrlParams &p);
+
+    /**
+     * Compute normalized queue pressure ratio using read and write queue occupancy.
+     */
+    double getQueuePressure() const
+    {
+        uint64_t total_capacity = (uint64_t)readBufferSize + (uint64_t)writeBufferSize;
+        if (total_capacity == 0)
+            return 0.0;
+        return (double)(totalReadQueueSize + totalWriteQueueSize) / (double)total_capacity;
+    }
+
+    /**
+     * Check if memory controller queues are congested.
+     */
+    bool isCongested() const
+    {
+        return getQueuePressure() >= 0.8;
+    }
 
     /**
      * Ensure that all interfaced have drained commands
