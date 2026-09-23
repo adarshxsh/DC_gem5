@@ -165,7 +165,8 @@ class CompressedTags(SectorTags):
         False, "Enable write queue backpressure guard for co-allocation"
     )
     write_queue_high_threshold = Param.Unsigned(
-        32, "Write queue occupancy threshold above which co-allocation is throttled"
+        32,
+        "Write queue occupancy threshold above which co-allocation is throttled",
     )
 
 
