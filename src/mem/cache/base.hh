@@ -247,6 +247,9 @@ class BaseCache : public ClockedObject
 
         MemSidePort(const std::string &_name, BaseCache *_cache,
                     const std::string &_label);
+
+        /** Check if the request queue is waiting on a retry from memory. */
+        bool isWaitingRetry() const { return _reqQueue.isWaitingRetry(); }
     };
 
     /**

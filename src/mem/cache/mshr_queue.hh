@@ -152,15 +152,14 @@ class MSHRQueue : public Queue<MSHR>
     }
 
     /**
-     * Returns true if sufficient mshrs for prefetch.
-     * @return True if sufficient mshrs for prefetch.
+     * Returns true if sufficient mshrs and queue capacity for prefetch.
+     * @param write_buf_alloc Number of allocated write buffer entries.
+     * @param mem_side_retry True if downstream memory port is waiting for retry.
+     * @param decomp_lat Decompression latency of compressed cache.
+     * @return True if sufficient mshrs and queue headroom for prefetch.
      */
-    bool canPrefetch() const
-    {
-        // @todo we may want to revisit the +1, currently added to
-        // keep regressions unchanged
-        return (allocated < numEntries - (numReserve + 1 + demandReserve));
-    }
+    bool canPrefetch(int write_buf_alloc = 0, bool mem_side_retry = false,
+                     Cycles decomp_lat = Cycles(0)) const;
 };
 
 } // namespace gem5
