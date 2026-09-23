@@ -371,6 +371,13 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** Threshold percentage of MSHR or write queue occupancy to consider
+     * queues saturated */
+    const double queueSaturationThreshold;
+
+    /** Check if downstream MSHR or write queues are saturated. */
+    bool isQueueSaturated() const;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 

@@ -82,19 +82,20 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      queueSaturationThreshold(p.queue_saturation_threshold / 100.0),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -147,6 +148,16 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
 BaseCache::~BaseCache()
 {
     delete tempBlock;
+}
+
+bool
+BaseCache::isQueueSaturated() const
+{
+    if (queueSaturationThreshold >= 1.0) {
+        return mshrQueue.isFull() || writeBuffer.isFull();
+    }
+    return (mshrQueue.occupancy() >= queueSaturationThreshold) ||
+           (writeBuffer.occupancy() >= queueSaturationThreshold);
 }
 
 void
@@ -1610,7 +1621,14 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // When a block is compressed, it must first be decompressed
             // before being read. This adds to the access latency.
             if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
+                Cycles decomp_lat = compressor->getDecompressionLatency(blk);
+                if (decomp_lat > 0) {
+                    if (isQueueSaturated()) {
+                        compressor->incQueueCongestionBypassed(decomp_lat);
+                    } else {
+                        lat += decomp_lat;
+                    }
+                }
             }
         } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
@@ -1743,8 +1761,14 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         updateBlockData(blk, pkt, has_old_data);
     }
     // The block will be ready when the payload arrives and the fill is done
+    Tick payload_delay = pkt->payloadDelay;
+    if (compressor && isQueueSaturated() && payload_delay > 0) {
+        compressor->incQueueCongestionBypassed(ticksToCycles(payload_delay));
+        payload_delay = 0;
+        pkt->payloadDelay = 0;
+    }
     blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
-                      pkt->payloadDelay);
+                      payload_delay);
 
     return blk;
 }

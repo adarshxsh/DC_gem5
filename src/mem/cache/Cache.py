@@ -116,6 +116,10 @@ class BaseCache(ClockedObject):
     )
 
     compressor = Param.BaseCacheCompressor(NULL, "Cache compressor.")
+    queue_saturation_threshold = Param.Percent(
+        80,
+        "Queue occupancy threshold percentage (0-100) above which decompression latency is bypassed under queue congestion",
+    )
     replace_expansions = Param.Bool(
         True,
         "Apply replacement policy to "

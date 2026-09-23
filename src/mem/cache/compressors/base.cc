@@ -290,6 +290,16 @@ Base::getDecompressionLatency(const CacheBlk* blk)
 }
 
 void
+Base::incQueueCongestionBypassed(Cycles cycles)
+{
+    if (cycles > 0) {
+        stats.bypassedDecompressions += 1;
+        stats.queueCongestionBypassedDecompressions += 1;
+        stats.queueCongestionBypassedCycles += cycles;
+    }
+}
+
+void
 Base::setDecompressionLatency(CacheBlk* blk, const Cycles lat)
 {
     // Sanity check
@@ -331,6 +341,12 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of bypassed compressions"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
+      ADD_STAT(queueCongestionBypassedDecompressions,
+               statistics::units::Count::get(),
+               "Number of decompressions bypassed due to queue congestion"),
+      ADD_STAT(
+          queueCongestionBypassedCycles, statistics::units::Cycle::get(),
+          "Number of decompression cycles bypassed due to queue congestion"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),
                "Total number of sampled compressions"),
       ADD_STAT(sampledUncompressedBits, statistics::units::Bit::get(),
