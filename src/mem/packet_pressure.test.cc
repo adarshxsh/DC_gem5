@@ -7,6 +7,7 @@
 
 #include "mem/cache/compressors/base.hh"
 #include "mem/packet.hh"
+#include "params/BaseCacheCompressor.hh"
 
 namespace gem5
 {
@@ -63,7 +64,8 @@ TEST(PacketPressureTest, CopyResponderFlags)
 class TestCompressor : public compression::Base
 {
   public:
-    TestCompressor() : compression::Base(nullptr) {}
+    TestCompressor(const BaseCacheCompressorParams &p) : compression::Base(p)
+    {}
 
     std::unique_ptr<CompressionData>
     compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
@@ -79,7 +81,21 @@ class TestCompressor : public compression::Base
 
 TEST(PacketPressureTest, CacheCompressorPolicyReaction)
 {
-    TestCompressor compressor;
+    BaseCacheCompressorParams p{};
+    p.name = "test_compressor";
+    p.block_size = 64;
+    p.chunk_size_bits = 32;
+    p.comp_chunks_per_cycle = 1;
+    p.comp_extra_latency = Cycles(1);
+    p.decomp_chunks_per_cycle = 1;
+    p.decomp_extra_latency = Cycles(1);
+    p.size_threshold_percentage = 50;
+    p.enable_adaptive_bypass = false;
+    p.latency_breakeven_threshold = 1.0;
+    p.sampling_interval = 100;
+    p.decay_shift = 4;
+
+    TestCompressor compressor(p);
 
     EXPECT_EQ(compression::Base::PRESSURE_NONE,
               compressor.getMemoryPressureState());
