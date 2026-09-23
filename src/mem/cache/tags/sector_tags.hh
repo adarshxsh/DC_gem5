@@ -192,6 +192,11 @@ class SectorTags : public BaseTags
                          bool is_prefetch = false) override;
 
     /**
+     * Check if sector tag store is experiencing capacity pressure.
+     */
+    bool hasCapacityPressure() const override;
+
+    /**
      * Calculate a block's offset in a sector from the address.
      *
      * @param addr The address to get the offset from.

@@ -1082,6 +1082,9 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
             // there is a snoop hit in upper levels
             Packet snoopPkt(pkt, true, true);
             snoopPkt.setExpressSnoop();
+            if (hasCompressionPressure()) {
+                snoopPkt.setCompressionPressure();
+            }
             // the snoop packet does not need to wait any additional
             // time
             snoopPkt.headerDelay = snoopPkt.payloadDelay = 0;
@@ -1109,6 +1112,9 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
             pkt->copyResponderFlags(&snoopPkt);
         } else {
             bool already_responded = pkt->cacheResponding();
+            if (hasCompressionPressure()) {
+                pkt->setCompressionPressure();
+            }
             cpuSidePort.sendAtomicSnoop(pkt);
             if (!already_responded && pkt->cacheResponding()) {
                 // cache-to-cache response from some upper cache:
@@ -1405,6 +1411,9 @@ Cache::isCachedAbove(PacketPtr pkt, bool is_timing)
     if (is_timing) {
         Packet snoop_pkt(pkt, true, false);
         snoop_pkt.setExpressSnoop();
+        if (hasCompressionPressure()) {
+            snoop_pkt.setCompressionPressure();
+        }
         // Assert that packet is either Writeback or CleanEvict and not a
         // prefetch request because prefetch requests need an MSHR and may
         // generate a snoop response.
@@ -1415,6 +1424,9 @@ Cache::isCachedAbove(PacketPtr pkt, bool is_timing)
         assert(!(snoop_pkt.cacheResponding()));
         return snoop_pkt.isBlockCached();
     } else {
+        if (hasCompressionPressure()) {
+            pkt->setCompressionPressure();
+        }
         cpuSidePort.sendAtomicSnoop(pkt);
         return pkt->isBlockCached();
     }
@@ -1442,6 +1454,9 @@ Cache::sendMSHRQueuePacket(MSHR* mshr)
         // dirty one.
         Packet snoop_pkt(tgt_pkt, true, false);
         snoop_pkt.setExpressSnoop();
+        if (hasCompressionPressure()) {
+            snoop_pkt.setCompressionPressure();
+        }
         // We are sending this packet upwards, but if it hits we will
         // get a snoop response that we end up treating just like a
         // normal response, hence it needs the MSHR as its sender

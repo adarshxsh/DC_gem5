@@ -389,6 +389,20 @@ SectorTags::SectorTagsStats::regStats()
 }
 
 bool
+SectorTags::hasCapacityPressure() const
+{
+    if (numSectors == 0)
+        return false;
+    unsigned valid_sectors = 0;
+    for (const auto &sec_blk : secBlks) {
+        if (sec_blk.isValid()) {
+            valid_sectors++;
+        }
+    }
+    return ((double)valid_sectors / numSectors) >= 0.90;
+}
+
+bool
 SectorTags::anyBlk(std::function<bool(CacheBlk &)> visitor)
 {
     for (SectorSubBlk& blk : blks) {

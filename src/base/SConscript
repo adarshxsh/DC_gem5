@@ -56,7 +56,7 @@ Source('inet.cc')
 Source('inifile.cc', tags=['gem5 serialize'])
 GTest('inifile.test', 'inifile.test.cc', 'inifile.cc', 'str.cc')
 GTest('intmath.test', 'intmath.test.cc')
-Source('logging.cc')
+Source('logging.cc', tags=['gem5 simobject'])
 GTest('logging.test', 'logging.test.cc', 'logging.cc', 'hostinfo.cc',
     'cprintf.cc', 'gtest/logging.cc', skip_lib=True)
 Source('match.cc', tags=['gem5 simobject', 'gem5 trace'])

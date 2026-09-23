@@ -146,6 +146,12 @@ class Base : public SimObject
     /** Total compressed bits of sampled blocks. */
     uint64_t sampledCompressedBits;
 
+    /** Whether adaptive bypass is currently active. */
+    bool adaptiveBypassActive;
+
+    /** Internal capacity pressure state flag. */
+    bool capacityPressureState;
+
     /** Pointer to the parent cache. */
     BaseCache* cache;
 
@@ -279,6 +285,21 @@ class Base : public SimObject
      * @param size_bits The block size.
      */
     static void setSizeBits(CacheBlk* blk, const std::size_t size_bits);
+
+    /**
+     * Check if adaptive compression bypass is currently active.
+     */
+    bool isAdaptiveBypassActive() const { return adaptiveBypassActive; }
+
+    /**
+     * Check if compressor is experiencing capacity pressure.
+     */
+    bool hasCapacityPressure() const { return adaptiveBypassActive || capacityPressureState; }
+
+    /**
+     * Set capacity pressure flag manually if required.
+     */
+    void setCapacityPressure(bool val) { capacityPressureState = val; }
 };
 
 class Base::CompressionData

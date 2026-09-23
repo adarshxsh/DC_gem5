@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -559,3 +560,32 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST(PacketCompressionPressureTest, FlagOperations)
+{
+    RequestPtr req = std::make_shared<Request>(0x1000, 64, 0, 0);
+    Packet pkt(req, MemCmd::ReadReq);
+
+    ASSERT_FALSE(pkt.hasCompressionPressure());
+
+    pkt.setCompressionPressure();
+    ASSERT_TRUE(pkt.hasCompressionPressure());
+
+    pkt.clearCompressionPressure();
+    ASSERT_FALSE(pkt.hasCompressionPressure());
+}
+
+TEST(PacketCompressionPressureTest, SnoopPacketFlagInheritance)
+{
+    RequestPtr req = std::make_shared<Request>(0x2000, 64, 0, 0);
+    Packet pkt(req, MemCmd::WritebackDirty);
+    pkt.setCompressionPressure();
+
+    Packet snoopPkt(&pkt, true, false);
+    snoopPkt.setExpressSnoop();
+    snoopPkt.setCompressionPressure();
+
+    ASSERT_TRUE(snoopPkt.isExpressSnoop());
+    ASSERT_TRUE(snoopPkt.hasCompressionPressure());
+}
+

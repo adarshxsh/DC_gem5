@@ -571,6 +571,21 @@ class BaseCache : public ClockedObject
                                     CacheBlk *blk, PacketList &writebacks) = 0;
 
     /**
+     * Check if this cache is experiencing compression/capacity pressure.
+     */
+    virtual bool hasCompressionPressure() const;
+
+    /**
+     * Check if downstream cache signaled compression pressure to this cache.
+     */
+    bool isDownstreamCompressionPressureActive() const { return downstreamCompressionPressure; }
+
+    /**
+     * Update downstream compression pressure from incoming packet.
+     */
+    void updateDownstreamCompressionPressure(const PacketPtr pkt);
+
+    /**
      * Handles a response (cache line fill/write ack) from the bus.
      * @param pkt The response packet
      */
@@ -943,6 +958,9 @@ class BaseCache : public ClockedObject
 
     /** Do we forward snoops from mem side port through to cpu side port? */
     bool forwardSnoops;
+
+    /** Indicates whether downstream (L2) cache has signaled compression pressure. */
+    bool downstreamCompressionPressure = false;
 
     /**
      * Clusivity with respect to the upstream cache, determining if we

@@ -97,6 +97,8 @@ Base::Base(const Params &p)
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
+      adaptiveBypassActive(false),
+      capacityPressureState(false),
       cache(nullptr),
       stats(*this)
 {
@@ -171,6 +173,7 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 
     bool shouldBypass =
         enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+    adaptiveBypassActive = shouldBypass;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =

@@ -902,6 +902,26 @@ BaseCache::cmpAndSwap(CacheBlk *blk, PacketPtr pkt)
     }
 }
 
+bool
+BaseCache::hasCompressionPressure() const
+{
+    if (compressor && (compressor->isAdaptiveBypassActive() || compressor->hasCapacityPressure())) {
+        return true;
+    }
+    if (tags && tags->hasCapacityPressure()) {
+        return true;
+    }
+    return false;
+}
+
+void
+BaseCache::updateDownstreamCompressionPressure(const PacketPtr pkt)
+{
+    if (pkt) {
+        downstreamCompressionPressure = pkt->hasCompressionPressure();
+    }
+}
+
 QueueEntry*
 BaseCache::getNextQueueEntry()
 {
@@ -911,9 +931,18 @@ BaseCache::getNextQueueEntry()
     MSHR *miss_mshr  = mshrQueue.getNext();
     WriteQueueEntry *wq_entry = writeBuffer.getNext();
 
+    bool is_non_essential_wb = wq_entry && wq_entry->getTarget() &&
+        wq_entry->getTarget()->pkt &&
+        (wq_entry->getTarget()->pkt->cmd == MemCmd::WritebackDirty ||
+         wq_entry->getTarget()->pkt->cmd == MemCmd::WritebackClean);
+
+    bool throttle_wb = is_non_essential_wb &&
+                       isDownstreamCompressionPressureActive() &&
+                       !writeBuffer.isFull();
+
     // If we got a write buffer request ready, first priority is a
     // full write buffer, otherwise we favour the miss requests
-    if (wq_entry && (writeBuffer.isFull() || !miss_mshr)) {
+    if (wq_entry && (writeBuffer.isFull() || !miss_mshr) && !throttle_wb) {
         // need to search MSHR queue for conflicting earlier miss.
         MSHR *conflict_mshr = mshrQueue.findPending(wq_entry);
 
@@ -2697,6 +2726,8 @@ BaseCache::CpuSidePort::recvTimingSnoopResp(PacketPtr pkt)
 
     assert(pkt->isResponse());
 
+    cache.updateDownstreamCompressionPressure(pkt);
+
     // Express snoop responses from requestor to responder, e.g., from L1 to L2
     cache.recvTimingSnoopResp(pkt);
     return true;
@@ -2783,6 +2814,7 @@ CpuSidePort::CpuSidePort(const std::string &_name, BaseCache& _cache,
 bool
 BaseCache::MemSidePort::recvTimingResp(PacketPtr pkt)
 {
+    cache->updateDownstreamCompressionPressure(pkt);
     cache->recvTimingResp(pkt);
     return true;
 }
@@ -2794,6 +2826,8 @@ BaseCache::MemSidePort::recvTimingSnoopReq(PacketPtr pkt)
     // Snoops shouldn't happen when bypassing caches
     assert(!cache->system->bypassCaches());
 
+    cache->updateDownstreamCompressionPressure(pkt);
+
     // handle snooping requests
     cache->recvTimingSnoopReq(pkt);
 }
@@ -2803,6 +2837,8 @@ BaseCache::MemSidePort::recvAtomicSnoop(PacketPtr pkt)
 {
     // Snoops shouldn't happen when bypassing caches
     assert(!cache->system->bypassCaches());
+
+    cache->updateDownstreamCompressionPressure(pkt);
 
     return cache->recvAtomicSnoop(pkt);
 }

@@ -360,7 +360,10 @@ class Packet : public Printable, public Extensible<Packet>
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // Signal compression and capacity pressure to upper cache levels
+        COMPRESSION_PRESSURE  = 0x00020000
     };
 
     Flags flags;
@@ -700,6 +703,10 @@ class Packet : public Printable, public Extensible<Packet>
      */
     void setExpressSnoop()      { flags.set(EXPRESS_SNOOP); }
     bool isExpressSnoop() const { return flags.isSet(EXPRESS_SNOOP); }
+
+    void setCompressionPressure()      { flags.set(COMPRESSION_PRESSURE); }
+    void clearCompressionPressure()    { flags.clear(COMPRESSION_PRESSURE); }
+    bool hasCompressionPressure() const { return flags.isSet(COMPRESSION_PRESSURE); }
 
     /**
      * On responding to a snoop request (which only happens for
