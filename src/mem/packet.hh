@@ -1545,7 +1545,61 @@ class Packet : public Printable, public Extensible<Packet>
      * failed transaction, this function returns the failure reason.
      */
     HtmCacheFailure getHtmTransactionFailedInCacheRC() const;
+
+    /**
+     * Compression and queue pressure telemetry accessors.
+     */
+    bool isCompressed() const;
+    bool isBypassed() const;
+    uint32_t getCompressedSize() const;
+    unsigned int getQueuePressureLevel() const;
 };
+
+class CompressionMetadata : public Extension<Packet, CompressionMetadata>
+{
+  public:
+    uint32_t compressedSize = 0;
+    bool isCompressed = false;
+    bool isBypassed = false;
+    unsigned int queuePressureLevel = 0;
+
+    CompressionMetadata(uint32_t _compressedSize, bool _isCompressed,
+                        bool _isBypassed, unsigned int _queuePressureLevel)
+        : compressedSize(_compressedSize), isCompressed(_isCompressed),
+          isBypassed(_isBypassed), queuePressureLevel(_queuePressureLevel)
+    {}
+
+    CompressionMetadata() = default;
+
+    std::unique_ptr<ExtensionBase> clone() const override
+    {
+        return std::unique_ptr<ExtensionBase>(new CompressionMetadata(*this));
+    }
+};
+
+inline bool Packet::isCompressed() const
+{
+    auto ext = const_cast<Packet*>(this)->getExtension<CompressionMetadata>();
+    return ext ? ext->isCompressed : false;
+}
+
+inline bool Packet::isBypassed() const
+{
+    auto ext = const_cast<Packet*>(this)->getExtension<CompressionMetadata>();
+    return ext ? ext->isBypassed : false;
+}
+
+inline uint32_t Packet::getCompressedSize() const
+{
+    auto ext = const_cast<Packet*>(this)->getExtension<CompressionMetadata>();
+    return (ext && ext->isCompressed) ? ext->compressedSize : getSize();
+}
+
+inline unsigned int Packet::getQueuePressureLevel() const
+{
+    auto ext = const_cast<Packet*>(this)->getExtension<CompressionMetadata>();
+    return ext ? ext->queuePressureLevel : 0;
+}
 
 } // namespace gem5
 

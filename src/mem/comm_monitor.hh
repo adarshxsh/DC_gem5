@@ -378,6 +378,39 @@ class CommMonitor : public SimObject
          */
         statistics::SparseHistogram writeAddrDist;
 
+        /** Disable flag for compression stats */
+        bool disableCompressionStats;
+
+        /**
+         * Histogram for compressed read bandwidth per sample window.
+         */
+        unsigned int compressedReadBytes;
+        statistics::Histogram compressedReadBandwidthHist;
+        statistics::Scalar totalCompressedReadBytes;
+        statistics::Formula averageCompressedReadBandwidth;
+        statistics::Formula readCompressionRatio;
+
+        /**
+         * Histogram for compressed write bandwidth per sample window.
+         */
+        unsigned int compressedWrittenBytes;
+        statistics::Histogram compressedWriteBandwidthHist;
+        statistics::Scalar totalCompressedWrittenBytes;
+        statistics::Formula averageCompressedWriteBandwidth;
+        statistics::Formula writeCompressionRatio;
+
+        /** Compression bypass counters */
+        statistics::Scalar bypassedReads;
+        statistics::Scalar bypassedWrites;
+        statistics::Scalar bypassedTrans;
+
+        /** Disable flag for queue pressure stats */
+        bool disableQueuePressureStats;
+
+        /** Histogram for memory controller queue pressure and high pressure event counter */
+        statistics::Histogram queuePressureHist;
+        statistics::Scalar highQueuePressureEvents;
+
         /**
          * Create the monitor stats and initialise all the members
          * that are not statistics themselves, but used to control the
