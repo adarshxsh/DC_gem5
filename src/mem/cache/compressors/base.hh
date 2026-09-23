@@ -257,6 +257,15 @@ class Base : public SimObject
     compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat);
 
     /**
+     * Get the decompression extra latency.
+     */
+    Cycles
+    getDecompExtraLatency() const
+    {
+        return decompExtraLatency;
+    }
+
+    /**
      * Get the decompression latency if the block is compressed. Latency is 0
      * otherwise.
      *

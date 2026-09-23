@@ -148,4 +148,29 @@ MSHRQueue::forceDeallocateTarget(MSHR *mshr)
     return was_full && !isFull();
 }
 
+bool
+MSHRQueue::canPrefetch(int write_buf_alloc, bool mem_side_retry,
+                       Cycles decomp_lat) const
+{
+    if (mem_side_retry) {
+        return false;
+    }
+
+    int base_limit = numEntries - (numReserve + 1 + demandReserve);
+    if (base_limit <= 0) {
+        return false;
+    }
+
+    int wb_penalty = (write_buf_alloc > 0) ? ((write_buf_alloc + 1) / 2) : 0;
+    int decomp_penalty =
+        (decomp_lat > Cycles(0)) ? static_cast<int>(decomp_lat) : 0;
+
+    int effective_limit = base_limit - wb_penalty - decomp_penalty;
+    if (effective_limit < 1) {
+        effective_limit = 1;
+    }
+
+    return (allocated < effective_limit);
+}
+
 } // namespace gem5
