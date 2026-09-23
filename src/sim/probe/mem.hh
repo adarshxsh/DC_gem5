@@ -68,17 +68,19 @@ struct PacketInfo
     bool isBypassed;
     unsigned int queuePressureLevel;
 
-    explicit PacketInfo(const PacketPtr& pkt) :
-        cmd(pkt->cmd),
-        addr(pkt->getAddr()),
-        size(pkt->getSize()),
-        flags(pkt->req->getFlags()),
-        pc(pkt->req->hasPC() ? pkt->req->getPC() : 0),
-        id(pkt->req->requestorId()),
-        compressedSize(pkt->isCompressed() ? pkt->getCompressedSize() : pkt->getSize()),
-        isCompressed(pkt->isCompressed()),
-        isBypassed(pkt->isBypassed()),
-        queuePressureLevel(pkt->getQueuePressureLevel()) { }
+    explicit PacketInfo(const PacketPtr &pkt)
+        : cmd(pkt->cmd),
+          addr(pkt->getAddr()),
+          size(pkt->getSize()),
+          flags(pkt->req->getFlags()),
+          pc(pkt->req->hasPC() ? pkt->req->getPC() : 0),
+          id(pkt->req->requestorId()),
+          compressedSize(pkt->isCompressed() ? pkt->getCompressedSize()
+                                             : pkt->getSize()),
+          isCompressed(pkt->isCompressed()),
+          isBypassed(pkt->isBypassed()),
+          queuePressureLevel(pkt->getQueuePressureLevel())
+    {}
 };
 
 /**

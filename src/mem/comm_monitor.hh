@@ -407,7 +407,8 @@ class CommMonitor : public SimObject
         /** Disable flag for queue pressure stats */
         bool disableQueuePressureStats;
 
-        /** Histogram for memory controller queue pressure and high pressure event counter */
+        /** Histogram for memory controller queue pressure and high pressure
+         * event counter */
         statistics::Histogram queuePressureHist;
         statistics::Scalar highQueuePressureEvents;
 

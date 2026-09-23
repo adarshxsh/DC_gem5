@@ -113,27 +113,30 @@ CommMonitor::MonitorStats::MonitorStats(statistics::Group *parent,
 
       disableBandwidthHists(params.disable_bandwidth_hists),
       readBytes(0),
-      ADD_STAT(readBandwidthHist, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
+      ADD_STAT(readBandwidthHist,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
                "Histogram of read bandwidth per sample period"),
       ADD_STAT(totalReadBytes, statistics::units::Byte::get(),
                "Number of bytes read"),
-      ADD_STAT(averageReadBandwidth, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
-               "Average read bandwidth",
-               totalReadBytes / simSeconds),
+      ADD_STAT(averageReadBandwidth,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Average read bandwidth", totalReadBytes / simSeconds),
 
       writtenBytes(0),
-      ADD_STAT(writeBandwidthHist, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
+      ADD_STAT(writeBandwidthHist,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
                "Histogram of write bandwidth"),
-      ADD_STAT(totalWrittenBytes, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
+      ADD_STAT(totalWrittenBytes,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
                "Number of bytes written"),
-      ADD_STAT(averageWriteBandwidth, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
-               "Average write bandwidth",
-               totalWrittenBytes / simSeconds),
+      ADD_STAT(averageWriteBandwidth,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
+               "Average write bandwidth", totalWrittenBytes / simSeconds),
 
       disableLatencyHists(params.disable_latency_hists),
       ADD_STAT(readLatencyHist, statistics::units::Tick::get(),
@@ -148,7 +151,9 @@ CommMonitor::MonitorStats::MonitorStats(statistics::Group *parent,
                "Write-to-write inter transaction time"),
       ADD_STAT(ittReqReq, statistics::units::Tick::get(),
                "Request-to-request inter transaction time"),
-      timeOfLastRead(0), timeOfLastWrite(0), timeOfLastReq(0),
+      timeOfLastRead(0),
+      timeOfLastWrite(0),
+      timeOfLastReq(0),
 
       disableOutstandingHists(params.disable_outstanding_hists),
       ADD_STAT(outstandingReadsHist, statistics::units::Count::get(),
@@ -176,32 +181,38 @@ CommMonitor::MonitorStats::MonitorStats(statistics::Group *parent,
 
       disableCompressionStats(params.disable_compression_stats),
       compressedReadBytes(0),
-      ADD_STAT(compressedReadBandwidthHist, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
+      ADD_STAT(compressedReadBandwidthHist,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
                "Histogram of compressed read bandwidth per sample period"),
       ADD_STAT(totalCompressedReadBytes, statistics::units::Byte::get(),
                "Number of compressed bytes read"),
-      ADD_STAT(averageCompressedReadBandwidth, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
+      ADD_STAT(averageCompressedReadBandwidth,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
                "Average compressed read bandwidth",
                totalCompressedReadBytes / simSeconds),
-      ADD_STAT(readCompressionRatio, statistics::units::Ratio::get(),
-               "Read compression ratio (uncompressed bytes / compressed bytes)",
-               totalReadBytes / totalCompressedReadBytes),
+      ADD_STAT(
+          readCompressionRatio, statistics::units::Ratio::get(),
+          "Read compression ratio (uncompressed bytes / compressed bytes)",
+          totalReadBytes / totalCompressedReadBytes),
 
       compressedWrittenBytes(0),
-      ADD_STAT(compressedWriteBandwidthHist, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
+      ADD_STAT(compressedWriteBandwidthHist,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
                "Histogram of compressed write bandwidth per sample period"),
       ADD_STAT(totalCompressedWrittenBytes, statistics::units::Byte::get(),
                "Number of compressed bytes written"),
-      ADD_STAT(averageCompressedWriteBandwidth, statistics::units::Rate<
-                    statistics::units::Byte, statistics::units::Second>::get(),
+      ADD_STAT(averageCompressedWriteBandwidth,
+               statistics::units::Rate<statistics::units::Byte,
+                                       statistics::units::Second>::get(),
                "Average compressed write bandwidth",
                totalCompressedWrittenBytes / simSeconds),
-      ADD_STAT(writeCompressionRatio, statistics::units::Ratio::get(),
-               "Write compression ratio (uncompressed bytes / compressed bytes)",
-               totalWrittenBytes / totalCompressedWrittenBytes),
+      ADD_STAT(
+          writeCompressionRatio, statistics::units::Ratio::get(),
+          "Write compression ratio (uncompressed bytes / compressed bytes)",
+          totalWrittenBytes / totalCompressedWrittenBytes),
 
       ADD_STAT(bypassedReads, statistics::units::Count::get(),
                "Number of read transactions bypassing compression"),
@@ -296,47 +307,36 @@ CommMonitor::MonitorStats::MonitorStats(statistics::Group *parent,
         .init(0)
         .flags(disableAddrDists ? nozero : pdf);
 
-    compressedReadBandwidthHist
-        .init(params.compression_bins)
+    compressedReadBandwidthHist.init(params.compression_bins)
         .flags(disableCompressionStats ? nozero : pdf);
 
-    totalCompressedReadBytes
+    totalCompressedReadBytes.flags(disableCompressionStats ? nozero : pdf);
+
+    averageCompressedReadBandwidth.flags(disableCompressionStats ? nozero
+                                                                 : pdf);
+
+    readCompressionRatio.flags(disableCompressionStats ? nozero : pdf);
+
+    compressedWriteBandwidthHist.init(params.compression_bins)
         .flags(disableCompressionStats ? nozero : pdf);
 
-    averageCompressedReadBandwidth
-        .flags(disableCompressionStats ? nozero : pdf);
+    totalCompressedWrittenBytes.flags(disableCompressionStats ? nozero : pdf);
 
-    readCompressionRatio
-        .flags(disableCompressionStats ? nozero : pdf);
+    averageCompressedWriteBandwidth.flags(disableCompressionStats ? nozero
+                                                                  : pdf);
 
-    compressedWriteBandwidthHist
-        .init(params.compression_bins)
-        .flags(disableCompressionStats ? nozero : pdf);
+    writeCompressionRatio.flags(disableCompressionStats ? nozero : pdf);
 
-    totalCompressedWrittenBytes
-        .flags(disableCompressionStats ? nozero : pdf);
+    bypassedReads.flags(disableCompressionStats ? nozero : pdf);
 
-    averageCompressedWriteBandwidth
-        .flags(disableCompressionStats ? nozero : pdf);
+    bypassedWrites.flags(disableCompressionStats ? nozero : pdf);
 
-    writeCompressionRatio
-        .flags(disableCompressionStats ? nozero : pdf);
+    bypassedTrans.flags(disableCompressionStats ? nozero : pdf);
 
-    bypassedReads
-        .flags(disableCompressionStats ? nozero : pdf);
-
-    bypassedWrites
-        .flags(disableCompressionStats ? nozero : pdf);
-
-    bypassedTrans
-        .flags(disableCompressionStats ? nozero : pdf);
-
-    queuePressureHist
-        .init(params.queue_pressure_bins)
+    queuePressureHist.init(params.queue_pressure_bins)
         .flags(disableQueuePressureStats ? nozero : pdf);
 
-    highQueuePressureEvents
-        .flags(disableQueuePressureStats ? nozero : pdf);
+    highQueuePressureEvents.flags(disableQueuePressureStats ? nozero : pdf);
 }
 
 void
@@ -346,8 +346,9 @@ CommMonitor::MonitorStats::updateReqStats(
 {
     if (!disableQueuePressureStats) {
         queuePressureHist.sample(pkt_info.queuePressureLevel);
-        if (pkt_info.queuePressureLevel > 0)
+        if (pkt_info.queuePressureLevel > 0) {
             ++highQueuePressureEvents;
+        }
     }
 
     if (pkt_info.cmd.isRead()) {
@@ -388,7 +389,8 @@ CommMonitor::MonitorStats::updateReqStats(
                 ++bypassedWrites;
                 ++bypassedTrans;
             }
-            uint32_t csize = pkt_info.isCompressed ? pkt_info.compressedSize : pkt_info.size;
+            uint32_t csize = pkt_info.isCompressed ? pkt_info.compressedSize
+                                                   : pkt_info.size;
             compressedWrittenBytes += csize;
             totalCompressedWrittenBytes += csize;
         }
@@ -433,8 +435,9 @@ CommMonitor::MonitorStats::updateRespStats(
 {
     if (!disableQueuePressureStats) {
         queuePressureHist.sample(pkt_info.queuePressureLevel);
-        if (pkt_info.queuePressureLevel > 0)
+        if (pkt_info.queuePressureLevel > 0) {
             ++highQueuePressureEvents;
+        }
     }
 
     if (pkt_info.cmd.isRead()) {
@@ -454,7 +457,8 @@ CommMonitor::MonitorStats::updateRespStats(
         }
 
         if (!disableCompressionStats) {
-            uint32_t csize = pkt_info.isCompressed ? pkt_info.compressedSize : pkt_info.size;
+            uint32_t csize = pkt_info.isCompressed ? pkt_info.compressedSize
+                                                   : pkt_info.size;
             compressedReadBytes += csize;
             totalCompressedReadBytes += csize;
         }
@@ -672,8 +676,10 @@ CommMonitor::samplePeriodic()
         }
 
         if (!stats.disableCompressionStats) {
-            stats.compressedReadBandwidthHist.sample(stats.compressedReadBytes / samplePeriod);
-            stats.compressedWriteBandwidthHist.sample(stats.compressedWrittenBytes / samplePeriod);
+            stats.compressedReadBandwidthHist.sample(
+                stats.compressedReadBytes / samplePeriod);
+            stats.compressedWriteBandwidthHist.sample(
+                stats.compressedWrittenBytes / samplePeriod);
         }
     }
 

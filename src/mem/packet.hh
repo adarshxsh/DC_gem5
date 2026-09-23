@@ -1565,39 +1565,46 @@ class CompressionMetadata : public Extension<Packet, CompressionMetadata>
 
     CompressionMetadata(uint32_t _compressedSize, bool _isCompressed,
                         bool _isBypassed, unsigned int _queuePressureLevel)
-        : compressedSize(_compressedSize), isCompressed(_isCompressed),
-          isBypassed(_isBypassed), queuePressureLevel(_queuePressureLevel)
+        : compressedSize(_compressedSize),
+          isCompressed(_isCompressed),
+          isBypassed(_isBypassed),
+          queuePressureLevel(_queuePressureLevel)
     {}
 
     CompressionMetadata() = default;
 
-    std::unique_ptr<ExtensionBase> clone() const override
+    std::unique_ptr<ExtensionBase>
+    clone() const override
     {
         return std::unique_ptr<ExtensionBase>(new CompressionMetadata(*this));
     }
 };
 
-inline bool Packet::isCompressed() const
+inline bool
+Packet::isCompressed() const
 {
-    auto ext = const_cast<Packet*>(this)->getExtension<CompressionMetadata>();
+    auto ext = const_cast<Packet *>(this)->getExtension<CompressionMetadata>();
     return ext ? ext->isCompressed : false;
 }
 
-inline bool Packet::isBypassed() const
+inline bool
+Packet::isBypassed() const
 {
-    auto ext = const_cast<Packet*>(this)->getExtension<CompressionMetadata>();
+    auto ext = const_cast<Packet *>(this)->getExtension<CompressionMetadata>();
     return ext ? ext->isBypassed : false;
 }
 
-inline uint32_t Packet::getCompressedSize() const
+inline uint32_t
+Packet::getCompressedSize() const
 {
-    auto ext = const_cast<Packet*>(this)->getExtension<CompressionMetadata>();
+    auto ext = const_cast<Packet *>(this)->getExtension<CompressionMetadata>();
     return (ext && ext->isCompressed) ? ext->compressedSize : getSize();
 }
 
-inline unsigned int Packet::getQueuePressureLevel() const
+inline unsigned int
+Packet::getQueuePressureLevel() const
 {
-    auto ext = const_cast<Packet*>(this)->getExtension<CompressionMetadata>();
+    auto ext = const_cast<Packet *>(this)->getExtension<CompressionMetadata>();
     return ext ? ext->queuePressureLevel : 0;
 }
 
