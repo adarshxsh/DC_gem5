@@ -109,3 +109,19 @@ class CommMonitor(SimObject):
     read_addr_mask = Param.Addr(MaxAddr, "Address mask for read address")
     write_addr_mask = Param.Addr(MaxAddr, "Address mask for write address")
     disable_addr_dists = Param.Bool(True, "Disable address distributions")
+
+    # compression statistics
+    compression_bins = Param.Unsigned(
+        "20", "# bins in compression bandwidth histograms"
+    )
+    disable_compression_stats = Param.Bool(
+        False, "Disable compression statistics"
+    )
+
+    # queue pressure statistics
+    queue_pressure_bins = Param.Unsigned(
+        "20", "# bins in queue pressure histograms"
+    )
+    disable_queue_pressure_stats = Param.Bool(
+        False, "Disable queue pressure statistics"
+    )
