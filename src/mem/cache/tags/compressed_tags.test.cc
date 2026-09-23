@@ -569,14 +569,17 @@ TEST_F(SuperBlkTestFixture, WriteQueueGuardHighPressureFallback)
     // Verify initial compression factor is 8
     ASSERT_EQ(superBlk.getCompressionFactor(), 8);
 
-    // Under normal conditions (no write queue pressure), requesting co-allocation of a
-    // 256-bit block would succeed via standard bit-sum capacity evaluation.
+    // Under normal conditions (no write queue pressure), requesting
+    // co-allocation of a 256-bit block would succeed via standard bit-sum
+    // capacity evaluation.
     ASSERT_TRUE(superBlk.canCoAllocate(256, false));
 
     // Under write queue pressure (write_queue_pressure = true):
-    // Marginal co-allocation that degrades CF to 2 and uses > 50% capacity is throttled/rejected
+    // Marginal co-allocation that degrades CF to 2 and uses > 50% capacity is
+    // throttled/rejected
     ASSERT_FALSE(superBlk.canCoAllocate(256, true));
 
-    // High-efficiency co-allocation (64 bits) maintains high CF and stays within 50% capacity, so it is accepted
+    // High-efficiency co-allocation (64 bits) maintains high CF and stays
+    // within 50% capacity, so it is accepted
     ASSERT_TRUE(superBlk.canCoAllocate(64, true));
 }

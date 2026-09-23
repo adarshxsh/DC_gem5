@@ -144,13 +144,17 @@ TEST_F(SuperBlkTestFixture, WriteQueueBackpressureCoAllocationGuard)
     EXPECT_TRUE(superBlk.canCoAllocate(128, false));
 
     // With write queue pressure:
-    // 1) Marginal co-allocation that degrades CF (e.g. 256 bits -> CF=2 < 8) is rejected
+    // 1) Marginal co-allocation that degrades CF (e.g. 256 bits -> CF=2 < 8)
+    // is rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256, true));
 
-    // 2) High-efficiency co-allocation (e.g. 64 bits -> CF=8, total size 128 <= 256 bits) succeeds
+    // 2) High-efficiency co-allocation (e.g. 64 bits -> CF=8, total size 128
+    // <= 256 bits) succeeds
     EXPECT_TRUE(superBlk.canCoAllocate(64, true));
 
     // Test occupancy and threshold overload
-    EXPECT_FALSE(superBlk.canCoAllocate(256, 40, 32)); // 40 >= 32 pressure active -> rejected
-    EXPECT_TRUE(superBlk.canCoAllocate(128, 10, 32)); // 10 < 32 no pressure -> accepted
+    EXPECT_FALSE(superBlk.canCoAllocate(
+        256, 40, 32)); // 40 >= 32 pressure active -> rejected
+    EXPECT_TRUE(superBlk.canCoAllocate(128, 10,
+                                       32)); // 10 < 32 no pressure -> accepted
 }

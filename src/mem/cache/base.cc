@@ -1111,7 +1111,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
         bool victim_itself = false;
         CacheBlk *victim = nullptr;
         if (replaceExpansions || is_data_contraction) {
-            if (auto ctags = dynamic_cast<CompressedTags*>(tags)) {
+            if (auto ctags = dynamic_cast<CompressedTags *>(tags)) {
                 ctags->setWriteQueueOccupancy(writeBuffer.size());
             }
             victim = tags->findVictim(
@@ -1784,7 +1784,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         partitionManager->readPacketPartitionID(pkt) : 0;
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
-    if (auto ctags = dynamic_cast<CompressedTags*>(tags)) {
+    if (auto ctags = dynamic_cast<CompressedTags *>(tags)) {
         ctags->setWriteQueueOccupancy(writeBuffer.size());
     }
     CacheBlk *victim =

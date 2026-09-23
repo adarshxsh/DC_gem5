@@ -220,7 +220,7 @@ SuperBlk::hasValidDemand() const
 
 bool
 SuperBlk::canCoAllocate(const std::size_t compressed_size,
-                       bool write_queue_pressure) const
+                        bool write_queue_pressure) const
 {
     if (!isCompressed()) {
         return false;
@@ -274,8 +274,8 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size,
 
 bool
 SuperBlk::canCoAllocate(const std::size_t compressed_size,
-                       unsigned write_queue_occupancy,
-                       unsigned write_queue_threshold) const
+                        unsigned write_queue_occupancy,
+                        unsigned write_queue_threshold) const
 {
     bool pressure = (write_queue_threshold > 0) &&
                     (write_queue_occupancy >= write_queue_threshold);

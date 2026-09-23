@@ -98,18 +98,29 @@ class CompressedTags : public SectorTags
     /**
      * Set current write queue occupancy.
      */
-    void setWriteQueueOccupancy(unsigned occupancy) const { writeQueueOccupancy = occupancy; }
+    void
+    setWriteQueueOccupancy(unsigned occupancy) const
+    {
+        writeQueueOccupancy = occupancy;
+    }
 
     /**
      * Get current write queue occupancy.
      */
-    unsigned getWriteQueueOccupancy() const { return writeQueueOccupancy; }
+    unsigned
+    getWriteQueueOccupancy() const
+    {
+        return writeQueueOccupancy;
+    }
 
     /**
      * Check if write queue backpressure is active.
      */
-    bool isWriteQueueHigh() const {
-        return enableWriteQueueGuard && (writeQueueOccupancy >= writeQueueHighThreshold);
+    bool
+    isWriteQueueHigh() const
+    {
+        return enableWriteQueueGuard &&
+               (writeQueueOccupancy >= writeQueueHighThreshold);
     }
     /** Convenience typedef. */
      typedef CompressedTagsParams Params;
