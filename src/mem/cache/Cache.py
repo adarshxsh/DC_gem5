@@ -128,6 +128,15 @@ class BaseCache(ClockedObject):
         True, "Try to co-allocate blocks that contract"
     )
 
+    enable_decompression_bypass = Param.Bool(
+        False,
+        "Enable adaptive decompression bypass on read hit paths under queue pressure",
+    )
+    decompression_bypass_threshold = Param.Percent(
+        80,
+        "Queue pressure threshold percentage to bypass decompression latency",
+    )
+
     sequential_access = Param.Bool(
         False, "Whether to access tags and data sequentially"
     )

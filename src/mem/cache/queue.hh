@@ -45,6 +45,7 @@
 #ifndef __MEM_CACHE_QUEUE_HH__
 #define __MEM_CACHE_QUEUE_HH__
 
+#include <algorithm>
 #include <cassert>
 #include <string>
 #include <type_traits>
@@ -155,6 +156,21 @@ class Queue : public Drainable, public Named
     int numInService() const
     {
         return _numInService;
+    }
+
+    int occupancy() const
+    {
+        return allocated;
+    }
+
+    int capacity() const
+    {
+        return std::max(1, numEntries - numReserve);
+    }
+
+    double occupancyRatio() const
+    {
+        return static_cast<double>(occupancy()) / static_cast<double>(capacity());
     }
 
     /**

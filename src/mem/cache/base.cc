@@ -89,6 +89,8 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeBuffer("write buffer", p.write_buffers, p.mshrs, p.name),
       tags(p.tags),
       compressor(p.compressor),
+      enableDecompressionBypass(p.enable_decompression_bypass),
+      decompressionBypassThreshold(p.decompression_bypass_threshold / 100.0),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
@@ -1369,6 +1371,19 @@ BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
     return lat;
 }
 
+double
+BaseCache::getQueuePressure() const
+{
+    return std::max(mshrQueue.occupancyRatio(), writeBuffer.occupancyRatio());
+}
+
+bool
+BaseCache::shouldBypassDecompression() const
+{
+    return enableDecompressionBypass &&
+           (getQueuePressure() > decompressionBypassThreshold);
+}
+
 bool
 BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                   PacketList &writebacks)
@@ -1608,8 +1623,9 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
 
             // When a block is compressed, it must first be decompressed
-            // before being read. This adds to the access latency.
-            if (compressor) {
+            // before being read. This adds to the access latency unless
+            // adaptive decompression bypass is active under queue pressure.
+            if (compressor && !shouldBypassDecompression()) {
                 lat += compressor->getDecompressionLatency(blk);
             }
         } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
