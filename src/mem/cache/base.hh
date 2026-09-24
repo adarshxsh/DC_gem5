@@ -95,6 +95,7 @@ class MSHRQueue;
 class RequestPort;
 class QueueEntry;
 class WriteQueueEntry;
+class CompressedTags;
 struct BaseCacheParams;
 
 /**
@@ -321,6 +322,8 @@ class BaseCache : public ClockedObject
     CpuSidePort cpuSidePort;
     MemSidePort memSidePort;
 
+    friend class CompressedTags;
+
   protected:
 
     struct CacheAccessorImpl : CacheAccessor
@@ -364,6 +367,17 @@ class BaseCache : public ClockedObject
 
     /** Write/writeback buffer */
     WriteQueue writeBuffer;
+
+    WriteQueue &
+    getWriteQueue()
+    {
+        return writeBuffer;
+    }
+    const WriteQueue &
+    getWriteQueue() const
+    {
+        return writeBuffer;
+    }
 
     /** Tag and data Storage */
     BaseTags *tags;

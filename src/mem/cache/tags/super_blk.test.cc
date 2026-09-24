@@ -133,3 +133,35 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
 }
+
+TEST_F(CanCoAllocateTest, WriteQueuePressureSuppression)
+{
+    // Under normal conditions (wq_pressure = false), 128-bit block (CF=4) is
+    // allowed
+    EXPECT_TRUE(superBlk.canCoAllocate(128, false, 0.25));
+
+    // Under write queue pressure (wq_pressure = true), low compression factor
+    // fit (256 bits -> CF=2 <= 2) is suppressed
+    EXPECT_FALSE(superBlk.canCoAllocate(256, true, 0.25));
+
+    // Under write queue pressure with 25% headroom (max bits = 512 * 0.75 =
+    // 384 bits): Add 1st sub-block (128 bits, CF=4)
+    subBlks[0].insert({0x3000, false});
+    subBlks[0].setSizeBits(128);
+
+    // Requesting another 128-bit block (128 + 128 = 256 <= 384 bits, CF=4 > 2)
+    // should pass
+    EXPECT_TRUE(superBlk.canCoAllocate(128, true, 0.25));
+
+    // Add 2nd sub-block (128 bits) -> sum = 256 bits
+    subBlks[1].insert({0x3000, false});
+    subBlks[1].setSizeBits(128);
+
+    // Requesting 3rd 128-bit block: sum = 256 + 128 = 384 <= 384 bits ->
+    // should pass
+    EXPECT_TRUE(superBlk.canCoAllocate(128, true, 0.25));
+
+    // Requesting 192-bit block: sum = 256 + 192 = 448 > 384 bits -> rejected
+    // under 25% headroom!
+    EXPECT_FALSE(superBlk.canCoAllocate(192, true, 0.25));
+}

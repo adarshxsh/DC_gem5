@@ -559,3 +559,21 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, WriteQueueBackpressureCoAllocationGuard)
+{
+    // Populate superblock with a 128-bit block (CF=4)
+    subBlks[0].insert({0x7000, false});
+    subBlks[0].setSizeBits(128);
+
+    // Normal co-allocation without pressure permits 256-bit block (CF=2)
+    ASSERT_TRUE(superBlk.canCoAllocate(256, false, 0.25));
+
+    // Under write queue pressure (wq_pressure = true), low compression factor
+    // fit (256-bit -> CF=2 <= 2) is rejected
+    ASSERT_FALSE(superBlk.canCoAllocate(256, true, 0.25));
+
+    // Under write queue pressure (wq_pressure = true), high compression factor
+    // fit (128-bit -> CF=4 > 2) is permitted
+    ASSERT_TRUE(superBlk.canCoAllocate(128, true, 0.25));
+}
