@@ -1064,11 +1064,12 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 }
 
 bool
-BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks)
+BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                                 PacketList &writebacks, Cycles &comp_lat)
 {
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {
+        comp_lat = Cycles(0);
         return true;
     }
 
@@ -1078,6 +1079,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     Cycles decompression_lat = Cycles(0);
     const auto comp_data =
         compressor->compress(data, compression_lat, decompression_lat);
+    comp_lat = compression_lat;
     std::size_t compression_size = comp_data->getSizeBits();
 
     // Get previous compressed size
@@ -1210,7 +1212,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                          bool, bool)
+                          bool, bool, Cycles &comp_lat)
 {
     assert(pkt->isRequest());
 
@@ -1264,7 +1266,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1288,7 +1290,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1487,8 +1489,9 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // to check for data expansion (i.e., block was compressed with
             // a smaller size, and now it doesn't fit the entry anymore).
             // If that is the case we might need to evict blocks.
+            Cycles comp_lat = Cycles(0);
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                writebacks)) {
+                                       writebacks, comp_lat)) {
                 invalidateBlock(blk);
                 return false;
             }
@@ -1566,8 +1569,9 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // to check for data expansion (i.e., block was compressed with
             // a smaller size, and now it doesn't fit the entry anymore).
             // If that is the case we might need to evict blocks.
+            Cycles comp_lat = Cycles(0);
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                writebacks)) {
+                                       writebacks, comp_lat)) {
                 invalidateBlock(blk);
                 return false;
             }
@@ -1603,6 +1607,8 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // OK to satisfy access
         incHitCount(pkt);
 
+        Cycles comp_lat = Cycles(0);
+
         // Calculate access latency based on the need to access the data array
         if (pkt->isRead()) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
@@ -1619,8 +1625,13 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
 
-        satisfyRequest(pkt, blk, writebacks);
+        satisfyRequest(pkt, blk, writebacks, false, false, comp_lat);
         maintainClusivity(pkt->fromCache(), blk);
+
+        if (pkt->isWrite() && compressor && !pkt->isWholeLineWrite(blkSize)) {
+            lat += comp_lat;
+            pkt->payloadDelay += cyclesToTicks(comp_lat);
+        }
 
         return true;
     }
