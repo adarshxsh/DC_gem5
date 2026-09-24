@@ -1,14 +1,14 @@
 # Comprehensive Architectural & Microarchitectural Analysis Report: Evaluating Low-Compressibility Workloads Under Hardware Cache Compression
 
-**Document Identifier**: `GEM5-EVAL-2026-BDI-LOWCOMP-01`  
-**Author / Lead Investigator**: Adarsh (`adarshxsh`)  
-**Simulation Platform**: gem5 Full-System Simulator (`X86/gem5.opt`, Release v25.1.0.1)  
-**Host Architecture**: Google Cloud Platform (GCP) Compute Engine with KVM Hardware Virtualization (`/dev/kvm`, x86_64)  
-**Target Architecture**: x86_64 Classic Memory Hierarchy with Detailed Out-of-Order Execution (`DerivO3CPU`)  
-**Evaluated Workload**: SPEC CPU2017 `505.mcf_r` (Vehicle Scheduling / Network Simplex Algorithm)  
-**Reference Comparison Workload**: SPEC CPU2017 `541.leela_r` (Monte Carlo Tree Search / Deep Go Engine)  
-**Target Compressors**: Base-Delta-Immediate (BDI MultiCompressor), C-Pack (Dictionary), FPC (Frequent Pattern Compression), ZeroCompressor  
-**Cache Subsystem**: Private L1I (32 KiB, 8-way), Private L1D (32 KiB, 8-way), Private L2 (512 KiB / 256 KiB, 16-way associative) with `CompressedTags` Superblock Co-allocation  
+**Document Identifier**: `GEM5-EVAL-2026-BDI-LOWCOMP-01`
+**Author / Lead Investigator**: Adarsh (`adarshxsh`)
+**Simulation Platform**: gem5 Full-System Simulator (`X86/gem5.opt`, Release v25.1.0.1)
+**Host Architecture**: Google Cloud Platform (GCP) Compute Engine with KVM Hardware Virtualization (`/dev/kvm`, x86_64)
+**Target Architecture**: x86_64 Classic Memory Hierarchy with Detailed Out-of-Order Execution (`DerivO3CPU`)
+**Evaluated Workload**: SPEC CPU2017 `505.mcf_r` (Vehicle Scheduling / Network Simplex Algorithm)
+**Reference Comparison Workload**: SPEC CPU2017 `541.leela_r` (Monte Carlo Tree Search / Deep Go Engine)
+**Target Compressors**: Base-Delta-Immediate (BDI MultiCompressor), C-Pack (Dictionary), FPC (Frequent Pattern Compression), ZeroCompressor
+**Cache Subsystem**: Private L1I (32 KiB, 8-way), Private L1D (32 KiB, 8-way), Private L2 (512 KiB / 256 KiB, 16-way associative) with `CompressedTags` Superblock Co-allocation
 
 ---
 
@@ -687,7 +687,7 @@ To resolve the structural and microarchitectural bottlenecks identified in our e
 * **Target File**: `src/mem/cache/compressors/multi.cc`, `multi.hh`
 * **Mechanics**: Tracks consecutive compression failures per sub-compressor. If a sub-compressor fails `unpromising_threshold` consecutive times (default: 100), it is disabled to save simulation cycles and dynamic power. A periodic `probe_interval` (default: 1,000) re-samples skipped compressors to adapt to phase changes:
   ```cpp
-  if (consecutive_failures[i] >= unpromising_threshold && 
+  if (consecutive_failures[i] >= unpromising_threshold &&
       (total_compressions % probe_interval != 0)) {
       continue; // Skip trial pass
   }
