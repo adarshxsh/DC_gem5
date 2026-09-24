@@ -280,6 +280,13 @@ class CacheBlk : public TaggedEntry
     void setPrefetched() { _prefetched = true; }
 
     /**
+     * Get number of cycles needed to decompress this block.
+     *
+     * @return Decompression latency (defaults to 0 cycles).
+     */
+    virtual Cycles getDecompressionLatency() const { return Cycles(0); }
+
+    /**
      * Get tick at which block's data will be available for access.
      *
      * @return Data ready tick.

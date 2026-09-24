@@ -133,3 +133,17 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
 }
+
+TEST(CacheBlkTest, DefaultDecompressionLatencyIsZero)
+{
+    CacheBlk blk;
+    EXPECT_EQ(blk.getDecompressionLatency(), Cycles(0));
+}
+
+TEST(CacheBlkTest, CompressionBlkReturnsDecompressionLatency)
+{
+    CompressionBlk blk;
+    blk.setDecompressionLatency(Cycles(5));
+    CacheBlk* base_blk = &blk;
+    EXPECT_EQ(base_blk->getDecompressionLatency(), Cycles(5));
+}
