@@ -80,6 +80,10 @@ class BaseCacheCompressor(SimObject):
         4,
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
+    window_size = Param.Unsigned(
+        100,
+        "Sliding window capacity in number of sampled requests (0 disables sliding window and uses exponential decay)",
+    )
 
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
