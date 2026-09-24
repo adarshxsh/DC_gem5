@@ -75,12 +75,13 @@ Cache::Cache(const CacheParams &p)
     assert(p.replacement_policy);
 }
 
-void
+Cycles
 Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool deferred_response, bool pending_downgrade)
 {
-    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
-                              pending_downgrade);
+    Cycles lat = BaseCache::satisfyRequest(pkt, blk, writebacks,
+                                           deferred_response,
+                                           pending_downgrade);
 
     if (pkt->isRead()) {
         // determine if this read is from a (coherent) cache or not
@@ -151,6 +152,8 @@ Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             }
         }
     }
+
+    return lat;
 }
 
 /////////////////////////////////////////////////////
@@ -797,8 +800,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
             // either); otherwise we use the packet data.
             if (blk && blk->isValid() &&
                 (!mshr->isForward || !pkt->hasData())) {
-                satisfyRequest(tgt_pkt, blk, writebacks, true,
-                               mshr->hasPostDowngrade());
+                Cycles recomp_lat = satisfyRequest(tgt_pkt, blk, writebacks, true,
+                                                    mshr->hasPostDowngrade());
 
                 // How many bytes past the first request is this one
                 int transfer_offset =
@@ -812,7 +815,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // from lower level caches/memory to an upper level cache or
                 // the core.
                 completion_time += clockEdge(responseLatency) +
-                    (transfer_offset ? pkt->payloadDelay : 0);
+                    (transfer_offset ? pkt->payloadDelay : 0) +
+                    cyclesToTicks(recomp_lat);
 
                 assert(!tgt_pkt->req->isUncacheable());
 
