@@ -1265,7 +1265,11 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
                     writebacks)) {
-                invalidateBlock(blk);
+                if (blk->isSet(CacheBlk::DirtyBit)) {
+                    evictBlock(blk, writebacks);
+                } else {
+                    invalidateBlock(blk);
+                }
             }
         }
     } else if (pkt->isWrite()) {
@@ -1289,7 +1293,11 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
                     writebacks)) {
-                invalidateBlock(blk);
+                if (blk->isSet(CacheBlk::DirtyBit)) {
+                    evictBlock(blk, writebacks);
+                } else {
+                    invalidateBlock(blk);
+                }
             }
         }
     } else if (pkt->isRead()) {
@@ -1489,7 +1497,15 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // If that is the case we might need to evict blocks.
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
                 writebacks)) {
-                invalidateBlock(blk);
+                if (pkt->cmd == MemCmd::WritebackDirty) {
+                    blk->setCoherenceBits(CacheBlk::DirtyBit);
+                    updateBlockData(blk, pkt, has_old_data);
+                }
+                if (blk->isSet(CacheBlk::DirtyBit)) {
+                    evictBlock(blk, writebacks);
+                } else {
+                    invalidateBlock(blk);
+                }
                 return false;
             }
         }
@@ -1568,7 +1584,11 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // If that is the case we might need to evict blocks.
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
                 writebacks)) {
-                invalidateBlock(blk);
+                if (blk->isSet(CacheBlk::DirtyBit)) {
+                    evictBlock(blk, writebacks);
+                } else {
+                    invalidateBlock(blk);
+                }
                 return false;
             }
         }
