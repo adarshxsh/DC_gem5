@@ -125,10 +125,10 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     subBlks[1].insert({0x2000, false});
     subBlks[1].setSizeBits(128);
 
-    // Under discrete count cap (numValid < target_cf), numValid = 2 < 2 would
-    // be false. Under cumulative bit sum check (384 + 128 = 512 <= 512), this
-    // should succeed!
-    EXPECT_TRUE(superBlk.canCoAllocate(128));
+    // With discrete count cap enforced (getNumValid() + 1 <= target_cf),
+    // numValid = 2, target_cf = min(2, 4) = 2 -> numValid + 1 = 3 > 2, so
+    // co-allocation is rejected.
+    EXPECT_FALSE(superBlk.canCoAllocate(128));
 
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));

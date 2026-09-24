@@ -255,6 +255,7 @@ CompressedTags::checkInvariants() const
                 }
             }
             assert(total_bits <= blkSize * CHAR_BIT);
+            assert(num_valid <= cf);
             if (num_valid > 1) {
                 assert(super_blk.isCompressed());
             }
