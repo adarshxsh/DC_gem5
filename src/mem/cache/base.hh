@@ -1344,9 +1344,6 @@ class BaseCache : public ClockedObject
      * (for L1). */
     bool l2BackpressureActive;
 
-    /** Tick when backpressure signal was last received. */
-    Tick lastBackpressureTick;
-
   public:
     bool
     isCompressionBypassActive() const
@@ -1375,7 +1372,6 @@ class BaseCache : public ClockedObject
         if (pkt) {
             if (pkt->isCompressionBackpressure()) {
                 l2BackpressureActive = true;
-                lastBackpressureTick = curTick();
             } else if (l2BackpressureActive) {
                 l2BackpressureActive = false;
             }

@@ -118,7 +118,6 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       system(p.system),
       l2CompressionBypassActive(false),
       l2BackpressureActive(false),
-      lastBackpressureTick(0),
       stats(*this)
 {
     // the MSHR queue has no reserve entries as we check the MSHR
@@ -548,10 +547,10 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
 
-    double wq_usage =
-        writeBuffer.capacity() > 0
-            ? (double)writeBuffer.numAllocated() / writeBuffer.capacity()
-            : 0.0;
+    double wq_usage = writeBuffer.capacity() > 0
+                          ? static_cast<double>(writeBuffer.numAllocated()) /
+                                static_cast<double>(writeBuffer.capacity())
+                          : 0.0;
     if (wq_usage > 0.80) {
         setL2CompressionBypassActive(true);
         if (pkt) {
@@ -1023,10 +1022,10 @@ bool
 BaseCache::handleEvictions(std::vector<CacheBlk *> &evict_blks,
                            PacketList &writebacks)
 {
-    double wq_usage =
-        writeBuffer.capacity() > 0
-            ? (double)writeBuffer.numAllocated() / writeBuffer.capacity()
-            : 0.0;
+    double wq_usage = writeBuffer.capacity() > 0
+                          ? static_cast<double>(writeBuffer.numAllocated()) /
+                                static_cast<double>(writeBuffer.capacity())
+                          : 0.0;
     if (wq_usage > 0.80) {
         setL2CompressionBypassActive(true);
     } else {
