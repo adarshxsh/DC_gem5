@@ -125,12 +125,17 @@ class CompressedTags : public SectorTags
     /**
      * Link owning cache instance.
      */
-    void setCache(BaseCache *_cache) { cache = _cache; }
+    void
+    setCache(BaseCache *_cache)
+    {
+        cache = _cache;
+    }
 
     /**
      * Override write queue pressure state for testing.
      */
-    void setWriteQueuePressure(bool pressure)
+    void
+    setWriteQueuePressure(bool pressure)
     {
         writeQueuePressureOverride = pressure;
         overrideSet = true;

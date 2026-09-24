@@ -208,7 +208,8 @@ class SuperBlk : public SectorBlk
      *
      * @param compressed_size Size, in bits, of new block to allocate.
      * @param wq_pressure True if write queue pressure is active.
-     * @param headroom_factor Capacity headroom factor applied when write queue pressure is active.
+     * @param headroom_factor Capacity headroom factor applied when write queue
+     * pressure is active.
      * @return True if block can be co-allocated in superblock.
      */
     bool canCoAllocate(const std::size_t compressed_size,

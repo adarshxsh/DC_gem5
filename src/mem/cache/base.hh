@@ -368,8 +368,16 @@ class BaseCache : public ClockedObject
     /** Write/writeback buffer */
     WriteQueue writeBuffer;
 
-    WriteQueue &getWriteQueue() { return writeBuffer; }
-    const WriteQueue &getWriteQueue() const { return writeBuffer; }
+    WriteQueue &
+    getWriteQueue()
+    {
+        return writeBuffer;
+    }
+    const WriteQueue &
+    getWriteQueue() const
+    {
+        return writeBuffer;
+    }
 
     /** Tag and data Storage */
     BaseTags *tags;

@@ -63,18 +63,17 @@ namespace gem5
 CompressedTags::CompressedTagsStats::CompressedTagsStats(
     BaseTagStats &base_group, CompressedTags &tags)
     : statistics::Group(&base_group, "compressed_tags"),
-      ADD_STAT(coAllocBypassesWriteQueuePressure, statistics::units::Count::get(),
+      ADD_STAT(coAllocBypassesWriteQueuePressure,
+               statistics::units::Count::get(),
                "Total co-allocations bypassed due to write queue backpressure")
-{
-}
+{}
 
 CompressedTags::CompressedTags(const Params &p)
     : SectorTags(p),
       writeQueueHighThreshold(p.write_queue_high_threshold),
       capacityHeadroomFactor(p.capacity_headroom_factor),
       compressedStats(stats, *this)
-{
-}
+{}
 
 bool
 CompressedTags::isWriteQueuePressureActive() const
@@ -89,10 +88,11 @@ CompressedTags::isWriteQueuePressureActive() const
     const WriteQueue &wq = cache->getWriteQueue();
     int allocated = wq.occupancy();
     int capacity = wq.capacity();
-    double ratio = (capacity > 0) ? (static_cast<double>(allocated) / capacity) : 0.0;
+    double ratio =
+        (capacity > 0) ? (static_cast<double>(allocated) / capacity) : 0.0;
     double threshold_ratio = (writeQueueHighThreshold > 1.0)
-                             ? (writeQueueHighThreshold / 100.0)
-                             : writeQueueHighThreshold;
+                                 ? (writeQueueHighThreshold / 100.0)
+                                 : writeQueueHighThreshold;
 
     if (ratio >= threshold_ratio || wq.isFull()) {
         return true;
@@ -188,12 +188,12 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
     const uint64_t offset = extractSectorOffset(key.address);
     for (const auto& entry : superblock_entries){
         SuperBlk* superblock = static_cast<SuperBlk*>(entry);
-        if (superblock->match(key) &&
-            !superblock->blks[offset]->isValid() &&
-            superblock->isCompressed())
-        {
-            bool normal_coalloc = superblock->canCoAllocate(compressed_size, false, 0.0);
-            bool pressure_coalloc = superblock->canCoAllocate(compressed_size, wq_pressure, capacityHeadroomFactor);
+        if (superblock->match(key) && !superblock->blks[offset]->isValid() &&
+            superblock->isCompressed()) {
+            bool normal_coalloc =
+                superblock->canCoAllocate(compressed_size, false, 0.0);
+            bool pressure_coalloc = superblock->canCoAllocate(
+                compressed_size, wq_pressure, capacityHeadroomFactor);
 
             if (normal_coalloc && wq_pressure && !pressure_coalloc) {
                 compressedStats.coAllocBypassesWriteQueuePressure++;
@@ -202,11 +202,14 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
             if (pressure_coalloc) {
                 if (is_prefetch && superblock->hasValidDemand()) {
                     const uint8_t new_blk_cf =
-                        superblock->calculateCompressionFactor(compressed_size);
-                    const uint8_t current_cf = superblock->getCompressionFactor();
-                    const uint8_t new_cf = (superblock->getNumValid() == 0)
-                                               ? new_blk_cf
-                                               : std::min(current_cf, new_blk_cf);
+                        superblock->calculateCompressionFactor(
+                            compressed_size);
+                    const uint8_t current_cf =
+                        superblock->getCompressionFactor();
+                    const uint8_t new_cf =
+                        (superblock->getNumValid() == 0)
+                            ? new_blk_cf
+                            : std::min(current_cf, new_blk_cf);
                     if (new_cf < current_cf) {
                         continue;
                     }
@@ -245,7 +248,8 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
         }
 
         // When write queue pressure is active, bypass candidates requiring
-        // risky sub-block evictions (dirty lines) in favor of clean entries if available
+        // risky sub-block evictions (dirty lines) in favor of clean entries if
+        // available
         if (wq_pressure) {
             std::vector<ReplaceableEntry *> clean_candidates;
             for (const auto &entry : replacement_candidates) {

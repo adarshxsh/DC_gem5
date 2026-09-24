@@ -569,9 +569,11 @@ TEST_F(SuperBlkTestFixture, WriteQueueBackpressureCoAllocationGuard)
     // Normal co-allocation without pressure permits 256-bit block (CF=2)
     ASSERT_TRUE(superBlk.canCoAllocate(256, false, 0.25));
 
-    // Under write queue pressure (wq_pressure = true), low compression factor fit (256-bit -> CF=2 <= 2) is rejected
+    // Under write queue pressure (wq_pressure = true), low compression factor
+    // fit (256-bit -> CF=2 <= 2) is rejected
     ASSERT_FALSE(superBlk.canCoAllocate(256, true, 0.25));
 
-    // Under write queue pressure (wq_pressure = true), high compression factor fit (128-bit -> CF=4 > 2) is permitted
+    // Under write queue pressure (wq_pressure = true), high compression factor
+    // fit (128-bit -> CF=4 > 2) is permitted
     ASSERT_TRUE(superBlk.canCoAllocate(128, true, 0.25));
 }
