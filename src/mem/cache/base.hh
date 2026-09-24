@@ -841,7 +841,8 @@ class BaseCache : public ClockedObject
      * Invalidate a cache block.
      *
      * @param blk Block to invalidate
-     * @param preserve_detached Preserve detached L1 clean block tracking if true
+     * @param preserve_detached Preserve detached L1 clean block tracking if
+     * true
      */
     void invalidateBlock(CacheBlk *blk, bool preserve_detached = false);
 
