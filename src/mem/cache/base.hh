@@ -742,10 +742,10 @@ class BaseCache : public ClockedObject
      * @param comp_lat Output parameter for compression latency.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                PacketList &writebacks, Cycles &comp_lat);
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                PacketList &writebacks);
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                               PacketList &writebacks, Cycles &comp_lat);
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                               PacketList &writebacks);
 
     /**
      * Perform any necessary updates to the block and perform any data
