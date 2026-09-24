@@ -279,6 +279,14 @@ class Base : public SimObject
      * @param size_bits The block size.
      */
     static void setSizeBits(CacheBlk* blk, const std::size_t size_bits);
+
+    /**
+     * Check whether adaptive compression bypass is currently active.
+     *
+     * @return True if adaptive bypass is enabled and observed compression
+     * ratio is below threshold.
+     */
+    bool isBypassActive() const;
 };
 
 class Base::CompressionData

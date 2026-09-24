@@ -289,6 +289,19 @@ Base::getDecompressionLatency(const CacheBlk* blk)
     return Cycles(0);
 }
 
+bool
+Base::isBypassActive() const
+{
+    if (!enableAdaptiveBypass) {
+        return false;
+    }
+    double observedRatio =
+        (sampledCompressedBits > 0)
+            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
+            : (latencyBreakevenThreshold + 1.0);
+    return observedRatio < latencyBreakevenThreshold;
+}
+
 void
 Base::setDecompressionLatency(CacheBlk* blk, const Cycles lat)
 {
