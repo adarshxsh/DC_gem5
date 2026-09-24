@@ -87,6 +87,27 @@ class CompressedTags : public SectorTags
     /** The cache superblocks. */
     std::vector<SuperBlk> superBlks;
 
+    /** Pointer to owning BaseCache object if linked. */
+    BaseCache *cache = nullptr;
+
+    /** Write queue high occupancy threshold percentage (0-100). */
+    double writeQueueHighThreshold;
+
+    /** Capacity headroom factor applied under write queue pressure. */
+    double capacityHeadroomFactor;
+
+    /** Override flag for testing / manual write queue pressure control. */
+    bool writeQueuePressureOverride = false;
+    bool overrideSet = false;
+
+    struct CompressedTagsStats : public statistics::Group
+    {
+        CompressedTagsStats(BaseTagStats &base_group, CompressedTags &tags);
+
+        /** Total co-allocations bypassed due to write queue backpressure. */
+        statistics::Scalar coAllocBypassesWriteQueuePressure;
+    } compressedStats;
+
   public:
     /** Convenience typedef. */
      typedef CompressedTagsParams Params;
@@ -100,6 +121,25 @@ class CompressedTags : public SectorTags
      * Destructor.
      */
     virtual ~CompressedTags() {};
+
+    /**
+     * Link owning cache instance.
+     */
+    void setCache(BaseCache *_cache) { cache = _cache; }
+
+    /**
+     * Override write queue pressure state for testing.
+     */
+    void setWriteQueuePressure(bool pressure)
+    {
+        writeQueuePressureOverride = pressure;
+        overrideSet = true;
+    }
+
+    /**
+     * Query whether local write queue or downstream write buffer is congested.
+     */
+    bool isWriteQueuePressureActive() const;
 
     /**
      * Initialize blocks as SuperBlk and CompressionBlk instances.

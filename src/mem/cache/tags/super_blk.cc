@@ -219,7 +219,9 @@ SuperBlk::hasValidDemand() const
 }
 
 bool
-SuperBlk::canCoAllocate(const std::size_t compressed_size) const
+SuperBlk::canCoAllocate(const std::size_t compressed_size,
+                        bool wq_pressure,
+                        double headroom_factor) const
 {
     if (!isCompressed()) {
         return false;
@@ -228,6 +230,13 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
     const uint8_t new_blk_cf = calculateCompressionFactor(compressed_size);
     if (new_blk_cf <= 1) {
         return false;
+    }
+
+    if (wq_pressure) {
+        // Under active write queue pressure, suppress low compression factor fits
+        if (new_blk_cf <= 2) {
+            return false;
+        }
     }
 
     std::size_t bit_sum = 0;
@@ -243,7 +252,18 @@ SuperBlk::canCoAllocate(const std::size_t compressed_size) const
         }
     }
 
-    return (bit_sum + compressed_size) <= (blkSize * CHAR_BIT);
+    std::size_t max_bits = blkSize * CHAR_BIT;
+    if (wq_pressure && headroom_factor > 0.0) {
+        if (headroom_factor > 1.0) {
+            headroom_factor = headroom_factor / 100.0;
+        }
+        std::size_t headroom = static_cast<std::size_t>(max_bits * headroom_factor);
+        if (headroom < max_bits) {
+            max_bits -= headroom;
+        }
+    }
+
+    return (bit_sum + compressed_size) <= max_bits;
 }
 
 void

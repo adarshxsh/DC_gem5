@@ -161,6 +161,16 @@ class CompressedTags(SectorTags):
     # the cache size by the compression ratio
     size = Parent.size * Self.max_compression_ratio
 
+    # Write queue occupancy threshold percentage to trigger pressure mitigation
+    write_queue_high_threshold = Param.Percent(
+        80, "Write queue occupancy percentage threshold to trigger pressure mitigation."
+    )
+
+    # Capacity headroom factor applied to superblock co-allocation under write queue pressure
+    capacity_headroom_factor = Param.Float(
+        0.25, "Capacity headroom factor applied to co-allocation under write queue pressure."
+    )
+
 
 class FALRU(BaseTags):
     type = "FALRU"

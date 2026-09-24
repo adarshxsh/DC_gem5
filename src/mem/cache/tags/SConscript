@@ -52,7 +52,8 @@ Source("super_blk.cc")
 
 GTest("dueling.test", "dueling.test.cc", "dueling.cc")
 GTest("super_blk.test", "super_blk.test.cc", "super_blk.cc", "sector_blk.cc",
-    Dir("#src").File("base/types.cc"), with_tag('gem5 simobject'))
+    Dir("#src").File("base/types.cc"), with_tag('gem5 simobject'),
+    with_tag('gtest mock logging'))
 GTest(
     "compressed_tags.test",
     "compressed_tags.test.cc",
@@ -60,4 +61,5 @@ GTest(
     "sector_blk.cc",
     "#src/base/types.cc",
     with_tag("gem5 simobject"),
+    with_tag("gtest mock logging"),
 )
