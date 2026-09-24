@@ -29,11 +29,31 @@ class TestBaseCompressor : public Zero
     using Base::compress;
     using Zero::Zero;
 
-    unsigned getWindowSize() const { return windowSize; }
-    std::size_t getWindowCount() const { return windowCount; }
-    std::size_t getWindowHead() const { return windowHead; }
-    uint64_t getSampledUncompressedBits() const { return sampledUncompressedBits; }
-    uint64_t getSampledCompressedBits() const { return sampledCompressedBits; }
+    unsigned
+    getWindowSize() const
+    {
+        return windowSize;
+    }
+    std::size_t
+    getWindowCount() const
+    {
+        return windowCount;
+    }
+    std::size_t
+    getWindowHead() const
+    {
+        return windowHead;
+    }
+    uint64_t
+    getSampledUncompressedBits() const
+    {
+        return sampledUncompressedBits;
+    }
+    uint64_t
+    getSampledCompressedBits() const
+    {
+        return sampledCompressedBits;
+    }
 };
 
 TEST(BaseCacheCompressorTest, DefaultWindowSizeAndCapacityEviction)
@@ -82,7 +102,8 @@ TEST(BaseCacheCompressorTest, DefaultWindowSizeAndCapacityEviction)
         compressor.compress(random_data, comp_lat, decomp_lat);
     }
 
-    // Now all 10 zero requests must be evicted. The active window contains 10 random requests.
+    // Now all 10 zero requests must be evicted. The active window contains 10
+    // random requests.
     EXPECT_EQ(compressor.getWindowCount(), 10U);
     EXPECT_EQ(compressor.getSampledUncompressedBits(), 10 * 64 * 8ULL);
     EXPECT_EQ(compressor.getSampledCompressedBits(), 10 * 64 * 8ULL);
@@ -104,7 +125,7 @@ TEST(BaseCacheCompressorTest, PhaseTransitionAdaptation)
     p.latency_breakeven_threshold = 2.0; // Require compression ratio >= 2.0
     p.sampling_interval = 1;
     p.decay_shift = 0; // Disable exponential decay
-    p.window_size = 5;  // Window size of 5 requests
+    p.window_size = 5; // Window size of 5 requests
 
     TestBaseCompressor compressor(p);
     compressor.regStats();
@@ -128,13 +149,15 @@ TEST(BaseCacheCompressorTest, PhaseTransitionAdaptation)
     // Feed incompressible requests until observed ratio drops below 2.0
     int bypassed_count = 0;
     for (int i = 0; i < 10; i++) {
-        auto comp_data = compressor.compress(random_data, comp_lat, decomp_lat);
+        auto comp_data =
+            compressor.compress(random_data, comp_lat, decomp_lat);
         if (comp_data->getSizeBits() == 64 * 8) {
             bypassed_count++;
         }
     }
 
-    // Adaptive bypass must trigger within window_size requests after phase transition
+    // Adaptive bypass must trigger within window_size requests after phase
+    // transition
     EXPECT_GT(bypassed_count, 0);
 }
 
@@ -168,7 +191,8 @@ TEST(BaseCacheCompressorTest, ZeroWindowExponentialDecayFallback)
     compressor.compress(zero_data, comp_lat, decomp_lat);
     EXPECT_EQ(compressor.getSampledUncompressedBits(), 512ULL);
 
-    // Second request: previous decayed by >> 2 (512 - 128 = 384), then +512 = 896
+    // Second request: previous decayed by >> 2 (512 - 128 = 384), then +512 =
+    // 896
     compressor.compress(zero_data, comp_lat, decomp_lat);
     EXPECT_EQ(compressor.getSampledUncompressedBits(), 896ULL);
 }

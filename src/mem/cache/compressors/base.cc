@@ -231,8 +231,10 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         if (windowSize > 0) {
             if (windowCount == windowSize) {
                 // Evict oldest sample from active window accumulators
-                sampledUncompressedBits -= sampleWindow[windowHead].uncompressedBits;
-                sampledCompressedBits -= sampleWindow[windowHead].compressedBits;
+                sampledUncompressedBits -=
+                    sampleWindow[windowHead].uncompressedBits;
+                sampledCompressedBits -=
+                    sampleWindow[windowHead].compressedBits;
             } else {
                 windowCount++;
             }
@@ -245,7 +247,8 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             windowHead = (windowHead + 1) % windowSize;
         } else {
             if (enableAdaptiveBypass && (decayShift > 0)) {
-                sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
+                sampledUncompressedBits -=
+                    (sampledUncompressedBits >> decayShift);
                 sampledCompressedBits -= (sampledCompressedBits >> decayShift);
             }
             sampledUncompressedBits += uncomp_bits;

@@ -140,14 +140,16 @@ class Base : public SimObject
     /** Sliding window capacity in number of sampled requests. */
     const unsigned windowSize;
 
-    /** Entry recording size statistics for a sampled request in the sliding window. */
+    /** Entry recording size statistics for a sampled request in the sliding
+     * window. */
     struct SampleEntry
     {
         uint64_t uncompressedBits = 0;
         uint64_t compressedBits = 0;
     };
 
-    /** Ring buffer of sample entries for the N most recent sampled requests. */
+    /** Ring buffer of sample entries for the N most recent sampled requests.
+     */
     std::vector<SampleEntry> sampleWindow;
 
     /** Ring buffer head pointer (index of next sample insertion). */
