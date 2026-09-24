@@ -158,19 +158,23 @@ class Queue : public Drainable, public Named
         return _numInService;
     }
 
-    int occupancy() const
+    int
+    occupancy() const
     {
         return allocated;
     }
 
-    int capacity() const
+    int
+    capacity() const
     {
         return std::max(1, numEntries - numReserve);
     }
 
-    double occupancyRatio() const
+    double
+    occupancyRatio() const
     {
-        return static_cast<double>(occupancy()) / static_cast<double>(capacity());
+        return static_cast<double>(occupancy()) /
+               static_cast<double>(capacity());
     }
 
     /**

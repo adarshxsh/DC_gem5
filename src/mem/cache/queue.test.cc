@@ -47,12 +47,34 @@ class TestQueueEntry : public QueueEntry
 
     TestQueueEntry(const std::string &name = "test") : QueueEntry(name) {}
 
-    bool sendPacket(BaseCache &cache) override { return true; }
-    bool matchBlockAddr(Addr addr, bool is_secure) const override { return false; }
-    bool matchBlockAddr(const PacketPtr pkt) const override { return false; }
-    bool conflictAddr(const QueueEntry *entry) const override { return false; }
-    Target* getTarget() override { return nullptr; }
-    void deallocate() {}
+    bool
+    sendPacket(BaseCache &cache) override
+    {
+        return true;
+    }
+    bool
+    matchBlockAddr(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    matchBlockAddr(const PacketPtr pkt) const override
+    {
+        return false;
+    }
+    bool
+    conflictAddr(const QueueEntry *entry) const override
+    {
+        return false;
+    }
+    Target *
+    getTarget() override
+    {
+        return nullptr;
+    }
+    void
+    deallocate()
+    {}
 };
 
 TEST(QueueTest, OccupancyAndCapacity)

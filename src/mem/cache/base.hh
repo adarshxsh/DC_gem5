@@ -506,7 +506,8 @@ class BaseCache : public ClockedObject
 
     /**
      * Check if adaptive decompression bypass should be applied.
-     * @return True if adaptive decompression bypass is enabled and queue pressure exceeds threshold.
+     * @return True if adaptive decompression bypass is enabled and queue
+     * pressure exceeds threshold.
      */
     bool shouldBypassDecompression() const;
 
