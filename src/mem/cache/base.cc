@@ -1064,7 +1064,7 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 }
 
 bool
-BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                  PacketList &writebacks, Cycles &comp_lat)
 {
     comp_lat = Cycles(0);
@@ -1496,7 +1496,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // If that is the case we might need to evict blocks.
             Cycles comp_lat = Cycles(0);
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                writebacks, comp_lat)) {
+                                       writebacks, comp_lat)) {
                 invalidateBlock(blk);
                 return false;
             }
@@ -1576,7 +1576,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // If that is the case we might need to evict blocks.
             Cycles comp_lat = Cycles(0);
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                writebacks, comp_lat)) {
+                                       writebacks, comp_lat)) {
                 invalidateBlock(blk);
                 return false;
             }
