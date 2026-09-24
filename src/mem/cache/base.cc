@@ -1051,7 +1051,7 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
                         blk->setDetachedL1Clean();
                         stats.detachedL1CleanPreserved++;
 
-                        invalidateBlock(blk);
+                        invalidateBlock(blk, true);
                     } else {
                         evictBlock(blk, writebacks);
                     }
@@ -1812,7 +1812,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 }
 
 void
-BaseCache::invalidateBlock(CacheBlk *blk)
+BaseCache::invalidateBlock(CacheBlk *blk, bool preserve_detached)
 {
     // If block is still marked as prefetched, then it hasn't been used
     if (blk->wasPrefetched()) {
@@ -1825,7 +1825,9 @@ BaseCache::invalidateBlock(CacheBlk *blk)
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {
-        clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
+        if (!preserve_detached) {
+            clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
+        }
         tags->invalidate(blk);
     } else {
         tempBlock->invalidate();
