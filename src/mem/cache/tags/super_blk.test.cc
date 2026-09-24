@@ -144,6 +144,6 @@ TEST(CacheBlkTest, CompressionBlkReturnsDecompressionLatency)
 {
     CompressionBlk blk;
     blk.setDecompressionLatency(Cycles(5));
-    CacheBlk* base_blk = &blk;
+    CacheBlk *base_blk = &blk;
     EXPECT_EQ(base_blk->getDecompressionLatency(), Cycles(5));
 }
