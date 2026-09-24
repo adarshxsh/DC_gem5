@@ -743,7 +743,7 @@ class BaseCache : public ClockedObject
      */
     static inline Cycles dummy_comp_lat = Cycles(0);
 
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                PacketList &writebacks,
                                Cycles &comp_lat = dummy_comp_lat);
 
