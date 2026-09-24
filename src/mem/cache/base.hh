@@ -371,6 +371,10 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** Parameters for adaptive decompression bypass */
+    const bool enableDecompressionBypass;
+    const double decompressionBypassThreshold;
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -493,6 +497,19 @@ class BaseCache : public ClockedObject
      */
     Cycles calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
                                   const Cycles lookup_lat) const;
+
+    /**
+     * Calculate current queue pressure from MSHR and Write Queue allocations.
+     * @return Maximum occupancy ratio between MSHR Queue and Write Queue.
+     */
+    double getQueuePressure() const;
+
+    /**
+     * Check if adaptive decompression bypass should be applied.
+     * @return True if adaptive decompression bypass is enabled and queue
+     * pressure exceeds threshold.
+     */
+    bool shouldBypassDecompression() const;
 
     /**
      * Does all the processing necessary to perform the provided request.
