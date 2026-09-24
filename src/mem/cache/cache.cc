@@ -812,7 +812,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // from lower level caches/memory to an upper level cache or
                 // the core.
                 completion_time += clockEdge(responseLatency) +
-                    (transfer_offset ? pkt->payloadDelay : 0);
+                                   (transfer_offset ? pkt->payloadDelay : 0) +
+                                   tgt_pkt->headerDelay;
 
                 assert(!tgt_pkt->req->isUncacheable());
 

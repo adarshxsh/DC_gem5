@@ -132,7 +132,7 @@ class CompressionBlk : public SectorSubBlk
      *
      * @return Decompression latency.
      */
-    Cycles getDecompressionLatency() const;
+    Cycles getDecompressionLatency() const override;
 
     /**
      * Set number of cycles needed to decompress this block.
