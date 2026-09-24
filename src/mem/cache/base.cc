@@ -1265,7 +1265,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
                     writebacks)) {
-                invalidateBlock(blk);
+                evictBlock(blk, writebacks);
             }
         }
     } else if (pkt->isWrite()) {
@@ -1289,7 +1289,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
                     writebacks)) {
-                invalidateBlock(blk);
+                evictBlock(blk, writebacks);
             }
         }
     } else if (pkt->isRead()) {
@@ -1489,7 +1489,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // If that is the case we might need to evict blocks.
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
                 writebacks)) {
-                invalidateBlock(blk);
+                evictBlock(blk, writebacks);
                 return false;
             }
         }
@@ -1568,7 +1568,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // If that is the case we might need to evict blocks.
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
                 writebacks)) {
-                invalidateBlock(blk);
+                evictBlock(blk, writebacks);
                 return false;
             }
         }
