@@ -503,7 +503,7 @@ class BaseCache : public ClockedObject
      * @return The number of decompression cycles incurred.
      */
     Cycles calculateTargetCompressionLatency(const PacketPtr pkt,
-                                              const CacheBlk *blk) const;
+                                             const CacheBlk *blk) const;
 
     /**
      * Does all the processing necessary to perform the provided request.
