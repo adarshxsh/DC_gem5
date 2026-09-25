@@ -811,8 +811,11 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // responseLatency is the latency of the return path
                 // from lower level caches/memory to an upper level cache or
                 // the core.
-                completion_time += clockEdge(responseLatency) +
-                    (transfer_offset ? pkt->payloadDelay : 0);
+                completion_time +=
+                    clockEdge(responseLatency) +
+                    (transfer_offset ? pkt->payloadDelay : 0) +
+                    cyclesToTicks(
+                        calculateTargetCompressionLatency(tgt_pkt, blk));
 
                 assert(!tgt_pkt->req->isUncacheable());
 
