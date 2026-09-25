@@ -1371,7 +1371,7 @@ BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
 
 Cycles
 BaseCache::calculateTargetCompressionLatency(const PacketPtr pkt,
-                                              const CacheBlk *blk) const
+                                             const CacheBlk *blk) const
 {
     if (compressor && (pkt->isRead() || !pkt->isWholeLineWrite(blkSize))) {
         return compressor->getDecompressionLatency(blk);

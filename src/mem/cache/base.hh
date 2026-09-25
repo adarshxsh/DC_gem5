@@ -495,7 +495,8 @@ class BaseCache : public ClockedObject
                                   const Cycles lookup_lat) const;
 
     /**
-     * Calculate decompression latency for target packet accessing a cache line.
+     * Calculate decompression latency for target packet accessing a cache
+     * line.
      *
      * @param pkt Target packet
      * @param blk Cache block
