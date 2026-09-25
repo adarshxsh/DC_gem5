@@ -77,9 +77,10 @@ Cache::Cache(const CacheParams &p)
 
 void
 Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                      bool deferred_response, bool pending_downgrade)
+                      Cycles &lat, bool deferred_response,
+                      bool pending_downgrade)
 {
-    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
+    BaseCache::satisfyRequest(pkt, blk, writebacks, lat, deferred_response,
                               pending_downgrade);
 
     if (pkt->isRead()) {

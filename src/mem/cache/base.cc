@@ -1065,10 +1065,11 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 
 bool
 BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks)
+                                 PacketList &writebacks, Cycles &comp_lat)
 {
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {
+        comp_lat = Cycles(0);
         return true;
     }
 
@@ -1078,6 +1079,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     Cycles decompression_lat = Cycles(0);
     const auto comp_data =
         compressor->compress(data, compression_lat, decompression_lat);
+    comp_lat = compression_lat;
     std::size_t compression_size = comp_data->getSizeBits();
 
     // Get previous compressed size
@@ -1210,7 +1212,8 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                          bool, bool)
+                          Cycles &lat, bool deferred_response,
+                          bool pending_downgrade)
 {
     assert(pkt->isRequest());
 
@@ -1262,11 +1265,13 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         }
 
         if (compressor) {
+            Cycles comp_lat = Cycles(0);
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
+            lat += comp_lat;
         }
     } else if (pkt->isWrite()) {
         // we have the block in a writable state and can go ahead,
@@ -1286,11 +1291,13 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         DPRINTF(CacheVerbose, "%s for %s (write)\n", __func__, pkt->print());
 
         if (compressor) {
+            Cycles comp_lat = Cycles(0);
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
+            lat += comp_lat;
         }
     } else if (pkt->isRead()) {
         if (pkt->isLLSC()) {
@@ -1619,7 +1626,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
 
-        satisfyRequest(pkt, blk, writebacks);
+        satisfyRequest(pkt, blk, writebacks, lat);
         maintainClusivity(pkt->fromCache(), blk);
 
         return true;

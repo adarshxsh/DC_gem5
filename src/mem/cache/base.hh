@@ -739,10 +739,18 @@ class BaseCache : public ClockedObject
      * @param blk The block to be overwriten.
      * @param data A pointer to the data to be compressed (blk's new data).
      * @param writebacks List for any writebacks that need to be performed.
+     * @param comp_lat Re-compression latency calculated by the compressor.
      * @return Whether operation is successful or not.
      */
     bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks);
+                               PacketList &writebacks, Cycles &comp_lat);
+
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+                               PacketList &writebacks)
+    {
+        Cycles dummy_lat = Cycles(0);
+        return updateCompressionData(blk, data, writebacks, dummy_lat);
+    }
 
     /**
      * Perform any necessary updates to the block and perform any data
@@ -752,13 +760,25 @@ class BaseCache : public ClockedObject
      * @param pkt Request packet from upstream that hit a block
      * @param blk Cache block that the packet hit
      * @param writebacks List of writebacks generated
+     * @param lat Access latency accumulated so far and updated with re-compression delay
      * @param deferred_response Whether this request originally missed
      * @param pending_downgrade Whether the writable flag is to be removed
      */
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                                 PacketList &writebacks,
+                                Cycles &lat,
                                 bool deferred_response = false,
                                 bool pending_downgrade = false);
+
+    void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+                        PacketList &writebacks,
+                        bool deferred_response = false,
+                        bool pending_downgrade = false)
+    {
+        Cycles dummy_lat = Cycles(0);
+        satisfyRequest(pkt, blk, writebacks, dummy_lat, deferred_response,
+                       pending_downgrade);
+    }
 
     /**
      * Maintain the clusivity of this cache by potentially
