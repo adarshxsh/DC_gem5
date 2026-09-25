@@ -717,6 +717,8 @@ class BaseCache : public ClockedObject
      */
     EventFunctionWrapper writebackTempBlockAtomicEvent;
 
+    static inline Cycles dummyCompLat = Cycles(0);
+
     /**
      * When a block is overwriten, its compression information must be updated,
      * and it may need to be recompressed. If the compression size changes, the
@@ -739,10 +741,12 @@ class BaseCache : public ClockedObject
      * @param blk The block to be overwriten.
      * @param data A pointer to the data to be compressed (blk's new data).
      * @param writebacks List for any writebacks that need to be performed.
+     * @param comp_lat Output parameter for calculated re-compression latency.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks);
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                               PacketList &writebacks,
+                               Cycles &comp_lat = dummyCompLat);
 
     /**
      * Perform any necessary updates to the block and perform any data
@@ -754,11 +758,13 @@ class BaseCache : public ClockedObject
      * @param writebacks List of writebacks generated
      * @param deferred_response Whether this request originally missed
      * @param pending_downgrade Whether the writable flag is to be removed
+     * @param comp_lat Output parameter for calculated re-compression latency
      */
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                                 PacketList &writebacks,
                                 bool deferred_response = false,
-                                bool pending_downgrade = false);
+                                bool pending_downgrade = false,
+                                Cycles &comp_lat = dummyCompLat);
 
     /**
      * Maintain the clusivity of this cache by potentially
