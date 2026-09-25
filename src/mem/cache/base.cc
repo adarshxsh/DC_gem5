@@ -1369,6 +1369,16 @@ BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
     return lat;
 }
 
+Cycles
+BaseCache::calculateTargetCompressionLatency(const PacketPtr pkt,
+                                              const CacheBlk *blk) const
+{
+    if (compressor && (pkt->isRead() || !pkt->isWholeLineWrite(blkSize))) {
+        return compressor->getDecompressionLatency(blk);
+    }
+    return Cycles(0);
+}
+
 bool
 BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                   PacketList &writebacks)
