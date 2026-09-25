@@ -802,7 +802,8 @@ class BaseCache : public ClockedObject
      * @return Pointer to the new cache block.
      */
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
-                         PacketList &writebacks, bool allocate);
+                         PacketList &writebacks, bool allocate,
+                         bool is_prefetch = false);
 
     /**
      * Allocate a new block and perform any necessary writebacks
@@ -814,9 +815,11 @@ class BaseCache : public ClockedObject
      *
      * @param pkt Packet holding the address to update
      * @param writebacks A list of writeback packets for the evicted blocks
+     * @param is_prefetch True if allocating for a prefetch request/fill
      * @return the allocated block
      */
-    CacheBlk *allocateBlock(const PacketPtr pkt, PacketList &writebacks);
+    CacheBlk *allocateBlock(const PacketPtr pkt, PacketList &writebacks,
+                            bool is_prefetch = false);
     /**
      * Evict a cache block.
      *

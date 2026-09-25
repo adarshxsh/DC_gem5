@@ -606,7 +606,9 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
-        blk = handleFill(pkt, blk, writebacks, allocate);
+        const bool is_prefetch = mshr ? !mshr->hasDemandTarget() :
+            (pkt->cmd.isPrefetch() || (pkt->req && pkt->req->isPrefetch()));
+        blk = handleFill(pkt, blk, writebacks, allocate, is_prefetch);
         assert(blk != nullptr);
         ppFill->notify(CacheAccessProbeArg(pkt, accessor));
     }
@@ -1655,7 +1657,7 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
 
 CacheBlk*
 BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                      bool allocate)
+                      bool allocate, bool is_prefetch)
 {
     assert(pkt->isResponse());
     Addr addr = pkt->getAddr();
@@ -1673,7 +1675,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
         // need to do a replacement if allocating, otherwise we stick
         // with the temporary storage
-        blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
+        blk = allocate ? allocateBlock(pkt, writebacks, is_prefetch) : nullptr;
 
         if (!blk) {
             // No replaceable block or a mostly exclusive
@@ -1750,7 +1752,8 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 }
 
 CacheBlk*
-BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
+BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks,
+                          bool is_prefetch)
 {
     // Get address
     const Addr addr = pkt->getAddr();
@@ -1783,7 +1786,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim =
         tags->findVictim({addr, is_secure}, blk_size_bits, evict_blks,
-                         partition_id, pkt->cmd.isPrefetch());
+                         partition_id, is_prefetch);
 
     // It is valid to return nullptr if there is no victim
     if (!victim)

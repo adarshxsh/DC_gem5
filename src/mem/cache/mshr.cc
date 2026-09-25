@@ -69,7 +69,7 @@ MSHR::MSHR(const std::string &name)
 
 MSHR::TargetList::TargetList(const std::string &name)
     : Named(name), needsWritable(false), hasUpgrade(false), allocOnFill(false),
-      hasFromCache(false), canMergeWrites(true)
+      hasFromCache(false), hasDemand(false), canMergeWrites(true)
 {}
 
 
@@ -97,6 +97,8 @@ MSHR::TargetList::updateFlags(PacketPtr pkt, Target::Source source,
             hasFromCache = hasFromCache || pkt->fromCache();
 
             updateWriteFlags(pkt);
+
+            hasDemand = true;
         }
     }
 }
