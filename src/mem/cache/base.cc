@@ -1215,6 +1215,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     assert(pkt->isRequest());
 
     assert(blk && blk->isValid());
+    clearDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure());
     // Occasionally this is not true... if we are a lower-level cache
     // satisfying a string of Read and ReadEx requests from
     // upper-level caches, a Read will mark the block as shared but we
@@ -1524,11 +1525,12 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // A CleanEvict does not need to access the data array
         lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
 
-        if (blk) {
-            // Found the block in the tags, need to stop CleanEvict from
-            // propagating further down the hierarchy. Returning true will
-            // treat the CleanEvict like a satisfied write request and delete
-            // it.
+        if (blk || isDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure())) {
+            // Found the block in the tags or detached L1 clean tracking,
+            // need to stop CleanEvict from propagating further down the
+            // hierarchy. Returning true will treat the CleanEvict like a
+            // satisfied write request and delete it.
+            clearDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure());
             return true;
         }
         // We didn't find the block here, propagate the CleanEvict further
@@ -1825,7 +1827,9 @@ BaseCache::invalidateBlock(CacheBlk *blk)
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {
-        clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
+        if (!blk->isDetachedL1Clean()) {
+            clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
+        }
         tags->invalidate(blk);
     } else {
         tempBlock->invalidate();

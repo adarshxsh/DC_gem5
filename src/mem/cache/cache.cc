@@ -1143,6 +1143,10 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
     } else if (!blk_valid) {
         DPRINTF(CacheVerbose, "%s: snoop miss for %s\n", __func__,
                 pkt->print());
+        if (pkt->isInvalidate() &&
+            isDetachedL1CleanBlock(pkt->getAddr(), is_secure)) {
+            clearDetachedL1CleanBlock(pkt->getAddr(), is_secure);
+        }
         if (is_deferred) {
             // we no longer have the block, and will not respond, but a
             // packet was allocated in MSHR::handleSnoop and we have
