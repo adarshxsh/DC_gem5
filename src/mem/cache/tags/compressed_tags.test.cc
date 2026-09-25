@@ -462,7 +462,8 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
 
     // Prefetch demand-protection guard logic verification:
     // If request is prefetch AND superblock has valid demand AND
-    // (current_cf <= 1 || new_blk_cf < current_cf), co-allocation is disallowed.
+    // (current_cf <= 1 || new_blk_cf < current_cf), co-allocation is
+    // disallowed.
     bool is_prefetch = true;
     bool co_alloc_allowed_for_prefetch =
         superBlk.canCoAllocate(new_size) &&
