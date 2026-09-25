@@ -2,11 +2,11 @@
 
 Why did stock gem5 run *slower* with compression enabled than with compression completely disabled?
 
-On paper, hardware cache compression sounds like free capacity. But in computer architecture, every optimization introduces microarchitectural trade-offs. In stock gem5, four fatal design flaws crippled the system on memory-intensive workloads like SPEC CPU2017 `505.mcf_r`. 
+On paper, hardware cache compression sounds like free capacity. But in computer architecture, every optimization introduces microarchitectural trade-offs. In stock gem5, four fatal design flaws crippled the system on memory-intensive workloads like SPEC CPU2017 `505.mcf_r`.
 
 ---
 
-## Flaw A: The "Collateral Eviction" Pathology 
+## Flaw A: The "Collateral Eviction" Pathology
 
 ### The Mental Model: 4 Roommates in a Shared Apartment
 In gem5's `CompressedTags`, physical cache lines are organized into **Superblocks**. Each superblock consists of 64 physical bytes (512 bits) of SRAM data storage, backed by multiple tag entries called **SectorSubBlks** (sub-blocks).
@@ -32,7 +32,7 @@ Now, the 4 roommates exceed the physical space of the apartment (they need 68 by
 #### What Stock gem5 Did:
 Instead of kicking out just one roommate (the least recently used one) to make 16 bytes of room, stock gem5 had **no partial eviction mechanism**.
 * It panicked or **evicted the entire 64-byte superblock**!
-* In one fell swoop, it flushed all 4 valid, hot cache lines out to off-chip DRAM. 
+* In one fell swoop, it flushed all 4 valid, hot cache lines out to off-chip DRAM.
 
 ```
 Write hit on Sub-Block 0 (expands from 16B to 20B)
@@ -91,7 +91,7 @@ Stock gem5 calculated compression efficiency using discrete integer powers of tw
 $$\text{Compression Factor} \in \{1\times, 2\times, 4\times, 8\times\}$$
 
 ### The Internal Fragmentation Trap:
-Consider a cache line containing linked-list pointer structures in `505.mcf_r` (`node_t` structs). 
+Consider a cache line containing linked-list pointer structures in `505.mcf_r` (`node_t` structs).
 * When compressed with BDI, the 64-byte line shrinks to **36 bytes** (288 bits).
 * The true compression ratio is:
   $$\frac{64\text{ bytes}}{36\text{ bytes}} = 1.78\times$$
