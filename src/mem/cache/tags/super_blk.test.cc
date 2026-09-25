@@ -126,7 +126,8 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     subBlks[1].setSizeBits(128);
 
     // Bounding target_cf is min(2, 4) = 2.
-    // Adding a 3rd sub-block makes total_count = 3 > target_cf (2), so it must be rejected!
+    // Adding a 3rd sub-block makes total_count = 3 > target_cf (2), so it must
+    // be rejected!
     EXPECT_FALSE(superBlk.canCoAllocate(128));
 
     // Exceeding 512 bits (384 + 256 = 640 > 512) must also be rejected
@@ -139,14 +140,16 @@ TEST_F(CanCoAllocateTest, ExceedsCompressionFactorCountCap)
     subBlks[0].insert({0x3000, false});
     subBlks[0].setSizeBits(256);
 
-    // Co-allocating 2nd sub-block (256 bits, CF=2) -> total_count = 2 <= target_cf (2) -> allowed
+    // Co-allocating 2nd sub-block (256 bits, CF=2) -> total_count = 2 <=
+    // target_cf (2) -> allowed
     EXPECT_TRUE(superBlk.canCoAllocate(256));
 
     // Insert 2nd sub-block
     subBlks[1].insert({0x3000, false});
     subBlks[1].setSizeBits(256);
 
-    // Co-allocating 3rd sub-block when target_cf = 2 -> total_count = 3 > 2 -> rejected
+    // Co-allocating 3rd sub-block when target_cf = 2 -> total_count = 3 > 2 ->
+    // rejected
     EXPECT_FALSE(superBlk.canCoAllocate(128));
     EXPECT_FALSE(superBlk.canCoAllocate(256));
 }
