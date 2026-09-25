@@ -69,7 +69,8 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 void
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                                  PacketList &writebacks, Cycles &lat,
-                                 bool deferred_response, bool pending_downgrade)
+                                 bool deferred_response,
+                                 bool pending_downgrade)
 {
     // As this a non-coherent cache located below the point of
     // coherency, we do not expect requests that are typically used to

@@ -742,11 +742,12 @@ class BaseCache : public ClockedObject
      * @param comp_lat Re-compression latency calculated by the compressor.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                PacketList &writebacks, Cycles &comp_lat);
 
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks)
+    bool
+    updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                          PacketList &writebacks)
     {
         Cycles dummy_lat = Cycles(0);
         return updateCompressionData(blk, data, writebacks, dummy_lat);
@@ -760,20 +761,20 @@ class BaseCache : public ClockedObject
      * @param pkt Request packet from upstream that hit a block
      * @param blk Cache block that the packet hit
      * @param writebacks List of writebacks generated
-     * @param lat Access latency accumulated so far and updated with re-compression delay
+     * @param lat Access latency accumulated so far and updated with
+     * re-compression delay
      * @param deferred_response Whether this request originally missed
      * @param pending_downgrade Whether the writable flag is to be removed
      */
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                PacketList &writebacks,
-                                Cycles &lat,
+                                PacketList &writebacks, Cycles &lat,
                                 bool deferred_response = false,
                                 bool pending_downgrade = false);
 
-    void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                        PacketList &writebacks,
-                        bool deferred_response = false,
-                        bool pending_downgrade = false)
+    void
+    satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                   bool deferred_response = false,
+                   bool pending_downgrade = false)
     {
         Cycles dummy_lat = Cycles(0);
         satisfyRequest(pkt, blk, writebacks, dummy_lat, deferred_response,

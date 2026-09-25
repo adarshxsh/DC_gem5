@@ -1064,7 +1064,7 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 }
 
 bool
-BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                  PacketList &writebacks, Cycles &comp_lat)
 {
     // tempBlock does not exist in the tags, so don't do anything for it.
