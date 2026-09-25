@@ -456,21 +456,19 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
 
     const uint8_t new_blk_cf = superBlk.calculateCompressionFactor(new_size);
     const uint8_t current_cf = superBlk.getCompressionFactor();
-    const uint8_t new_cf = (superBlk.getNumValid() == 0)
-                               ? new_blk_cf
-                               : std::min(current_cf, new_blk_cf);
 
     ASSERT_EQ(new_blk_cf, 2);
-    ASSERT_EQ(new_cf, 2);
-    ASSERT_LT(new_cf, current_cf);
+    ASSERT_LT(new_blk_cf, current_cf);
 
     // Prefetch demand-protection guard logic verification:
-    // If request is prefetch AND superblock has valid demand AND new_cf <
-    // current_cf, co-allocation is disallowed.
+    // If request is prefetch AND superblock has valid demand AND
+    // (current_cf <= 1 || new_blk_cf < current_cf), co-allocation is
+    // disallowed.
     bool is_prefetch = true;
     bool co_alloc_allowed_for_prefetch =
         superBlk.canCoAllocate(new_size) &&
-        !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+        !(is_prefetch && superBlk.hasValidDemand() &&
+          (current_cf <= 1 || new_blk_cf < current_cf));
 
     ASSERT_FALSE(co_alloc_allowed_for_prefetch);
 
@@ -479,9 +477,22 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
     is_prefetch = false;
     bool co_alloc_allowed_for_demand =
         superBlk.canCoAllocate(new_size) &&
-        !(is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+        !(is_prefetch && superBlk.hasValidDemand() &&
+          (current_cf <= 1 || new_blk_cf < current_cf));
 
     ASSERT_TRUE(co_alloc_allowed_for_demand);
+
+    // Test uncompressed demand superblock case (current_cf <= 1)
+    subBlks[0].setSizeBits(512); // uncompressed (CF = 1)
+    const uint8_t uncompressed_cf = superBlk.getCompressionFactor();
+    ASSERT_EQ(uncompressed_cf, 1);
+
+    is_prefetch = true;
+    bool prefetch_guard_triggered =
+        (is_prefetch && superBlk.hasValidDemand() &&
+         (uncompressed_cf <= 1 || new_blk_cf < uncompressed_cf));
+
+    ASSERT_TRUE(prefetch_guard_triggered);
 }
 
 TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
