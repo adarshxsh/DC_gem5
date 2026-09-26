@@ -573,9 +573,10 @@ TEST_F(SuperBlkTestFixture, BoundingSuperblockCompressionFactor)
     superBlk.updateCompressionFactor();
 
     // Isolated calculation for sub-block 0 would yield 8
-    ASSERT_EQ(superBlk.calculateCompressionFactor(subBlks[0].getSizeBits()), 8);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(subBlks[0].getSizeBits()),
+              8);
 
-    // Bounding superblock compression factor must be 2 (minimum across valid sub-blocks)
+    // Bounding superblock compression factor must be 2 (minimum across valid
+    // sub-blocks)
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
 }
-
