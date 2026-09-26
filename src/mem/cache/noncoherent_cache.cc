@@ -66,15 +66,17 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
     assert(p.replacement_policy);
 }
 
-void
+Cycles
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                 PacketList &writebacks, bool, bool)
+                                 PacketList &writebacks, bool deferred_response,
+                                 bool pending_downgrade)
 {
     // As this a non-coherent cache located below the point of
     // coherency, we do not expect requests that are typically used to
     // keep caches coherent (e.g., InvalidateReq or UpdateReq).
     assert(pkt->isRead() || pkt->isWrite());
-    BaseCache::satisfyRequest(pkt, blk, writebacks);
+    return BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
+                                     pending_downgrade);
 }
 
 bool

@@ -75,12 +75,13 @@ Cache::Cache(const CacheParams &p)
     assert(p.replacement_policy);
 }
 
-void
+Cycles
 Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool deferred_response, bool pending_downgrade)
 {
-    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
-                              pending_downgrade);
+    Cycles recomp_lat = BaseCache::satisfyRequest(pkt, blk, writebacks,
+                                                   deferred_response,
+                                                   pending_downgrade);
 
     if (pkt->isRead()) {
         // determine if this read is from a (coherent) cache or not
@@ -151,6 +152,8 @@ Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             }
         }
     }
+
+    return recomp_lat;
 }
 
 /////////////////////////////////////////////////////
