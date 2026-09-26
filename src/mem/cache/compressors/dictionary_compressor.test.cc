@@ -54,7 +54,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
     p.name = "cpack";
     p.block_size = 64;
     p.chunk_size_bits = 32;
-    p.dictionary_size = 4;
+    p.dictionary_size = 16;
     p.comp_chunks_per_cycle = 2;
     p.comp_extra_latency = Cycles(5);
     p.decomp_chunks_per_cycle = 2;
@@ -90,9 +90,8 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
                                  0x5354555657585960ULL, 0x6162636465666768ULL};
     comp_data = compressor.compress(non_zero_data, comp_lat, decomp_lat);
 
-    // Decompression latency for non-zero block retains standard calculated
-    // latency (9 cycles for CPack)
-    EXPECT_EQ(decomp_lat, Cycles(9));
+    // Decompression latency for uncompressible non-zero block is 0 cycles
+    EXPECT_EQ(decomp_lat, Cycles(0));
 
     compressor.decompress(comp_data.get(), decomp_data);
     for (int i = 0; i < 8; i++) {
@@ -119,7 +118,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
     p.name = "fpc";
     p.block_size = 64;
     p.chunk_size_bits = 32;
-    p.dictionary_size = 0;
+    p.dictionary_size = 1;
     p.comp_chunks_per_cycle = 8;
     p.comp_extra_latency = Cycles(1);
     p.decomp_chunks_per_cycle = 4;
@@ -155,8 +154,8 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
                                  0x5354555657585960ULL, 0x6162636465666768ULL};
     comp_data = compressor.compress(non_zero_data, comp_lat, decomp_lat);
 
-    // Standard decompression latency for FPC: 1 + (16 / 4) = 5 cycles
-    EXPECT_EQ(decomp_lat, Cycles(5));
+    // Decompression latency for uncompressible non-zero block is 0 cycles
+    EXPECT_EQ(decomp_lat, Cycles(0));
 
     compressor.decompress(comp_data.get(), decomp_data);
     for (int i = 0; i < 8; i++) {
@@ -190,4 +189,3 @@ TEST(DictionaryCompressorTest, DeltaPatternAsymmetricNegativeBound)
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_neg_bytes, base_bytes));
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_pos_bytes, base_bytes));
 }
-

@@ -137,6 +137,21 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Whether queue pressure bypass is enabled. */
+    const bool enableQueuePressureBypass;
+
+    /** Queue pressure threshold ratio above which compression is bypassed. */
+    const float queuePressureThreshold;
+
+    /** Lead time horizon in ticks for queue pressure prediction. */
+    const unsigned leadTimeTicks;
+
+    /** EWMA smoothing weight alpha for occupancy tracking. */
+    const float ewmaAlpha;
+
+    /** EWMA smoothing weight alpha for rate gradient tracking. */
+    const float gradientAlpha;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 
@@ -177,6 +192,9 @@ class Base : public SimObject
 
         /** Number of compressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedCompressions;
+
+        /** Number of compressions bypassed due to high queue pressure. */
+        statistics::Scalar bypassedQueuePressureCompressions;
 
         /** Number of decompressions bypassed due to low compression ratio. */
         statistics::Scalar bypassedDecompressions;

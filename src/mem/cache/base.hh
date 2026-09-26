@@ -321,6 +321,69 @@ class BaseCache : public ClockedObject
     CpuSidePort cpuSidePort;
     MemSidePort memSidePort;
 
+  public:
+    /** EWMA & Gradient pressure accessors for write buffer and MSHR queue */
+    double
+    getWriteBufferEWMAOccupancy() const
+    {
+        return writeBuffer.getEWMAOccupancy();
+    }
+    double
+    getWriteBufferEWMAOccupancyRatio() const
+    {
+        return writeBuffer.getEWMAOccupancyRatio();
+    }
+    double
+    getWriteBufferArrivalRateGradient() const
+    {
+        return writeBuffer.getArrivalRateGradient();
+    }
+    double
+    getWriteBufferPredictedPressureRatio(double leadTime = 20.0) const
+    {
+        return writeBuffer.getPredictedPressureRatio(leadTime);
+    }
+
+    double
+    getMSHREWMAOccupancy() const
+    {
+        return mshrQueue.getEWMAOccupancy();
+    }
+    double
+    getMSHREWMAOccupancyRatio() const
+    {
+        return mshrQueue.getEWMAOccupancyRatio();
+    }
+    double
+    getMSHRArrivalRateGradient() const
+    {
+        return mshrQueue.getArrivalRateGradient();
+    }
+    double
+    getMSHRPredictedPressureRatio(double leadTime = 20.0) const
+    {
+        return mshrQueue.getPredictedPressureRatio(leadTime);
+    }
+
+    /**
+     * Get combined queue pressure taking into account both write buffer
+     * and MSHR queue predicted pressures and arrival rate gradients.
+     */
+    double
+    getCombinedQueuePressure(double leadTime = 20.0) const
+    {
+        double wbPress = writeBuffer.getPredictedPressureRatio(leadTime);
+        double mshrPress = mshrQueue.getPredictedPressureRatio(leadTime);
+        return std::max(wbPress, mshrPress);
+    }
+
+    double
+    getQueuePressureGradient() const
+    {
+        return std::max(writeBuffer.getArrivalRateGradient(),
+                        mshrQueue.getArrivalRateGradient());
+    }
+
   protected:
 
     struct CacheAccessorImpl : CacheAccessor

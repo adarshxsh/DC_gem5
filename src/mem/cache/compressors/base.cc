@@ -94,6 +94,11 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      enableQueuePressureBypass(p.enable_queue_pressure_bypass),
+      queuePressureThreshold(p.queue_pressure_threshold),
+      leadTimeTicks(p.lead_time_ticks),
+      ewmaAlpha(p.ewma_alpha),
+      gradientAlpha(p.gradient_alpha),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
@@ -169,8 +174,25 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
             ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
             : (latencyBreakevenThreshold + 1.0);
 
-    bool shouldBypass =
+    bool ratioBypass =
         enableAdaptiveBypass && (observedRatio < latencyBreakevenThreshold);
+
+    bool pressureBypass = false;
+    if (cache && enableQueuePressureBypass) {
+        double pressure = cache->getCombinedQueuePressure(
+            static_cast<double>(leadTimeTicks));
+        if (pressure >= queuePressureThreshold) {
+            pressureBypass = true;
+            stats.bypassedQueuePressureCompressions++;
+            DPRINTF(CacheComp,
+                    "Queue pressure bypass active (combined pressure: %.4f >= "
+                    "threshold: %.4f). "
+                    "Bypassing compression.\n",
+                    pressure, queuePressureThreshold);
+        }
+    }
+
+    bool shouldBypass = ratioBypass || pressureBypass;
 
     if (shouldBypass && !isSampled) {
         std::unique_ptr<CompressionData> comp_data =
@@ -329,6 +351,9 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of decompressions"),
       ADD_STAT(bypassedCompressions, statistics::units::Count::get(),
                "Total number of bypassed compressions"),
+      ADD_STAT(
+          bypassedQueuePressureCompressions, statistics::units::Count::get(),
+          "Total number of compressions bypassed due to high queue pressure"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),
