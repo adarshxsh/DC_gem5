@@ -88,12 +88,10 @@ TEST(CompressionBackpressureTest, AdaptiveBypassThrottlingState)
 
     EXPECT_FALSE(compressor.isCompressionBypassed());
 
-    uint64_t non_zero_data[8] = {
-        0x0123456789ABCDEF, 0xFEDCBA9876543210,
-        0x1122334455667788, 0x99AABBCCDDEEFF00,
-        0x0F1E2D3C4B5A6978, 0x8796A5B4C3D2E1F0,
-        0xA5A5A5A55A5A5A5A, 0x5A5A5A5AA5A5A5A5
-    };
+    uint64_t non_zero_data[8] = {0x0123456789ABCDEF, 0xFEDCBA9876543210,
+                                 0x1122334455667788, 0x99AABBCCDDEEFF00,
+                                 0x0F1E2D3C4B5A6978, 0x8796A5B4C3D2E1F0,
+                                 0xA5A5A5A55A5A5A5A, 0x5A5A5A5AA5A5A5A5};
 
     Cycles comp_lat(0);
     Cycles decomp_lat(0);

@@ -979,7 +979,9 @@ Cache::cleanEvictBlk(CacheBlk *blk)
     assert(blk && blk->isValid() && !blk->isSet(CacheBlk::DirtyBit));
 
     if (isCompressionBackpressureActive()) {
-        DPRINTF(Cache, "Suppressing CleanEvict for block %#x due to compression backpressure\n",
+        DPRINTF(Cache,
+                "Suppressing CleanEvict for block %#x due to compression "
+                "backpressure\n",
                 blk->getAddr());
         return nullptr;
     }
