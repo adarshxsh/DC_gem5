@@ -279,7 +279,8 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCountersUntaggedPrefetch)
     prefetcher.insert(&pkt, pfi, 1, mockCache);
     EXPECT_EQ(prefetcher.getPFQ().size(), 1);
 
-    // Verify created prefetch request packet carries PC even though tag_prefetch is false
+    // Verify created prefetch request packet carries PC even though
+    // tag_prefetch is false
     PacketPtr pfPkt = prefetcher.getPFQ().front().pkt;
     ASSERT_NE(pfPkt, nullptr);
     ASSERT_NE(pfPkt->req, nullptr);
@@ -291,10 +292,12 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCountersUntaggedPrefetch)
     CacheAccessProbeArg fillArg(pfPkt, mockCache);
     prefetcher.notifyFill(fillArg);
 
-    // After 1 uncompressible fill, CHT counter updated via instruction PC drops to 1 (< threshold 2)
+    // After 1 uncompressible fill, CHT counter updated via instruction PC
+    // drops to 1 (< threshold 2)
     EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
 
-    // Attempting another insert for testPC1 should now be dropped due to low compression!
+    // Attempting another insert for testPC1 should now be dropped due to low
+    // compression!
     prefetcher.getPFQ().clear();
     prefetcher.insert(&pkt, pfi, 1, mockCache);
 
