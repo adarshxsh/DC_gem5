@@ -66,7 +66,8 @@ namespace gem5
 
 class System;
 class ReplaceableEntry;
-namespace partitioning_policy {
+namespace partitioning_policy
+{
 class PartitionManager;
 }
 

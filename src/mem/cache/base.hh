@@ -751,10 +751,11 @@ class BaseCache : public ClockedObject
      * @param comp_lat Output parameter for recompression latency.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                PacketList &writebacks, Cycles &comp_lat);
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks)
+    bool
+    updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                          PacketList &writebacks)
     {
         Cycles dummy_lat = Cycles(0);
         return updateCompressionData(blk, data, writebacks, dummy_lat);
@@ -773,14 +774,12 @@ class BaseCache : public ClockedObject
      * @param comp_lat Output parameter for recompression latency
      */
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                PacketList &writebacks,
-                                bool deferred_response,
-                                bool pending_downgrade,
-                                Cycles &comp_lat);
-    virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                PacketList &writebacks,
-                                bool deferred_response = false,
-                                bool pending_downgrade = false)
+                                PacketList &writebacks, bool deferred_response,
+                                bool pending_downgrade, Cycles &comp_lat);
+    virtual void
+    satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                   bool deferred_response = false,
+                   bool pending_downgrade = false)
     {
         Cycles dummy_lat = Cycles(0);
         satisfyRequest(pkt, blk, writebacks, deferred_response,

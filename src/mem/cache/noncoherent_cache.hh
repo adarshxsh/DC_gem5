@@ -109,9 +109,10 @@ class NoncoherentCache : public BaseCache
     void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         bool deferred_response, bool pending_downgrade,
                         Cycles &comp_lat) override;
-    void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                        bool deferred_response = false,
-                        bool pending_downgrade = false) override
+    void
+    satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                   bool deferred_response = false,
+                   bool pending_downgrade = false) override
     {
         Cycles dummy_lat = Cycles(0);
         satisfyRequest(pkt, blk, writebacks, deferred_response,

@@ -800,7 +800,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 (!mshr->isForward || !pkt->hasData())) {
                 Cycles decomp_lat = Cycles(0);
                 if (compressor) {
-                    if (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize)) {
+                    if (tgt_pkt->isRead() ||
+                        !tgt_pkt->isWholeLineWrite(blkSize)) {
                         decomp_lat = compressor->getDecompressionLatency(blk);
                     }
                 }
@@ -820,7 +821,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // responseLatency is the latency of the return path
                 // from lower level caches/memory to an upper level cache or
                 // the core.
-                completion_time += clockEdge(responseLatency + decomp_lat + recomp_lat) +
+                completion_time +=
+                    clockEdge(responseLatency + decomp_lat + recomp_lat) +
                     (transfer_offset ? pkt->payloadDelay : 0);
 
                 assert(!tgt_pkt->req->isUncacheable());
