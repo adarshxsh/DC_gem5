@@ -133,3 +133,16 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
     EXPECT_FALSE(superBlk.canCoAllocate(256));
 }
+
+TEST(CacheBlkDetachedTest, DetachedL1CleanBitState)
+{
+    CacheBlk blk;
+    blk.insert({0x4000, false});
+    EXPECT_FALSE(blk.isDetachedL1Clean());
+
+    blk.setDetachedL1Clean();
+    EXPECT_TRUE(blk.isDetachedL1Clean());
+
+    blk.clearDetachedL1Clean();
+    EXPECT_FALSE(blk.isDetachedL1Clean());
+}
