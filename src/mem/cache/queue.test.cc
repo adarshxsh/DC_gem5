@@ -20,37 +20,62 @@ Root *Root::_root = nullptr;
 class DummyQueueEntry : public QueueEntry
 {
   public:
-    typedef std::list<DummyQueueEntry*> List;
+    typedef std::list<DummyQueueEntry *> List;
     typedef List::iterator Iterator;
     Iterator allocIter;
     Iterator readyIter;
 
-    DummyQueueEntry(const std::string &name = "dummy_entry")
-        : QueueEntry(name)
+    DummyQueueEntry(const std::string &name = "dummy_entry") : QueueEntry(name)
     {}
 
-    bool matchBlockAddr(Addr addr, bool is_secure) const override { return false; }
-    bool matchBlockAddr(const PacketPtr pkt) const override { return false; }
-    bool conflictAddr(const QueueEntry *entry) const override { return false; }
-    bool sendPacket(BaseCache &cache) override { return false; }
-    Target* getTarget() override { return nullptr; }
-    void deallocate() {}
+    bool
+    matchBlockAddr(Addr addr, bool is_secure) const override
+    {
+        return false;
+    }
+    bool
+    matchBlockAddr(const PacketPtr pkt) const override
+    {
+        return false;
+    }
+    bool
+    conflictAddr(const QueueEntry *entry) const override
+    {
+        return false;
+    }
+    bool
+    sendPacket(BaseCache &cache) override
+    {
+        return false;
+    }
+    Target *
+    getTarget() override
+    {
+        return nullptr;
+    }
+    void
+    deallocate()
+    {}
 };
 
 class DummyQueue : public Queue<DummyQueueEntry>
 {
   public:
-    DummyQueue(int num_entries, int reserve, double ewma_alpha = 0.1, double gradient_alpha = 0.1)
-        : Queue<DummyQueueEntry>("dummy_label", num_entries, reserve, "dummy_queue", ewma_alpha, gradient_alpha)
+    DummyQueue(int num_entries, int reserve, double ewma_alpha = 0.1,
+               double gradient_alpha = 0.1)
+        : Queue<DummyQueueEntry>("dummy_label", num_entries, reserve,
+                                 "dummy_queue", ewma_alpha, gradient_alpha)
     {}
 
-    void allocateEntry()
+    void
+    allocateEntry()
     {
         allocated++;
         updateEWMA();
     }
 
-    void deallocateEntry()
+    void
+    deallocateEntry()
     {
         if (allocated > 0) {
             allocated--;
@@ -79,8 +104,9 @@ TEST(QueueEWMATest, EWMAOccupancyAndGradient)
 
     // Occupancy = 2
     EXPECT_EQ(q.occupancy(), 2);
-    // Initial allocation at tick 110 sets lastUpdateTick=110, ewmaOccupancy=1.0, arrivalRateGradient=0.0
-    // Second allocation at tick 110 (deltaT=0): ewmaOccupancy = 1.5, arrivalRateGradient = 0.0
+    // Initial allocation at tick 110 sets lastUpdateTick=110,
+    // ewmaOccupancy=1.0, arrivalRateGradient=0.0 Second allocation at tick 110
+    // (deltaT=0): ewmaOccupancy = 1.5, arrivalRateGradient = 0.0
     EXPECT_DOUBLE_EQ(q.getEWMAOccupancy(), 1.5);
     EXPECT_DOUBLE_EQ(q.getArrivalRateGradient(), 0.0);
 

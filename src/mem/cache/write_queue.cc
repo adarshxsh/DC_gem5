@@ -51,11 +51,11 @@
 namespace gem5
 {
 
-WriteQueue::WriteQueue(const std::string &_label,
-                       int num_entries, int reserve, const std::string &name,
-                       double ewma_alpha, double gradient_alpha)
+WriteQueue::WriteQueue(const std::string &_label, int num_entries, int reserve,
+                       const std::string &name, double ewma_alpha,
+                       double gradient_alpha)
     : Queue<WriteQueueEntry>(_label, num_entries, reserve,
-            name + ".write_queue", ewma_alpha, gradient_alpha)
+                             name + ".write_queue", ewma_alpha, gradient_alpha)
 {}
 
 WriteQueueEntry *

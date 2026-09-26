@@ -179,12 +179,14 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 
     bool pressureBypass = false;
     if (cache && enableQueuePressureBypass) {
-        double pressure = cache->getCombinedQueuePressure(static_cast<double>(leadTimeTicks));
+        double pressure = cache->getCombinedQueuePressure(
+            static_cast<double>(leadTimeTicks));
         if (pressure >= queuePressureThreshold) {
             pressureBypass = true;
             stats.bypassedQueuePressureCompressions++;
             DPRINTF(CacheComp,
-                    "Queue pressure bypass active (combined pressure: %.4f >= threshold: %.4f). "
+                    "Queue pressure bypass active (combined pressure: %.4f >= "
+                    "threshold: %.4f). "
                     "Bypassing compression.\n",
                     pressure, queuePressureThreshold);
         }
@@ -349,8 +351,9 @@ Base::BaseStats::BaseStats(Base &_compressor)
                "Total number of decompressions"),
       ADD_STAT(bypassedCompressions, statistics::units::Count::get(),
                "Total number of bypassed compressions"),
-      ADD_STAT(bypassedQueuePressureCompressions, statistics::units::Count::get(),
-               "Total number of compressions bypassed due to high queue pressure"),
+      ADD_STAT(
+          bypassedQueuePressureCompressions, statistics::units::Count::get(),
+          "Total number of compressions bypassed due to high queue pressure"),
       ADD_STAT(bypassedDecompressions, statistics::units::Count::get(),
                "Total number of bypassed decompressions"),
       ADD_STAT(sampledCompressions, statistics::units::Count::get(),

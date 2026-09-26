@@ -142,7 +142,8 @@ class Queue : public Drainable, public Named
     /** Last recorded queue occupancy */
     int lastOccupancy;
 
-    void updateEWMA()
+    void
+    updateEWMA()
     {
         Tick now = curTick();
         if (lastUpdateTick == 0) {
@@ -159,19 +160,21 @@ class Queue : public Drainable, public Named
             double deltaQ = currentOcc - static_cast<double>(lastOccupancy);
             double instGradient = deltaQ / static_cast<double>(deltaT);
 
-            ewmaOccupancy = ewmaAlpha * currentOcc + (1.0 - ewmaAlpha) * ewmaOccupancy;
-            arrivalRateGradient = gradientAlpha * instGradient + (1.0 - gradientAlpha) * arrivalRateGradient;
+            ewmaOccupancy =
+                ewmaAlpha * currentOcc + (1.0 - ewmaAlpha) * ewmaOccupancy;
+            arrivalRateGradient = gradientAlpha * instGradient +
+                                  (1.0 - gradientAlpha) * arrivalRateGradient;
 
             lastUpdateTick = now;
             lastOccupancy = allocated;
         } else {
-            ewmaOccupancy = ewmaAlpha * currentOcc + (1.0 - ewmaAlpha) * ewmaOccupancy;
+            ewmaOccupancy =
+                ewmaAlpha * currentOcc + (1.0 - ewmaAlpha) * ewmaOccupancy;
             lastOccupancy = allocated;
         }
     }
 
   public:
-
     /**
      * Create a queue with a given number of entries.
      *
@@ -181,69 +184,86 @@ class Queue : public Drainable, public Named
      * @param gradient_alpha Smoothing parameter for arrival rate gradient.
      */
     Queue(const std::string &_label, int num_entries, int reserve,
-            const std::string &name, double ewma_alpha = 0.1,
-            double gradient_alpha = 0.1) :
-        Named(name),
-        label(_label), numEntries(num_entries + reserve),
-        numReserve(reserve), entries(numEntries, name + ".entry"),
-        _numInService(0), allocated(0),
-        ewmaAlpha(ewma_alpha), gradientAlpha(gradient_alpha),
-        lastUpdateTick(0), ewmaOccupancy(0.0),
-        arrivalRateGradient(0.0), lastOccupancy(0)
+          const std::string &name, double ewma_alpha = 0.1,
+          double gradient_alpha = 0.1)
+        : Named(name),
+          label(_label),
+          numEntries(num_entries + reserve),
+          numReserve(reserve),
+          entries(numEntries, name + ".entry"),
+          _numInService(0),
+          allocated(0),
+          ewmaAlpha(ewma_alpha),
+          gradientAlpha(gradient_alpha),
+          lastUpdateTick(0),
+          ewmaOccupancy(0.0),
+          arrivalRateGradient(0.0),
+          lastOccupancy(0)
     {
         for (int i = 0; i < numEntries; ++i) {
             freeList.push_back(&entries[i]);
         }
     }
 
-    int capacity() const
+    int
+    capacity() const
     {
         return numEntries - numReserve;
     }
 
-    int occupancy() const
+    int
+    occupancy() const
     {
         return allocated;
     }
 
-    double occupancyRatio() const
+    double
+    occupancyRatio() const
     {
         int cap = capacity();
         return cap > 0 ? static_cast<double>(allocated) / cap : 0.0;
     }
 
-    double getEWMAOccupancy() const
+    double
+    getEWMAOccupancy() const
     {
         return ewmaOccupancy;
     }
 
-    double getEWMAOccupancyRatio() const
+    double
+    getEWMAOccupancyRatio() const
     {
         int cap = capacity();
         return cap > 0 ? ewmaOccupancy / cap : 0.0;
     }
 
-    double getArrivalRateGradient() const
+    double
+    getArrivalRateGradient() const
     {
         Tick now = curTick();
         if (now > lastUpdateTick && lastUpdateTick > 0) {
             Tick dt = now - lastUpdateTick;
-            double decay = std::pow(1.0 - gradientAlpha, std::min(100.0, static_cast<double>(dt)));
+            double decay = std::pow(1.0 - gradientAlpha,
+                                    std::min(100.0, static_cast<double>(dt)));
             return arrivalRateGradient * decay;
         }
         return arrivalRateGradient;
     }
 
-    double getPredictedOccupancy(double leadTime = 20.0) const
+    double
+    getPredictedOccupancy(double leadTime = 20.0) const
     {
         double pred = ewmaOccupancy + getArrivalRateGradient() * leadTime;
         return std::max(0.0, pred);
     }
 
-    double getPredictedPressureRatio(double leadTime = 20.0) const
+    double
+    getPredictedPressureRatio(double leadTime = 20.0) const
     {
         int cap = capacity();
-        if (cap <= 0) return 0.0;
+        if (cap <= 0) {
+            return 0.0;
+        }
         return getPredictedOccupancy(leadTime) / static_cast<double>(cap);
     }
 
