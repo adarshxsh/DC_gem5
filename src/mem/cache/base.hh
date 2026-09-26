@@ -741,8 +741,15 @@ class BaseCache : public ClockedObject
      * @param writebacks List for any writebacks that need to be performed.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks);
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                               PacketList &writebacks, Cycles &comp_lat);
+    bool
+    updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                          PacketList &writebacks)
+    {
+        Cycles comp_lat = Cycles(0);
+        return updateCompressionData(blk, data, writebacks, comp_lat);
+    }
 
     /**
      * Perform any necessary updates to the block and perform any data
@@ -752,9 +759,15 @@ class BaseCache : public ClockedObject
      * @param pkt Request packet from upstream that hit a block
      * @param blk Cache block that the packet hit
      * @param writebacks List of writebacks generated
+     * @param recompression_lat Recompression cycle penalty incurred
      * @param deferred_response Whether this request originally missed
      * @param pending_downgrade Whether the writable flag is to be removed
      */
+    virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+                                PacketList &writebacks,
+                                Cycles &recompression_lat,
+                                bool deferred_response = false,
+                                bool pending_downgrade = false);
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                                 PacketList &writebacks,
                                 bool deferred_response = false,

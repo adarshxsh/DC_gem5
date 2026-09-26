@@ -1064,9 +1064,10 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 }
 
 bool
-BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks)
+BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                                 PacketList &writebacks, Cycles &comp_lat)
 {
+    comp_lat = Cycles(0);
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {
         return true;
@@ -1078,6 +1079,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     Cycles decompression_lat = Cycles(0);
     const auto comp_data =
         compressor->compress(data, compression_lat, decompression_lat);
+    comp_lat = compression_lat;
     std::size_t compression_size = comp_data->getSizeBits();
 
     // Get previous compressed size
@@ -1210,8 +1212,9 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                          bool, bool)
+                          Cycles &recompression_lat, bool, bool)
 {
+    recompression_lat = Cycles(0);
     assert(pkt->isRequest());
 
     assert(blk && blk->isValid());
@@ -1264,7 +1267,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, recompression_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1288,7 +1291,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, recompression_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1319,6 +1322,15 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         DPRINTF(CacheVerbose, "%s for %s (invalidation)\n", __func__,
                 pkt->print());
     }
+}
+
+void
+BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                          bool deferred_response, bool pending_downgrade)
+{
+    Cycles dummy_lat = Cycles(0);
+    satisfyRequest(pkt, blk, writebacks, dummy_lat, deferred_response,
+                   pending_downgrade);
 }
 
 /////////////////////////////////////////////////////
