@@ -56,9 +56,9 @@ namespace prefetch
 
 void
 Queued::DeferredPacket::createPkt(Addr paddr, unsigned blk_size,
-                                            RequestorID requestor_id,
-                                            [[maybe_unused]] bool tag_prefetch,
-                                            Tick t) {
+                                  RequestorID requestor_id,
+                                  [[maybe_unused]] bool tag_prefetch, Tick t)
+{
     /* Create a prefetch memory request */
     RequestPtr req = std::make_shared<Request>(paddr, blk_size,
                                                 0, requestor_id);
