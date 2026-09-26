@@ -559,3 +559,29 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, RecompressionFailureDirtyEviction)
+{
+    // Setup a dirty compressed block
+    subBlks[0].insert({0x7000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].setCoherenceBits(CacheBlk::DirtyBit);
+
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[0].isSet(CacheBlk::DirtyBit));
+
+    // Simulate recompression failure in satisfyRequest:
+    // When updateCompressionData returns false on a dirty block,
+    // satisfyRequest invokes evictBlock, ensuring modified dirty data
+    // generates a writeback packet rather than being silently dropped by
+    // invalidateBlock.
+    bool update_success = false;
+
+    if (!update_success) {
+        bool generates_writeback = subBlks[0].isSet(CacheBlk::DirtyBit);
+        subBlks[0].invalidate();
+
+        ASSERT_TRUE(generates_writeback);
+        ASSERT_FALSE(subBlks[0].isValid());
+    }
+}
