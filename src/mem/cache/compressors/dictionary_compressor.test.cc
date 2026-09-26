@@ -54,7 +54,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
     p.name = "cpack";
     p.block_size = 64;
     p.chunk_size_bits = 32;
-    p.dictionary_size = 4;
+    p.dictionary_size = 16;
     p.comp_chunks_per_cycle = 2;
     p.comp_extra_latency = Cycles(5);
     p.decomp_chunks_per_cycle = 2;
@@ -84,10 +84,10 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
     }
 
     // 2. Non-zero block
-    uint64_t non_zero_data[8] = {0x1234567891011121ULL, 0x1314151617181920ULL,
-                                 0x2122232425262728ULL, 0x2930313233343536ULL,
-                                 0x3738394041424344ULL, 0x4546474849505152ULL,
-                                 0x5354555657585960ULL, 0x6162636465666768ULL};
+    uint64_t non_zero_data[8] = {0x0000000100000002ULL, 0x0000000300000004ULL,
+                                 0x0000000500000006ULL, 0x0000000700000008ULL,
+                                 0x000000090000000aULL, 0x0000000b0000000cULL,
+                                 0x0000000d0000000eULL, 0x0000000f00000010ULL};
     comp_data = compressor.compress(non_zero_data, comp_lat, decomp_lat);
 
     // Decompression latency for non-zero block retains standard calculated
@@ -101,7 +101,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
 
     // 3. Partial zero block (mix of zero and non-zero chunks)
     uint64_t partial_zero_data[8] = {0, 0, 0, 0,
-                                     0, 0, 0, 0x1234567891011121ULL};
+                                     0, 0, 0, 0x0000000100000002ULL};
     comp_data = compressor.compress(partial_zero_data, comp_lat, decomp_lat);
 
     // Partial zero block must NOT receive the 1-cycle shortcut
@@ -119,7 +119,7 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
     p.name = "fpc";
     p.block_size = 64;
     p.chunk_size_bits = 32;
-    p.dictionary_size = 0;
+    p.dictionary_size = 1;
     p.comp_chunks_per_cycle = 8;
     p.comp_extra_latency = Cycles(1);
     p.decomp_chunks_per_cycle = 4;
@@ -149,10 +149,10 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
     }
 
     // 2. Non-zero block
-    uint64_t non_zero_data[8] = {0x1234567891011121ULL, 0x1314151617181920ULL,
-                                 0x2122232425262728ULL, 0x2930313233343536ULL,
-                                 0x3738394041424344ULL, 0x4546474849505152ULL,
-                                 0x5354555657585960ULL, 0x6162636465666768ULL};
+    uint64_t non_zero_data[8] = {0x0000000100000002ULL, 0x0000000300000004ULL,
+                                 0x0000000500000006ULL, 0x0000000700000008ULL,
+                                 0x000000090000000aULL, 0x0000000b0000000cULL,
+                                 0x0000000d0000000eULL, 0x0000000f00000010ULL};
     comp_data = compressor.compress(non_zero_data, comp_lat, decomp_lat);
 
     // Standard decompression latency for FPC: 1 + (16 / 4) = 5 cycles
