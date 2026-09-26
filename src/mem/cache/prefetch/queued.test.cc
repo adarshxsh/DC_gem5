@@ -204,13 +204,15 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     EXPECT_EQ(prefetcher.getPFQ().size(), 0);
     EXPECT_EQ(prefetcher.getStats().pfDroppedLowCompression.value(), 1);
 
-    // Multiple uncompressible fills: counter decrements down to 0 and saturates (does not underflow)
+    // Multiple uncompressible fills: counter decrements down to 0 and
+    // saturates (does not underflow)
     prefetcher.notifyFill(fillArg); // counter becomes 0
     EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
     prefetcher.notifyFill(fillArg); // counter saturates at 0
     EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
 
-    // Now observe compressible fills for testPC1 (CF = 2): counter increments 0 -> 1 -> 2 -> 3
+    // Now observe compressible fills for testPC1 (CF = 2): counter increments
+    // 0 -> 1 -> 2 -> 3
     mockCache.compressionFactor = 2;
     prefetcher.notifyFill(fillArg); // counter 0 -> 1
     EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
@@ -221,7 +223,8 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     prefetcher.notifyFill(fillArg); // counter 2 -> 3
     EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
 
-    prefetcher.notifyFill(fillArg); // counter saturates at 3 (does not overflow)
+    prefetcher.notifyFill(
+        fillArg); // counter saturates at 3 (does not overflow)
     EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
 
     // Inserting again for testPC1 should now pass CHT filter
