@@ -59,6 +59,11 @@ GTest(
     "super_blk.cc",
     "sector_blk.cc",
     "../mshr.cc",
+    "#src/mem/packet.cc",
+    "#src/sim/bufval.cc",
+    "#src/cpu/reg_class.cc",
     "#src/base/types.cc",
+    "#src/base/logging.cc",
+    "#src/base/hostinfo.cc",
     with_tag("gem5 simobject"),
 )
