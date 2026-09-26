@@ -70,6 +70,7 @@ namespace gem5
 class BaseRemoteGDB;
 class KvmVM;
 class ThreadContext;
+class ThermalModel;
 
 class System : public SimObject, public PCEventScope
 {

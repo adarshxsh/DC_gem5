@@ -66,6 +66,10 @@ namespace gem5
 
 class System;
 class ReplaceableEntry;
+namespace partitioning_policy
+{
+class PartitionManager;
+}
 
 /**
  * A common base class of Cache tagstore objects.
