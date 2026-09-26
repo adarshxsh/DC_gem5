@@ -273,6 +273,12 @@ class Base : public SimObject
     static void setDecompressionLatency(CacheBlk* blk, const Cycles lat);
 
     /**
+     * Check if adaptive compression bypass is currently active based on observed
+     * compression ratio vs breakeven threshold.
+     */
+    bool isCompressionBypassed() const;
+
+    /**
      * Set the size of the compressed block, in bits.
      *
      * @param blk The compressed block.

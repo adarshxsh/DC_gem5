@@ -156,6 +156,19 @@ Base::fromChunks(const std::vector<Chunk>& chunks, uint64_t* data) const
     }
 }
 
+bool
+Base::isCompressionBypassed() const
+{
+    if (!enableAdaptiveBypass) {
+        return false;
+    }
+    double observedRatio =
+        (sampledCompressedBits > 0)
+            ? ((double)sampledUncompressedBits / (double)sampledCompressedBits)
+            : (latencyBreakevenThreshold + 1.0);
+    return observedRatio < latencyBreakevenThreshold;
+}
+
 std::unique_ptr<Base::CompressionData>
 Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
 {
