@@ -741,11 +741,11 @@ class BaseCache : public ClockedObject
      * @param writebacks List for any writebacks that need to be performed.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks,
-                               Cycles &comp_lat);
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks)
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                               PacketList &writebacks, Cycles &comp_lat);
+    bool
+    updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                          PacketList &writebacks)
     {
         Cycles comp_lat = Cycles(0);
         return updateCompressionData(blk, data, writebacks, comp_lat);

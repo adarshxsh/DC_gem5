@@ -77,8 +77,8 @@ Cache::Cache(const CacheParams &p)
 
 void
 Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                      Cycles &recompression_lat,
-                      bool deferred_response, bool pending_downgrade)
+                      Cycles &recompression_lat, bool deferred_response,
+                      bool pending_downgrade)
 {
     BaseCache::satisfyRequest(pkt, blk, writebacks, recompression_lat,
                               deferred_response, pending_downgrade);
@@ -823,8 +823,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // from lower level caches/memory to an upper level cache or
                 // the core.
                 completion_time += clockEdge(responseLatency) +
-                    (transfer_offset ? pkt->payloadDelay : 0) +
-                    clockEdge(recompression_lat) - clockEdge();
+                                   (transfer_offset ? pkt->payloadDelay : 0) +
+                                   clockEdge(recompression_lat) - clockEdge();
 
                 assert(!tgt_pkt->req->isUncacheable());
 
