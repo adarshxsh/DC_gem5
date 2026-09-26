@@ -559,3 +559,23 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, BoundingSuperblockCompressionFactor)
+{
+    // Sub-block 0 is highly compressed (64 bits -> isolated CF = 8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+
+    // Sub-block 1 is low compression (256 bits -> isolated CF = 2)
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(256);
+
+    // Bounding superblock compression factor must equal minimum across valid
+    // sub-blocks (2)
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+
+    // Isolated sub-block 0 size calculation yields 8, but bounding factor is 2
+    ASSERT_EQ(superBlk.calculateCompressionFactor(subBlks[0].getSizeBits()),
+              8);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+}
