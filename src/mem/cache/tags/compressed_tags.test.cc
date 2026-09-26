@@ -559,3 +559,71 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST(ExpressSnoopDetachedCleanTest, DetachedL1CleanTrackingAndInvalidation)
+{
+    // Test detached L1 clean address set tracking
+    std::unordered_set<Addr> detachedL1CleanAddrs;
+    auto trackDetachedL1CleanBlock = [&](Addr addr) {
+        detachedL1CleanAddrs.insert(addr);
+    };
+    auto isDetachedL1CleanBlock = [&](Addr addr) -> bool {
+        return detachedL1CleanAddrs.find(addr) != detachedL1CleanAddrs.end();
+    };
+    auto clearDetachedL1CleanBlock = [&](Addr addr) {
+        detachedL1CleanAddrs.erase(addr);
+    };
+
+    Addr clean_addr = 0x1000;
+    Addr dirty_addr = 0x1040;
+
+    SuperBlk super_blk;
+    CompressionBlk clean_blk;
+    CompressionBlk dirty_blk;
+
+    super_blk.setBlkSize(64);
+    super_blk.blks = {&clean_blk, &dirty_blk};
+
+    super_blk.registerTagExtractor([](Addr addr) { return addr & ~0xFFULL; });
+    clean_blk.registerTagExtractor([](Addr addr) { return addr & ~0xFFULL; });
+    dirty_blk.registerTagExtractor([](Addr addr) { return addr & ~0xFFULL; });
+
+    clean_blk.setSectorBlock(&super_blk);
+    dirty_blk.setSectorBlock(&super_blk);
+    clean_blk.setSectorOffset(0);
+    dirty_blk.setSectorOffset(1);
+
+    clean_blk.insert({clean_addr, false});
+    dirty_blk.insert({dirty_addr, false});
+    dirty_blk.setCoherenceBits(CacheBlk::DirtyBit);
+
+    // Initial state check
+    ASSERT_FALSE(clean_blk.isDetachedL1Clean());
+    ASSERT_FALSE(isDetachedL1CleanBlock(clean_addr));
+
+    // Simulate L2 superblock eviction with express snoop probing clean hit in
+    // L1
+    bool is_cached_in_l1 = true; // L1 express snoop returns hit
+    if (!clean_blk.isSet(CacheBlk::DirtyBit) && is_cached_in_l1) {
+        trackDetachedL1CleanBlock(clean_addr);
+        clean_blk.setDetachedL1Clean();
+    }
+
+    ASSERT_TRUE(clean_blk.isDetachedL1Clean());
+    ASSERT_TRUE(isDetachedL1CleanBlock(clean_addr));
+
+    // Simulate L2 block invalidation with keep_detached = true during eviction
+    bool keep_detached = true;
+    clean_blk.invalidate(); // Local L2 invalidate
+    if (!keep_detached) {
+        clearDetachedL1CleanBlock(clean_addr);
+    }
+    // Verify local block is invalid, but address remains in detached clean set
+    ASSERT_FALSE(clean_blk.isValid());
+    ASSERT_TRUE(isDetachedL1CleanBlock(clean_addr));
+
+    // Simulate re-allocation in L2: clearDetachedL1CleanBlock must clear the
+    // set
+    clearDetachedL1CleanBlock(clean_addr);
+    ASSERT_FALSE(isDetachedL1CleanBlock(clean_addr));
+}
