@@ -1064,7 +1064,7 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 }
 
 bool
-BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                  PacketList &writebacks, Cycles &recomp_lat)
 {
     recomp_lat = Cycles(0);
@@ -1215,8 +1215,8 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                           bool deferred_response, bool pending_downgrade)
 {
     Cycles dummy_recomp = Cycles(0);
-    satisfyRequest(pkt, blk, writebacks, deferred_response,
-                   pending_downgrade, dummy_recomp);
+    satisfyRequest(pkt, blk, writebacks, deferred_response, pending_downgrade,
+                   dummy_recomp);
 }
 
 void

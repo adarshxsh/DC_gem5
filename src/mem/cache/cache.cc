@@ -80,8 +80,8 @@ Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool deferred_response, bool pending_downgrade)
 {
     Cycles dummy_recomp = Cycles(0);
-    satisfyRequest(pkt, blk, writebacks, deferred_response,
-                   pending_downgrade, dummy_recomp);
+    satisfyRequest(pkt, blk, writebacks, deferred_response, pending_downgrade,
+                   dummy_recomp);
 }
 
 void
@@ -811,7 +811,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 Cycles recomp_lat = Cycles(0);
 
                 if (compressor && blk && blk->isValid() &&
-                    (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize))) {
+                    (tgt_pkt->isRead() ||
+                     !tgt_pkt->isWholeLineWrite(blkSize))) {
                     decomp_lat = compressor->getDecompressionLatency(blk);
                 }
 
@@ -830,8 +831,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // from lower level caches/memory to an upper level cache or
                 // the core.
                 completion_time += clockEdge(responseLatency) +
-                    (transfer_offset ? pkt->payloadDelay : 0) +
-                    clockEdge(decomp_lat + recomp_lat);
+                                   (transfer_offset ? pkt->payloadDelay : 0) +
+                                   clockEdge(decomp_lat + recomp_lat);
 
                 assert(!tgt_pkt->req->isUncacheable());
 
