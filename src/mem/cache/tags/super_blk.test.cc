@@ -121,15 +121,45 @@ TEST_F(CanCoAllocateTest, HeterogeneousSubBlockCoAllocation)
     subBlks[0].insert({0x2000, false});
     subBlks[0].setSizeBits(256);
 
+    // 1 valid sub-block, min_cf = 2.
+    // Prospective 2nd sub-block (128 bits, CF=4): target_cf = min(2, 4) = 2.
+    // Count check: 1 + 1 = 2 <= 2. Bit sum: 256 + 128 = 384 <= 512.
+    // Should succeed!
+    EXPECT_TRUE(superBlk.canCoAllocate(128));
+
     // Add 2nd sub-block (128 bits, CF=4) -> sum = 384 bits, min_cf = 2
     subBlks[1].insert({0x2000, false});
     subBlks[1].setSizeBits(128);
 
-    // Under discrete count cap (numValid < target_cf), numValid = 2 < 2 would
-    // be false. Under cumulative bit sum check (384 + 128 = 512 <= 512), this
-    // should succeed!
+    // Under discrete count cap (numValid + 1 <= target_cf), numValid + 1 = 3 >
+    // target_cf = 2. Attempting to co-allocate a 3rd sub-block must be
+    // rejected.
+    EXPECT_FALSE(superBlk.canCoAllocate(128));
+
+    // Exceeding 512 bits (384 + 256 = 640 > 512) must also be rejected
+    EXPECT_FALSE(superBlk.canCoAllocate(256));
+}
+
+TEST_F(CanCoAllocateTest, CompressionFactorCountLimitCheck)
+{
+    // Scenario 1: Co-allocation request within compression factor limit (2
+    // valid 128-bit, CF=4)
+    subBlks[0].insert({0x3000, false});
+    subBlks[0].setSizeBits(128);
+    subBlks[1].insert({0x3000, false});
+    subBlks[1].setSizeBits(128);
+
+    // numValid = 2, CF = 4. Attempting 3rd 128-bit sub-block (3 <= 4, 384 <=
+    // 512).
     EXPECT_TRUE(superBlk.canCoAllocate(128));
 
-    // Exceeding 512 bits (384 + 256 = 640 > 512) must be rejected
-    EXPECT_FALSE(superBlk.canCoAllocate(256));
+    // Scenario 2: Co-allocation request exceeding compression factor limit (CF
+    // = 2, numValid = 2) Reduce effective CF to 2 by making subBlks[0] 256
+    // bits
+    subBlks[0].setSizeBits(256);
+    EXPECT_EQ(superBlk.getCompressionFactor(), 2);
+
+    // numValid = 2, CF = 2. Attempting 3rd sub-block (numValid + 1 = 3 >
+    // target_cf = 2).
+    EXPECT_FALSE(superBlk.canCoAllocate(128));
 }
