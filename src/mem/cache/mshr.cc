@@ -317,8 +317,10 @@ MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
 
     // Don't know of a case where we would allocate a new MSHR for a
     // snoop (mem-side request), so set source according to request here
-    Target::Source source = (target->cmd == MemCmd::HardPFReq) ?
-        Target::FromPrefetcher : Target::FromCPU;
+    Target::Source source =
+        (target->cmd.isPrefetch() || target->req->isPrefetch())
+            ? Target::FromPrefetcher
+            : Target::FromCPU;
     targets.add(target, when_ready, _order, source, true, alloc_on_fill);
 
     // All targets must refer to the same block
@@ -391,6 +393,10 @@ MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
     //   getting a writable block back or we have already snooped
     //   another read request that will downgrade our writable block
     //   to non-writable (Shared or Owned)
+    Target::Source source = (pkt->cmd.isPrefetch() || pkt->req->isPrefetch())
+                                ? Target::FromPrefetcher
+                                : Target::FromCPU;
+
     PacketPtr tgt_pkt = targets.front().pkt;
     if (pkt->req->isCacheMaintenance() ||
         tgt_pkt->req->isCacheMaintenance() ||
@@ -402,15 +408,14 @@ MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
         // need to put on deferred list
         if (inService && hasPostInvalidate())
             replaceUpgrade(pkt);
-        deferredTargets.add(pkt, whenReady, _order, Target::FromCPU, true,
+        deferredTargets.add(pkt, whenReady, _order, source, true,
                             alloc_on_fill);
     } else {
         // No request outstanding, or still OK to append to
         // outstanding request: append to regular target list.  Only
         // mark pending if current request hasn't been issued yet
         // (isn't in service).
-        targets.add(pkt, whenReady, _order, Target::FromCPU, !inService,
-                    alloc_on_fill);
+        targets.add(pkt, whenReady, _order, source, !inService, alloc_on_fill);
     }
 
     DPRINTF(MSHR, "After target allocation: %s", print());
