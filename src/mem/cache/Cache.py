@@ -107,7 +107,8 @@ class BaseCache(ClockedObject):
         0.1, "EWMA occupancy smoothing weight alpha for cache queues"
     )
     gradient_alpha = Param.Float(
-        0.1, "EWMA arrival rate gradient smoothing weight alpha for cache queues"
+        0.1,
+        "EWMA arrival rate gradient smoothing weight alpha for cache queues",
     )
 
     is_read_only = Param.Bool(False, "Is this cache read only (e.g. inst)")
