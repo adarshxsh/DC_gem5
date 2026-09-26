@@ -357,7 +357,8 @@ class MSHR : public QueueEntry, public Printable
      * @return true if any target in targets or deferredTargets comes from a
      *         demand access
      */
-    bool hasDemandTarget() const
+    bool
+    hasDemandTarget() const
     {
         for (const auto &t : targets) {
             if (t.source != Target::FromPrefetcher) {

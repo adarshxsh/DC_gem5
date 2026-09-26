@@ -586,12 +586,11 @@ TEST(MSHRTest, TargetClassificationAndDemandCheck)
     EXPECT_FALSE(mshr.hasDemandTarget());
 
     // Allocate a demand target
-    RequestPtr demand_req = std::make_shared<Request>(
-        0x1000, 64, Request::FlagsType(0), 0);
+    RequestPtr demand_req =
+        std::make_shared<Request>(0x1000, 64, Request::FlagsType(0), 0);
     Packet demand_pkt(demand_req, MemCmd::ReadReq);
     mshr.allocateTarget(&demand_pkt, 0, 2, true);
 
     // Should now report demand target present
     EXPECT_TRUE(mshr.hasDemandTarget());
 }
-
