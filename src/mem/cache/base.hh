@@ -801,9 +801,8 @@ class BaseCache : public ClockedObject
      * @param allocate Whether to allocate a block or use the temp block
      * @return Pointer to the new cache block.
      */
-    CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
-                         PacketList &writebacks, bool allocate,
-                         bool is_prefetch = false);
+    CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                         bool allocate, bool is_prefetch = false);
 
     /**
      * Allocate a new block and perform any necessary writebacks

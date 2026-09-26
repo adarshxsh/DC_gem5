@@ -245,10 +245,14 @@ class MSHR : public QueueEntry, public Printable
          */
         bool isReset() const {
             return !needsWritable && !hasUpgrade && !allocOnFill &&
-                !hasFromCache && !hasDemand && canMergeWrites;
+                   !hasFromCache && !hasDemand && canMergeWrites;
         }
 
-        bool hasDemandTarget() const { return hasDemand; }
+        bool
+        hasDemandTarget() const
+        {
+            return hasDemand;
+        }
 
         /**
          * Add the specified packet in the TargetList. This function
@@ -360,7 +364,9 @@ class MSHR : public QueueEntry, public Printable
      *
      * @return true if any target is a demand request
      */
-    bool hasDemandTarget() const {
+    bool
+    hasDemandTarget() const
+    {
         return targets.hasDemand || deferredTargets.hasDemand;
     }
 

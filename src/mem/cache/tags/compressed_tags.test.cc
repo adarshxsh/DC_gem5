@@ -42,56 +42,112 @@
 
 using namespace gem5;
 
-// Dummy stubs for SimObject and statistics methods referenced by indexing policies in unit test
-namespace gem5 {
-namespace Gem5Internal {
-__thread Tick * _curTickPtr = nullptr;
+// Dummy stubs for SimObject and statistics methods referenced by indexing
+// policies in unit test
+namespace gem5
+{
+namespace Gem5Internal
+{
+__thread Tick *_curTickPtr = nullptr;
 }
 SimObject::SimObject(const SimObjectParams &p)
-    : EventManager((EventQueue *)nullptr), statistics::Group(nullptr),
-      Named(""), _params(p)
+    : EventManager((EventQueue *)nullptr),
+      statistics::Group(nullptr),
+      Named(""),
+      _params(p)
 {}
-SimObject::~SimObject() {}
-Drainable::Drainable() : _drainManager(*(DrainManager*)nullptr) {}
-Drainable::~Drainable() {}
-Serializable::Serializable() {}
-Serializable::~Serializable() {}
-void SimObject::init() {}
-void SimObject::loadState(CheckpointIn &) {}
-void SimObject::initState() {}
-void SimObject::regProbePoints() {}
-void SimObject::regProbeListeners() {}
-Port &SimObject::getPort(const std::string &, short) {
+SimObject::~SimObject()
+{}
+Drainable::Drainable() : _drainManager(*(DrainManager *)nullptr)
+{}
+Drainable::~Drainable()
+{}
+Serializable::Serializable()
+{}
+Serializable::~Serializable()
+{}
+void
+SimObject::init()
+{}
+void
+SimObject::loadState(CheckpointIn &)
+{}
+void
+SimObject::initState()
+{}
+void
+SimObject::regProbePoints()
+{}
+void
+SimObject::regProbeListeners()
+{}
+Port &
+SimObject::getPort(const std::string &, short)
+{
     static Port *p = nullptr;
     return *p;
 }
-void SimObject::startup() {}
-bool ObjectMatch::domatch(const std::string &) const { return false; }
-ObjectMatch::ObjectMatch() {}
-ObjectMatch::ObjectMatch(const std::string &) {}
-void print_backtrace() {}
-ssize_t atomic_write(int fd, const void *buf, size_t count) { return count; }
-uint64_t getUintX(const void *p, std::size_t size, ByteOrder byte_order) {
+void
+SimObject::startup()
+{}
+bool
+ObjectMatch::domatch(const std::string &) const
+{
+    return false;
+}
+ObjectMatch::ObjectMatch()
+{}
+ObjectMatch::ObjectMatch(const std::string &)
+{}
+void
+print_backtrace()
+{}
+ssize_t
+atomic_write(int fd, const void *buf, size_t count)
+{
+    return count;
+}
+uint64_t
+getUintX(const void *p, std::size_t size, ByteOrder byte_order)
+{
     return 0;
 }
-void setUintX(uint64_t val, void *p, std::size_t size, ByteOrder byte_order) {}
-std::string RegClassOps::regName(const RegId &id) const {
+void
+setUintX(uint64_t val, void *p, std::size_t size, ByteOrder byte_order)
+{}
+std::string
+RegClassOps::regName(const RegId &id) const
+{
     return "";
 }
-std::string RegClassOps::valString(const void *val, const size_t &size) const {
+std::string
+RegClassOps::valString(const void *val, const size_t &size) const
+{
     return "";
 }
-struct DummyRegClassOps : public RegClassOps {
-    std::string valString(const void *val, const size_t &size) const override {
+struct DummyRegClassOps : public RegClassOps
+{
+    std::string
+    valString(const void *val, const size_t &size) const override
+    {
         return "";
     }
 };
-namespace statistics {
-Group::Group(Group *parent, const char *name) {}
-void Group::regStats() {}
-void Group::resetStats() {}
-void Group::preDumpStats() {}
-Group::~Group() {}
+namespace statistics
+{
+Group::Group(Group *parent, const char *name)
+{}
+void
+Group::regStats()
+{}
+void
+Group::resetStats()
+{}
+void
+Group::preDumpStats()
+{}
+Group::~Group()
+{}
 } // namespace statistics
 } // namespace gem5
 
