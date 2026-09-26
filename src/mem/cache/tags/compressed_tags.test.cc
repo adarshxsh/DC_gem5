@@ -601,7 +601,8 @@ TEST(ExpressSnoopDetachedCleanTest, DetachedL1CleanTrackingAndInvalidation)
     ASSERT_FALSE(clean_blk.isDetachedL1Clean());
     ASSERT_FALSE(isDetachedL1CleanBlock(clean_addr));
 
-    // Simulate L2 superblock eviction with express snoop probing clean hit in L1
+    // Simulate L2 superblock eviction with express snoop probing clean hit in
+    // L1
     bool is_cached_in_l1 = true; // L1 express snoop returns hit
     if (!clean_blk.isSet(CacheBlk::DirtyBit) && is_cached_in_l1) {
         trackDetachedL1CleanBlock(clean_addr);
@@ -621,8 +622,8 @@ TEST(ExpressSnoopDetachedCleanTest, DetachedL1CleanTrackingAndInvalidation)
     ASSERT_FALSE(clean_blk.isValid());
     ASSERT_TRUE(isDetachedL1CleanBlock(clean_addr));
 
-    // Simulate re-allocation in L2: clearDetachedL1CleanBlock must clear the set
+    // Simulate re-allocation in L2: clearDetachedL1CleanBlock must clear the
+    // set
     clearDetachedL1CleanBlock(clean_addr);
     ASSERT_FALSE(isDetachedL1CleanBlock(clean_addr));
 }
-
