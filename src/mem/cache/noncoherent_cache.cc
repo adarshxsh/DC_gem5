@@ -265,6 +265,12 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
+            if (isQueuePressureDecompressBypassActive() &&
+                (pkt->isRead() || tgt_pkt->isRead())) {
+                pkt->payloadDelay = 0;
+                tgt_pkt->payloadDelay = 0;
+            }
+
             satisfyRequest(tgt_pkt, blk, writebacks);
 
             // How many bytes past the first request is this one

@@ -741,6 +741,12 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
+            if (isQueuePressureDecompressBypassActive() &&
+                (pkt->isRead() || tgt_pkt->isRead())) {
+                pkt->payloadDelay = 0;
+                tgt_pkt->payloadDelay = 0;
+            }
+
             // Software prefetch handling for cache closest to core
             if (tgt_pkt->cmd.isSWPrefetch()) {
                 if (tgt_pkt->needsWritable()) {
@@ -1239,8 +1245,9 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
         }
 
         // When a block is compressed, it must first be decompressed before
-        // being read, and this increases the snoop delay.
-        if (compressor && pkt->isRead()) {
+        // being read, and this increases the snoop delay unless queue pressure
+        // decompression bypass is active.
+        if (compressor && pkt->isRead() && !isQueuePressureDecompressBypassActive()) {
             snoop_delay += compressor->getDecompressionLatency(blk);
         }
     }

@@ -377,6 +377,16 @@ class BaseCache : public ClockedObject
     /** Prefetcher */
     prefetch::Base *prefetcher;
 
+    /** Threshold percentage to trigger queue pressure decompression bypass */
+    const unsigned queuePressureDecompressBypassThreshold;
+
+    /**
+     * Check whether queue pressure decompression bypass is active.
+     * @return True if cache queues or port queues exceed pressure threshold.
+     */
+    virtual bool isQueuePressureDecompressBypassActive() const;
+    virtual bool isQueuePressureDecompressBypassActive(double threshold_ratio) const;
+
     /** To probe when a cache hit occurs */
     ProbePointArg<CacheAccessProbeArg> *ppHit;
 

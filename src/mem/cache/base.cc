@@ -91,6 +91,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       compressor(p.compressor),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
+      queuePressureDecompressBypassThreshold(p.queue_pressure_decompress_bypass_threshold),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
@@ -555,6 +556,12 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
     DPRINTF(Cache, "%s: Handling response %s\n", __func__,
             pkt->print());
+
+    // Under memory queue pressure, clear payload decompression delays
+    // on demand read responses to avoid cumulative read completion delays.
+    if (isQueuePressureDecompressBypassActive() && pkt->isRead()) {
+        pkt->payloadDelay = 0;
+    }
 
     // if this is a write, we should be looking at an uncacheable
     // write
@@ -1326,6 +1333,33 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 // Access path: requests coming in from the CPU side
 //
 /////////////////////////////////////////////////////
+bool
+BaseCache::isQueuePressureDecompressBypassActive(double threshold_ratio) const
+{
+    if (mshrQueue.capacity() > 0 &&
+        ((double)mshrQueue.occupancy() / mshrQueue.capacity()) >= threshold_ratio) {
+        return true;
+    }
+    if (writeBuffer.capacity() > 0 &&
+        ((double)writeBuffer.occupancy() / writeBuffer.capacity()) >= threshold_ratio) {
+        return true;
+    }
+    if (cpuSidePort.isQueuePressureDecompressBypassActive()) {
+        return true;
+    }
+    if (memSidePort.isQueuePressureDecompressBypassActive()) {
+        return true;
+    }
+    return false;
+}
+
+bool
+BaseCache::isQueuePressureDecompressBypassActive() const
+{
+    double ratio = (double)queuePressureDecompressBypassThreshold / 100.0;
+    return isQueuePressureDecompressBypassActive(ratio);
+}
+
 Cycles
 BaseCache::calculateTagOnlyLatency(const uint32_t delay,
                                    const Cycles lookup_lat) const
@@ -1608,9 +1642,12 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
 
             // When a block is compressed, it must first be decompressed
-            // before being read. This adds to the access latency.
+            // before being read. This adds to the access latency unless
+            // queue pressure decompression bypass is active.
             if (compressor) {
-                lat += compressor->getDecompressionLatency(blk);
+                if (!isQueuePressureDecompressBypassActive()) {
+                    lat += compressor->getDecompressionLatency(blk);
+                }
             }
         } else if (compressor && !pkt->isWholeLineWrite(blkSize)) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency) +
