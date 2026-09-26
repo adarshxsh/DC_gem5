@@ -53,6 +53,7 @@
 #include "base/types.hh"
 #include "debug/Cache.hh"
 #include "mem/cache/cache_blk.hh"
+#include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr.hh"
 #include "params/NoncoherentCache.hh"
 
@@ -68,13 +69,15 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 
 void
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                 PacketList &writebacks, bool, bool)
+                                 PacketList &writebacks, bool deferred_response,
+                                 bool pending_downgrade, Cycles &comp_lat)
 {
     // As this a non-coherent cache located below the point of
     // coherency, we do not expect requests that are typically used to
     // keep caches coherent (e.g., InvalidateReq or UpdateReq).
     assert(pkt->isRead() || pkt->isWrite());
-    BaseCache::satisfyRequest(pkt, blk, writebacks);
+    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
+                              pending_downgrade, comp_lat);
 }
 
 bool
@@ -254,7 +257,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
         Packet *tgt_pkt = target.pkt;
 
         switch (target.source) {
-          case MSHR::Target::FromCPU:
+          case MSHR::Target::FromCPU: {
             // handle deferred requests comming from a cache or core
             // above
 
@@ -265,7 +268,15 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
-            satisfyRequest(tgt_pkt, blk, writebacks);
+            Cycles decomp_lat = Cycles(0);
+            if (compressor && blk && blk->isValid()) {
+                if (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize)) {
+                    decomp_lat = compressor->getDecompressionLatency(blk);
+                }
+            }
+
+            Cycles recomp_lat = Cycles(0);
+            satisfyRequest(tgt_pkt, blk, writebacks, false, false, recomp_lat);
 
             // How many bytes past the first request is this one
             int transfer_offset;
@@ -277,7 +288,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // responseLatency is the latency of the return path
             // from lower level caches/memory to an upper level cache or
             // the core.
-            completion_time += clockEdge(responseLatency) +
+            completion_time += clockEdge(responseLatency + decomp_lat + recomp_lat) +
                 (transfer_offset ? pkt->payloadDelay : 0);
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
@@ -292,6 +303,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             tgt_pkt->headerDelay = tgt_pkt->payloadDelay = 0;
             cpuSidePort.schedTimingResp(tgt_pkt, completion_time);
             break;
+          }
 
           case MSHR::Target::FromPrefetcher:
             // handle deferred requests comming from a prefetcher
