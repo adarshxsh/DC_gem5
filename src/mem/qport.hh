@@ -98,6 +98,22 @@ class QueuedResponsePort : public ResponsePort
      * functional request. */
     bool trySatisfyFunctional(PacketPtr pkt)
     { return respQueue.trySatisfyFunctional(pkt); }
+
+    bool
+    isQueuePressureDecompressBypassActive() const
+    {
+        return respQueue.isQueuePressureDecompressBypassActive();
+    }
+    bool
+    isQueuePressureDecompressBypassActive(uint32_t threshold) const
+    {
+        return respQueue.isQueuePressureDecompressBypassActive(threshold);
+    }
+    bool
+    isQueuePressureDecompressBypassActive(double threshold) const
+    {
+        return respQueue.isQueuePressureDecompressBypassActive(threshold);
+    }
 };
 
 /**
@@ -165,6 +181,25 @@ class QueuedRequestPort : public RequestPort
     {
         return reqQueue.trySatisfyFunctional(pkt) ||
             snoopRespQueue.trySatisfyFunctional(pkt);
+    }
+
+    bool
+    isQueuePressureDecompressBypassActive() const
+    {
+        return reqQueue.isQueuePressureDecompressBypassActive() ||
+               snoopRespQueue.isQueuePressureDecompressBypassActive();
+    }
+    bool
+    isQueuePressureDecompressBypassActive(uint32_t threshold) const
+    {
+        return reqQueue.isQueuePressureDecompressBypassActive(threshold) ||
+               snoopRespQueue.isQueuePressureDecompressBypassActive(threshold);
+    }
+    bool
+    isQueuePressureDecompressBypassActive(double threshold) const
+    {
+        return reqQueue.isQueuePressureDecompressBypassActive(threshold) ||
+               snoopRespQueue.isQueuePressureDecompressBypassActive(threshold);
     }
 };
 

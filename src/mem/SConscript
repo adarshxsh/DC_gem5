@@ -109,6 +109,11 @@ Source('port_terminator.cc')
 GTest('backdoor_manager.test', 'backdoor_manager.test.cc',
       'backdoor_manager.cc', with_tag('gem5_trace'))
 GTest('translation_gen.test', 'translation_gen.test.cc')
+GTest('packet_pressure.test', 'packet_pressure.test.cc', 'packet_queue.cc', 'packet.cc', 'port.cc',
+      '#src/mem/protocol/timing.cc', '#src/mem/protocol/functional.cc', '#src/mem/protocol/atomic.cc',
+      '#src/sim/bufval.cc', '#src/sim/port.cc',
+      '#src/base/types.cc', '#src/base/logging.cc', '#src/base/hostinfo.cc',
+      with_tag('gem5 simobject'))
 
 Source('translating_port_proxy.cc')
 Source('se_translating_port_proxy.cc')

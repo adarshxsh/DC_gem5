@@ -97,6 +97,9 @@ class PacketQueue : public Drainable
       */
     bool _disableSanityCheck;
 
+    /** Threshold to evaluate queue pressure for decompression bypass. */
+    uint32_t pressureThreshold;
+
     /**
      * if true, inserted packets have to be unconditionally scheduled
      * after the last packet in the queue that references the same
@@ -165,6 +168,28 @@ class PacketQueue : public Drainable
      * Get the size of the queue.
      */
     size_t size() const { return transmitList.size(); }
+
+    /**
+     * Set and get pressure threshold for decompression bypass evaluation.
+     */
+    void
+    setPressureThreshold(uint32_t threshold)
+    {
+        pressureThreshold = threshold;
+    }
+    uint32_t
+    getPressureThreshold() const
+    {
+        return pressureThreshold;
+    }
+
+    /**
+     * Check whether queue pressure decompression bypass is active.
+     */
+    virtual bool isQueuePressureDecompressBypassActive() const;
+    virtual bool
+    isQueuePressureDecompressBypassActive(uint32_t threshold) const;
+    virtual bool isQueuePressureDecompressBypassActive(double threshold) const;
 
     /**
      * Get the next packet ready time.
