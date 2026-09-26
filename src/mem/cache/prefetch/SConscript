@@ -59,4 +59,16 @@ Source('stride.cc')
 Source('tagged.cc')
 Source('fdp.cc')
 
-GTest('queued.test', 'queued.test.cc', 'queued.cc', 'base.cc')
+GTest('queued.test', 'queued.test.cc', 'queued.cc', 'base.cc',
+      '#src/base/logging.cc', '#src/base/hostinfo.cc',
+      '#src/base/statistics.cc', '#src/base/stats/info.cc',
+      '#src/base/stats/storage.cc', '#src/base/stats/text.cc',
+      '#src/base/stats/group.cc', '#src/base/types.cc',
+      '#src/base/output.cc', '#src/cpu/reg_class.cc',
+      '#src/sim/bufval.cc', '#src/sim/clocked_object.cc',
+      '#src/sim/clock_domain.cc', '#src/sim/voltage_domain.cc',
+      '#src/sim/sim_object.cc', '#src/sim/drain.cc',
+      '#src/mem/cache/replacement_policies/lru_rp.cc',
+      '#src/sim/probe/probe.cc', '#src/sim/eventq.cc',
+      '#src/sim/async.cc', '#src/mem/packet.cc',
+      with_tag('gem5 serialize'), with_tag('gem5 trace'))

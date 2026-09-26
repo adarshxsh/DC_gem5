@@ -177,6 +177,9 @@ class QueuedPrefetcher(BasePrefetcher):
         2,
         "Minimum predicted compression factor threshold for prefetch filtering",
     )
+    cht_missing_is_low = Param.Bool(
+        True, "Treat missing CHT lookup entries as low compression"
+    )
     cht_indexing_policy = Param.TaggedIndexingPolicy(
         TaggedSetAssociative(
             entry_size=1,
