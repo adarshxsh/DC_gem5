@@ -1051,7 +1051,7 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
                         blk->setDetachedL1Clean();
                         stats.detachedL1CleanPreserved++;
 
-                        invalidateBlock(blk);
+                        invalidateBlock(blk, true /* keep_detached */);
                     } else {
                         evictBlock(blk, writebacks);
                     }
@@ -1535,6 +1535,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // down the memory hierarchy. Returning false will treat the CleanEvict
         // like a Writeback which could not find a replaceable block so has to
         // go to next level.
+        clearDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure());
         return false;
     } else if (pkt->cmd == MemCmd::WriteClean) {
         // WriteClean handling is a special case. We can allocate a
@@ -1812,7 +1813,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 }
 
 void
-BaseCache::invalidateBlock(CacheBlk *blk)
+BaseCache::invalidateBlock(CacheBlk *blk, bool keep_detached)
 {
     // If block is still marked as prefetched, then it hasn't been used
     if (blk->wasPrefetched()) {
@@ -1825,7 +1826,9 @@ BaseCache::invalidateBlock(CacheBlk *blk)
     // If handling a block present in the Tags, let it do its invalidation
     // process, which will update stats and invalidate the block itself
     if (blk != tempBlock) {
-        clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
+        if (!keep_detached) {
+            clearDetachedL1CleanBlock(regenerateBlkAddr(blk), blk->isSecure());
+        }
         tags->invalidate(blk);
     } else {
         tempBlock->invalidate();

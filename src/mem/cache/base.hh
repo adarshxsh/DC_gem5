@@ -841,8 +841,9 @@ class BaseCache : public ClockedObject
      * Invalidate a cache block.
      *
      * @param blk Block to invalidate
+     * @param keep_detached If true, do not erase the address from detachedL1CleanAddrs.
      */
-    void invalidateBlock(CacheBlk *blk);
+    void invalidateBlock(CacheBlk *blk, bool keep_detached = false);
 
     /**
      * Create a writeback request for the given block.
