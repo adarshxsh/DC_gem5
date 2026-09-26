@@ -68,13 +68,28 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 
 void
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                 PacketList &writebacks, bool, bool)
+                                 PacketList &writebacks,
+                                 Cycles &recompression_lat,
+                                 bool deferred_response,
+                                 bool pending_downgrade)
 {
     // As this a non-coherent cache located below the point of
     // coherency, we do not expect requests that are typically used to
     // keep caches coherent (e.g., InvalidateReq or UpdateReq).
     assert(pkt->isRead() || pkt->isWrite());
-    BaseCache::satisfyRequest(pkt, blk, writebacks);
+    BaseCache::satisfyRequest(pkt, blk, writebacks, recompression_lat,
+                              deferred_response, pending_downgrade);
+}
+
+void
+NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+                                 PacketList &writebacks,
+                                 bool deferred_response,
+                                 bool pending_downgrade)
+{
+    Cycles dummy_lat = Cycles(0);
+    satisfyRequest(pkt, blk, writebacks, dummy_lat, deferred_response,
+                   pending_downgrade);
 }
 
 bool
@@ -265,7 +280,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
-            satisfyRequest(tgt_pkt, blk, writebacks);
+            Cycles recompression_lat = Cycles(0);
+            satisfyRequest(tgt_pkt, blk, writebacks, recompression_lat);
 
             // How many bytes past the first request is this one
             int transfer_offset;
@@ -278,7 +294,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // from lower level caches/memory to an upper level cache or
             // the core.
             completion_time += clockEdge(responseLatency) +
-                (transfer_offset ? pkt->payloadDelay : 0);
+                (transfer_offset ? pkt->payloadDelay : 0) +
+                clockEdge(recompression_lat) - clockEdge();
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
             stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=

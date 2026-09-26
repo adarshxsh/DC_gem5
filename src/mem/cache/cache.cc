@@ -77,10 +77,11 @@ Cache::Cache(const CacheParams &p)
 
 void
 Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                      Cycles &recompression_lat,
                       bool deferred_response, bool pending_downgrade)
 {
-    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
-                              pending_downgrade);
+    BaseCache::satisfyRequest(pkt, blk, writebacks, recompression_lat,
+                              deferred_response, pending_downgrade);
 
     if (pkt->isRead()) {
         // determine if this read is from a (coherent) cache or not
@@ -151,6 +152,15 @@ Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             }
         }
     }
+}
+
+void
+Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                      bool deferred_response, bool pending_downgrade)
+{
+    Cycles dummy_lat = Cycles(0);
+    satisfyRequest(pkt, blk, writebacks, dummy_lat, deferred_response,
+                   pending_downgrade);
 }
 
 /////////////////////////////////////////////////////
@@ -797,8 +807,9 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
             // either); otherwise we use the packet data.
             if (blk && blk->isValid() &&
                 (!mshr->isForward || !pkt->hasData())) {
-                satisfyRequest(tgt_pkt, blk, writebacks, true,
-                               mshr->hasPostDowngrade());
+                Cycles recompression_lat = Cycles(0);
+                satisfyRequest(tgt_pkt, blk, writebacks, recompression_lat,
+                               true, mshr->hasPostDowngrade());
 
                 // How many bytes past the first request is this one
                 int transfer_offset =
@@ -812,7 +823,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // from lower level caches/memory to an upper level cache or
                 // the core.
                 completion_time += clockEdge(responseLatency) +
-                    (transfer_offset ? pkt->payloadDelay : 0);
+                    (transfer_offset ? pkt->payloadDelay : 0) +
+                    clockEdge(recompression_lat) - clockEdge();
 
                 assert(!tgt_pkt->req->isUncacheable());
 
