@@ -79,8 +79,18 @@ void
 Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool deferred_response, bool pending_downgrade)
 {
+    Cycles dummy_recomp = Cycles(0);
+    satisfyRequest(pkt, blk, writebacks, deferred_response,
+                   pending_downgrade, dummy_recomp);
+}
+
+void
+Cache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                      bool deferred_response, bool pending_downgrade,
+                      Cycles &recomp_lat)
+{
     BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
-                              pending_downgrade);
+                              pending_downgrade, recomp_lat);
 
     if (pkt->isRead()) {
         // determine if this read is from a (coherent) cache or not
@@ -797,8 +807,16 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
             // either); otherwise we use the packet data.
             if (blk && blk->isValid() &&
                 (!mshr->isForward || !pkt->hasData())) {
+                Cycles decomp_lat = Cycles(0);
+                Cycles recomp_lat = Cycles(0);
+
+                if (compressor && blk && blk->isValid() &&
+                    (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize))) {
+                    decomp_lat = compressor->getDecompressionLatency(blk);
+                }
+
                 satisfyRequest(tgt_pkt, blk, writebacks, true,
-                               mshr->hasPostDowngrade());
+                               mshr->hasPostDowngrade(), recomp_lat);
 
                 // How many bytes past the first request is this one
                 int transfer_offset =
@@ -812,7 +830,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // from lower level caches/memory to an upper level cache or
                 // the core.
                 completion_time += clockEdge(responseLatency) +
-                    (transfer_offset ? pkt->payloadDelay : 0);
+                    (transfer_offset ? pkt->payloadDelay : 0) +
+                    clockEdge(decomp_lat + recomp_lat);
 
                 assert(!tgt_pkt->req->isUncacheable());
 

@@ -116,6 +116,11 @@ class Cache : public BaseCache
     Tick recvAtomicSnoop(PacketPtr pkt) override;
 
     void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                        bool deferred_response,
+                        bool pending_downgrade,
+                        Cycles &recomp_lat) override;
+
+    void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         bool deferred_response = false,
                         bool pending_downgrade = false) override;
 
