@@ -47,15 +47,16 @@
 namespace gem5
 {
 
-PacketQueue::PacketQueue(EventManager& _em, const std::string& _label,
-                         const std::string& _sendEventName,
-                         bool force_order,
+PacketQueue::PacketQueue(EventManager &_em, const std::string &_label,
+                         const std::string &_sendEventName, bool force_order,
                          bool disable_sanity_check)
-    : em(_em), sendEvent([this]{ processSendEvent(); }, _sendEventName),
+    : em(_em),
+      sendEvent([this] { processSendEvent(); }, _sendEventName),
       _disableSanityCheck(disable_sanity_check),
       pressureThreshold(4),
       forceOrder(force_order),
-      label(_label), waitingOnRetry(false)
+      label(_label),
+      waitingOnRetry(false)
 {
 }
 
@@ -78,7 +79,8 @@ PacketQueue::isQueuePressureDecompressBypassActive(uint32_t threshold) const
 bool
 PacketQueue::isQueuePressureDecompressBypassActive(double threshold) const
 {
-    uint32_t count_thresh = (threshold <= 1.0) ? (uint32_t)(threshold * 16.0) : (uint32_t)threshold;
+    uint32_t count_thresh = (threshold <= 1.0) ? (uint32_t)(threshold * 16.0)
+                                               : (uint32_t)threshold;
     return transmitList.size() >= count_thresh;
 }
 

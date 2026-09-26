@@ -385,7 +385,8 @@ class BaseCache : public ClockedObject
      * @return True if cache queues or port queues exceed pressure threshold.
      */
     virtual bool isQueuePressureDecompressBypassActive() const;
-    virtual bool isQueuePressureDecompressBypassActive(double threshold_ratio) const;
+    virtual bool
+    isQueuePressureDecompressBypassActive(double threshold_ratio) const;
 
     /** To probe when a cache hit occurs */
     ProbePointArg<CacheAccessProbeArg> *ppHit;

@@ -165,21 +165,30 @@ class PacketQueue : public Drainable
     virtual const std::string name() const = 0;
 
     /**
-      * Get the size of the queue.
-      */
+     * Get the size of the queue.
+     */
     size_t size() const { return transmitList.size(); }
 
     /**
      * Set and get pressure threshold for decompression bypass evaluation.
      */
-    void setPressureThreshold(uint32_t threshold) { pressureThreshold = threshold; }
-    uint32_t getPressureThreshold() const { return pressureThreshold; }
+    void
+    setPressureThreshold(uint32_t threshold)
+    {
+        pressureThreshold = threshold;
+    }
+    uint32_t
+    getPressureThreshold() const
+    {
+        return pressureThreshold;
+    }
 
     /**
      * Check whether queue pressure decompression bypass is active.
      */
     virtual bool isQueuePressureDecompressBypassActive() const;
-    virtual bool isQueuePressureDecompressBypassActive(uint32_t threshold) const;
+    virtual bool
+    isQueuePressureDecompressBypassActive(uint32_t threshold) const;
     virtual bool isQueuePressureDecompressBypassActive(double threshold) const;
 
     /**

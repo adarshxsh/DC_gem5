@@ -99,12 +99,21 @@ class QueuedResponsePort : public ResponsePort
     bool trySatisfyFunctional(PacketPtr pkt)
     { return respQueue.trySatisfyFunctional(pkt); }
 
-    bool isQueuePressureDecompressBypassActive() const
-    { return respQueue.isQueuePressureDecompressBypassActive(); }
-    bool isQueuePressureDecompressBypassActive(uint32_t threshold) const
-    { return respQueue.isQueuePressureDecompressBypassActive(threshold); }
-    bool isQueuePressureDecompressBypassActive(double threshold) const
-    { return respQueue.isQueuePressureDecompressBypassActive(threshold); }
+    bool
+    isQueuePressureDecompressBypassActive() const
+    {
+        return respQueue.isQueuePressureDecompressBypassActive();
+    }
+    bool
+    isQueuePressureDecompressBypassActive(uint32_t threshold) const
+    {
+        return respQueue.isQueuePressureDecompressBypassActive(threshold);
+    }
+    bool
+    isQueuePressureDecompressBypassActive(double threshold) const
+    {
+        return respQueue.isQueuePressureDecompressBypassActive(threshold);
+    }
 };
 
 /**
@@ -174,20 +183,23 @@ class QueuedRequestPort : public RequestPort
             snoopRespQueue.trySatisfyFunctional(pkt);
     }
 
-    bool isQueuePressureDecompressBypassActive() const
+    bool
+    isQueuePressureDecompressBypassActive() const
     {
         return reqQueue.isQueuePressureDecompressBypassActive() ||
-            snoopRespQueue.isQueuePressureDecompressBypassActive();
+               snoopRespQueue.isQueuePressureDecompressBypassActive();
     }
-    bool isQueuePressureDecompressBypassActive(uint32_t threshold) const
+    bool
+    isQueuePressureDecompressBypassActive(uint32_t threshold) const
     {
         return reqQueue.isQueuePressureDecompressBypassActive(threshold) ||
-            snoopRespQueue.isQueuePressureDecompressBypassActive(threshold);
+               snoopRespQueue.isQueuePressureDecompressBypassActive(threshold);
     }
-    bool isQueuePressureDecompressBypassActive(double threshold) const
+    bool
+    isQueuePressureDecompressBypassActive(double threshold) const
     {
         return reqQueue.isQueuePressureDecompressBypassActive(threshold) ||
-            snoopRespQueue.isQueuePressureDecompressBypassActive(threshold);
+               snoopRespQueue.isQueuePressureDecompressBypassActive(threshold);
     }
 };
 

@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -91,11 +91,12 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       compressor(p.compressor),
       partitionManager(p.partitioning_manager),
       prefetcher(p.prefetcher),
-      queuePressureDecompressBypassThreshold(p.queue_pressure_decompress_bypass_threshold),
+      queuePressureDecompressBypassThreshold(
+          p.queue_pressure_decompress_bypass_threshold),
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -1337,11 +1338,13 @@ bool
 BaseCache::isQueuePressureDecompressBypassActive(double threshold_ratio) const
 {
     if (mshrQueue.capacity() > 0 &&
-        ((double)mshrQueue.occupancy() / mshrQueue.capacity()) >= threshold_ratio) {
+        ((double)mshrQueue.occupancy() / mshrQueue.capacity()) >=
+            threshold_ratio) {
         return true;
     }
     if (writeBuffer.capacity() > 0 &&
-        ((double)writeBuffer.occupancy() / writeBuffer.capacity()) >= threshold_ratio) {
+        ((double)writeBuffer.occupancy() / writeBuffer.capacity()) >=
+            threshold_ratio) {
         return true;
     }
     if (cpuSidePort.isQueuePressureDecompressBypassActive()) {

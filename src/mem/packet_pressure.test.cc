@@ -38,13 +38,18 @@ namespace gem5
 class TestPacketQueue : public PacketQueue
 {
   public:
-    TestPacketQueue(EventManager& _em, const std::string& _label)
+    TestPacketQueue(EventManager &_em, const std::string &_label)
         : PacketQueue(_em, _label, _label + "-sendEvent")
     {}
 
-    const std::string name() const override { return "TestPacketQueue"; }
+    const std::string
+    name() const override
+    {
+        return "TestPacketQueue";
+    }
 
-    bool sendTiming(PacketPtr pkt) override
+    bool
+    sendTiming(PacketPtr pkt) override
     {
         return true;
     }
@@ -57,10 +62,7 @@ class PacketPressureTest : public ::testing::Test
     EventQueue eq;
     EventManager em;
 
-    PacketPressureTest() : eq("EQ"), em(&eq)
-    {
-        tickHandler.setCurTick(0);
-    }
+    PacketPressureTest() : eq("EQ"), em(&eq) { tickHandler.setCurTick(0); }
 };
 
 TEST_F(PacketPressureTest, PacketQueuePressureBypass)
@@ -92,8 +94,10 @@ TEST_F(PacketPressureTest, PacketQueuePressureBypass)
     EXPECT_FALSE(queue.isQueuePressureDecompressBypassActive(uint32_t(3)));
 
     // Ratio threshold testing
-    EXPECT_TRUE(queue.isQueuePressureDecompressBypassActive(0.1)); // 0.1 * 16 = 1 <= 2
-    EXPECT_FALSE(queue.isQueuePressureDecompressBypassActive(0.5)); // 0.5 * 16 = 8 > 2
+    EXPECT_TRUE(
+        queue.isQueuePressureDecompressBypassActive(0.1)); // 0.1 * 16 = 1 <= 2
+    EXPECT_FALSE(
+        queue.isQueuePressureDecompressBypassActive(0.5)); // 0.5 * 16 = 8 > 2
 
     while (!eq.empty()) {
         tickHandler.setCurTick(eq.nextTick());
