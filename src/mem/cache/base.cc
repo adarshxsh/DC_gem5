@@ -252,7 +252,7 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
         Tick pacing_interval = clockEdge(writebackPacingDelay);
         if (lastWritebackPacedTime > time) {
             time =
-                lastWritebackPacedTime + clockPeriod() * writebackPacingDelay;
+                lastWritebackPacedTime + cyclesToTicks(writebackPacingDelay);
         } else if (time < pacing_interval) {
             time = pacing_interval;
         }
@@ -2967,6 +2967,22 @@ BaseCache::getCompressionFactor(Addr addr, bool is_secure) const
         }
     }
     return 1;
+}
+
+bool
+BaseCache::isCompressionBypassed() const
+{
+    return compressor && compressor->isCompressionBypassed();
+}
+
+void
+BaseCache::updateCompressionBackpressure(bool active)
+{
+    if (compressionBackpressure != active) {
+        DPRINTF(Cache, "Compression backpressure state changed: %d -> %d\n",
+                compressionBackpressure, active);
+        compressionBackpressure = active;
+    }
 }
 
 } // namespace gem5

@@ -1310,11 +1310,7 @@ class BaseCache : public ClockedObject
     Tick lastWritebackPacedTime;
 
   public:
-    bool
-    isCompressionBypassed() const
-    {
-        return compressor && compressor->isCompressionBypassed();
-    }
+    bool isCompressionBypassed() const;
 
     bool
     isCompressionBackpressureActive() const
@@ -1322,16 +1318,7 @@ class BaseCache : public ClockedObject
         return compressionBackpressure;
     }
 
-    void
-    updateCompressionBackpressure(bool active)
-    {
-        if (compressionBackpressure != active) {
-            DPRINTF(Cache,
-                    "Compression backpressure state changed: %d -> %d\n",
-                    compressionBackpressure, active);
-            compressionBackpressure = active;
-        }
-    }
+    void updateCompressionBackpressure(bool active);
 
   public:
     void
