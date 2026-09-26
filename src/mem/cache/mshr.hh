@@ -351,6 +351,28 @@ class MSHR : public QueueEntry, public Printable
     }
 
     /**
+     * Determine if there are any targets from a demand access (i.e. not
+     * from a prefetcher).
+     *
+     * @return true if any target in targets or deferredTargets comes from a
+     *         demand access
+     */
+    bool hasDemandTarget() const
+    {
+        for (const auto &t : targets) {
+            if (t.source != Target::FromPrefetcher) {
+                return true;
+            }
+        }
+        for (const auto &t : deferredTargets) {
+            if (t.source != Target::FromPrefetcher) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Replaces the matching packet in the Targets list with a dummy packet to
      * ensure the MSHR remains allocated until the corresponding locked write
      * arrives.

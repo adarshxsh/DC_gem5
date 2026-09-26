@@ -58,6 +58,7 @@ GTest(
     "compressed_tags.test.cc",
     "super_blk.cc",
     "sector_blk.cc",
+    "../mshr.cc",
     "#src/base/types.cc",
     with_tag("gem5 simobject"),
 )

@@ -33,7 +33,10 @@
 #include <memory>
 #include <vector>
 
+#include "mem/cache/mshr.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -559,3 +562,36 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST(MSHRTest, TargetClassificationAndDemandCheck)
+{
+    MSHR mshr("test_mshr");
+
+    // Pure prefetch allocation
+    RequestPtr pf_req = std::make_shared<Request>(
+        0x1000, 64, Request::FlagsType(Request::PREFETCH), 0);
+    Packet pf_pkt(pf_req, MemCmd::HardPFReq);
+
+    mshr.allocate(0x1000, 64, &pf_pkt, 0, 0, true);
+
+    // Initial prefetch target should mean no demand targets
+    EXPECT_FALSE(mshr.hasDemandTarget());
+
+    // Allocate additional prefetch target
+    RequestPtr pf_req2 = std::make_shared<Request>(
+        0x1000, 64, Request::FlagsType(Request::PREFETCH), 0);
+    Packet pf_pkt2(pf_req2, MemCmd::SoftPFReq);
+    mshr.allocateTarget(&pf_pkt2, 0, 1, true);
+
+    EXPECT_FALSE(mshr.hasDemandTarget());
+
+    // Allocate a demand target
+    RequestPtr demand_req = std::make_shared<Request>(
+        0x1000, 64, Request::FlagsType(0), 0);
+    Packet demand_pkt(demand_req, MemCmd::ReadReq);
+    mshr.allocateTarget(&demand_pkt, 0, 2, true);
+
+    // Should now report demand target present
+    EXPECT_TRUE(mshr.hasDemandTarget());
+}
+
