@@ -33,6 +33,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/gtest/cur_tick_fake.hh"
 #include "mem/cache/cache_probe_arg.hh"
 #include "mem/cache/prefetch/queued.hh"
 #include "mem/cache/replacement_policies/lru_rp.hh"
@@ -127,8 +128,8 @@ class TestQueuedPrefetcher : public Queued
 
 TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
 {
-    Tick mockTick = 1000;
-    Gem5Internal::_curTickPtr = &mockTick;
+    GTestTickHandler tickHandler;
+    tickHandler.setCurTick(1000);
 
     QueuedPrefetcherParams params;
     params.name = "test_queued_prefetcher";
@@ -203,15 +204,42 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     EXPECT_EQ(prefetcher.getPFQ().size(), 0);
     EXPECT_EQ(prefetcher.getStats().pfDroppedLowCompression.value(), 1);
 
-    // Now observe a compressible fill for testPC1 (CF = 2)
-    mockCache.compressionFactor = 2;
-    prefetcher.notifyFill(fillArg);
+    // Multiple uncompressible fills: counter decrements down to 0 and saturates (does not underflow)
+    prefetcher.notifyFill(fillArg); // counter becomes 0
+    EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
+    prefetcher.notifyFill(fillArg); // counter saturates at 0
+    EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
 
-    // Counter increments back to 2 (>= threshold 2)
+    // Now observe compressible fills for testPC1 (CF = 2): counter increments 0 -> 1 -> 2 -> 3
+    mockCache.compressionFactor = 2;
+    prefetcher.notifyFill(fillArg); // counter 0 -> 1
+    EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
+
+    prefetcher.notifyFill(fillArg); // counter 1 -> 2 (>= threshold 2)
+    EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
+
+    prefetcher.notifyFill(fillArg); // counter 2 -> 3
+    EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
+
+    prefetcher.notifyFill(fillArg); // counter saturates at 3 (does not overflow)
     EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
 
     // Inserting again for testPC1 should now pass CHT filter
     prefetcher.insert(&pkt, pfi, 1, mockCache);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+
+    // Verify PC == 0 bypasses CHT filtering
+    EXPECT_FALSE(prefetcher.isLowCompression(0, false));
+
+    // Create a request without a valid PC (no PC)
+    RequestPtr reqNoPC = std::make_shared<Request>(testAddr1, 64, 0, 0);
+    Packet pktNoPC(reqNoPC, MemCmd::ReadReq);
+    pktNoPC.allocate();
+    Base::PrefetchInfo pfiNoPC(&pktNoPC, testAddr1, true);
+
+    prefetcher.getPFQ().clear();
+    prefetcher.insert(&pktNoPC, pfiNoPC, 1, mockCache);
+    // Request without valid PC must not be dropped
     EXPECT_EQ(prefetcher.getPFQ().size(), 1);
 
     delete params.cht_indexing_policy;

@@ -408,8 +408,7 @@ Queued::notifyFill(const CacheAccessProbeArg &acc)
         return;
     }
 
-    Addr pc =
-        pkt->req->hasPC() ? pkt->req->getPC() : blockAddress(pkt->getAddr());
+    Addr pc = pkt->req->hasPC() ? pkt->req->getPC() : 0;
     uint8_t cf =
         acc.cache.getCompressionFactor(pkt->getAddr(), pkt->isSecure());
     updateCHT(pc, pkt->isSecure(), cf);
@@ -468,8 +467,7 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
         }
     }
 
-    Addr pc =
-        new_pfi.hasPC() ? new_pfi.getPC() : blockAddress(new_pfi.getAddr());
+    Addr pc = new_pfi.hasPC() ? new_pfi.getPC() : 0;
     if (isLowCompression(pc, new_pfi.isSecure())) {
         statsQueued.pfDroppedLowCompression++;
         DPRINTF(HWPrefetch,
