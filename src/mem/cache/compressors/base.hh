@@ -137,6 +137,27 @@ class Base : public SimObject
     /** Bit shift for exponential decay factor (1 - 2^-k). */
     const unsigned decayShift;
 
+    /** Size of sliding window buffer for ratio tracking (0 = unbounded
+     * cumulative). */
+    const unsigned sampleWindowSize;
+
+    /** Sample entry structure storing uncompressed and compressed bit sizes.
+     */
+    struct SampleEntry
+    {
+        uint32_t uncompressedBits = 0;
+        uint32_t compressedBits = 0;
+    };
+
+    /** Circular buffer storing samples for sliding window. */
+    std::vector<SampleEntry> sampleWindow;
+
+    /** Index of oldest sample / next write slot in circular buffer. */
+    std::size_t sampleWindowHead;
+
+    /** Current number of valid samples stored in circular buffer. */
+    std::size_t sampleWindowEntries;
+
     /** Total number of compression requests. */
     uint64_t totalCompressionRequests;
 

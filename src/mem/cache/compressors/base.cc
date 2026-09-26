@@ -94,12 +94,19 @@ Base::Base(const Params &p)
       latencyBreakevenThreshold(p.latency_breakeven_threshold),
       samplingInterval(p.sampling_interval),
       decayShift(p.decay_shift),
+      sampleWindowSize(p.sample_window_size),
+      sampleWindowHead(0),
+      sampleWindowEntries(0),
       totalCompressionRequests(0),
       sampledUncompressedBits(0),
       sampledCompressedBits(0),
       cache(nullptr),
       stats(*this)
 {
+    if (sampleWindowSize > 0) {
+        sampleWindow.resize(sampleWindowSize, {0, 0});
+    }
+
     fatal_if(64 % chunkSizeBits,
         "64 must be a multiple of the chunk granularity.");
 
@@ -220,13 +227,31 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
     }
 
     if (isSampled) {
-        if (enableAdaptiveBypass && (decayShift > 0)) {
-            sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
-            sampledCompressedBits -= (sampledCompressedBits >> decayShift);
-        }
         uint64_t uncomp_bits = blkSize * CHAR_BIT;
-        sampledUncompressedBits += uncomp_bits;
-        sampledCompressedBits += comp_size_bits;
+        if (sampleWindowSize > 0) {
+            if (sampleWindowEntries == sampleWindowSize) {
+                sampledUncompressedBits -=
+                    sampleWindow[sampleWindowHead].uncompressedBits;
+                sampledCompressedBits -=
+                    sampleWindow[sampleWindowHead].compressedBits;
+            } else {
+                sampleWindowEntries++;
+            }
+            sampleWindow[sampleWindowHead] = {
+                static_cast<uint32_t>(uncomp_bits),
+                static_cast<uint32_t>(comp_size_bits)};
+            sampledUncompressedBits += uncomp_bits;
+            sampledCompressedBits += comp_size_bits;
+            sampleWindowHead = (sampleWindowHead + 1) % sampleWindowSize;
+        } else {
+            if (enableAdaptiveBypass && (decayShift > 0)) {
+                sampledUncompressedBits -=
+                    (sampledUncompressedBits >> decayShift);
+                sampledCompressedBits -= (sampledCompressedBits >> decayShift);
+            }
+            sampledUncompressedBits += uncomp_bits;
+            sampledCompressedBits += comp_size_bits;
+        }
         stats.sampledCompressions++;
         stats.sampledUncompressedBits += uncomp_bits;
         stats.sampledCompressedBits += comp_size_bits;
