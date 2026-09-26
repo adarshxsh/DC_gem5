@@ -371,6 +371,21 @@ class BaseCache : public ClockedObject
     /** Compression method being used. */
     compression::Base* compressor;
 
+    /** High-watermark threshold percentage for MSHR compression bypass. */
+    const unsigned mshrCompressionBypassHighThreshold;
+
+    /** Low-watermark threshold percentage for MSHR compression bypass. */
+    const unsigned mshrCompressionBypassLowThreshold;
+
+    /** Current state of MSHR-induced compression bypass. */
+    bool mshrCompressionBypassed;
+
+    /**
+     * Updates the mshrCompressionBypassed state using hysteresis based on
+     * current mshrQueue occupancy against high and low watermark thresholds.
+     */
+    void updateMSHRCompressionBypass();
+
     /** Partitioning manager */
     partitioning_policy::PartitionManager* partitionManager;
 
@@ -1163,6 +1178,12 @@ class BaseCache : public ClockedObject
          */
         statistics::Scalar dataContractions;
 
+        /**
+         * Number of block fills where compression was bypassed due to high
+         * MSHR occupancy.
+         */
+        statistics::Scalar mshrCompressionBypasses;
+
         /** Per-command statistics */
         std::vector<std::unique_ptr<CacheCmdStats>> cmd;
     } stats;
@@ -1196,6 +1217,8 @@ class BaseCache : public ClockedObject
         MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
                                         pkt, time, order++,
                                         allocOnFill(pkt->cmd));
+
+        updateMSHRCompressionBypass();
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);
