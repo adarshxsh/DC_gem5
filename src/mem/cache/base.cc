@@ -82,7 +82,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
-      cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
+      cpuSidePort(p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve, p.name),
@@ -94,7 +94,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       writeAllocator(p.write_allocator),
       writebackClean(p.writeback_clean),
       tempBlockWriteback(nullptr),
-      writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+      writebackTempBlockAtomicEvent([this] { writebackTempBlockAtomic(); },
                                     name(), false,
                                     EventBase::Delayed_Writeback_Pri),
       blkSize(blk_size),
@@ -116,7 +116,10 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       missCount(p.max_miss_count),
       addrRanges(p.addr_ranges.begin(), p.addr_ranges.end()),
       system(p.system),
-      stats(*this)
+      stats(*this),
+      compressionBackpressure(false),
+      writebackPacingDelay(p.writeback_pacing_delay),
+      lastWritebackPacedTime(0)
 {
     // the MSHR queue has no reserve entries as we check the MSHR
     // queue on every single allocation, whereas the write queue has
@@ -243,6 +246,17 @@ BaseCache::allocateWriteBuffer(PacketPtr pkt, Tick time)
     if (compressor) {
         time += pkt->payloadDelay;
         pkt->payloadDelay = 0;
+    }
+
+    if (isCompressionBackpressureActive() && pkt->isWrite()) {
+        Tick pacing_interval = clockEdge(writebackPacingDelay);
+        if (lastWritebackPacedTime > time) {
+            time =
+                lastWritebackPacedTime + cyclesToTicks(writebackPacingDelay);
+        } else if (time < pacing_interval) {
+            time = pacing_interval;
+        }
+        lastWritebackPacedTime = time;
     }
 
     WriteQueueEntry *wq_entry =
@@ -540,6 +554,8 @@ void
 BaseCache::recvTimingResp(PacketPtr pkt)
 {
     assert(pkt->isResponse());
+
+    updateCompressionBackpressure(pkt->isCompressionThrottled());
 
     // all header delay should be paid for by the crossbar, unless
     // this is a prefetch response from above
@@ -2740,11 +2756,27 @@ Tick
 BaseCache::CpuSidePort::recvAtomic(PacketPtr pkt)
 {
     if (cache.system->bypassCaches()) {
-        // Forward the request if the system is in cache bypass mode.
-        return cache.memSidePort.sendAtomic(pkt);
+        Tick lat = cache.memSidePort.sendAtomic(pkt);
+        if (pkt && pkt->isResponse()) {
+            cache.updateCompressionBackpressure(pkt->isCompressionThrottled());
+        }
+        return lat;
     } else {
-        return cache.recvAtomic(pkt);
+        Tick lat = cache.recvAtomic(pkt);
+        if (pkt && pkt->isResponse() && cache.isCompressionBypassed()) {
+            pkt->setCompressionThrottled();
+        }
+        return lat;
     }
+}
+
+void
+BaseCache::CpuSidePort::schedTimingResp(PacketPtr pkt, Tick when)
+{
+    if (pkt && pkt->isResponse() && cache.isCompressionBypassed()) {
+        pkt->setCompressionThrottled();
+    }
+    CacheResponsePort::schedTimingResp(pkt, when);
 }
 
 void
@@ -2935,6 +2967,22 @@ BaseCache::getCompressionFactor(Addr addr, bool is_secure) const
         }
     }
     return 1;
+}
+
+bool
+BaseCache::isCompressionBypassed() const
+{
+    return compressor && compressor->isCompressionBypassed();
+}
+
+void
+BaseCache::updateCompressionBackpressure(bool active)
+{
+    if (compressionBackpressure != active) {
+        DPRINTF(Cache, "Compression backpressure state changed: %d -> %d\n",
+                compressionBackpressure, active);
+        compressionBackpressure = active;
+    }
 }
 
 } // namespace gem5

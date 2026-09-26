@@ -316,6 +316,7 @@ class BaseCache : public ClockedObject
         CpuSidePort(const std::string &_name, BaseCache& _cache,
                     const std::string &_label);
 
+        void schedTimingResp(PacketPtr pkt, Tick when);
     };
 
     CpuSidePort cpuSidePort;
@@ -1296,6 +1297,28 @@ class BaseCache : public ClockedObject
   protected:
     /** Non-inclusive tag state tracking for detached L1 clean sub-blocks. */
     std::unordered_set<Addr> detachedL1CleanAddrs;
+
+    /** Indicates whether compression backpressure from downstream (L2) is
+     * active. */
+    bool compressionBackpressure;
+
+    /** Pacing delay in cycles between dirty writebacks during active
+     * backpressure. */
+    const Cycles writebackPacingDelay;
+
+    /** Tracks the ready time of the last paced dirty writeback. */
+    Tick lastWritebackPacedTime;
+
+  public:
+    bool isCompressionBypassed() const;
+
+    bool
+    isCompressionBackpressureActive() const
+    {
+        return compressionBackpressure;
+    }
+
+    void updateCompressionBackpressure(bool active);
 
   public:
     void

@@ -978,6 +978,14 @@ Cache::cleanEvictBlk(CacheBlk *blk)
     assert(!writebackClean);
     assert(blk && blk->isValid() && !blk->isSet(CacheBlk::DirtyBit));
 
+    if (isCompressionBackpressureActive()) {
+        DPRINTF(Cache,
+                "Suppressing CleanEvict for block %#x due to compression "
+                "backpressure\n",
+                blk->getAddr());
+        return nullptr;
+    }
+
     // Creating a zero sized write, a message to the snoop filter
     RequestPtr req = std::make_shared<Request>(
         regenerateBlkAddr(blk), blkSize, 0, Request::wbRequestorId);
