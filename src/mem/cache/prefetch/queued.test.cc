@@ -33,6 +33,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/gtest/cur_tick_fake.hh"
 #include "mem/cache/cache_probe_arg.hh"
 #include "mem/cache/prefetch/queued.hh"
 #include "mem/cache/replacement_policies/lru_rp.hh"
@@ -40,13 +41,38 @@
 #include "mem/cache/tags/tagged_entry.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
+#include "params/ClockDomain.hh"
 #include "params/LRURP.hh"
 #include "params/QueuedPrefetcher.hh"
 #include "params/TaggedSetAssociative.hh"
+#include "sim/clock_domain.hh"
 #include "sim/cur_tick.hh"
+#include "sim/power/power_model.hh"
+#include "sim/root.hh"
+#include "sim/system.hh"
 
 using namespace gem5;
 using namespace gem5::prefetch;
+
+namespace gem5
+{
+Root *Root::_root = nullptr;
+
+RequestorID
+System::getRequestorId(const SimObject *requestor, std::string subrequestor)
+{
+    return 0;
+}
+
+void
+exitSimLoop(const std::string &message, int exit_code, Tick when, Tick repeat,
+            bool serialize)
+{}
+
+void
+PowerModel::setClockedObject(ClockedObject *clk_obj)
+{}
+} // namespace gem5
 
 namespace
 {
@@ -97,6 +123,15 @@ class MockCacheAccessor : public CacheAccessor
     }
 };
 
+class MockClockDomain : public ClockDomain
+{
+  public:
+    MockClockDomain(const ClockDomainParams &p) : ClockDomain(p, nullptr)
+    {
+        _clockPeriod = 1;
+    }
+};
+
 class TestQueuedPrefetcher : public Queued
 {
   public:
@@ -127,10 +162,17 @@ class TestQueuedPrefetcher : public Queued
 
 TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
 {
-    Tick mockTick = 1000;
-    Gem5Internal::_curTickPtr = &mockTick;
+    GTestTickHandler tickHandler;
+    tickHandler.setCurTick(1000);
 
-    QueuedPrefetcherParams params;
+    ClockDomainParams clkParams{};
+    clkParams.name = "mock_clk_domain";
+    clkParams.eventq_index = 0;
+    MockClockDomain mockClkDomain(clkParams);
+
+    QueuedPrefetcherParams params{};
+    params.eventq_index = 0;
+    params.clk_domain = &mockClkDomain;
     params.name = "test_queued_prefetcher";
     params.block_size = 64;
     params.latency = 1;
@@ -155,14 +197,17 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     params.cht_entries = 64;
     params.cht_assoc = 2;
     params.cht_min_cf_threshold = 2;
+    params.cht_missing_is_low = true;
 
-    TaggedSetAssociativeParams idxParams;
+    TaggedSetAssociativeParams idxParams{};
+    idxParams.eventq_index = 0;
     idxParams.entry_size = 1;
     idxParams.assoc = 2;
     idxParams.size = 64;
     params.cht_indexing_policy = new TaggedSetAssociative(idxParams);
 
-    LRURPParams replParams;
+    LRURPParams replParams{};
+    replParams.eventq_index = 0;
     params.cht_replacement_policy = new replacement_policy::LRU(replParams);
 
     TestQueuedPrefetcher prefetcher(params);
@@ -179,40 +224,117 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
 
     Base::PrefetchInfo pfi(&pkt, testAddr1, true);
 
-    // Initial state: untracked PC defaults to allowed (initial counter = 2)
-    EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
-
-    // Try inserting prefetch candidate with testPC1
-    prefetcher.insert(&pkt, pfi, 1, mockCache);
-    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
-
-    // Observe an uncompressible fill for testPC1 (CF = 1)
-    mockCache.compressionFactor = 1;
-    CacheAccessProbeArg fillArg(&pkt, mockCache);
-    prefetcher.notifyFill(fillArg);
-
-    // After 1 uncompressible fill, counter drops from 2 to 1 (< threshold 2)
+    // Initial state: untracked PC defaults to low compression when
+    // cht_missing_is_low is true
     EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
 
-    // Attempting another insert for testPC1 should now be dropped due to low
-    // compression!
-    prefetcher.getPFQ().clear();
+    // Try inserting prefetch candidate with testPC1; should be dropped
     prefetcher.insert(&pkt, pfi, 1, mockCache);
-
-    // Verify pfq size is 0 and pfDroppedLowCompression stat incremented
     EXPECT_EQ(prefetcher.getPFQ().size(), 0);
     EXPECT_EQ(prefetcher.getStats().pfDroppedLowCompression.value(), 1);
 
-    // Now observe a compressible fill for testPC1 (CF = 2)
+    // Observe a compressible fill for testPC1 (CF = 2)
     mockCache.compressionFactor = 2;
+    CacheAccessProbeArg fillArg(&pkt, mockCache);
     prefetcher.notifyFill(fillArg);
 
-    // Counter increments back to 2 (>= threshold 2)
+    // After demand fill, CHT entry allocated/updated with counter = 3 (>=
+    // threshold 2)
     EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
 
     // Inserting again for testPC1 should now pass CHT filter
     prefetcher.insert(&pkt, pfi, 1, mockCache);
     EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+
+    // Observe an uncompressible fill for testPC1 (CF = 1)
+    mockCache.compressionFactor = 1;
+    prefetcher.notifyFill(fillArg);
+    prefetcher.notifyFill(fillArg);
+
+    // Counter drops below threshold
+    EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
+
+    // Candidate should be dropped again
+    prefetcher.getPFQ().clear();
+    prefetcher.insert(&pkt, pfi, 1, mockCache);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 0);
+    EXPECT_EQ(prefetcher.getStats().pfDroppedLowCompression.value(), 2);
+
+    delete params.cht_indexing_policy;
+    delete params.cht_replacement_policy;
+}
+
+TEST(QueuedCHTTest, CHTMissingIsLowDisabled)
+{
+    GTestTickHandler tickHandler;
+    tickHandler.setCurTick(1000);
+
+    ClockDomainParams clkParams{};
+    clkParams.name = "mock_clk_domain_2";
+    clkParams.eventq_index = 0;
+    MockClockDomain mockClkDomain(clkParams);
+
+    QueuedPrefetcherParams params{};
+    params.eventq_index = 0;
+    params.clk_domain = &mockClkDomain;
+    params.name = "test_queued_prefetcher_optimistic";
+    params.block_size = 64;
+    params.latency = 1;
+    params.queue_size = 32;
+    params.max_prefetch_requests_with_pending_translation = 32;
+    params.queue_squash = true;
+    params.queue_filter = true;
+    params.cache_snoop = false;
+    params.tag_prefetch = true;
+    params.throttle_control_percentage = 0;
+    params.on_miss = false;
+    params.on_read = true;
+    params.on_write = true;
+    params.on_data = true;
+    params.on_inst = true;
+    params.prefetch_on_access = true;
+    params.prefetch_on_pf_hit = true;
+    params.use_virtual_addresses = false;
+    params.page_bytes = 4096;
+
+    params.enable_cht = true;
+    params.cht_entries = 64;
+    params.cht_assoc = 2;
+    params.cht_min_cf_threshold = 2;
+    params.cht_missing_is_low = false;
+
+    TaggedSetAssociativeParams idxParams{};
+    idxParams.eventq_index = 0;
+    idxParams.entry_size = 1;
+    idxParams.assoc = 2;
+    idxParams.size = 64;
+    params.cht_indexing_policy = new TaggedSetAssociative(idxParams);
+
+    LRURPParams replParams{};
+    replParams.eventq_index = 0;
+    params.cht_replacement_policy = new replacement_policy::LRU(replParams);
+
+    TestQueuedPrefetcher prefetcher(params);
+    MockCacheAccessor mockCache;
+
+    Addr testPC1 = 0x400100;
+    Addr testAddr1 = 0x8000;
+
+    RequestPtr req = std::make_shared<Request>(testAddr1, 64, 0, 0);
+    req->setPC(testPC1);
+    Packet pkt(req, MemCmd::ReadReq);
+    pkt.allocate();
+
+    Base::PrefetchInfo pfi(&pkt, testAddr1, true);
+
+    // Initial state: when cht_missing_is_low is false, untracked PC is not
+    // treated as low compression
+    EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
+
+    // Candidate should be enqueued
+    prefetcher.insert(&pkt, pfi, 1, mockCache);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+    EXPECT_EQ(prefetcher.getStats().pfDroppedLowCompression.value(), 0);
 
     delete params.cht_indexing_policy;
     delete params.cht_replacement_policy;

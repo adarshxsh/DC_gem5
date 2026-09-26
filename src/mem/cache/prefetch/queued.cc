@@ -113,6 +113,7 @@ Queued::Queued(const QueuedPrefetcherParams &p)
           CHTEntry(genTagExtractor(p.cht_indexing_policy))),
       enableCHT(p.enable_cht),
       chtMinCFThreshold(p.cht_min_cf_threshold),
+      chtMissingIsLow(p.cht_missing_is_low),
       statsQueued(this)
 {
 }
@@ -427,7 +428,7 @@ Queued::isLowCompression(Addr pc, bool secure)
     if (entry != nullptr) {
         return (entry->counter < chtMinCFThreshold);
     }
-    return false;
+    return chtMissingIsLow;
 }
 
 void

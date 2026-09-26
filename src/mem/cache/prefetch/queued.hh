@@ -204,6 +204,9 @@ class Queued : public Base
     /** Minimum compression factor threshold for CHT filtering */
     const unsigned chtMinCFThreshold;
 
+    /** Default fallback value when CHT lookup misses */
+    const bool chtMissingIsLow;
+
     struct QueuedStats : public statistics::Group
     {
         QueuedStats(statistics::Group *parent);
