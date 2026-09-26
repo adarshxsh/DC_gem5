@@ -116,6 +116,16 @@ class BaseCache(ClockedObject):
     )
 
     compressor = Param.BaseCacheCompressor(NULL, "Cache compressor.")
+    mshr_compression_bypass_high_threshold = Param.Percent(
+        75,
+        "MSHR queue occupancy percentage threshold above which cache "
+        "compression is bypassed",
+    )
+    mshr_compression_bypass_low_threshold = Param.Percent(
+        50,
+        "MSHR queue occupancy percentage threshold below which cache "
+        "compression is resumed",
+    )
     replace_expansions = Param.Bool(
         True,
         "Apply replacement policy to "
