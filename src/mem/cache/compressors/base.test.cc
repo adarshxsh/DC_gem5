@@ -26,10 +26,10 @@ class TestBaseCompressor : public CPack
 {
   public:
     using Base::compress;
-    using Base::sampledUncompressedBits;
     using Base::sampledCompressedBits;
-    using Base::sampleWindowHead;
+    using Base::sampledUncompressedBits;
     using Base::sampleWindowEntries;
+    using Base::sampleWindowHead;
     using Base::sampleWindowSize;
     using CPack::CPack;
 };
@@ -99,7 +99,7 @@ TEST(BaseCacheCompressorTest, FallbackWhenWindowSizeZero)
     p.enable_adaptive_bypass = true;
     p.latency_breakeven_threshold = 1.0;
     p.sampling_interval = 1;
-    p.decay_shift = 1; // 50% decay
+    p.decay_shift = 1;        // 50% decay
     p.sample_window_size = 0; // Disabled windowing
 
     TestBaseCompressor compressor(p);
@@ -155,7 +155,8 @@ TEST(BaseCacheCompressorTest, PhaseTransitionAndAdaptiveBypass)
         compressor.compress(zero_data, comp_lat, decomp_lat);
     }
     // Window ratio = 2048 / 128 = 16.0 > threshold 2.0
-    double ratio = (double)compressor.sampledUncompressedBits / compressor.sampledCompressedBits;
+    double ratio = (double)compressor.sampledUncompressedBits /
+                   compressor.sampledCompressedBits;
     EXPECT_DOUBLE_EQ(ratio, 16.0);
 
     // Phase 2: Enter uncompressible phase
@@ -165,6 +166,7 @@ TEST(BaseCacheCompressorTest, PhaseTransitionAndAdaptiveBypass)
     // After 4 uncompressible samples (within W = 4 samples),
     // all compressible samples are evicted.
     // Window ratio = 2048 / 2048 = 1.0 < threshold 2.0
-    ratio = (double)compressor.sampledUncompressedBits / compressor.sampledCompressedBits;
+    ratio = (double)compressor.sampledUncompressedBits /
+            compressor.sampledCompressedBits;
     EXPECT_DOUBLE_EQ(ratio, 1.0);
 }

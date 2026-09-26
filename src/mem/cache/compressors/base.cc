@@ -230,21 +230,23 @@ Base::compress(const uint64_t* data, Cycles& comp_lat, Cycles& decomp_lat)
         uint64_t uncomp_bits = blkSize * CHAR_BIT;
         if (sampleWindowSize > 0) {
             if (sampleWindowEntries == sampleWindowSize) {
-                sampledUncompressedBits -= sampleWindow[sampleWindowHead].uncompressedBits;
-                sampledCompressedBits -= sampleWindow[sampleWindowHead].compressedBits;
+                sampledUncompressedBits -=
+                    sampleWindow[sampleWindowHead].uncompressedBits;
+                sampledCompressedBits -=
+                    sampleWindow[sampleWindowHead].compressedBits;
             } else {
                 sampleWindowEntries++;
             }
             sampleWindow[sampleWindowHead] = {
                 static_cast<uint32_t>(uncomp_bits),
-                static_cast<uint32_t>(comp_size_bits)
-            };
+                static_cast<uint32_t>(comp_size_bits)};
             sampledUncompressedBits += uncomp_bits;
             sampledCompressedBits += comp_size_bits;
             sampleWindowHead = (sampleWindowHead + 1) % sampleWindowSize;
         } else {
             if (enableAdaptiveBypass && (decayShift > 0)) {
-                sampledUncompressedBits -= (sampledUncompressedBits >> decayShift);
+                sampledUncompressedBits -=
+                    (sampledUncompressedBits >> decayShift);
                 sampledCompressedBits -= (sampledCompressedBits >> decayShift);
             }
             sampledUncompressedBits += uncomp_bits;
