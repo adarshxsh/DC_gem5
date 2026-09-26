@@ -69,7 +69,8 @@ class WriteQueue : public Queue<WriteQueueEntry>
      *        any access.
      */
     WriteQueue(const std::string &_label, int num_entries, int reserve,
-            const std::string &name);
+            const std::string &name, double ewma_alpha = 0.1,
+            double gradient_alpha = 0.1);
 
     /**
      * Allocates a new WriteQueueEntry for the request and size. This

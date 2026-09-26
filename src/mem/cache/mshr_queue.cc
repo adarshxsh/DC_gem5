@@ -54,8 +54,10 @@ namespace gem5
 
 MSHRQueue::MSHRQueue(const std::string &_label,
                      int num_entries, int reserve,
-                     int demand_reserve, std::string cache_name = "")
-    : Queue<MSHR>(_label, num_entries, reserve, cache_name + ".mshr_queue"),
+                     int demand_reserve, std::string cache_name,
+                     double ewma_alpha, double gradient_alpha)
+    : Queue<MSHR>(_label, num_entries, reserve, cache_name + ".mshr_queue",
+                  ewma_alpha, gradient_alpha),
       demandReserve(demand_reserve)
 {}
 
@@ -76,6 +78,7 @@ MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
     mshr->readyIter = addToReadyList(mshr);
 
     allocated += 1;
+    updateEWMA();
     return mshr;
 }
 

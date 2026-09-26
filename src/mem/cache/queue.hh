@@ -45,7 +45,9 @@
 #ifndef __MEM_CACHE_QUEUE_HH__
 #define __MEM_CACHE_QUEUE_HH__
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <string>
 #include <type_traits>
 
@@ -122,6 +124,52 @@ class Queue : public Drainable, public Named
     /** The number of currently allocated entries. */
     int allocated;
 
+    /** Smoothing weight alpha for EWMA occupancy calculation */
+    double ewmaAlpha;
+
+    /** Smoothing weight alpha for arrival rate gradient calculation */
+    double gradientAlpha;
+
+    /** Tick when queue occupancy/gradient were last updated */
+    mutable Tick lastUpdateTick;
+
+    /** EWMA occupancy metric */
+    double ewmaOccupancy;
+
+    /** Arrival rate gradient (entries per tick) */
+    double arrivalRateGradient;
+
+    /** Last recorded queue occupancy */
+    int lastOccupancy;
+
+    void updateEWMA()
+    {
+        Tick now = curTick();
+        if (lastUpdateTick == 0) {
+            lastUpdateTick = now;
+            ewmaOccupancy = static_cast<double>(allocated);
+            lastOccupancy = allocated;
+            return;
+        }
+
+        Tick deltaT = now - lastUpdateTick;
+        double currentOcc = static_cast<double>(allocated);
+
+        if (deltaT > 0) {
+            double deltaQ = currentOcc - static_cast<double>(lastOccupancy);
+            double instGradient = deltaQ / static_cast<double>(deltaT);
+
+            ewmaOccupancy = ewmaAlpha * currentOcc + (1.0 - ewmaAlpha) * ewmaOccupancy;
+            arrivalRateGradient = gradientAlpha * instGradient + (1.0 - gradientAlpha) * arrivalRateGradient;
+
+            lastUpdateTick = now;
+            lastOccupancy = allocated;
+        } else {
+            ewmaOccupancy = ewmaAlpha * currentOcc + (1.0 - ewmaAlpha) * ewmaOccupancy;
+            lastOccupancy = allocated;
+        }
+    }
+
   public:
 
     /**
@@ -129,17 +177,74 @@ class Queue : public Drainable, public Named
      *
      * @param num_entries The number of entries in this queue.
      * @param reserve The extra overflow entries needed.
+     * @param ewma_alpha Smoothing parameter for EWMA occupancy.
+     * @param gradient_alpha Smoothing parameter for arrival rate gradient.
      */
     Queue(const std::string &_label, int num_entries, int reserve,
-            const std::string &name) :
+            const std::string &name, double ewma_alpha = 0.1,
+            double gradient_alpha = 0.1) :
         Named(name),
         label(_label), numEntries(num_entries + reserve),
         numReserve(reserve), entries(numEntries, name + ".entry"),
-        _numInService(0), allocated(0)
+        _numInService(0), allocated(0),
+        ewmaAlpha(ewma_alpha), gradientAlpha(gradient_alpha),
+        lastUpdateTick(0), ewmaOccupancy(0.0),
+        arrivalRateGradient(0.0), lastOccupancy(0)
     {
         for (int i = 0; i < numEntries; ++i) {
             freeList.push_back(&entries[i]);
         }
+    }
+
+    int capacity() const
+    {
+        return numEntries - numReserve;
+    }
+
+    int occupancy() const
+    {
+        return allocated;
+    }
+
+    double occupancyRatio() const
+    {
+        int cap = capacity();
+        return cap > 0 ? static_cast<double>(allocated) / cap : 0.0;
+    }
+
+    double getEWMAOccupancy() const
+    {
+        return ewmaOccupancy;
+    }
+
+    double getEWMAOccupancyRatio() const
+    {
+        int cap = capacity();
+        return cap > 0 ? ewmaOccupancy / cap : 0.0;
+    }
+
+    double getArrivalRateGradient() const
+    {
+        Tick now = curTick();
+        if (now > lastUpdateTick && lastUpdateTick > 0) {
+            Tick dt = now - lastUpdateTick;
+            double decay = std::pow(1.0 - gradientAlpha, std::min(100.0, static_cast<double>(dt)));
+            return arrivalRateGradient * decay;
+        }
+        return arrivalRateGradient;
+    }
+
+    double getPredictedOccupancy(double leadTime = 20.0) const
+    {
+        double pred = ewmaOccupancy + getArrivalRateGradient() * leadTime;
+        return std::max(0.0, pred);
+    }
+
+    double getPredictedPressureRatio(double leadTime = 20.0) const
+    {
+        int cap = capacity();
+        if (cap <= 0) return 0.0;
+        return getPredictedOccupancy(leadTime) / static_cast<double>(cap);
     }
 
     bool isEmpty() const
@@ -249,6 +354,7 @@ class Queue : public Drainable, public Named
             readyList.erase(entry->readyIter);
         }
         entry->deallocate();
+        updateEWMA();
         if (drainState() == DrainState::Draining && allocated == 0) {
             // Notify the drain manager that we have completed
             // draining if there are no other outstanding requests in

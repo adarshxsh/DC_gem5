@@ -79,7 +79,8 @@ class MSHRQueue : public Queue<MSHR>
      * demand accesses.
      */
     MSHRQueue(const std::string &_label, int num_entries, int reserve,
-              int demand_reserve, std::string cache_name);
+              int demand_reserve, std::string cache_name = "",
+              double ewma_alpha = 0.1, double gradient_alpha = 0.1);
 
     /**
      * Allocates a new MSHR for the request and size. This places the request

@@ -81,6 +81,27 @@ class BaseCacheCompressor(SimObject):
         "Bit shift k for exponential decay factor (1 - 2^-k) applied to sampled bit counters",
     )
 
+    enable_queue_pressure_bypass = Param.Bool(
+        False,
+        "Enable adaptive compression bypass based on parent queue pressure and rate gradient",
+    )
+    queue_pressure_threshold = Param.Float(
+        0.8,
+        "Predicted queue pressure ratio threshold (0.0 to 1.0) above which compression is bypassed",
+    )
+    lead_time_ticks = Param.Unsigned(
+        20,
+        "Lead time horizon in ticks for queue pressure gradient prediction",
+    )
+    ewma_alpha = Param.Float(
+        0.1,
+        "EWMA occupancy smoothing weight alpha",
+    )
+    gradient_alpha = Param.Float(
+        0.1,
+        "EWMA arrival rate gradient smoothing weight alpha",
+    )
+
 
 class BaseDictionaryCompressor(BaseCacheCompressor):
     type = "BaseDictionaryCompressor"
