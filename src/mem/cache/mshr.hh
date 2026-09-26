@@ -179,6 +179,8 @@ class MSHR : public QueueEntry, public Printable
          * target coming from another cache.
          */
         bool hasFromCache;
+        /** Determine whether there was at least one demand target. */
+        bool hasDemand;
 
         TargetList(const std::string &name = ".unnamedTargetList");
 
@@ -215,6 +217,7 @@ class MSHR : public QueueEntry, public Printable
             hasUpgrade = false;
             allocOnFill = false;
             hasFromCache = false;
+            hasDemand = false;
         }
 
         /**
@@ -242,7 +245,13 @@ class MSHR : public QueueEntry, public Printable
          */
         bool isReset() const {
             return !needsWritable && !hasUpgrade && !allocOnFill &&
-                !hasFromCache && canMergeWrites;
+                   !hasFromCache && !hasDemand && canMergeWrites;
+        }
+
+        bool
+        hasDemandTarget() const
+        {
+            return hasDemand;
         }
 
         /**
@@ -348,6 +357,17 @@ class MSHR : public QueueEntry, public Printable
      */
     bool hasFromCache() const {
         return targets.hasFromCache;
+    }
+
+    /**
+     * Determine if there are demand requests across target lists
+     *
+     * @return true if any target is a demand request
+     */
+    bool
+    hasDemandTarget() const
+    {
+        return targets.hasDemand || deferredTargets.hasDemand;
     }
 
     /**

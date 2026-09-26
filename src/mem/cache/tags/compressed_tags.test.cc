@@ -33,10 +33,123 @@
 #include <memory>
 #include <vector>
 
+#include "cpu/reg_class.hh"
+#include "mem/cache/mshr.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
+
+// Dummy stubs for SimObject and statistics methods referenced by indexing
+// policies in unit test
+namespace gem5
+{
+namespace Gem5Internal
+{
+__thread Tick *_curTickPtr = nullptr;
+}
+SimObject::SimObject(const SimObjectParams &p)
+    : EventManager((EventQueue *)nullptr),
+      statistics::Group(nullptr),
+      Named(""),
+      _params(p)
+{}
+SimObject::~SimObject()
+{}
+Drainable::Drainable() : _drainManager(*(DrainManager *)nullptr)
+{}
+Drainable::~Drainable()
+{}
+Serializable::Serializable()
+{}
+Serializable::~Serializable()
+{}
+void
+SimObject::init()
+{}
+void
+SimObject::loadState(CheckpointIn &)
+{}
+void
+SimObject::initState()
+{}
+void
+SimObject::regProbePoints()
+{}
+void
+SimObject::regProbeListeners()
+{}
+Port &
+SimObject::getPort(const std::string &, short)
+{
+    static Port *p = nullptr;
+    return *p;
+}
+void
+SimObject::startup()
+{}
+bool
+ObjectMatch::domatch(const std::string &) const
+{
+    return false;
+}
+ObjectMatch::ObjectMatch()
+{}
+ObjectMatch::ObjectMatch(const std::string &)
+{}
+void
+print_backtrace()
+{}
+ssize_t
+atomic_write(int fd, const void *buf, size_t count)
+{
+    return count;
+}
+uint64_t
+getUintX(const void *p, std::size_t size, ByteOrder byte_order)
+{
+    return 0;
+}
+void
+setUintX(uint64_t val, void *p, std::size_t size, ByteOrder byte_order)
+{}
+std::string
+RegClassOps::regName(const RegId &id) const
+{
+    return "";
+}
+std::string
+RegClassOps::valString(const void *val, const size_t &size) const
+{
+    return "";
+}
+struct DummyRegClassOps : public RegClassOps
+{
+    std::string
+    valString(const void *val, const size_t &size) const override
+    {
+        return "";
+    }
+};
+namespace statistics
+{
+Group::Group(Group *parent, const char *name)
+{}
+void
+Group::regStats()
+{}
+void
+Group::resetStats()
+{}
+void
+Group::preDumpStats()
+{}
+Group::~Group()
+{}
+} // namespace statistics
+} // namespace gem5
 
 class SuperBlkTestFixture : public ::testing::Test
 {
@@ -558,4 +671,26 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, MSHRPrefetchFillClassification)
+{
+    MSHR::TargetList targets("test_targets");
+    RequestPtr req = std::make_shared<Request>(0x1000, 64, 0, 0);
+    Packet pkt(req, MemCmd::HardPFReq);
+
+    targets.updateFlags(&pkt, MSHR::Target::FromPrefetcher, true);
+
+    // Initial prefetch target list should have zero demand targets
+    EXPECT_FALSE(targets.hasDemandTarget());
+    bool is_prefetch = !targets.hasDemandTarget();
+    EXPECT_TRUE(is_prefetch);
+
+    // Updating flags with a CPU target sets demand target presence
+    Packet demand_pkt(req, MemCmd::ReadReq);
+    targets.updateFlags(&demand_pkt, MSHR::Target::FromCPU, true);
+
+    EXPECT_TRUE(targets.hasDemandTarget());
+    is_prefetch = !targets.hasDemandTarget();
+    EXPECT_FALSE(is_prefetch);
 }
