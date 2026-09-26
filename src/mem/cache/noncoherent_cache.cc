@@ -68,7 +68,8 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 
 Cycles
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                 PacketList &writebacks, bool deferred_response,
+                                 PacketList &writebacks,
+                                 bool deferred_response,
                                  bool pending_downgrade)
 {
     // As this a non-coherent cache located below the point of
