@@ -1144,8 +1144,8 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
         DPRINTF(CacheVerbose, "%s: snoop miss for %s\n", __func__,
                 pkt->print());
         if (pkt->isInvalidate() &&
-            isDetachedL1CleanBlock(pkt->getAddr(), is_secure)) {
-            clearDetachedL1CleanBlock(pkt->getAddr(), is_secure);
+            isDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure())) {
+            clearDetachedL1CleanBlock(pkt->getAddr(), pkt->isSecure());
         }
         if (is_deferred) {
             // we no longer have the block, and will not respond, but a
