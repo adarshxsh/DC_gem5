@@ -278,8 +278,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // from lower level caches/memory to an upper level cache or
             // the core.
             completion_time += clockEdge(responseLatency) +
-                (transfer_offset ? pkt->payloadDelay : 0) +
-                tgt_pkt->payloadDelay;
+                               (transfer_offset ? pkt->payloadDelay : 0) +
+                               tgt_pkt->payloadDelay;
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
             stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=
