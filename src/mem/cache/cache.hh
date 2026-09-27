@@ -117,8 +117,7 @@ class Cache : public BaseCache
 
     using BaseCache::satisfyRequest;
     void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                        Cycles &comp_lat,
-                        bool deferred_response = false,
+                        Cycles &comp_lat, bool deferred_response = false,
                         bool pending_downgrade = false) override;
 
     void doTimingSupplyResponse(PacketPtr req_pkt, const uint8_t *blk_data,

@@ -742,7 +742,7 @@ class BaseCache : public ClockedObject
      * @param comp_lat Latency incurred by compressing the block.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                PacketList &writebacks, Cycles &comp_lat);
 
     /**
@@ -758,15 +758,14 @@ class BaseCache : public ClockedObject
      * @param pending_downgrade Whether the writable flag is to be removed
      */
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                PacketList &writebacks,
-                                Cycles &comp_lat,
+                                PacketList &writebacks, Cycles &comp_lat,
                                 bool deferred_response = false,
                                 bool pending_downgrade = false);
 
-    virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                PacketList &writebacks,
-                                bool deferred_response = false,
-                                bool pending_downgrade = false)
+    virtual void
+    satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                   bool deferred_response = false,
+                   bool pending_downgrade = false)
     {
         Cycles comp_lat(0);
         satisfyRequest(pkt, blk, writebacks, comp_lat, deferred_response,

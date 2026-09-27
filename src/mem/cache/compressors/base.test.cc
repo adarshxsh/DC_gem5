@@ -51,13 +51,11 @@ class DummyCompressor : public Base
   public:
     using Base::compress;
 
-    DummyCompressor(const BaseCacheCompressorParams &p)
-        : Base(p)
-    {}
+    DummyCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
-             Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         comp_lat = Cycles(8);
         decomp_lat = Cycles(3);
@@ -67,7 +65,7 @@ class DummyCompressor : public Base
     }
 
     void
-    decompress(const CompressionData* comp_data, uint64_t* cache_line) override
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
     {
         std::memset(cache_line, 0, 64);
     }
@@ -99,7 +97,7 @@ TEST(BaseCompressorTest, RecompressionAndDecompressionLatency)
     Cycles comp_lat(0);
     Cycles decomp_lat(0);
 
-    auto comp_data = compressor.compress(static_cast<const uint64_t*>(data),
+    auto comp_data = compressor.compress(static_cast<const uint64_t *>(data),
                                          comp_lat, decomp_lat);
 
     ASSERT_NE(comp_data, nullptr);
