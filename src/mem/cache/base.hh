@@ -739,10 +739,11 @@ class BaseCache : public ClockedObject
      * @param blk The block to be overwriten.
      * @param data A pointer to the data to be compressed (blk's new data).
      * @param writebacks List for any writebacks that need to be performed.
+     * @param comp_lat Output parameter for calculated recompression latency.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks);
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                               PacketList &writebacks, Cycles &comp_lat);
 
     /**
      * Perform any necessary updates to the block and perform any data
