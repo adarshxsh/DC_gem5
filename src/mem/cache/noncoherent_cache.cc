@@ -53,6 +53,7 @@
 #include "base/types.hh"
 #include "debug/Cache.hh"
 #include "mem/cache/cache_blk.hh"
+#include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr.hh"
 #include "params/NoncoherentCache.hh"
 
@@ -279,6 +280,12 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // the core.
             completion_time += clockEdge(responseLatency) +
                 (transfer_offset ? pkt->payloadDelay : 0);
+
+            if (compressor && blk && blk->isValid() &&
+                (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize))) {
+                completion_time +=
+                    clockEdge(compressor->getDecompressionLatency(blk));
+            }
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
             stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=
