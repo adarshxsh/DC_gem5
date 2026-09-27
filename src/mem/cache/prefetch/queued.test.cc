@@ -278,7 +278,8 @@ TEST(QueuedCHTTest, CHTFilteringUntaggedPrefetch)
     // Get the generated prefetch packet from PFQ
     PacketPtr pfPkt = prefetcher.getPacket();
     ASSERT_NE(pfPkt, nullptr);
-    // Verify that the prefetch packet request retains the instruction PC even when tag_prefetch is false
+    // Verify that the prefetch packet request retains the instruction PC even
+    // when tag_prefetch is false
     EXPECT_TRUE(pfPkt->req->hasPC());
     EXPECT_EQ(pfPkt->req->getPC(), testPC1);
 
@@ -287,7 +288,8 @@ TEST(QueuedCHTTest, CHTFilteringUntaggedPrefetch)
     CacheAccessProbeArg fillArg(pfPkt, mockCache);
     prefetcher.notifyFill(fillArg);
 
-    // CHT should be updated under testPC1, so isLowCompression(testPC1) is true
+    // CHT should be updated under testPC1, so isLowCompression(testPC1) is
+    // true
     EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
 
     // Subsequent prefetch insert for testPC1 should be dropped
