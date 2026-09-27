@@ -739,10 +739,11 @@ class BaseCache : public ClockedObject
      * @param blk The block to be overwriten.
      * @param data A pointer to the data to be compressed (blk's new data).
      * @param writebacks List for any writebacks that need to be performed.
+     * @param comp_lat Latency incurred by compressing the block.
      * @return Whether operation is successful or not.
      */
     bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks);
+                               PacketList &writebacks, Cycles &comp_lat);
 
     /**
      * Perform any necessary updates to the block and perform any data
@@ -752,13 +753,25 @@ class BaseCache : public ClockedObject
      * @param pkt Request packet from upstream that hit a block
      * @param blk Cache block that the packet hit
      * @param writebacks List of writebacks generated
+     * @param comp_lat Reference to return calculated compression latency
      * @param deferred_response Whether this request originally missed
      * @param pending_downgrade Whether the writable flag is to be removed
      */
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                                 PacketList &writebacks,
+                                Cycles &comp_lat,
                                 bool deferred_response = false,
                                 bool pending_downgrade = false);
+
+    virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
+                                PacketList &writebacks,
+                                bool deferred_response = false,
+                                bool pending_downgrade = false)
+    {
+        Cycles comp_lat(0);
+        satisfyRequest(pkt, blk, writebacks, comp_lat, deferred_response,
+                       pending_downgrade);
+    }
 
     /**
      * Maintain the clusivity of this cache by potentially
