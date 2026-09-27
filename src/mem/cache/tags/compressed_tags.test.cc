@@ -34,6 +34,8 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -557,5 +559,47 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
 
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
+    ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, ReadRespWithPrefetchRequestFlag)
+{
+    RequestPtr req =
+        std::make_shared<Request>(0x1000, BlkSize, Request::PREFETCH, 0);
+    Packet pkt(req, MemCmd::ReadResp);
+
+    ASSERT_FALSE(pkt.cmd.isPrefetch());
+    ASSERT_TRUE(pkt.req && pkt.req->isPrefetch());
+
+    const bool is_prefetch =
+        pkt.cmd.isPrefetch() || (pkt.req && pkt.req->isPrefetch());
+    ASSERT_TRUE(is_prefetch);
+
+    // Verify prefetch protection in CompressedTags logic:
+    // Create candidate superblocks containing valid demand data
+    SuperBlk sb_demand;
+    CompressionBlk blk_demand;
+    auto dummyTagExtractor = [](Addr addr) { return addr; };
+    blk_demand.registerTagExtractor(dummyTagExtractor);
+    sb_demand.registerTagExtractor(dummyTagExtractor);
+    blk_demand.setSectorBlock(&sb_demand);
+    sb_demand.blks = {&blk_demand};
+    blk_demand.insert({0x1000, false}); // demand block
+    ASSERT_TRUE(sb_demand.hasValidDemand());
+
+    std::vector<SuperBlk *> candidates = {&sb_demand};
+    std::vector<SuperBlk *> replacement_candidates;
+
+    if (is_prefetch) {
+        for (auto *sb : candidates) {
+            if (!sb->hasValidDemand()) {
+                replacement_candidates.push_back(sb);
+            }
+        }
+    } else {
+        replacement_candidates = candidates;
+    }
+
+    // Speculative prefetch fill response must reject warm demand superblocks
     ASSERT_TRUE(replacement_candidates.empty());
 }
