@@ -69,7 +69,7 @@ Queued::DeferredPacket::createPkt(Addr paddr, unsigned blk_size,
     req->taskId(context_switch_task_id::Prefetcher);
     pkt = new Packet(req, MemCmd::HardPFReq);
     pkt->allocate();
-    if (tag_prefetch && pfInfo.hasPC()) {
+    if (pfInfo.hasPC()) {
         // Tag prefetch packet with  accessing pc
         pkt->req->setPC(pfInfo.getPC());
     }
