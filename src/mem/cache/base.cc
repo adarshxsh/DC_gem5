@@ -1063,9 +1063,21 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
     return true;
 }
 
+Cycles
+BaseCache::calculateTargetDecompressionLatency(const PacketPtr tgt_pkt,
+                                                const CacheBlk *blk)
+{
+    if (compressor && blk &&
+        (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize))) {
+        return compressor->getDecompressionLatency(blk);
+    }
+    return Cycles(0);
+}
+
 bool
 BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks)
+                                 PacketList &writebacks,
+                                 Cycles *comp_lat)
 {
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {
@@ -1078,6 +1090,9 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     Cycles decompression_lat = Cycles(0);
     const auto comp_data =
         compressor->compress(data, compression_lat, decompression_lat);
+    if (comp_lat) {
+        *comp_lat = compression_lat;
+    }
     std::size_t compression_size = comp_data->getSizeBits();
 
     // Get previous compressed size
@@ -1210,7 +1225,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                          bool, bool)
+                          bool, bool, Cycles *comp_lat)
 {
     assert(pkt->isRequest());
 
@@ -1264,7 +1279,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1288,7 +1303,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
         }
