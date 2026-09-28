@@ -559,3 +559,40 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, CompressedWriteHitExpansionBeyondCapacity)
+{
+    // Insert two co-allocated compressed blocks into the superblock
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64); // CF = 8
+    subBlks[0].setCoherenceBits(CacheBlk::DirtyBit);
+
+    subBlks[1].insert({0x4000, false});
+    subBlks[1].setSizeBits(64); // CF = 8
+    subBlks[1].setCoherenceBits(CacheBlk::DirtyBit);
+
+    ASSERT_EQ(superBlk.getNumValid(), 2);
+    ASSERT_TRUE(subBlks[0].isSet(CacheBlk::DirtyBit));
+    ASSERT_TRUE(subBlks[1].isSet(CacheBlk::DirtyBit));
+    verifyInvariants(superBlk);
+
+    // Expand subBlks[0] to uncompressed size (512 bits, CF = 1)
+    // The superblock can no longer co-allocate subBlks[1] with 512 bits
+    std::size_t new_size = 512;
+    ASSERT_EQ(subBlks[0].checkExpansionContraction(new_size),
+              CompressionBlk::DATA_EXPANSION);
+
+    // Co-allocation capacity check for expanding to 512 bits must fail
+    ASSERT_FALSE(superBlk.canCoAllocate(new_size));
+
+    // Evict co-allocated subBlks[1] to make room for expansion
+    ASSERT_TRUE(subBlks[1].isSet(
+        CacheBlk::DirtyBit)); // Ensure dirty bit is set before eviction
+    subBlks[1].invalidate();
+
+    // Now subBlks[0] can expand to 512 bits alone in the superblock
+    subBlks[0].setSizeBits(new_size);
+    ASSERT_EQ(superBlk.getNumValid(), 1);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 1);
+    verifyInvariants(superBlk);
+}
