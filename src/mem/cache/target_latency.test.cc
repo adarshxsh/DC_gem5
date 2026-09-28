@@ -63,8 +63,7 @@ class MockCompressor : public compression::Base
 
     void
     decompress(const CompressionData *comp_data, uint64_t *data) override
-    {
-    }
+    {}
 };
 
 class TargetLatencyTestCache : public BaseCache
@@ -73,8 +72,8 @@ class TargetLatencyTestCache : public BaseCache
     TargetLatencyTestCache(const BaseCacheParams &p) : BaseCache(p) {}
 
     using BaseCache::calculateTargetDecompressionLatency;
-    using BaseCache::updateCompressionData;
     using BaseCache::satisfyRequest;
+    using BaseCache::updateCompressionData;
 };
 
 TEST(TargetLatencyTest, TargetDecompressionLatencyReadHit)

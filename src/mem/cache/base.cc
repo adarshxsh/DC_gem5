@@ -1065,7 +1065,7 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 
 Cycles
 BaseCache::calculateTargetDecompressionLatency(const PacketPtr tgt_pkt,
-                                                const CacheBlk *blk)
+                                               const CacheBlk *blk)
 {
     if (compressor && blk &&
         (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize))) {
@@ -1075,9 +1075,8 @@ BaseCache::calculateTargetDecompressionLatency(const PacketPtr tgt_pkt,
 }
 
 bool
-BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks,
-                                 Cycles *comp_lat)
+BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                                 PacketList &writebacks, Cycles *comp_lat)
 {
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {

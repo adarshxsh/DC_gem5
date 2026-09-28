@@ -718,7 +718,7 @@ class BaseCache : public ClockedObject
     EventFunctionWrapper writebackTempBlockAtomicEvent;
 
     Cycles calculateTargetDecompressionLatency(const PacketPtr tgt_pkt,
-                                                const CacheBlk *blk);
+                                               const CacheBlk *blk);
 
     /**
      * When a block is overwriten, its compression information must be updated,
@@ -745,7 +745,7 @@ class BaseCache : public ClockedObject
      * @param comp_lat Optional pointer to receive compression cycles.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                PacketList &writebacks,
                                Cycles *comp_lat = nullptr);
 

@@ -68,7 +68,8 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 
 void
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                 PacketList &writebacks, bool deferred_response,
+                                 PacketList &writebacks,
+                                 bool deferred_response,
                                  bool pending_downgrade, Cycles *comp_lat)
 {
     // As this a non-coherent cache located below the point of
@@ -271,7 +272,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
                 calculateTargetDecompressionLatency(tgt_pkt, blk);
 
             Cycles recomp_lat = Cycles(0);
-            satisfyRequest(tgt_pkt, blk, writebacks, false, false, &recomp_lat);
+            satisfyRequest(tgt_pkt, blk, writebacks, false, false,
+                           &recomp_lat);
 
             // How many bytes past the first request is this one
             int transfer_offset;
@@ -284,8 +286,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // from lower level caches/memory to an upper level cache or
             // the core.
             completion_time += clockEdge(responseLatency) +
-                (transfer_offset ? pkt->payloadDelay : 0) +
-                cyclesToTicks(decomp_lat + recomp_lat);
+                               (transfer_offset ? pkt->payloadDelay : 0) +
+                               cyclesToTicks(decomp_lat + recomp_lat);
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
             stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=
