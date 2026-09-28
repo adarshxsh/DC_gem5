@@ -796,5 +796,28 @@ MSHR::hasLockedRMWReadTarget()
     return false;
 }
 
+bool
+MSHR::hasOnlyPrefetches() const
+{
+    auto is_prefetch_target = [](const Target &t) {
+        if (!t.pkt) {
+            return false;
+        }
+        return t.pkt->cmd.isPrefetch() ||
+               (t.pkt->req && t.pkt->req->isPrefetch());
+    };
+
+    for (const auto &t : targets) {
+        if (!is_prefetch_target(t)) {
+            return false;
+        }
+    }
+    for (const auto &t : deferredTargets) {
+        if (!is_prefetch_target(t)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 } // namespace gem5
