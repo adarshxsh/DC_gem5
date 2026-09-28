@@ -33,8 +33,17 @@
 #include <memory>
 #include <vector>
 
+#include "mem/cache/mshr.hh"
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
+#include "sim/root.hh"
+
+namespace gem5 {
+Root *Root::_root = nullptr;
+namespace sim_clock { uint64_t Frequency = 1000000000000ULL; }
+}
 
 using namespace gem5;
 
@@ -559,3 +568,77 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST(MSHRTest, HasOnlyPrefetches)
+{
+    MSHR mshr("test_mshr");
+
+    // Initially with prefetch target
+    RequestPtr pref_req1 = std::make_shared<Request>(
+        0x1000, 64, Request::FlagsType(Request::PREFETCH), 0);
+    PacketPtr pref_pkt1 = new Packet(pref_req1, MemCmd::HardPFReq);
+
+    mshr.allocate(0x1000, 64, pref_pkt1, 0, 0, true);
+    EXPECT_TRUE(mshr.hasOnlyPrefetches());
+
+    // Add exclusive prefetch target
+    RequestPtr pref_req2 = std::make_shared<Request>(
+        0x1000, 64, Request::FlagsType(Request::PF_EXCLUSIVE), 0);
+    PacketPtr pref_pkt2 = new Packet(pref_req2, MemCmd::ReadReq);
+
+    mshr.allocateTarget(pref_pkt2, 0, 1, true);
+    EXPECT_TRUE(mshr.hasOnlyPrefetches());
+
+    // Add demand target (ReadReq without prefetch flags)
+    RequestPtr demand_req = std::make_shared<Request>(
+        0x1000, 64, Request::FlagsType(0), 0);
+    PacketPtr demand_pkt = new Packet(demand_req, MemCmd::ReadReq);
+
+    mshr.allocateTarget(demand_pkt, 0, 2, true);
+    EXPECT_FALSE(mshr.hasOnlyPrefetches());
+
+    delete pref_pkt1;
+    delete pref_pkt2;
+    delete demand_pkt;
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchFillResponseProtection)
+{
+    // Memory fill response (ReadResp) carrying prefetch request flag
+    RequestPtr req = std::make_shared<Request>(
+        0x1000, 64, Request::FlagsType(Request::PREFETCH), 0);
+    PacketPtr fill_resp = new Packet(req, MemCmd::ReadResp);
+
+    // Command-level prefetch flag returns false for ReadResp
+    EXPECT_FALSE(fill_resp->cmd.isPrefetch());
+    // Request-level prefetch flag returns true
+    EXPECT_TRUE(fill_resp->req && fill_resp->req->isPrefetch());
+
+    // Insert a warm demand block into superBlk (CF = 8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    ASSERT_TRUE(superBlk.hasValidDemand());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    const std::size_t new_size = 256; // CF = 2
+    const uint8_t new_blk_cf = superBlk.calculateCompressionFactor(new_size);
+    const uint8_t current_cf = superBlk.getCompressionFactor();
+    const uint8_t new_cf = std::min(current_cf, new_blk_cf);
+
+    // Using command-level flag (is_prefetch = false) fails to protect demand
+    bool cmd_is_prefetch = fill_resp->cmd.isPrefetch();
+    bool allowed_cmd =
+        superBlk.canCoAllocate(new_size) &&
+        !(cmd_is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+    EXPECT_TRUE(allowed_cmd);
+
+    // Using request/MSHR classification (is_prefetch = true) protects demand
+    bool req_is_prefetch = fill_resp->req && fill_resp->req->isPrefetch();
+    bool allowed_req =
+        superBlk.canCoAllocate(new_size) &&
+        !(req_is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+    EXPECT_FALSE(allowed_req);
+
+    delete fill_resp;
+}
+

@@ -342,6 +342,15 @@ class MSHR : public QueueEntry, public Printable
     }
 
     /**
+     * Determine if all targets (in targets and deferredTargets lists) are
+     * prefetch requests.
+     *
+     * @return true if every target packet is a prefetch request and no
+     * demand targets are present.
+     */
+    bool hasOnlyPrefetches() const;
+
+    /**
      * Determine if there are non-deferred requests from other caches
      *
      * @return true if any of the targets is from another cache
