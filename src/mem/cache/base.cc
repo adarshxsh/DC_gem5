@@ -1064,9 +1064,10 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 }
 
 bool
-BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks)
+BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                                 PacketList &writebacks, Cycles &comp_lat)
 {
+    comp_lat = Cycles(0);
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {
         return true;
@@ -1204,14 +1205,16 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 
     compression_blk->setSizeBits(compression_size);
     compression_blk->setDecompressionLatency(decompression_lat);
+    comp_lat = compression_lat;
 
     return true;
 }
 
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                          bool, bool)
+                          bool, bool, Cycles &comp_lat)
 {
+    comp_lat = Cycles(0);
     assert(pkt->isRequest());
 
     assert(blk && blk->isValid());
@@ -1264,7 +1267,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1288,7 +1291,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, comp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1487,8 +1490,9 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // to check for data expansion (i.e., block was compressed with
             // a smaller size, and now it doesn't fit the entry anymore).
             // If that is the case we might need to evict blocks.
+            Cycles comp_lat = Cycles(0);
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                writebacks)) {
+                                       writebacks, comp_lat)) {
                 invalidateBlock(blk);
                 return false;
             }
@@ -1566,8 +1570,9 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // to check for data expansion (i.e., block was compressed with
             // a smaller size, and now it doesn't fit the entry anymore).
             // If that is the case we might need to evict blocks.
+            Cycles comp_lat = Cycles(0);
             if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                writebacks)) {
+                                       writebacks, comp_lat)) {
                 invalidateBlock(blk);
                 return false;
             }
@@ -1619,7 +1624,11 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
 
-        satisfyRequest(pkt, blk, writebacks);
+        Cycles comp_lat = Cycles(0);
+        satisfyRequest(pkt, blk, writebacks, false, false, comp_lat);
+        if (compressor && !pkt->isWholeLineWrite(blkSize)) {
+            lat += comp_lat;
+        }
         maintainClusivity(pkt->fromCache(), blk);
 
         return true;

@@ -108,7 +108,8 @@ class NoncoherentCache : public BaseCache
 
     void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         bool deferred_response = false,
-                        bool pending_downgrade = false) override;
+                        bool pending_downgrade = false,
+                        Cycles &comp_lat = dummyCompLat) override;
 
     /*
      * Creates a new packet with the request to be send to the memory

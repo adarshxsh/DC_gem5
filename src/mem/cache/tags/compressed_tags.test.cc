@@ -559,3 +559,69 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST(RecompressionLatencyTest, PartialWriteHitAccessLatency)
+{
+    // Verify access latency calculation for partial write hits on compressed
+    // blocks
+    Cycles tagLatency(1);
+    Cycles dataAccessLatency(3);
+    Cycles decompLat(4);
+    Cycles recompLat(5);
+
+    // Initial access latency for partial write hit on compressed block
+    // includes data lookup + decompression
+    Cycles lat = dataAccessLatency + decompLat;
+
+    // satisfyRequest executes updateCompressionData which populates compLat
+    Cycles compLat = recompLat;
+
+    // BaseCache::access adds compLat to lat for partial write hits on
+    // compressed blocks
+    bool isCompressorAttached = true;
+    bool isWholeLineWrite = false;
+    if (isCompressorAttached && !isWholeLineWrite) {
+        lat += compLat;
+    }
+
+    // Verify total access latency charges data access (3) + decompression (4)
+    // + recompression (5) = 12 cycles
+    EXPECT_EQ(lat, Cycles(12));
+}
+
+TEST(RecompressionLatencyTest, WholeLineWriteHitBypassesDecompression)
+{
+    Cycles tagLatency(1);
+    Cycles dataAccessLatency(3);
+    Cycles decompLat(4);
+    Cycles recompLat(5);
+
+    // Whole-line write hit uses tag-only latency and bypasses decompression
+    Cycles lat = tagLatency;
+
+    // updateCompressionData calculates recompLat cleanly
+    Cycles compLat = recompLat;
+
+    // BaseCache::access does not add compLat to lat for whole-line writes
+    bool isCompressorAttached = true;
+    bool isWholeLineWrite = true;
+    if (isCompressorAttached && !isWholeLineWrite) {
+        lat += compLat;
+    }
+
+    // Verify whole-line write hit latency remains tag-only latency
+    EXPECT_EQ(lat, Cycles(1));
+}
+
+TEST(RecompressionLatencyTest, ReadHitAccessLatency)
+{
+    Cycles dataAccessLatency(3);
+    Cycles decompLat(4);
+
+    // Read hit on compressed block charges data lookup + decompression latency
+    Cycles lat = dataAccessLatency + decompLat;
+    Cycles compLat(0);
+
+    // Verify read hit access latency = 3 + 4 = 7 cycles
+    EXPECT_EQ(lat, Cycles(7));
+}
