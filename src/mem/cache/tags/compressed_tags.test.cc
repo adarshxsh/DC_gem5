@@ -559,3 +559,28 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, CoAllocationLowersSuperBlockCompressionFactor)
+{
+    // Insert a high-compression sub-block into subBlks[0] (64 bits -> CF = 8)
+    subBlks[0].insert({0x7000, false});
+    subBlks[0].setSizeBits(64);
+
+    // Get sector block pointer associated with subBlks[0]
+    SuperBlk *sblk = static_cast<SuperBlk *>(subBlks[0].getSectorBlock());
+    ASSERT_NE(sblk, nullptr);
+
+    // Initial effective compression factor is 8
+    ASSERT_EQ(sblk->getCompressionFactor(), 8);
+
+    // Co-allocate a lower-compression sub-block (256 bits -> CF = 2)
+    subBlks[1].insert({0x7000, false});
+    subBlks[1].setSizeBits(256);
+
+    // Co-allocating low-compression subblock lowers superblock effective compression factor to 2
+    ASSERT_EQ(sblk->getCompressionFactor(), 2);
+
+    // Verify individual subblock size alone would give 8, but superblock returns 2
+    ASSERT_EQ(sblk->calculateCompressionFactor(subBlks[0].getSizeBits()), 8);
+    ASSERT_EQ(sblk->getCompressionFactor(), 2);
+}
