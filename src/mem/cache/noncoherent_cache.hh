@@ -106,9 +106,9 @@ class NoncoherentCache : public BaseCache
 
     void functionalAccess(PacketPtr pkt, bool from_cpu_side) override;
 
-    void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                        bool deferred_response = false,
-                        bool pending_downgrade = false) override;
+    Cycles satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                          bool deferred_response = false,
+                          bool pending_downgrade = false) override;
 
     /*
      * Creates a new packet with the request to be send to the memory

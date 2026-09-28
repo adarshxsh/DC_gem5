@@ -340,3 +340,25 @@ TEST_F(MultiCompressorTest, DecompressionCorrectness)
     // Verify decompressed data matches original zeroLine
     ASSERT_EQ(std::memcmp(zeroLine, decompLine, sizeof(zeroLine)), 0);
 }
+
+/**
+ * Test that re-compression returns non-zero compression latency.
+ */
+TEST_F(MultiCompressorTest, RecompressionLatency)
+{
+    createMulti(2, 100);
+
+    Cycles comp_lat(0);
+    Cycles decomp_lat(0);
+
+    // Initial compression
+    auto comp_data1 = multi->compress(zeroLine, comp_lat, decomp_lat);
+    ASSERT_NE(comp_data1, nullptr);
+    ASSERT_GT(comp_lat, Cycles(0));
+
+    // Re-compression with updated data
+    Cycles recomp_lat(0);
+    auto comp_data2 = multi->compress(deltaLine, recomp_lat, decomp_lat);
+    ASSERT_NE(comp_data2, nullptr);
+    ASSERT_GT(recomp_lat, Cycles(0));
+}
