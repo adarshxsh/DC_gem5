@@ -562,26 +562,30 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
 
 TEST(RecompressionLatencyTest, PartialWriteHitAccessLatency)
 {
-    // Verify access latency calculation for partial write hits on compressed blocks
+    // Verify access latency calculation for partial write hits on compressed
+    // blocks
     Cycles tagLatency(1);
     Cycles dataAccessLatency(3);
     Cycles decompLat(4);
     Cycles recompLat(5);
 
-    // Initial access latency for partial write hit on compressed block includes data lookup + decompression
+    // Initial access latency for partial write hit on compressed block
+    // includes data lookup + decompression
     Cycles lat = dataAccessLatency + decompLat;
 
     // satisfyRequest executes updateCompressionData which populates compLat
     Cycles compLat = recompLat;
 
-    // BaseCache::access adds compLat to lat for partial write hits on compressed blocks
+    // BaseCache::access adds compLat to lat for partial write hits on
+    // compressed blocks
     bool isCompressorAttached = true;
     bool isWholeLineWrite = false;
     if (isCompressorAttached && !isWholeLineWrite) {
         lat += compLat;
     }
 
-    // Verify total access latency charges data access (3) + decompression (4) + recompression (5) = 12 cycles
+    // Verify total access latency charges data access (3) + decompression (4)
+    // + recompression (5) = 12 cycles
     EXPECT_EQ(lat, Cycles(12));
 }
 
