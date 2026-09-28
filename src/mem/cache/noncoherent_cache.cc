@@ -66,7 +66,7 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
     assert(p.replacement_policy);
 }
 
-void
+Cycles
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                                  PacketList &writebacks, bool, bool)
 {
@@ -74,7 +74,7 @@ NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
     // coherency, we do not expect requests that are typically used to
     // keep caches coherent (e.g., InvalidateReq or UpdateReq).
     assert(pkt->isRead() || pkt->isWrite());
-    BaseCache::satisfyRequest(pkt, blk, writebacks);
+    return BaseCache::satisfyRequest(pkt, blk, writebacks);
 }
 
 bool
