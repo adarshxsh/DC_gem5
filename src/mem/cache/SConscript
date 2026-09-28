@@ -69,3 +69,6 @@ DebugFlag('PartitionPolicy')
 CompoundFlag('CacheAll', ['Cache', 'CacheComp', 'CachePort', 'CacheRepl',
                           'CacheVerbose', 'HWPrefetch', 'MSHR',
                           'PartitionPolicy'])
+
+GTest('mshr_decompression.test', 'mshr_decompression.test.cc',
+      'tags/super_blk.cc', 'tags/sector_blk.cc', '#src/base/types.cc')

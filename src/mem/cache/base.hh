@@ -495,6 +495,18 @@ class BaseCache : public ClockedObject
                                   const Cycles lookup_lat) const;
 
     /**
+     * Calculate decompression latency in ticks for a given packet and block.
+     * Decompression latency applies if a compressor exists, the block exists,
+     * and the request reads data or writes partial lines.
+     *
+     * @param pkt The memory request packet.
+     * @param blk The cache block accessed.
+     * @return Decompression latency in ticks, or 0 if not applicable.
+     */
+    Tick calculateDecompressionLatencyTicks(const PacketPtr pkt,
+                                            const CacheBlk *blk) const;
+
+    /**
      * Does all the processing necessary to perform the provided request.
      * @param pkt The memory request to perform.
      * @param blk The cache block to be updated.
