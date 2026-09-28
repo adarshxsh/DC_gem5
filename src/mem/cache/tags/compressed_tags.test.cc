@@ -40,10 +40,14 @@
 #include "sim/cur_tick.hh"
 #include "sim/root.hh"
 
-namespace gem5 {
+namespace gem5
+{
 Root *Root::_root = nullptr;
-namespace sim_clock { uint64_t Frequency = 1000000000000ULL; }
+namespace sim_clock
+{
+uint64_t Frequency = 1000000000000ULL;
 }
+} // namespace gem5
 
 using namespace gem5;
 
@@ -590,8 +594,8 @@ TEST(MSHRTest, HasOnlyPrefetches)
     EXPECT_TRUE(mshr.hasOnlyPrefetches());
 
     // Add demand target (ReadReq without prefetch flags)
-    RequestPtr demand_req = std::make_shared<Request>(
-        0x1000, 64, Request::FlagsType(0), 0);
+    RequestPtr demand_req =
+        std::make_shared<Request>(0x1000, 64, Request::FlagsType(0), 0);
     PacketPtr demand_pkt = new Packet(demand_req, MemCmd::ReadReq);
 
     mshr.allocateTarget(demand_pkt, 0, 2, true);
@@ -627,18 +631,17 @@ TEST_F(SuperBlkTestFixture, PrefetchFillResponseProtection)
 
     // Using command-level flag (is_prefetch = false) fails to protect demand
     bool cmd_is_prefetch = fill_resp->cmd.isPrefetch();
-    bool allowed_cmd =
-        superBlk.canCoAllocate(new_size) &&
-        !(cmd_is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+    bool allowed_cmd = superBlk.canCoAllocate(new_size) &&
+                       !(cmd_is_prefetch && superBlk.hasValidDemand() &&
+                         (new_cf < current_cf));
     EXPECT_TRUE(allowed_cmd);
 
     // Using request/MSHR classification (is_prefetch = true) protects demand
     bool req_is_prefetch = fill_resp->req && fill_resp->req->isPrefetch();
-    bool allowed_req =
-        superBlk.canCoAllocate(new_size) &&
-        !(req_is_prefetch && superBlk.hasValidDemand() && (new_cf < current_cf));
+    bool allowed_req = superBlk.canCoAllocate(new_size) &&
+                       !(req_is_prefetch && superBlk.hasValidDemand() &&
+                         (new_cf < current_cf));
     EXPECT_FALSE(allowed_req);
 
     delete fill_resp;
 }
-

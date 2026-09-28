@@ -802,9 +802,8 @@ class BaseCache : public ClockedObject
      * @param is_prefetch True if the fill satisfies only prefetch requests
      * @return Pointer to the new cache block.
      */
-    CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
-                         PacketList &writebacks, bool allocate,
-                         bool is_prefetch = false);
+    CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+                         bool allocate, bool is_prefetch = false);
 
     /**
      * Allocate a new block and perform any necessary writebacks

@@ -1475,8 +1475,8 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         const bool has_old_data = blk && blk->isValid();
         if (!blk) {
             // need to do a replacement
-            const bool is_prefetch = pkt->cmd.isPrefetch() ||
-                (pkt->req && pkt->req->isPrefetch());
+            const bool is_prefetch =
+                pkt->cmd.isPrefetch() || (pkt->req && pkt->req->isPrefetch());
             blk = allocateBlock(pkt, writebacks, is_prefetch);
             if (!blk) {
                 // no replaceable block available: give up, fwd to next level.
@@ -1555,7 +1555,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             } else {
                 // a writeback that misses needs to allocate a new block
                 const bool is_prefetch = pkt->cmd.isPrefetch() ||
-                    (pkt->req && pkt->req->isPrefetch());
+                                         (pkt->req && pkt->req->isPrefetch());
                 blk = allocateBlock(pkt, writebacks, is_prefetch);
                 if (!blk) {
                     // no replaceable block available: give up, fwd to
@@ -1658,7 +1658,7 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
     }
 }
 
-CacheBlk*
+CacheBlk *
 BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                       bool allocate, bool is_prefetch)
 {
@@ -1754,9 +1754,9 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     return blk;
 }
 
-CacheBlk*
+CacheBlk *
 BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks,
-                          bool is_prefetch)
+                         bool is_prefetch)
 {
     // Get address
     const Addr addr = pkt->getAddr();
@@ -1787,9 +1787,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks,
         partitionManager->readPacketPartitionID(pkt) : 0;
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
-    CacheBlk *victim =
-        tags->findVictim({addr, is_secure}, blk_size_bits, evict_blks,
-                         partition_id, is_prefetch);
+    CacheBlk *victim = tags->findVictim({addr, is_secure}, blk_size_bits,
+                                        evict_blks, partition_id, is_prefetch);
 
     // It is valid to return nullptr if there is no victim
     if (!victim)

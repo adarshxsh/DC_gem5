@@ -820,5 +820,4 @@ MSHR::hasOnlyPrefetches() const
     return true;
 }
 
-
 } // namespace gem5
