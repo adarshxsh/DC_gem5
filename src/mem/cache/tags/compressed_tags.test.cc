@@ -577,10 +577,12 @@ TEST_F(SuperBlkTestFixture, CoAllocationLowersSuperBlockCompressionFactor)
     subBlks[1].insert({0x7000, false});
     subBlks[1].setSizeBits(256);
 
-    // Co-allocating low-compression subblock lowers superblock effective compression factor to 2
+    // Co-allocating low-compression subblock lowers superblock effective
+    // compression factor to 2
     ASSERT_EQ(sblk->getCompressionFactor(), 2);
 
-    // Verify individual subblock size alone would give 8, but superblock returns 2
+    // Verify individual subblock size alone would give 8, but superblock
+    // returns 2
     ASSERT_EQ(sblk->calculateCompressionFactor(subBlks[0].getSizeBits()), 8);
     ASSERT_EQ(sblk->getCompressionFactor(), 2);
 }
