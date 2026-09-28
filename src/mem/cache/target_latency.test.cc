@@ -33,25 +33,32 @@
 #include <vector>
 
 #include "base/gtest/cur_tick_fake.hh"
-#include "mem/cache/base.hh"
 #include "mem/cache/compressors/base.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
 #include "params/BaseCacheCompressor.hh"
+#include "sim/root.hh"
+
+namespace gem5
+{
+Root *Root::_root = nullptr;
+}
 
 using namespace gem5;
 
 class MockCompressor : public compression::Base
 {
   public:
+    using Base::toChunks;
+
     Cycles compLat{4};
     Cycles decompLat{8};
 
     MockCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     std::unique_ptr<Base::CompressionData>
-    compress(const uint64_t *data, Cycles &comp_lat,
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
              Cycles &decomp_lat) override
     {
         comp_lat = compLat;
@@ -66,26 +73,27 @@ class MockCompressor : public compression::Base
     {}
 };
 
-class TargetLatencyTestCache : public BaseCache
+static BaseCacheCompressorParams
+createParams()
 {
-  public:
-    TargetLatencyTestCache(const BaseCacheParams &p) : BaseCache(p) {}
-
-    using BaseCache::calculateTargetDecompressionLatency;
-    using BaseCache::satisfyRequest;
-    using BaseCache::updateCompressionData;
-};
+    BaseCacheCompressorParams p{};
+    p.name = "mock_compressor";
+    p.block_size = 64;
+    p.chunk_size_bits = 64;
+    p.comp_chunks_per_cycle = 1;
+    p.decomp_chunks_per_cycle = 1;
+    p.comp_extra_latency = Cycles(1);
+    p.decomp_extra_latency = Cycles(1);
+    p.size_threshold_percentage = 100;
+    return p;
+}
 
 TEST(TargetLatencyTest, TargetDecompressionLatencyReadHit)
 {
     GTestTickHandler tickHandler;
     tickHandler.setCurTick(0);
 
-    BaseCacheCompressorParams comp_params{};
-    comp_params.name = "mock_compressor";
-    comp_params.block_size = 64;
-
-    MockCompressor compressor(comp_params);
+    MockCompressor compressor(createParams());
 
     CompressionBlk blk;
     blk.setSizeBits(256);
@@ -110,11 +118,7 @@ TEST(TargetLatencyTest, TargetDecompressionLatencyPartialWriteHit)
     GTestTickHandler tickHandler;
     tickHandler.setCurTick(0);
 
-    BaseCacheCompressorParams comp_params{};
-    comp_params.name = "mock_compressor";
-    comp_params.block_size = 64;
-
-    MockCompressor compressor(comp_params);
+    MockCompressor compressor(createParams());
 
     CompressionBlk blk;
     blk.setSizeBits(256);
@@ -137,11 +141,7 @@ TEST(TargetLatencyTest, TargetDecompressionLatencyFullWriteHit)
     GTestTickHandler tickHandler;
     tickHandler.setCurTick(0);
 
-    BaseCacheCompressorParams comp_params{};
-    comp_params.name = "mock_compressor";
-    comp_params.block_size = 64;
-
-    MockCompressor compressor(comp_params);
+    MockCompressor compressor(createParams());
 
     CompressionBlk blk;
     blk.setSizeBits(256);
@@ -166,11 +166,7 @@ TEST(TargetLatencyTest, TargetDecompressionLatencyUncompressed)
     GTestTickHandler tickHandler;
     tickHandler.setCurTick(0);
 
-    BaseCacheCompressorParams comp_params{};
-    comp_params.name = "mock_compressor";
-    comp_params.block_size = 64;
-
-    MockCompressor compressor(comp_params);
+    MockCompressor compressor(createParams());
 
     CompressionBlk blk;
     blk.setSizeBits(512); // uncompressed
@@ -192,17 +188,13 @@ TEST(TargetLatencyTest, CompressorRecompressionLatency)
     GTestTickHandler tickHandler;
     tickHandler.setCurTick(0);
 
-    BaseCacheCompressorParams comp_params{};
-    comp_params.name = "mock_compressor";
-    comp_params.block_size = 64;
-
-    MockCompressor compressor(comp_params);
+    MockCompressor compressor(createParams());
 
     Cycles comp_lat{0};
     Cycles decomp_lat{0};
     uint64_t data[8] = {0};
 
-    compressor.compress(data, comp_lat, decomp_lat);
+    compressor.compress(compressor.toChunks(data), comp_lat, decomp_lat);
 
     EXPECT_EQ(comp_lat, Cycles(4));
     EXPECT_EQ(decomp_lat, Cycles(8));

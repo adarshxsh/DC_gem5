@@ -77,8 +77,8 @@ When a simulation finishes, gem5 writes hundreds of performance counters into `m
 * `system.cpu.l2cache.demandAccesses`: Total read/write requests arriving at L2.
 * `system.cpu.l2cache.demandMisses`: Requests that missed L2 and had to go to main memory (DRAM).
 * `system.cpu.l2cache.demandMissRate`: Miss rate percentage.
-* `system.cpu.l2cache.tags.sectorStats.evictionsReplacement`: 
-  Tracks how many sub-blocks were evicted when a superblock was replaced. 
+* `system.cpu.l2cache.tags.sectorStats.evictionsReplacement`:
+  Tracks how many sub-blocks were evicted when a superblock was replaced.
   * In stock gem5: Large spikes in whole-superblock flushes (`[4]`).
   * In our engine: Replacement count dropped by **-1,357 blocks** due to efficient sub-block packing!
 
