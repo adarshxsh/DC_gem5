@@ -742,7 +742,7 @@ class BaseCache : public ClockedObject
      * @param comp_lat Output parameter for re-compression latency in cycles.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
                                PacketList &writebacks, Cycles &comp_lat);
 
     /**
