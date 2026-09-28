@@ -68,13 +68,15 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 
 void
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                 PacketList &writebacks, bool, bool)
+                                 PacketList &writebacks, bool deferred_response,
+                                 bool pending_downgrade, Cycles &recomp_lat)
 {
     // As this a non-coherent cache located below the point of
     // coherency, we do not expect requests that are typically used to
     // keep caches coherent (e.g., InvalidateReq or UpdateReq).
     assert(pkt->isRead() || pkt->isWrite());
-    BaseCache::satisfyRequest(pkt, blk, writebacks);
+    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
+                              pending_downgrade, recomp_lat);
 }
 
 bool
@@ -252,6 +254,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
     MSHR::TargetList targets = mshr->extractServiceableTargets(pkt);
     for (auto &target: targets) {
         Packet *tgt_pkt = target.pkt;
+        Cycles recomp_lat = Cycles(0);
 
         switch (target.source) {
           case MSHR::Target::FromCPU:
@@ -265,7 +268,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
-            satisfyRequest(tgt_pkt, blk, writebacks);
+            satisfyRequest(tgt_pkt, blk, writebacks, false, false, recomp_lat);
 
             // How many bytes past the first request is this one
             int transfer_offset;
@@ -279,6 +282,10 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // the core.
             completion_time += clockEdge(responseLatency) +
                 (transfer_offset ? pkt->payloadDelay : 0);
+
+            if (tgt_pkt->isWrite()) {
+                completion_time += clockEdge(recomp_lat);
+            }
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
             stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=
