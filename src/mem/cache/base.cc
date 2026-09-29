@@ -1067,7 +1067,7 @@ Cycles
 BaseCache::calculateTargetDecompressionLatency(const PacketPtr tgt_pkt,
                                                const CacheBlk *blk)
 {
-    if (compressor && blk &&
+    if (compressor && blk && tgt_pkt &&
         (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize))) {
         return compressor->getDecompressionLatency(blk);
     }

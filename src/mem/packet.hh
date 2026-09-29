@@ -623,7 +623,7 @@ class Packet : public Printable, public Extensible<Packet>
     bool isPrint() const             { return cmd.isPrint(); }
     bool isFlush() const             { return cmd.isFlush(); }
 
-    bool isWholeLineWrite(unsigned blk_size)
+    bool isWholeLineWrite(unsigned blk_size) const
     {
         return (cmd == MemCmd::WriteReq || cmd == MemCmd::WriteLineReq) &&
             getOffset(blk_size) == 0 && getSize() == blk_size &&

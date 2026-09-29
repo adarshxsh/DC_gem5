@@ -85,6 +85,10 @@ createParams()
     p.comp_extra_latency = Cycles(1);
     p.decomp_extra_latency = Cycles(1);
     p.size_threshold_percentage = 100;
+    p.enable_adaptive_bypass = false;
+    p.latency_breakeven_threshold = 1.0;
+    p.sampling_interval = 100;
+    p.decay_shift = 1;
     return p;
 }
 
