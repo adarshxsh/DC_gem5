@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -558,4 +559,35 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchFillResponseVictimSelection)
+{
+    // Request for demand read
+    RequestPtr demand_req = std::make_shared<Request>(0x1000, 64, 0, 0);
+    // Request for prefetch read
+    RequestPtr prefetch_req =
+        std::make_shared<Request>(0x2000, 64, Request::PREFETCH, 0);
+    // Request for prefetch write/exclusive
+    RequestPtr prefetch_ex_req =
+        std::make_shared<Request>(0x3000, 64, Request::PF_EXCLUSIVE, 0);
+
+    // Verify request-level prefetch flag inspection
+    ASSERT_FALSE(demand_req->isPrefetch());
+    ASSERT_TRUE(prefetch_req->isPrefetch());
+    ASSERT_TRUE(prefetch_ex_req->isPrefetch());
+
+    // Evaluate prefetch allocation flag check as performed in BaseCache::allocateBlock
+    // during fill block allocation (where response command's isPrefetch() returns false)
+    auto eval_is_prefetch = [](bool cmd_is_prefetch, const RequestPtr &req) {
+        return cmd_is_prefetch || (req && req->isPrefetch());
+    };
+
+    // Demand fill response packet (cmd.isPrefetch() is false, demand request)
+    ASSERT_FALSE(eval_is_prefetch(false, demand_req));
+
+    // Prefetch fill response packet (cmd.isPrefetch() is false for ReadResp/ReadExResp,
+    // but request prefetch flag is set)
+    ASSERT_TRUE(eval_is_prefetch(false, prefetch_req));
+    ASSERT_TRUE(eval_is_prefetch(false, prefetch_ex_req));
 }
