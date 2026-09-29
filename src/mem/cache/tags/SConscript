@@ -60,4 +60,5 @@ GTest(
     "sector_blk.cc",
     "#src/base/types.cc",
     with_tag("gem5 simobject"),
+    with_tag("gtest mock logging"),
 )
