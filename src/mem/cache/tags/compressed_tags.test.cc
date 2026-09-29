@@ -33,9 +33,9 @@
 #include <memory>
 #include <vector>
 
+#include "mem/cache/tags/super_blk.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
-#include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -574,15 +574,18 @@ TEST_F(SuperBlkTestFixture, DirtyBlockEvictionOnRecompressionFailure)
     ASSERT_TRUE(blk->isValid());
     ASSERT_TRUE(blk->isSet(CacheBlk::DirtyBit));
 
-    // Simulate store compression expansion failure (e.g. data expanded to 512 bits uncompressible,
-    // and superblock capacity cannot accommodate expansion)
+    // Simulate store compression expansion failure (e.g. data expanded to 512
+    // bits uncompressible, and superblock capacity cannot accommodate
+    // expansion)
     bool expansion_fits = superBlk.canCoAllocate(512);
     ASSERT_FALSE(expansion_fits);
 
-    // On re-compression expansion failure, evictBlock generates a WritebackDirty packet
-    // for the dirty block and invalidates local block without silent data loss.
+    // On re-compression expansion failure, evictBlock generates a
+    // WritebackDirty packet for the dirty block and invalidates local block
+    // without silent data loss.
     std::vector<PacketPtr> writebacks;
-    auto mockEvictBlock = [&](CacheBlk *evict_blk, std::vector<PacketPtr> &wb_list) {
+    auto mockEvictBlock = [&](CacheBlk *evict_blk,
+                              std::vector<PacketPtr> &wb_list) {
         if (evict_blk->isValid()) {
             if (evict_blk->isSet(CacheBlk::DirtyBit)) {
                 RequestPtr req = std::make_shared<Request>(
@@ -597,8 +600,8 @@ TEST_F(SuperBlkTestFixture, DirtyBlockEvictionOnRecompressionFailure)
 
     mockEvictBlock(blk, writebacks);
 
-    // Confirm that WritebackDirty packet was produced, dirty block state is preserved downstream,
-    // and local block is invalidated.
+    // Confirm that WritebackDirty packet was produced, dirty block state is
+    // preserved downstream, and local block is invalidated.
     ASSERT_EQ(writebacks.size(), 1);
     ASSERT_EQ(writebacks.front()->cmd, MemCmd::WritebackDirty);
     ASSERT_EQ(writebacks.front()->getAddr(), 0x1000);
