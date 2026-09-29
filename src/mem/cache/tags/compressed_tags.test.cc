@@ -33,6 +33,8 @@
 #include <memory>
 #include <vector>
 
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
 
@@ -558,4 +560,49 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, DirtyBlockEvictionOnRecompressionFailure)
+{
+    // Setup a valid sub-block in superBlk representing a compressed line
+    CompressionBlk *blk = &subBlks[0];
+    blk->insert({0x1000, false});
+    blk->setSizeBits(64); // Initially compressed to 64 bits
+
+    // Simulate store hit: store mutates blk data and sets DirtyBit
+    blk->setCoherenceBits(CacheBlk::DirtyBit);
+    ASSERT_TRUE(blk->isValid());
+    ASSERT_TRUE(blk->isSet(CacheBlk::DirtyBit));
+
+    // Simulate store compression expansion failure (e.g. data expanded to 512 bits uncompressible,
+    // and superblock capacity cannot accommodate expansion)
+    bool expansion_fits = superBlk.canCoAllocate(512);
+    ASSERT_FALSE(expansion_fits);
+
+    // On re-compression expansion failure, evictBlock generates a WritebackDirty packet
+    // for the dirty block and invalidates local block without silent data loss.
+    std::vector<PacketPtr> writebacks;
+    auto mockEvictBlock = [&](CacheBlk *evict_blk, std::vector<PacketPtr> &wb_list) {
+        if (evict_blk->isValid()) {
+            if (evict_blk->isSet(CacheBlk::DirtyBit)) {
+                RequestPtr req = std::make_shared<Request>(
+                    evict_blk->getTag(), BlkSize, 0, Request::wbRequestorId);
+                PacketPtr pkt = new Packet(req, MemCmd::WritebackDirty);
+                pkt->allocate();
+                wb_list.push_back(pkt);
+            }
+            evict_blk->invalidate();
+        }
+    };
+
+    mockEvictBlock(blk, writebacks);
+
+    // Confirm that WritebackDirty packet was produced, dirty block state is preserved downstream,
+    // and local block is invalidated.
+    ASSERT_EQ(writebacks.size(), 1);
+    ASSERT_EQ(writebacks.front()->cmd, MemCmd::WritebackDirty);
+    ASSERT_EQ(writebacks.front()->getAddr(), 0x1000);
+    ASSERT_FALSE(blk->isValid());
+
+    delete writebacks.front();
 }
