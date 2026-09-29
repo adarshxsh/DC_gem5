@@ -577,8 +577,9 @@ TEST_F(SuperBlkTestFixture, PrefetchFillResponseVictimSelection)
     ASSERT_TRUE(prefetch_req->isPrefetch());
     ASSERT_TRUE(prefetch_ex_req->isPrefetch());
 
-    // Evaluate prefetch allocation flag check as performed in BaseCache::allocateBlock
-    // during fill block allocation (where response command's isPrefetch() returns false)
+    // Evaluate prefetch allocation flag check as performed in
+    // BaseCache::allocateBlock during fill block allocation (where response
+    // command's isPrefetch() returns false)
     auto eval_is_prefetch = [](bool cmd_is_prefetch, const RequestPtr &req) {
         return cmd_is_prefetch || (req && req->isPrefetch());
     };
@@ -586,8 +587,8 @@ TEST_F(SuperBlkTestFixture, PrefetchFillResponseVictimSelection)
     // Demand fill response packet (cmd.isPrefetch() is false, demand request)
     ASSERT_FALSE(eval_is_prefetch(false, demand_req));
 
-    // Prefetch fill response packet (cmd.isPrefetch() is false for ReadResp/ReadExResp,
-    // but request prefetch flag is set)
+    // Prefetch fill response packet (cmd.isPrefetch() is false for
+    // ReadResp/ReadExResp, but request prefetch flag is set)
     ASSERT_TRUE(eval_is_prefetch(false, prefetch_req));
     ASSERT_TRUE(eval_is_prefetch(false, prefetch_ex_req));
 }
