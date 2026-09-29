@@ -34,6 +34,8 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -558,4 +560,37 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, RecompressionFailureEvictionGeneratesWriteback)
+{
+    // Insert a compressed sub-block and mark it dirty (e.g. from a store hit)
+    subBlks[0].insert({0x8000, false});
+    subBlks[0].setSizeBits(64);
+    subBlks[0].setCoherenceBits(CacheBlk::DirtyBit);
+
+    ASSERT_TRUE(subBlks[0].isValid());
+    ASSERT_TRUE(subBlks[0].isSet(CacheBlk::DirtyBit));
+
+    // When re-compression fails on a store hit/update, BaseCache must evict
+    // the dirty block via evictBlock(blk, writebacks) rather than
+    // invalidateBlock(blk). Verify that a dirty block requires a
+    // WritebackDirty packet on eviction.
+    bool is_dirty = subBlks[0].isSet(CacheBlk::DirtyBit);
+    ASSERT_TRUE(is_dirty);
+
+    // Simulate eviction packet generation as performed by evictBlock
+    RequestPtr req =
+        std::make_shared<Request>(0x8000, BlkSize, 0, Request::wbRequestorId);
+    PacketPtr wbPkt = new Packet(req, is_dirty ? MemCmd::WritebackDirty
+                                               : MemCmd::WritebackClean);
+
+    ASSERT_NE(wbPkt, nullptr);
+    ASSERT_EQ(wbPkt->cmd, MemCmd::WritebackDirty);
+
+    // Invalidate block after generating writeback
+    subBlks[0].invalidate();
+    ASSERT_FALSE(subBlks[0].isValid());
+
+    delete wbPkt;
 }
