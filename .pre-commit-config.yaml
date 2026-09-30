@@ -76,6 +76,7 @@ repos:
       rev: 0.2.3
       hooks:
           - id: yamlfmt
+            exclude: .*\.lock\.yml
     - repo: https://github.com/psf/black-pre-commit-mirror
       rev: 25.11.0
       hooks:
