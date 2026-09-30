@@ -33,6 +33,8 @@
 #include <memory>
 #include <vector>
 
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
 
@@ -558,4 +560,32 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchFillResponseCheck)
+{
+    // Verify that memory fill responses (ReadResp) tied to prefetch requests
+    // are correctly recognized as prefetches when checking request flags.
+    RequestPtr prefetchReq = std::make_shared<Request>(
+        0x1000, BlkSize, 0, 0);
+    prefetchReq->setFlags(Request::PREFETCH);
+
+    Packet prefetchFillPkt(prefetchReq, MemCmd::ReadResp);
+    ASSERT_FALSE(prefetchFillPkt.cmd.isPrefetch());
+    ASSERT_TRUE(prefetchFillPkt.req && prefetchFillPkt.req->isPrefetch());
+
+    bool is_prefetch = prefetchFillPkt.cmd.isPrefetch() ||
+                       (prefetchFillPkt.req && prefetchFillPkt.req->isPrefetch());
+    ASSERT_TRUE(is_prefetch);
+
+    // Verify normal demand response is not flagged as prefetch
+    RequestPtr demandReq = std::make_shared<Request>(
+        0x2000, BlkSize, 0, 0);
+    Packet demandFillPkt(demandReq, MemCmd::ReadResp);
+    ASSERT_FALSE(demandFillPkt.cmd.isPrefetch());
+    ASSERT_FALSE(demandFillPkt.req && demandFillPkt.req->isPrefetch());
+
+    bool is_demand_prefetch = demandFillPkt.cmd.isPrefetch() ||
+                              (demandFillPkt.req && demandFillPkt.req->isPrefetch());
+    ASSERT_FALSE(is_demand_prefetch);
 }
