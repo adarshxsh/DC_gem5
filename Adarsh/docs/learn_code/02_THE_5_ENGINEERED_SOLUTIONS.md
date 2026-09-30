@@ -152,7 +152,7 @@ Base::getDecompressionLatency(const CacheBlk* blk)
 ## 4. EWMA Adaptive Bypass (Dynamic Auto-Pilot)
 
 ### The Problem:
-What if a workload enters an execution phase where every cache line is completely random or encrypted? 
+What if a workload enters an execution phase where every cache line is completely random or encrypted?
 * Attempting compression wastes CPU cycles and dynamic energy.
 * If the hit rate doesn't increase, any residual decompression latency hurts performance.
 
