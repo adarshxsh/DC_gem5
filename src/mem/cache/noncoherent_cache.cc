@@ -68,13 +68,16 @@ NoncoherentCache::NoncoherentCache(const NoncoherentCacheParams &p)
 
 void
 NoncoherentCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk,
-                                 PacketList &writebacks, bool, bool)
+                                 PacketList &writebacks,
+                                 bool deferred_response,
+                                 bool pending_downgrade, Cycles &comp_lat)
 {
     // As this a non-coherent cache located below the point of
     // coherency, we do not expect requests that are typically used to
     // keep caches coherent (e.g., InvalidateReq or UpdateReq).
     assert(pkt->isRead() || pkt->isWrite());
-    BaseCache::satisfyRequest(pkt, blk, writebacks);
+    BaseCache::satisfyRequest(pkt, blk, writebacks, deferred_response,
+                              pending_downgrade, comp_lat);
 }
 
 bool
@@ -96,7 +99,7 @@ NoncoherentCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 }
 
 void
-NoncoherentCache::doWritebacks(PacketList& writebacks, Tick forward_time)
+NoncoherentCache::doWritebacks(PacketList &writebacks, Tick forward_time)
 {
     while (!writebacks.empty()) {
         PacketPtr wb_pkt = writebacks.front();
@@ -106,7 +109,7 @@ NoncoherentCache::doWritebacks(PacketList& writebacks, Tick forward_time)
 }
 
 void
-NoncoherentCache::doWritebacksAtomic(PacketList& writebacks)
+NoncoherentCache::doWritebacksAtomic(PacketList &writebacks)
 {
     while (!writebacks.empty()) {
         PacketPtr wb_pkt = writebacks.front();
@@ -136,7 +139,7 @@ void
 NoncoherentCache::recvTimingReq(PacketPtr pkt)
 {
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
-             "is responding");
+                                     "is responding");
 
     panic_if(!(pkt->isRead() || pkt->isWrite()),
              "Should only see read and writes at non-coherent cache\n");
@@ -167,13 +170,12 @@ NoncoherentCache::createMissPacket(PacketPtr cpu_pkt, CacheBlk *blk,
     return pkt;
 }
 
-
 Cycles
 NoncoherentCache::handleAtomicReqMiss(PacketPtr pkt, CacheBlk *&blk,
                                       PacketList &writebacks)
 {
-    PacketPtr bus_pkt = createMissPacket(pkt, blk, true,
-                                         pkt->isWholeLineWrite(blkSize));
+    PacketPtr bus_pkt =
+        createMissPacket(pkt, blk, true, pkt->isWholeLineWrite(blkSize));
     DPRINTF(Cache, "Sending an atomic %s\n", bus_pkt->print());
 
     Cycles latency = ticksToCycles(memSidePort.sendAtomic(bus_pkt));
@@ -221,7 +223,7 @@ Tick
 NoncoherentCache::recvAtomic(PacketPtr pkt)
 {
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
-             "is responding");
+                                     "is responding");
 
     panic_if(!(pkt->isRead() || pkt->isWrite()),
              "Should only see read and writes at non-coherent cache\n");
@@ -229,12 +231,11 @@ NoncoherentCache::recvAtomic(PacketPtr pkt)
     return BaseCache::recvAtomic(pkt);
 }
 
-
 void
 NoncoherentCache::functionalAccess(PacketPtr pkt, bool from_cpu_side)
 {
     panic_if(!from_cpu_side, "Non-coherent cache received functional snoop"
-            " request\n");
+                             " request\n");
 
     BaseCache::functionalAccess(pkt, from_cpu_side);
 }
@@ -250,65 +251,67 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
     bool from_pref = false;
 
     MSHR::TargetList targets = mshr->extractServiceableTargets(pkt);
-    for (auto &target: targets) {
+    for (auto &target : targets) {
         Packet *tgt_pkt = target.pkt;
 
         switch (target.source) {
-          case MSHR::Target::FromCPU:
-            // handle deferred requests comming from a cache or core
-            // above
+            case MSHR::Target::FromCPU:
+                // handle deferred requests comming from a cache or core
+                // above
 
-            from_core = true;
+                from_core = true;
 
-            Tick completion_time;
-            // Here we charge on completion_time the delay of the xbar if the
-            // packet comes from it, charged on headerDelay.
-            completion_time = pkt->headerDelay;
+                Tick completion_time;
+                // Here we charge on completion_time the delay of the xbar if
+                // the packet comes from it, charged on headerDelay.
+                completion_time = pkt->headerDelay;
 
-            satisfyRequest(tgt_pkt, blk, writebacks);
+                satisfyRequest(tgt_pkt, blk, writebacks);
 
-            // How many bytes past the first request is this one
-            int transfer_offset;
-            transfer_offset = tgt_pkt->getOffset(blkSize) - initial_offset;
-            if (transfer_offset < 0) {
-                transfer_offset += blkSize;
-            }
-            // If not critical word (offset) return payloadDelay.
-            // responseLatency is the latency of the return path
-            // from lower level caches/memory to an upper level cache or
-            // the core.
-            completion_time += clockEdge(responseLatency) +
-                (transfer_offset ? pkt->payloadDelay : 0);
+                // How many bytes past the first request is this one
+                int transfer_offset;
+                transfer_offset = tgt_pkt->getOffset(blkSize) - initial_offset;
+                if (transfer_offset < 0) {
+                    transfer_offset += blkSize;
+                }
+                // If not critical word (offset) return payloadDelay.
+                // responseLatency is the latency of the return path
+                // from lower level caches/memory to an upper level cache or
+                // the core.
+                completion_time += clockEdge(responseLatency) +
+                                   (transfer_offset ? pkt->payloadDelay : 0);
 
-            assert(tgt_pkt->req->requestorId() < system->maxRequestors());
-            stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=
-                completion_time - target.recvTime;
+                assert(tgt_pkt->req->requestorId() < system->maxRequestors());
+                stats.cmdStats(tgt_pkt)
+                    .missLatency[tgt_pkt->req->requestorId()] +=
+                    completion_time - target.recvTime;
 
-            tgt_pkt->makeTimingResponse();
-            if (pkt->isError())
-                tgt_pkt->copyError(pkt);
+                tgt_pkt->makeTimingResponse();
+                if (pkt->isError()) {
+                    tgt_pkt->copyError(pkt);
+                }
 
-            // Reset the bus additional time as it is now accounted for
-            tgt_pkt->headerDelay = tgt_pkt->payloadDelay = 0;
-            cpuSidePort.schedTimingResp(tgt_pkt, completion_time);
-            break;
+                // Reset the bus additional time as it is now accounted for
+                tgt_pkt->headerDelay = tgt_pkt->payloadDelay = 0;
+                cpuSidePort.schedTimingResp(tgt_pkt, completion_time);
+                break;
 
-          case MSHR::Target::FromPrefetcher:
-            // handle deferred requests comming from a prefetcher
-            // attached to this cache
-            assert(tgt_pkt->cmd == MemCmd::HardPFReq);
+            case MSHR::Target::FromPrefetcher:
+                // handle deferred requests comming from a prefetcher
+                // attached to this cache
+                assert(tgt_pkt->cmd == MemCmd::HardPFReq);
 
-            from_pref = true;
+                from_pref = true;
 
-            // We have filled the block and the prefetcher does not
-            // require responses.
-            delete tgt_pkt;
-            break;
+                // We have filled the block and the prefetcher does not
+                // require responses.
+                delete tgt_pkt;
+                break;
 
-          default:
-            // we should never see FromSnoop Targets as this is a
-            // non-coherent cache
-            panic("Illegal target->source enum %d\n", target.source);
+            default:
+                // we should never see FromSnoop Targets as this is a
+                // non-coherent cache
+                panic("Illegal target->source enum %d\n", target.source);
         }
     }
 
@@ -354,8 +357,9 @@ NoncoherentCache::evictBlock(CacheBlk *blk)
     // If we clean writebacks are not enabled, we do not take any
     // further action for evictions of clean blocks (i.e., CleanEvicts
     // are unnecessary).
-    PacketPtr pkt = (blk->isSet(CacheBlk::DirtyBit) || writebackClean) ?
-        writebackBlk(blk) : nullptr;
+    PacketPtr pkt = (blk->isSet(CacheBlk::DirtyBit) || writebackClean)
+                        ? writebackBlk(blk)
+                        : nullptr;
 
     invalidateBlock(blk);
 

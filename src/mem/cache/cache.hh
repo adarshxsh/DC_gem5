@@ -91,15 +91,14 @@ class Cache : public BaseCache
     void handleTimingReqHit(PacketPtr pkt, CacheBlk *blk,
                             Tick request_time) override;
 
-    void handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk,
-                             Tick forward_time,
+    void handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk, Tick forward_time,
                              Tick request_time) override;
 
     void recvTimingReq(PacketPtr pkt) override;
 
-    void doWritebacks(PacketList& writebacks, Tick forward_time) override;
+    void doWritebacks(PacketList &writebacks, Tick forward_time) override;
 
-    void doWritebacksAtomic(PacketList& writebacks) override;
+    void doWritebacksAtomic(PacketList &writebacks) override;
 
     void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                             PacketList &writebacks) override;
@@ -117,7 +116,8 @@ class Cache : public BaseCache
 
     void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         bool deferred_response = false,
-                        bool pending_downgrade = false) override;
+                        bool pending_downgrade = false,
+                        Cycles &comp_lat = dummy_comp_lat) override;
 
     void doTimingSupplyResponse(PacketPtr req_pkt, const uint8_t *blk_data,
                                 bool already_copied, bool pending_inval);
@@ -134,8 +134,8 @@ class Cache : public BaseCache
      *
      * @return The snoop delay incurred by the upwards snoop
      */
-    uint32_t handleSnoop(PacketPtr pkt, CacheBlk *blk,
-                         bool is_timing, bool is_deferred, bool pending_inval);
+    uint32_t handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
+                         bool is_deferred, bool pending_inval);
 
     [[nodiscard]] PacketPtr evictBlock(CacheBlk *blk) override;
 
@@ -169,7 +169,7 @@ class Cache : public BaseCache
      * @param mshr The MSHR to turn into a packet and send
      * @return True if the port is waiting for a retry
      */
-    bool sendMSHRQueuePacket(MSHR* mshr) override;
+    bool sendMSHRQueuePacket(MSHR *mshr) override;
 };
 
 } // namespace gem5
