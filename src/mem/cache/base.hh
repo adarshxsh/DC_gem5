@@ -741,8 +741,11 @@ class BaseCache : public ClockedObject
      * @param writebacks List for any writebacks that need to be performed.
      * @return Whether operation is successful or not.
      */
-    bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                               PacketList &writebacks);
+    static inline Cycles dummyCycles = Cycles(0);
+
+    bool updateCompressionData(CacheBlk *&blk, const uint64_t *data,
+                               PacketList &writebacks,
+                               Cycles &recomp_lat = dummyCycles);
 
     /**
      * Perform any necessary updates to the block and perform any data
@@ -758,7 +761,8 @@ class BaseCache : public ClockedObject
     virtual void satisfyRequest(PacketPtr pkt, CacheBlk *blk,
                                 PacketList &writebacks,
                                 bool deferred_response = false,
-                                bool pending_downgrade = false);
+                                bool pending_downgrade = false,
+                                Cycles &recomp_lat = dummyCycles);
 
     /**
      * Maintain the clusivity of this cache by potentially
