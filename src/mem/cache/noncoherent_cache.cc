@@ -53,6 +53,7 @@
 #include "base/types.hh"
 #include "debug/Cache.hh"
 #include "mem/cache/cache_blk.hh"
+#include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr.hh"
 #include "params/NoncoherentCache.hh"
 
@@ -254,7 +255,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
         Packet *tgt_pkt = target.pkt;
 
         switch (target.source) {
-          case MSHR::Target::FromCPU:
+          case MSHR::Target::FromCPU: {
             // handle deferred requests comming from a cache or core
             // above
 
@@ -298,6 +299,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             tgt_pkt->headerDelay = tgt_pkt->payloadDelay = 0;
             cpuSidePort.schedTimingResp(tgt_pkt, completion_time);
             break;
+          }
 
           case MSHR::Target::FromPrefetcher:
             // handle deferred requests comming from a prefetcher
