@@ -59,4 +59,13 @@ Source('stride.cc')
 Source('tagged.cc')
 Source('fdp.cc')
 
-GTest('queued.test', 'queued.test.cc', 'queued.cc', 'base.cc')
+GTest('queued.test', 'queued.test.cc', 'queued.cc', 'base.cc',
+      '#src/base/logging.cc', '#src/base/hostinfo.cc',
+      '#src/mem/cache/tags/super_blk.cc', '#src/mem/cache/tags/sector_blk.cc',
+      '#src/mem/cache/replacement_policies/lru_rp.cc',
+      '#src/base/statistics.cc', '#src/base/stats/info.cc',
+      '#src/base/stats/storage.cc', '#src/base/stats/text.cc',
+      '#src/base/types.cc', '#src/base/output.cc', '#src/cpu/reg_class.cc',
+      '#src/sim/bufval.cc', '#src/mem/packet.cc', '#src/sim/clocked_object.cc',
+      '#src/sim/clock_domain.cc', '#src/sim/voltage_domain.cc',
+      with_tag('gem5 simobject'))

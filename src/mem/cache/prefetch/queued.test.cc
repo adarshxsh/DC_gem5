@@ -37,19 +37,51 @@
 #include "mem/cache/prefetch/queued.hh"
 #include "mem/cache/replacement_policies/lru_rp.hh"
 #include "mem/cache/tags/indexing_policies/set_associative.hh"
+#include "mem/cache/tags/super_blk.hh"
 #include "mem/cache/tags/tagged_entry.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
+#include "params/ClockDomain.hh"
 #include "params/LRURP.hh"
 #include "params/QueuedPrefetcher.hh"
 #include "params/TaggedSetAssociative.hh"
+#include "sim/clock_domain.hh"
 #include "sim/cur_tick.hh"
+#include "sim/power/power_model.hh"
+#include "sim/root.hh"
+#include "sim/system.hh"
 
 using namespace gem5;
 using namespace gem5::prefetch;
 
+namespace gem5
+{
+std::set<std::string> version_tags;
+Root *Root::_root = nullptr;
+
+RequestorID
+System::getRequestorId(const SimObject *requestor, std::string subexec)
+{
+    return 0;
+}
+
+void
+PowerModel::setClockedObject(ClockedObject *co)
+{
+}
+}
+
 namespace
 {
+
+class MockClockDomain : public ClockDomain
+{
+  public:
+    MockClockDomain(const ClockDomainParams &p) : ClockDomain(p, nullptr)
+    {
+        _clockPeriod = 1000;
+    }
+};
 
 class MockCacheAccessor : public CacheAccessor
 {
@@ -130,8 +162,12 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     Tick mockTick = 1000;
     Gem5Internal::_curTickPtr = &mockTick;
 
-    QueuedPrefetcherParams params;
+    ClockDomainParams cdParams{};
+    MockClockDomain mockClkDomain(cdParams);
+
+    QueuedPrefetcherParams params{};
     params.name = "test_queued_prefetcher";
+    params.clk_domain = &mockClkDomain;
     params.block_size = 64;
     params.latency = 1;
     params.queue_size = 32;
@@ -156,16 +192,17 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     params.cht_assoc = 2;
     params.cht_min_cf_threshold = 2;
 
-    TaggedSetAssociativeParams idxParams;
+    TaggedSetAssociativeParams idxParams{};
     idxParams.entry_size = 1;
     idxParams.assoc = 2;
     idxParams.size = 64;
     params.cht_indexing_policy = new TaggedSetAssociative(idxParams);
 
-    LRURPParams replParams;
+    LRURPParams replParams{};
     params.cht_replacement_policy = new replacement_policy::LRU(replParams);
 
     TestQueuedPrefetcher prefetcher(params);
+    prefetcher.regStats();
     MockCacheAccessor mockCache;
 
     Addr testPC1 = 0x400100;
@@ -213,6 +250,116 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     // Inserting again for testPC1 should now pass CHT filter
     prefetcher.insert(&pkt, pfi, 1, mockCache);
     EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+
+    delete params.cht_indexing_policy;
+    delete params.cht_replacement_policy;
+}
+
+TEST(QueuedCHTTest, CHTSuperblockCompressionStates)
+{
+    Tick mockTick = 1000;
+    Gem5Internal::_curTickPtr = &mockTick;
+
+    ClockDomainParams cdParams2{};
+    MockClockDomain mockClkDomain2(cdParams2);
+
+    QueuedPrefetcherParams params{};
+    params.name = "test_queued_prefetcher_sb";
+    params.clk_domain = &mockClkDomain2;
+    params.block_size = 64;
+    params.latency = 1;
+    params.queue_size = 32;
+    params.max_prefetch_requests_with_pending_translation = 32;
+    params.queue_squash = true;
+    params.queue_filter = true;
+    params.cache_snoop = false;
+    params.tag_prefetch = true;
+    params.throttle_control_percentage = 0;
+    params.on_miss = false;
+    params.on_read = true;
+    params.on_write = true;
+    params.on_data = true;
+    params.on_inst = true;
+    params.prefetch_on_access = true;
+    params.prefetch_on_pf_hit = true;
+    params.use_virtual_addresses = false;
+    params.page_bytes = 4096;
+
+    params.enable_cht = true;
+    params.cht_entries = 64;
+    params.cht_assoc = 2;
+    params.cht_min_cf_threshold = 2;
+
+    TaggedSetAssociativeParams idxParams{};
+    idxParams.entry_size = 1;
+    idxParams.assoc = 2;
+    idxParams.size = 64;
+    params.cht_indexing_policy = new TaggedSetAssociative(idxParams);
+
+    LRURPParams replParams{};
+    params.cht_replacement_policy = new replacement_policy::LRU(replParams);
+
+    TestQueuedPrefetcher prefetcher(params);
+    prefetcher.regStats();
+    MockCacheAccessor mockCache;
+
+    // Set up a SuperBlk with 4 sub-blocks (64 bytes = 512 bits)
+    SuperBlk superBlk;
+    superBlk.setBlkSize(64);
+    std::unique_ptr<CompressionBlk[]> subBlks(new CompressionBlk[4]);
+    superBlk.blks.resize(4);
+    for (unsigned k = 0; k < 4; ++k) {
+        superBlk.blks[k] = &subBlks[k];
+        subBlks[k].setSectorBlock(&superBlk);
+        subBlks[k].setSectorOffset(k);
+        subBlks[k].registerTagExtractor([](Addr addr) { return addr; });
+    }
+    superBlk.registerTagExtractor([](Addr addr) { return addr; });
+
+    Addr testPC = 0x400200;
+    Addr testAddr = 0x9000;
+
+    RequestPtr req = std::make_shared<Request>(testAddr, 64, 0, 0);
+    req->setPC(testPC);
+    Packet pkt(req, MemCmd::ReadReq);
+    pkt.allocate();
+
+    // Uniform compressed state: subBlks[0] and subBlks[1] have size 128 bits (CF=4)
+    subBlks[0].insert({testAddr, false});
+    subBlks[0].setSizeBits(128);
+    subBlks[1].insert({testAddr, false});
+    subBlks[1].setSizeBits(128);
+
+    // Superblock aggregate compression factor should be 4
+    EXPECT_EQ(superBlk.getCompressionFactor(), 4);
+
+    // Notify fill with uniform superblock state
+    mockCache.compressionFactor = superBlk.getCompressionFactor();
+    CacheAccessProbeArg fillArg(&pkt, mockCache);
+    prefetcher.notifyFill(fillArg);
+
+    // CHT entry initialized to 2, and incremented to 3 because CF (4) >= threshold (2)
+    EXPECT_FALSE(prefetcher.isLowCompression(testPC, false));
+
+    // Heterogeneous state: insert an uncompressed sub-block (512 bits -> CF=1) into the superblock
+    subBlks[2].insert({testAddr, false});
+    subBlks[2].setSizeBits(512);
+
+    // Superblock aggregate compression factor drops to min(4, 1) = 1
+    EXPECT_EQ(superBlk.getCompressionFactor(), 1);
+
+    // Notify fill with heterogeneous superblock state where aggregate CF is 1
+    mockCache.compressionFactor = superBlk.getCompressionFactor();
+    prefetcher.notifyFill(fillArg);
+
+    // CHT entry counter decrements from 3 to 2
+    EXPECT_FALSE(prefetcher.isLowCompression(testPC, false));
+
+    // Notify fill again with aggregate CF = 1
+    prefetcher.notifyFill(fillArg);
+
+    // CHT entry counter decrements from 2 to 1 (< threshold 2), triggering low compression state
+    EXPECT_TRUE(prefetcher.isLowCompression(testPC, false));
 
     delete params.cht_indexing_policy;
     delete params.cht_replacement_policy;
