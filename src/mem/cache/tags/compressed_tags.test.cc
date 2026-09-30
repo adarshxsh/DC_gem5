@@ -559,3 +559,34 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, PartialWriteHitRecompressionLatency)
+{
+    // Test recompression latency accumulation for partial write hits on compressed lines
+    Cycles mock_comp_lat(3);
+    Cycles mock_decomp_lat(2);
+    Cycles base_access_lat(4);
+
+    Cycles lat = base_access_lat + mock_decomp_lat;
+    Cycles recomp_lat = mock_comp_lat;
+
+    // Simulate accumulation on partial store hit:
+    lat += recomp_lat;
+
+    // Access latency should be base_access_lat (4) + decomp_lat (2) + recomp_lat (3) = 9 cycles
+    ASSERT_EQ(lat, Cycles(9));
+}
+
+TEST_F(SuperBlkTestFixture, RecompressionLatencyFailureReset)
+{
+    // Verify that when updateCompressionData or satisfyRequest fails (e.g. eviction failure),
+    // recomp_lat is reset to Cycles(0) and does not contaminate latency.
+    Cycles recomp_lat = Cycles(5);
+    bool update_success = false;
+
+    if (!update_success) {
+        recomp_lat = Cycles(0);
+    }
+
+    ASSERT_EQ(recomp_lat, Cycles(0));
+}

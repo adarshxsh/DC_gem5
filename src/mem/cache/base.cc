@@ -1065,7 +1065,7 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 
 bool
 BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks)
+                                 PacketList &writebacks, Cycles &recomp_lat)
 {
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {
@@ -1079,6 +1079,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     const auto comp_data =
         compressor->compress(data, compression_lat, decompression_lat);
     std::size_t compression_size = comp_data->getSizeBits();
+    recomp_lat = compression_lat;
 
     // Get previous compressed size
     CompressionBlk* compression_blk = static_cast<CompressionBlk*>(blk);
@@ -1180,6 +1181,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 
         // Try to evict blocks; if it fails, give up on update
         if (!handleEvictions(evict_blks, writebacks)) {
+            recomp_lat = Cycles(0);
             return false;
         }
 
@@ -1210,7 +1212,7 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
 
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                          bool, bool)
+                          bool, bool, Cycles &recomp_lat)
 {
     assert(pkt->isRequest());
 
@@ -1264,8 +1266,9 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, recomp_lat)) {
                 invalidateBlock(blk);
+                recomp_lat = Cycles(0);
             }
         }
     } else if (pkt->isWrite()) {
@@ -1288,8 +1291,9 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, recomp_lat)) {
                 invalidateBlock(blk);
+                recomp_lat = Cycles(0);
             }
         }
     } else if (pkt->isRead()) {
@@ -1619,8 +1623,13 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
 
-        satisfyRequest(pkt, blk, writebacks);
+        Cycles recomp_lat(0);
+        satisfyRequest(pkt, blk, writebacks, false, false, recomp_lat);
         maintainClusivity(pkt->fromCache(), blk);
+
+        if (compressor && !pkt->isWholeLineWrite(blkSize)) {
+            lat += recomp_lat;
+        }
 
         return true;
     }
