@@ -12,6 +12,9 @@
 #include "mem/cache/compressors/cpack.hh"
 #include "mem/cache/compressors/dictionary_compressor_impl.hh"
 #include "mem/cache/compressors/fpc.hh"
+#include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "params/CPack.hh"
 #include "params/FPC.hh"
 #include "sim/root.hh"
@@ -50,6 +53,9 @@ class TestDictCompressor64 : public DictionaryCompressor<uint64_t>
 
 TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
 {
+    Tick mockTick = 0;
+    Gem5Internal::_curTickPtr = &mockTick;
+
     CPackParams p{};
     p.name = "cpack";
     p.block_size = 64;
@@ -115,6 +121,9 @@ TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutCPack)
 
 TEST(DictionaryCompressorTest, ZeroBlockDecompressionShortcutFPC)
 {
+    Tick mockTick = 0;
+    Gem5Internal::_curTickPtr = &mockTick;
+
     FPCParams p{};
     p.name = "fpc";
     p.block_size = 64;
@@ -190,4 +199,99 @@ TEST(DictionaryCompressorTest, DeltaPatternAsymmetricNegativeBound)
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_neg_bytes, base_bytes));
     EXPECT_FALSE(Delta8Pattern::isValidDelta(out_pos_bytes, base_bytes));
 }
+
+TEST(DictionaryCompressorTest, MSHRTargetDecompressionLatency)
+{
+    Tick mockTick = 0;
+    Gem5Internal::_curTickPtr = &mockTick;
+
+    CPackParams p{};
+    p.name = "cpack_mshr";
+    p.block_size = 64;
+    p.chunk_size_bits = 32;
+    p.dictionary_size = 16;
+    p.comp_chunks_per_cycle = 2;
+    p.comp_extra_latency = Cycles(5);
+    p.decomp_chunks_per_cycle = 2;
+    p.decomp_extra_latency = Cycles(3);
+    p.size_threshold_percentage = 100;
+    p.enable_adaptive_bypass = false;
+    p.latency_breakeven_threshold = 1.0;
+    p.sampling_interval = 100;
+    p.decay_shift = 4;
+
+    TestCPack compressor(p);
+    compressor.regStats();
+
+    SuperBlk super_blk;
+    super_blk.setBlkSize(64);
+    super_blk.registerTagExtractor([](Addr addr) { return addr; });
+
+    // 1. Setup a compressed block (size < 64*8 = 512 bits)
+    CompressionBlk comp_blk;
+    comp_blk.setSectorBlock(&super_blk);
+    comp_blk.setSectorOffset(0);
+    comp_blk.registerTagExtractor([](Addr addr) { return addr; });
+    comp_blk.insert({0x1000, false});
+    comp_blk.setCompressed();
+    comp_blk.setSizeBits(256);
+    comp_blk.setDecompressionLatency(Cycles(6));
+
+    // 2. Setup an uncompressed block
+    SuperBlk super_blk2;
+    super_blk2.setBlkSize(64);
+    super_blk2.registerTagExtractor([](Addr addr) { return addr; });
+
+    CompressionBlk uncomp_blk;
+    uncomp_blk.setSectorBlock(&super_blk2);
+    uncomp_blk.setSectorOffset(0);
+    uncomp_blk.registerTagExtractor([](Addr addr) { return addr; });
+    uncomp_blk.insert({0x2000, false});
+    uncomp_blk.setUncompressed();
+    uncomp_blk.setSizeBits(512);
+    uncomp_blk.setDecompressionLatency(Cycles(6));
+
+    EXPECT_EQ(compressor.getDecompressionLatency(&comp_blk), Cycles(6));
+    EXPECT_EQ(compressor.getDecompressionLatency(&uncomp_blk), Cycles(0));
+
+    // 3. Verify MSHR target latency calculation logic
+    Cycles responseLatency(2);
+    const std::size_t blkSize = 64;
+
+    RequestPtr req = std::make_shared<Request>(0x1000, 4, 0, 0);
+    Packet read_pkt(req, MemCmd::ReadReq);
+    Packet partial_write_pkt(req, MemCmd::WriteReq);
+
+    RequestPtr line_req = std::make_shared<Request>(0x1000, 64, 0, 0);
+    Packet full_write_pkt(line_req, MemCmd::WriteLineReq);
+
+    // Read target on compressed block -> includes decompression latency
+    Cycles resp_lat_read = responseLatency;
+    if (read_pkt.isRead() || !read_pkt.isWholeLineWrite(blkSize)) {
+        resp_lat_read += compressor.getDecompressionLatency(&comp_blk);
+    }
+    EXPECT_EQ(resp_lat_read, responseLatency + Cycles(6));
+
+    // Partial write target on compressed block -> includes decompression latency
+    Cycles resp_lat_partial_write = responseLatency;
+    if (partial_write_pkt.isRead() || !partial_write_pkt.isWholeLineWrite(blkSize)) {
+        resp_lat_partial_write += compressor.getDecompressionLatency(&comp_blk);
+    }
+    EXPECT_EQ(resp_lat_partial_write, responseLatency + Cycles(6));
+
+    // Full line write on compressed block -> bypasses decompression latency
+    Cycles resp_lat_full_write = responseLatency;
+    if (full_write_pkt.isRead() || !full_write_pkt.isWholeLineWrite(blkSize)) {
+        resp_lat_full_write += compressor.getDecompressionLatency(&comp_blk);
+    }
+    EXPECT_EQ(resp_lat_full_write, responseLatency);
+
+    // Read target on uncompressed block -> bypasses decompression latency
+    Cycles resp_lat_uncomp = responseLatency;
+    if (read_pkt.isRead() || !read_pkt.isWholeLineWrite(blkSize)) {
+        resp_lat_uncomp += compressor.getDecompressionLatency(&uncomp_blk);
+    }
+    EXPECT_EQ(resp_lat_uncomp, responseLatency);
+}
+
 
