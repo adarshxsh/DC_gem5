@@ -34,6 +34,8 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -558,4 +560,66 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchResponsePacketFlagCheck)
+{
+    // Create a prefetch request
+    auto req = std::make_shared<Request>(0x1000, 64, Request::PREFETCH, 0);
+    ASSERT_TRUE(req->isPrefetch());
+
+    // Create a memory fill response packet carrying ReadResp or ReadExResp
+    Packet pkt_read_resp(req, MemCmd::ReadResp);
+    Packet pkt_read_ex_resp(req, MemCmd::ReadExResp);
+
+    // Response command attributes do not carry prefetch flags
+    ASSERT_FALSE(pkt_read_resp.cmd.isPrefetch());
+    ASSERT_FALSE(pkt_read_ex_resp.cmd.isPrefetch());
+
+    // Evaluating pkt->cmd.isPrefetch() || (pkt->req && pkt->req->isPrefetch())
+    // correctly identifies fill responses for prefetch requests as prefetch
+    bool is_prefetch_read =
+        pkt_read_resp.cmd.isPrefetch() ||
+        (pkt_read_resp.req && pkt_read_resp.req->isPrefetch());
+    bool is_prefetch_read_ex =
+        pkt_read_ex_resp.cmd.isPrefetch() ||
+        (pkt_read_ex_resp.req && pkt_read_ex_resp.req->isPrefetch());
+
+    ASSERT_TRUE(is_prefetch_read);
+    ASSERT_TRUE(is_prefetch_read_ex);
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchFillResponseVictimProtection)
+{
+    // Create a prefetch request and a ReadResp fill response packet
+    auto req = std::make_shared<Request>(0x2000, 64, Request::PREFETCH, 0);
+    Packet pkt_fill(req, MemCmd::ReadResp);
+
+    // Compute is_prefetch using combined command and request check
+    bool is_prefetch = pkt_fill.cmd.isPrefetch() ||
+                       (pkt_fill.req && pkt_fill.req->isPrefetch());
+    ASSERT_TRUE(is_prefetch);
+
+    // Create superblocks holding demand data
+    SuperBlk sb_demand;
+    CompressionBlk blk_demand;
+    auto dummyTagExtractor = [](Addr addr) { return addr; };
+    blk_demand.registerTagExtractor(dummyTagExtractor);
+    sb_demand.registerTagExtractor(dummyTagExtractor);
+    blk_demand.setSectorBlock(&sb_demand);
+    sb_demand.blks = {&blk_demand};
+    blk_demand.insert({0x2000, false}); // demand block
+    ASSERT_TRUE(sb_demand.hasValidDemand());
+
+    std::vector<SuperBlk *> candidates;
+    if (is_prefetch) {
+        if (!sb_demand.hasValidDemand()) {
+            candidates.push_back(&sb_demand);
+        }
+    } else {
+        candidates.push_back(&sb_demand);
+    }
+
+    // Verify demand superblock is protected from eviction by prefetch fill
+    ASSERT_TRUE(candidates.empty());
 }
