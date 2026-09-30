@@ -559,3 +559,25 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, IsolatedCompressibleSubBlockAggregateCF)
+{
+    // Sub-block 0 is highly compressible (64 bits -> individual CF = 8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    superBlk.updateCompressionFactor();
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+    ASSERT_EQ(superBlk.calculateCompressionFactor(subBlks[0].getSizeBits()),
+              8);
+
+    // Sub-block 1 is uncompressible (512 bits -> individual CF = 1)
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(512);
+    superBlk.updateCompressionFactor();
+
+    // Individual CF of sub-block 0 remains 8
+    ASSERT_EQ(superBlk.calculateCompressionFactor(subBlks[0].getSizeBits()),
+              8);
+    // Aggregate superblock CF is now 1 due to the uncompressible sub-block 1
+    ASSERT_EQ(superBlk.getCompressionFactor(), 1);
+}
