@@ -578,7 +578,8 @@ TEST_F(SuperBlkTestFixture, CompressedWriteHitRecompressionLatency)
     // Access latency calculation for partial store hit:
     // lat = calculateAccessLatency + getDecompressionLatency + comp_lat
     Cycles data_array_lat = Cycles(2);
-    Cycles hit_lat = data_array_lat + cblk.getDecompressionLatency() + comp_lat;
+    Cycles hit_lat =
+        data_array_lat + cblk.getDecompressionLatency() + comp_lat;
 
     // Verify partial write hit includes re-compression cycles (2 + 4 + 6 = 12)
     ASSERT_EQ(hit_lat, Cycles(12));
