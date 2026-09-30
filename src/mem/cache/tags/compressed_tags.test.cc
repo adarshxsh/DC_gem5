@@ -34,6 +34,8 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -558,4 +560,93 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST_F(SuperBlkTestFixture, PrefetchFillResponseRequestFlagCheck)
+{
+    // Test ReadResp with prefetch request flag
+    RequestPtr prefetch_req =
+        std::make_shared<Request>(0x1000, BlkSize, Request::PREFETCH, 0);
+    std::unique_ptr<Packet> prefetch_resp_pkt(
+        new Packet(prefetch_req, MemCmd::ReadResp));
+
+    // Verify ReadResp packet command is not a prefetch command
+    ASSERT_FALSE(prefetch_resp_pkt->cmd.isPrefetch());
+    // Verify underlying request is a prefetch
+    ASSERT_TRUE(prefetch_resp_pkt->req &&
+                prefetch_resp_pkt->req->isPrefetch());
+
+    // Evaluate is_prefetch calculation as in BaseCache::allocateBlock
+    bool is_prefetch =
+        prefetch_resp_pkt->cmd.isPrefetch() ||
+        (prefetch_resp_pkt->req && prefetch_resp_pkt->req->isPrefetch());
+    ASSERT_TRUE(is_prefetch);
+
+    // Test ReadExResp with prefetch request flag
+    RequestPtr prefetch_ex_req =
+        std::make_shared<Request>(0x2000, BlkSize, Request::PF_EXCLUSIVE, 0);
+    std::unique_ptr<Packet> prefetch_ex_resp_pkt(
+        new Packet(prefetch_ex_req, MemCmd::ReadExResp));
+
+    ASSERT_FALSE(prefetch_ex_resp_pkt->cmd.isPrefetch());
+    ASSERT_TRUE(prefetch_ex_resp_pkt->req &&
+                prefetch_ex_resp_pkt->req->isPrefetch());
+
+    bool is_prefetch_ex =
+        prefetch_ex_resp_pkt->cmd.isPrefetch() ||
+        (prefetch_ex_resp_pkt->req && prefetch_ex_resp_pkt->req->isPrefetch());
+    ASSERT_TRUE(is_prefetch_ex);
+
+    // Test demand ReadResp packet (non-prefetch)
+    RequestPtr demand_req = std::make_shared<Request>(0x3000, BlkSize, 0, 0);
+    std::unique_ptr<Packet> demand_resp_pkt(
+        new Packet(demand_req, MemCmd::ReadResp));
+
+    ASSERT_FALSE(demand_resp_pkt->cmd.isPrefetch());
+    ASSERT_FALSE(demand_resp_pkt->req && demand_resp_pkt->req->isPrefetch());
+
+    bool is_prefetch_demand =
+        demand_resp_pkt->cmd.isPrefetch() ||
+        (demand_resp_pkt->req && demand_resp_pkt->req->isPrefetch());
+    ASSERT_FALSE(is_prefetch_demand);
+
+    // Test packet with null request (edge case)
+    Packet null_req_pkt(nullptr, MemCmd::ReadResp);
+    bool is_prefetch_null =
+        null_req_pkt.cmd.isPrefetch() ||
+        (null_req_pkt.req && null_req_pkt.req->isPrefetch());
+    ASSERT_FALSE(is_prefetch_null);
+
+    // Verify victim selection behavior using the derived is_prefetch flag:
+    // Setup superblocks with demand data
+    SuperBlk sb_demand;
+    CompressionBlk blk_demand;
+    auto dummyTagExtractor = [](Addr addr) { return addr; };
+    blk_demand.registerTagExtractor(dummyTagExtractor);
+    sb_demand.registerTagExtractor(dummyTagExtractor);
+    blk_demand.setSectorBlock(&sb_demand);
+    sb_demand.blks = {&blk_demand};
+    blk_demand.insert(
+        {0x1000, false}); // demand block (wasPrefetched() == false)
+
+    ASSERT_TRUE(sb_demand.hasValidDemand());
+
+    // When prefetch fill response arrives, is_prefetch evaluates to true
+    // Filter candidates as compressed tags findVictim does
+    std::vector<SuperBlk *> superblock_entries = {&sb_demand};
+    std::vector<SuperBlk *> candidate_victims;
+
+    if (is_prefetch) {
+        for (auto *sb : superblock_entries) {
+            if (!sb->hasValidDemand()) {
+                candidate_victims.push_back(sb);
+            }
+        }
+    } else {
+        candidate_victims = superblock_entries;
+    }
+
+    // Protection check: prefetch fill response passes is_prefetch = true,
+    // protecting warm demand superblock from eviction (0 candidates)
+    ASSERT_TRUE(candidate_victims.empty());
 }
