@@ -573,10 +573,12 @@ TEST_F(SuperBlkTestFixture, PrefetchFillResponseRequestFlagCheck)
     // Verify ReadResp packet command is not a prefetch command
     ASSERT_FALSE(prefetch_resp_pkt->cmd.isPrefetch());
     // Verify underlying request is a prefetch
-    ASSERT_TRUE(prefetch_resp_pkt->req && prefetch_resp_pkt->req->isPrefetch());
+    ASSERT_TRUE(prefetch_resp_pkt->req &&
+                prefetch_resp_pkt->req->isPrefetch());
 
     // Evaluate is_prefetch calculation as in BaseCache::allocateBlock
-    bool is_prefetch = prefetch_resp_pkt->cmd.isPrefetch() ||
+    bool is_prefetch =
+        prefetch_resp_pkt->cmd.isPrefetch() ||
         (prefetch_resp_pkt->req && prefetch_resp_pkt->req->isPrefetch());
     ASSERT_TRUE(is_prefetch);
 
@@ -590,7 +592,8 @@ TEST_F(SuperBlkTestFixture, PrefetchFillResponseRequestFlagCheck)
     ASSERT_TRUE(prefetch_ex_resp_pkt->req &&
                 prefetch_ex_resp_pkt->req->isPrefetch());
 
-    bool is_prefetch_ex = prefetch_ex_resp_pkt->cmd.isPrefetch() ||
+    bool is_prefetch_ex =
+        prefetch_ex_resp_pkt->cmd.isPrefetch() ||
         (prefetch_ex_resp_pkt->req && prefetch_ex_resp_pkt->req->isPrefetch());
     ASSERT_TRUE(is_prefetch_ex);
 
@@ -602,13 +605,15 @@ TEST_F(SuperBlkTestFixture, PrefetchFillResponseRequestFlagCheck)
     ASSERT_FALSE(demand_resp_pkt->cmd.isPrefetch());
     ASSERT_FALSE(demand_resp_pkt->req && demand_resp_pkt->req->isPrefetch());
 
-    bool is_prefetch_demand = demand_resp_pkt->cmd.isPrefetch() ||
+    bool is_prefetch_demand =
+        demand_resp_pkt->cmd.isPrefetch() ||
         (demand_resp_pkt->req && demand_resp_pkt->req->isPrefetch());
     ASSERT_FALSE(is_prefetch_demand);
 
     // Test packet with null request (edge case)
     Packet null_req_pkt(nullptr, MemCmd::ReadResp);
-    bool is_prefetch_null = null_req_pkt.cmd.isPrefetch() ||
+    bool is_prefetch_null =
+        null_req_pkt.cmd.isPrefetch() ||
         (null_req_pkt.req && null_req_pkt.req->isPrefetch());
     ASSERT_FALSE(is_prefetch_null);
 
@@ -621,7 +626,8 @@ TEST_F(SuperBlkTestFixture, PrefetchFillResponseRequestFlagCheck)
     sb_demand.registerTagExtractor(dummyTagExtractor);
     blk_demand.setSectorBlock(&sb_demand);
     sb_demand.blks = {&blk_demand};
-    blk_demand.insert({0x1000, false}); // demand block (wasPrefetched() == false)
+    blk_demand.insert(
+        {0x1000, false}); // demand block (wasPrefetched() == false)
 
     ASSERT_TRUE(sb_demand.hasValidDemand());
 
