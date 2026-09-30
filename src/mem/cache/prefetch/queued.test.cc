@@ -67,9 +67,8 @@ System::getRequestorId(const SimObject *requestor, std::string subexec)
 
 void
 PowerModel::setClockedObject(ClockedObject *co)
-{
-}
-}
+{}
+} // namespace gem5
 
 namespace
 {
@@ -324,7 +323,8 @@ TEST(QueuedCHTTest, CHTSuperblockCompressionStates)
     Packet pkt(req, MemCmd::ReadReq);
     pkt.allocate();
 
-    // Uniform compressed state: subBlks[0] and subBlks[1] have size 128 bits (CF=4)
+    // Uniform compressed state: subBlks[0] and subBlks[1] have size 128 bits
+    // (CF=4)
     subBlks[0].insert({testAddr, false});
     subBlks[0].setSizeBits(128);
     subBlks[1].insert({testAddr, false});
@@ -338,10 +338,12 @@ TEST(QueuedCHTTest, CHTSuperblockCompressionStates)
     CacheAccessProbeArg fillArg(&pkt, mockCache);
     prefetcher.notifyFill(fillArg);
 
-    // CHT entry initialized to 2, and incremented to 3 because CF (4) >= threshold (2)
+    // CHT entry initialized to 2, and incremented to 3 because CF (4) >=
+    // threshold (2)
     EXPECT_FALSE(prefetcher.isLowCompression(testPC, false));
 
-    // Heterogeneous state: insert an uncompressed sub-block (512 bits -> CF=1) into the superblock
+    // Heterogeneous state: insert an uncompressed sub-block (512 bits -> CF=1)
+    // into the superblock
     subBlks[2].insert({testAddr, false});
     subBlks[2].setSizeBits(512);
 
@@ -358,7 +360,8 @@ TEST(QueuedCHTTest, CHTSuperblockCompressionStates)
     // Notify fill again with aggregate CF = 1
     prefetcher.notifyFill(fillArg);
 
-    // CHT entry counter decrements from 2 to 1 (< threshold 2), triggering low compression state
+    // CHT entry counter decrements from 2 to 1 (< threshold 2), triggering low
+    // compression state
     EXPECT_TRUE(prefetcher.isLowCompression(testPC, false));
 
     delete params.cht_indexing_policy;
