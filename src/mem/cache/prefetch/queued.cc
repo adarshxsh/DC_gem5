@@ -427,7 +427,7 @@ Queued::isLowCompression(Addr pc, bool secure)
     if (entry != nullptr) {
         return (entry->counter < chtMinCFThreshold);
     }
-    return false;
+    return true;
 }
 
 void

@@ -179,19 +179,37 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
 
     Base::PrefetchInfo pfi(&pkt, testAddr1, true);
 
-    // Initial state: untracked PC defaults to allowed (initial counter = 2)
-    EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
+    // Initial state: untracked PC defaults to low compression (missing from
+    // CHT)
+    EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
 
-    // Try inserting prefetch candidate with testPC1
+    // Try inserting prefetch candidate with untracked testPC1 (should be
+    // dropped)
     prefetcher.insert(&pkt, pfi, 1, mockCache);
-    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 0);
+    EXPECT_EQ(prefetcher.getStats().pfDroppedLowCompression.value(), 1);
 
-    // Observe an uncompressible fill for testPC1 (CF = 1)
-    mockCache.compressionFactor = 1;
+    // Observe a compressible fill for testPC1 (CF = 2)
+    mockCache.compressionFactor = 2;
     CacheAccessProbeArg fillArg(&pkt, mockCache);
     prefetcher.notifyFill(fillArg);
 
-    // After 1 uncompressible fill, counter drops from 2 to 1 (< threshold 2)
+    // After 1 compressible fill, counter initialized to 2 and incremented to 3
+    // (>= threshold 2)
+    EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
+
+    // Inserting again for testPC1 should now pass CHT filter
+    prefetcher.getPFQ().clear();
+    prefetcher.insert(&pkt, pfi, 1, mockCache);
+    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+
+    // Observe uncompressible fills for testPC1 (CF = 1)
+    mockCache.compressionFactor = 1;
+    prefetcher.notifyFill(fillArg); // Counter drops from 3 to 2
+    prefetcher.notifyFill(
+        fillArg); // Counter drops from 2 to 1 (< threshold 2)
+
+    // After uncompressible fills, counter drops below threshold
     EXPECT_TRUE(prefetcher.isLowCompression(testPC1, false));
 
     // Attempting another insert for testPC1 should now be dropped due to low
@@ -199,20 +217,9 @@ TEST(QueuedCHTTest, CHTFilteringAndSaturationCounters)
     prefetcher.getPFQ().clear();
     prefetcher.insert(&pkt, pfi, 1, mockCache);
 
-    // Verify pfq size is 0 and pfDroppedLowCompression stat incremented
+    // Verify pfq size is 0 and pfDroppedLowCompression stat incremented to 2
     EXPECT_EQ(prefetcher.getPFQ().size(), 0);
-    EXPECT_EQ(prefetcher.getStats().pfDroppedLowCompression.value(), 1);
-
-    // Now observe a compressible fill for testPC1 (CF = 2)
-    mockCache.compressionFactor = 2;
-    prefetcher.notifyFill(fillArg);
-
-    // Counter increments back to 2 (>= threshold 2)
-    EXPECT_FALSE(prefetcher.isLowCompression(testPC1, false));
-
-    // Inserting again for testPC1 should now pass CHT filter
-    prefetcher.insert(&pkt, pfi, 1, mockCache);
-    EXPECT_EQ(prefetcher.getPFQ().size(), 1);
+    EXPECT_EQ(prefetcher.getStats().pfDroppedLowCompression.value(), 2);
 
     delete params.cht_indexing_policy;
     delete params.cht_replacement_policy;
