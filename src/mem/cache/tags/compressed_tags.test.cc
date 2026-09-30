@@ -570,14 +570,15 @@ TEST_F(SuperBlkTestFixture, DirtyBlockEvictionOnExpansionFailure)
     subBlks[0].setCoherenceBits(CacheBlk::DirtyBit);
     ASSERT_TRUE(subBlks[0].isSet(CacheBlk::DirtyBit));
 
-    // Simulate expansion failure where re-compression fails due to capacity limits
-    // and no victim block is available.
-    // Verify that a dirty block requires eviction (generating writeback)
-    // rather than silent invalidation.
+    // Simulate expansion failure where re-compression fails due to capacity
+    // limits and no victim block is available. Verify that a dirty block
+    // requires eviction (generating writeback) rather than silent
+    // invalidation.
     bool requires_writeback = subBlks[0].isSet(CacheBlk::DirtyBit);
     ASSERT_TRUE(requires_writeback);
 
-    // Calling invalidate directly clears dirty state without generating writeback
+    // Calling invalidate directly clears dirty state without generating
+    // writeback
     subBlks[1].insert({0x7000, false});
     subBlks[1].setCoherenceBits(CacheBlk::DirtyBit);
     subBlks[1].invalidate();
