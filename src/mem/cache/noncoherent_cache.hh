@@ -71,27 +71,29 @@ class NoncoherentCache : public BaseCache
     bool access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 PacketList &writebacks) override;
 
-    void handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk,
-                             Tick forward_time,
+    void handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk, Tick forward_time,
                              Tick request_time) override;
 
     void recvTimingReq(PacketPtr pkt) override;
 
-    void doWritebacks(PacketList& writebacks,
-                      Tick forward_time) override;
+    void doWritebacks(PacketList &writebacks, Tick forward_time) override;
 
-    void doWritebacksAtomic(PacketList& writebacks) override;
+    void doWritebacksAtomic(PacketList &writebacks) override;
 
     void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                             PacketList &writebacks) override;
 
     void recvTimingResp(PacketPtr pkt) override;
 
-    void recvTimingSnoopReq(PacketPtr pkt) override {
+    void
+    recvTimingSnoopReq(PacketPtr pkt) override
+    {
         panic("Unexpected timing snoop request %s", pkt->print());
     }
 
-    void recvTimingSnoopResp(PacketPtr pkt) override {
+    void
+    recvTimingSnoopResp(PacketPtr pkt) override
+    {
         panic("Unexpected timing snoop response %s", pkt->print());
     }
 
@@ -100,7 +102,9 @@ class NoncoherentCache : public BaseCache
 
     Tick recvAtomic(PacketPtr pkt) override;
 
-    Tick recvAtomicSnoop(PacketPtr pkt) override {
+    Tick
+    recvAtomicSnoop(PacketPtr pkt) override
+    {
         panic("Unexpected atomic snoop request %s", pkt->print());
     }
 
@@ -108,7 +112,8 @@ class NoncoherentCache : public BaseCache
 
     void satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                         bool deferred_response = false,
-                        bool pending_downgrade = false) override;
+                        bool pending_downgrade = false,
+                        Cycles &comp_lat = dummy_comp_lat) override;
 
     /*
      * Creates a new packet with the request to be send to the memory

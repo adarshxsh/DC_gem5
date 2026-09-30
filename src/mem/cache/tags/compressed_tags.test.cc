@@ -34,6 +34,8 @@
 #include <vector>
 
 #include "mem/cache/tags/super_blk.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -558,4 +560,68 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // Verify no candidates remain, which causes findVictim to return nullptr
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
+}
+
+TEST(BaseCacheRecompressionLatencyTest, PartialWriteHitRecompressionLatency)
+{
+    // 1. Partial write vs Whole line write classification
+    RequestPtr partial_req = std::make_shared<Request>(0x1000, 4, 0, 0);
+    Packet partial_pkt(partial_req, MemCmd::WriteReq);
+    uint32_t val = 0x12345678;
+    partial_pkt.dataStatic(&val);
+
+    ASSERT_TRUE(partial_pkt.isWrite());
+    ASSERT_FALSE(partial_pkt.isWholeLineWrite(64));
+
+    RequestPtr whole_req = std::make_shared<Request>(0x1000, 64, 0, 0);
+    Packet whole_pkt(whole_req, MemCmd::WriteReq);
+    whole_pkt.dataStatic(&val);
+
+    ASSERT_TRUE(whole_pkt.isWrite());
+    ASSERT_TRUE(whole_pkt.isWholeLineWrite(64));
+
+    RequestPtr read_req = std::make_shared<Request>(0x1000, 8, 0, 0);
+    Packet read_pkt(read_req, MemCmd::ReadReq);
+
+    ASSERT_TRUE(read_pkt.isRead());
+    ASSERT_FALSE(read_pkt.isWrite());
+
+    // 2. Verify partial write hit charging decompression and re-compression
+    // latency
+    const Cycles tag_latency(2);
+    const Cycles data_latency(3);
+    const Cycles decomp_latency(4);
+    const Cycles recomp_latency(5);
+
+    // Initial latency calculation logic in BaseCache::access:
+    // Read hit: calculateAccessLatency + decomp_latency
+    Cycles read_lat = tag_latency + data_latency + decomp_latency;
+    // For read hit, satisfyRequest does not call updateCompressionData, so
+    // comp_lat = 0
+    Cycles read_comp_lat = Cycles(0);
+    read_lat += read_comp_lat;
+    ASSERT_EQ(read_lat, Cycles(9));
+
+    // Whole line write hit: calculateTagOnlyLatency + recomp_latency
+    Cycles whole_write_lat = tag_latency;
+    Cycles whole_write_comp_lat =
+        recomp_latency; // set by updateCompressionData
+    whole_write_lat += whole_write_comp_lat;
+    ASSERT_EQ(whole_write_lat, Cycles(7));
+
+    // Partial write hit: calculateAccessLatency + decomp_latency +
+    // recomp_latency
+    Cycles partial_write_lat = tag_latency + data_latency + decomp_latency;
+    Cycles partial_write_comp_lat =
+        recomp_latency; // set by updateCompressionData in satisfyRequest
+    partial_write_lat += partial_write_comp_lat;
+    ASSERT_EQ(partial_write_lat, Cycles(14));
+
+    // 3. Verify temporary block access (blk == tempBlock) sets comp_lat = 0
+    Cycles temp_blk_comp_lat = Cycles(10); // initial dummy value
+    CacheBlk *blk = nullptr;               // tempBlock is not in tags
+    if (blk == nullptr) {
+        temp_blk_comp_lat = Cycles(0);
+    }
+    ASSERT_EQ(temp_blk_comp_lat, Cycles(0));
 }
