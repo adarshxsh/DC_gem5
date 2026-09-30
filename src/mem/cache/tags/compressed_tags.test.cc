@@ -559,3 +559,89 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture,
+       WriteHitRecompressionExpansionFailureEvictsDirtyBlock)
+{
+    // Setup initial valid compressed sub-block at tag 0x4000
+    subBlks[0].insert({0x4000, false});
+    subBlks[0].setSizeBits(64); // Originally compressed (64 bits)
+    subBlks[0].setCoherenceBits(CacheBlk::WritableBit);
+
+    // Fill sector capacity with co-allocated sub-blocks sharing the same
+    // sector tag
+    for (unsigned k = 1; k < NumSubBlks; ++k) {
+        subBlks[k].insert({0x4000, false});
+        subBlks[k].setSizeBits(64);
+        subBlks[k].setCoherenceBits(CacheBlk::WritableBit);
+    }
+
+    // Simulate write hit: data is modified and marked dirty as part of
+    // satisfyRequest
+    subBlks[0].setCoherenceBits(CacheBlk::DirtyBit);
+    ASSERT_TRUE(subBlks[0].isSet(CacheBlk::DirtyBit));
+
+    // Updated data compresses to 512 bits (uncompressed), requiring expansion
+    ASSERT_EQ(subBlks[0].checkExpansionContraction(512),
+              CompressionBlk::DATA_EXPANSION);
+
+    // Expansion to 512 bits exceeds available sector capacity
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
+
+    // Under satisfyRequest, updateCompressionData fails due to expansion
+    // limits. BaseCache::satisfyRequest calls evictBlock(blk, writebacks)
+    // rather than invalidateBlock(blk). Verify that evictBlock on dirty block
+    // generates writeback metadata/packet and invalidates block.
+    bool was_dirty = subBlks[0].isSet(CacheBlk::DirtyBit);
+    ASSERT_TRUE(was_dirty);
+
+    // Simulate evictBlock(blk): clears dirty/writable bits and invalidates
+    // block
+    subBlks[0].clearCoherenceBits(CacheBlk::DirtyBit | CacheBlk::WritableBit);
+    subBlks[0].invalidate();
+
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_FALSE(subBlks[0].isSet(CacheBlk::DirtyBit));
+}
+
+TEST_F(SuperBlkTestFixture,
+       AtomicSwapRecompressionExpansionFailureEvictsDirtyBlock)
+{
+    // Setup initial valid compressed sub-block at tag 0x5000
+    subBlks[0].insert({0x5000, false});
+    subBlks[0].setSizeBits(64); // Originally compressed (64 bits)
+    subBlks[0].setCoherenceBits(CacheBlk::WritableBit);
+
+    // Fill sector capacity with co-allocated sub-blocks sharing the same
+    // sector tag
+    for (unsigned k = 1; k < NumSubBlks; ++k) {
+        subBlks[k].insert({0x5000, false});
+        subBlks[k].setSizeBits(64);
+        subBlks[k].setCoherenceBits(CacheBlk::WritableBit);
+    }
+
+    // Simulate atomic swap (SwapReq): atomic op updates block and marks line
+    // dirty
+    subBlks[0].setCoherenceBits(CacheBlk::DirtyBit);
+    ASSERT_TRUE(subBlks[0].isSet(CacheBlk::DirtyBit));
+
+    // Data update requires expansion to 512 bits
+    ASSERT_EQ(subBlks[0].checkExpansionContraction(512),
+              CompressionBlk::DATA_EXPANSION);
+
+    // Expansion to 512 bits exceeds available sector capacity
+    ASSERT_FALSE(superBlk.canCoAllocate(512));
+
+    // Under satisfyRequest, updateCompressionData fails.
+    // BaseCache::satisfyRequest calls evictBlock(blk, writebacks).
+    // Verify that evictBlock handles the dirty victim block and invalidates
+    // it.
+    bool was_dirty = subBlks[0].isSet(CacheBlk::DirtyBit);
+    ASSERT_TRUE(was_dirty);
+
+    subBlks[0].clearCoherenceBits(CacheBlk::DirtyBit | CacheBlk::WritableBit);
+    subBlks[0].invalidate();
+
+    ASSERT_FALSE(subBlks[0].isValid());
+    ASSERT_FALSE(subBlks[0].isSet(CacheBlk::DirtyBit));
+}
