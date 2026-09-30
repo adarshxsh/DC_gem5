@@ -272,10 +272,13 @@ TEST(DictionaryCompressorTest, MSHRTargetDecompressionLatency)
     }
     EXPECT_EQ(resp_lat_read, responseLatency + Cycles(6));
 
-    // Partial write target on compressed block -> includes decompression latency
+    // Partial write target on compressed block -> includes decompression
+    // latency
     Cycles resp_lat_partial_write = responseLatency;
-    if (partial_write_pkt.isRead() || !partial_write_pkt.isWholeLineWrite(blkSize)) {
-        resp_lat_partial_write += compressor.getDecompressionLatency(&comp_blk);
+    if (partial_write_pkt.isRead() ||
+        !partial_write_pkt.isWholeLineWrite(blkSize)) {
+        resp_lat_partial_write +=
+            compressor.getDecompressionLatency(&comp_blk);
     }
     EXPECT_EQ(resp_lat_partial_write, responseLatency + Cycles(6));
 
@@ -293,5 +296,3 @@ TEST(DictionaryCompressorTest, MSHRTargetDecompressionLatency)
     }
     EXPECT_EQ(resp_lat_uncomp, responseLatency);
 }
-
-

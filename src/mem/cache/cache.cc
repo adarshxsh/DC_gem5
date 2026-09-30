@@ -818,7 +818,7 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 }
 
                 completion_time += clockEdge(resp_lat) +
-                    (transfer_offset ? pkt->payloadDelay : 0);
+                                   (transfer_offset ? pkt->payloadDelay : 0);
 
                 assert(!tgt_pkt->req->isUncacheable());
 
