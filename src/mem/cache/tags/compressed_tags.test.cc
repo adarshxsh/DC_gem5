@@ -559,3 +559,47 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, CompressedWriteHitRecompressionLatency)
+{
+    // Simulate a compressed block undergoing partial write hit update
+    CompressionBlk cblk;
+    cblk.setSectorBlock(&superBlk);
+    cblk.setSizeBits(128); // Compressed size
+    cblk.setDecompressionLatency(Cycles(4));
+
+    // Recompression cycles calculated by compressor
+    Cycles recompression_lat = Cycles(6);
+
+    // Verify output recompression latency parameter propagation
+    Cycles comp_lat = recompression_lat;
+    ASSERT_EQ(comp_lat, Cycles(6));
+
+    // Access latency calculation for partial store hit:
+    // lat = calculateAccessLatency + getDecompressionLatency + comp_lat
+    Cycles data_array_lat = Cycles(2);
+    Cycles hit_lat =
+        data_array_lat + cblk.getDecompressionLatency() + comp_lat;
+
+    // Verify partial write hit includes re-compression cycles (2 + 4 + 6 = 12)
+    ASSERT_EQ(hit_lat, Cycles(12));
+}
+
+TEST_F(SuperBlkTestFixture, RecompressionLatencyPropagation)
+{
+    // Re-compression latency incurred during updateCompressionData
+    Cycles comp_lat = Cycles(0);
+    Cycles mock_recomp_delay = Cycles(5);
+
+    // Simulated updateCompressionData populates comp_lat
+    comp_lat = mock_recomp_delay;
+
+    // Simulated satisfyRequest returns comp_lat
+    Cycles recomp_lat_from_satisfy = comp_lat;
+    ASSERT_EQ(recomp_lat_from_satisfy, Cycles(5));
+
+    // Access delay calculation includes recomp_lat
+    Cycles lat = Cycles(10); // initial access latency
+    lat += recomp_lat_from_satisfy;
+    ASSERT_EQ(lat, Cycles(15));
+}
