@@ -33,9 +33,9 @@
 #include <memory>
 #include <vector>
 
+#include "mem/cache/tags/super_blk.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
-#include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
 
 using namespace gem5;
@@ -598,7 +598,8 @@ TEST_F(SuperBlkTestFixture, ReadRespPrefetchFlagVictimFilter)
                                                   &sb_prefetch};
 
     // Create a ReadResp packet whose request has the PREFETCH flag set
-    RequestPtr req = std::make_shared<Request>(0x4000, 64, Request::PREFETCH, 0);
+    RequestPtr req =
+        std::make_shared<Request>(0x4000, 64, Request::PREFETCH, 0);
     Packet pkt(req, MemCmd::ReadResp);
 
     // ReadResp command attribute isPrefetch() returns false
@@ -607,8 +608,8 @@ TEST_F(SuperBlkTestFixture, ReadRespPrefetchFlagVictimFilter)
     ASSERT_TRUE(pkt.req && pkt.req->isPrefetch());
 
     // Evaluate prefetch status combining command attribute and request flag
-    const bool is_pf = pkt.cmd.isPrefetch() ||
-                       (pkt.req && pkt.req->isPrefetch());
+    const bool is_pf =
+        pkt.cmd.isPrefetch() || (pkt.req && pkt.req->isPrefetch());
     ASSERT_TRUE(is_pf);
 
     // Verify that using is_pf invokes prefetch victim candidate filtering
@@ -627,4 +628,3 @@ TEST_F(SuperBlkTestFixture, ReadRespPrefetchFlagVictimFilter)
     ASSERT_EQ(replacement_candidates.size(), 1);
     ASSERT_EQ(replacement_candidates[0], &sb_prefetch);
 }
-
