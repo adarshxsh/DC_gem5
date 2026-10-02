@@ -814,6 +814,13 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 completion_time += clockEdge(responseLatency) +
                     (transfer_offset ? pkt->payloadDelay : 0);
 
+                if (blk && blk->isValid() && compressor &&
+                    (tgt_pkt->isRead() ||
+                     !tgt_pkt->isWholeLineWrite(blkSize))) {
+                    completion_time += cyclesToTicks(
+                        compressor->getDecompressionLatency(blk));
+                }
+
                 assert(!tgt_pkt->req->isUncacheable());
 
                 assert(tgt_pkt->req->requestorId() < system->maxRequestors());
