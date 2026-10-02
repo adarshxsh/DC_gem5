@@ -282,8 +282,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
 
             if (blk && blk->isValid() && compressor &&
                 (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize))) {
-                completion_time += cyclesToTicks(
-                    compressor->getDecompressionLatency(blk));
+                completion_time +=
+                    cyclesToTicks(compressor->getDecompressionLatency(blk));
             }
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
