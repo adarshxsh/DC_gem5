@@ -26,7 +26,7 @@ Ptr 6: 0x00007FFF800011B0
 Ptr 7: 0x00007FFF800011F8
 ```
 
-Notice that all 8 pointers share the exact same top 52 bits (`0x00007FFF80001...`). 
+Notice that all 8 pointers share the exact same top 52 bits (`0x00007FFF80001...`).
 Instead of storing all 64 bytes:
 1. **Base Value**: Store `Base 0 = 0x00007FFF80001000` (8 bytes).
 2. **Deltas**: Store the difference between each pointer and `Base 0`:

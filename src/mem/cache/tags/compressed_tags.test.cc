@@ -559,3 +559,27 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, EffectiveSuperblkCompressionFactor)
+{
+    // Insert sub-block 0 with high compression (64 bits -> isolated CF = 8)
+    subBlks[0].insert({0x1000, false});
+    subBlks[0].setSizeBits(64);
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Co-allocate sub-block 1 with low compression (256 bits -> isolated CF =
+    // 2)
+    subBlks[1].insert({0x1000, false});
+    subBlks[1].setSizeBits(256);
+
+    // The effective superblock compression factor is min(8, 2) = 2
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+
+    // Querying superBlk.calculateCompressionFactor for subBlks[0] alone
+    // returns 8
+    ASSERT_EQ(superBlk.calculateCompressionFactor(subBlks[0].getSizeBits()),
+              8);
+
+    // SuperBlk::getCompressionFactor reflects the overall effective factor (2)
+    ASSERT_EQ(superBlk.getCompressionFactor(), 2);
+}

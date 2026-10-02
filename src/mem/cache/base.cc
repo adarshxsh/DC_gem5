@@ -2920,7 +2920,7 @@ BaseCache::getCompressionFactor(Addr addr, bool is_secure) const
         if (cblk) {
             SuperBlk *sblk = static_cast<SuperBlk *>(cblk->getSectorBlock());
             if (sblk) {
-                return sblk->calculateCompressionFactor(cblk->getSizeBits());
+                return sblk->getCompressionFactor();
             } else {
                 std::size_t size = cblk->getSizeBits();
                 std::size_t blk_bits = blkSize * 8;
