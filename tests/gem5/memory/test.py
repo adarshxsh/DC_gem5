@@ -70,6 +70,15 @@ gem5_verify_config(
     length=constants.long_tag,
 )
 
+gem5_verify_config(
+    name="compressed_cache_recompress_fail",
+    verifiers=(),
+    config=joinpath(getcwd(), "test_compressed_cache_recompress_fail.py"),
+    config_args=[],
+    valid_isas=(constants.null_tag,),
+    length=constants.long_tag,
+)
+
 null_tests = [
     ("garnet_synth_traffic", None, ["--sim-cycles", "5000000"]),
     ("memcheck", None, ["--maxtick", "2000000000", "--prefetchers"]),
