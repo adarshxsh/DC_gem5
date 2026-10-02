@@ -32,6 +32,15 @@ TODO: Add stats checking
 from testlib import *
 
 gem5_verify_config(
+    name="recompress_fail_evict",
+    verifiers=(),
+    config=joinpath(getcwd(), "test_recompress_fail_evict.py"),
+    config_args=[],
+    valid_isas=(constants.null_tag,),
+    length=constants.long_tag,
+)
+
+gem5_verify_config(
     name="simple_mem_default",
     verifiers=(),  # No need for verfiers this will return non-zero on fail
     config=joinpath(getcwd(), "simple-run.py"),
