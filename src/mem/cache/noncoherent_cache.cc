@@ -280,6 +280,12 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             completion_time += clockEdge(responseLatency) +
                 (transfer_offset ? pkt->payloadDelay : 0);
 
+            if (blk && blk->isValid() && compressor &&
+                (tgt_pkt->isRead() || !tgt_pkt->isWholeLineWrite(blkSize))) {
+                completion_time += cyclesToTicks(
+                    compressor->getDecompressionLatency(blk));
+            }
+
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
             stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=
                 completion_time - target.recvTime;
