@@ -73,7 +73,7 @@ gem5_verify_config(
 gem5_verify_config(
     name="mshr_decomp_latency",
     verifiers=(),
-    config=joinpath(getcwd(), "test_mshr_decomp_latency.py"),
+    config=joinpath(getcwd(), "mshr_decomp_latency_run.py"),
     config_args=[],
     valid_isas=(constants.null_tag,),
     length=constants.long_tag,
