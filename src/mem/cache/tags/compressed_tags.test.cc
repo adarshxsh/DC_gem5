@@ -569,15 +569,18 @@ TEST_F(SuperBlkTestFixture, PartialWriteHitMergedBlockCompression)
     uint8_t blkData[BlkSize];
     std::memset(blkData, 0, BlkSize);
 
-    // 2. Perform a partial write update (e.g. 8 bytes at offset 16) into blkData
+    // 2. Perform a partial write update (e.g. 8 bytes at offset 16) into
+    // blkData
     uint64_t partialWriteVal = 0x1234567890ABCDEFULL;
     std::memcpy(&blkData[16], &partialWriteVal, sizeof(partialWriteVal));
 
-    // 3. Verify that evaluating compression over the merged 64-byte block buffer
-    // (reinterpret_cast<const uint64_t*>(blkData)) processes the full line
+    // 3. Verify that evaluating compression over the merged 64-byte block
+    // buffer (reinterpret_cast<const uint64_t*>(blkData)) processes the full
+    // line
     const uint64_t *mergedQwords = reinterpret_cast<const uint64_t *>(blkData);
 
-    // Count non-zero qwords across the full 64-byte merged block buffer (8 qwords)
+    // Count non-zero qwords across the full 64-byte merged block buffer (8
+    // qwords)
     std::size_t nonZeroCount = 0;
     for (std::size_t q = 0; q < BlkSize / sizeof(uint64_t); ++q) {
         if (mergedQwords[q] != 0) {
@@ -592,10 +595,11 @@ TEST_F(SuperBlkTestFixture, PartialWriteHitMergedBlockCompression)
     ASSERT_EQ(mergedQwords[7], 0ULL);
 
     // 4. Calculate compression factor for the merged 64-byte line
-    // With 1 non-zero qword in a 64-byte block, compressed size is far less than
-    // uncompressed (512 bits), verifying that the merged 64-byte block buffer is
-    // used for accurate compression calculations.
+    // With 1 non-zero qword in a 64-byte block, compressed size is far less
+    // than uncompressed (512 bits), verifying that the merged 64-byte block
+    // buffer is used for accurate compression calculations.
     std::size_t estimatedCompressedSizeBits = 64; // 1 qword = 64 bits
-    uint8_t cf = superBlk.calculateCompressionFactor(estimatedCompressedSizeBits);
+    uint8_t cf =
+        superBlk.calculateCompressionFactor(estimatedCompressedSizeBits);
     ASSERT_EQ(cf, 8); // 512 / 64 = 8x compression ratio
 }
