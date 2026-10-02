@@ -30,8 +30,8 @@ class DummyCompressor : public Base
     DummyCompressor(const BaseCacheCompressorParams &p) : Base(p) {}
 
     std::unique_ptr<CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles& comp_lat,
-             Cycles& decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         comp_lat = compLat;
         decomp_lat = decompLat;
@@ -40,8 +40,8 @@ class DummyCompressor : public Base
         return comp_data;
     }
 
-    void decompress(const CompressionData* comp_data,
-                    uint64_t* cache_line) override
+    void
+    decompress(const CompressionData *comp_data, uint64_t *cache_line) override
     {}
 };
 
@@ -96,7 +96,8 @@ TEST(BaseCompressorTest, TargetCompressionLatencyPartialWrite)
     RequestPtr req = std::make_shared<Request>(0x1000, 8, 0, 0);
     Packet writePkt(req, MemCmd::WriteReq);
 
-    // Partial write (8 bytes out of 64 bytes) requires decompression + recompression
+    // Partial write (8 bytes out of 64 bytes) requires decompression +
+    // recompression
     EXPECT_FALSE(writePkt.isWholeLineWrite(64));
 }
 

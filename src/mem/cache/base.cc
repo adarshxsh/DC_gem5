@@ -1076,9 +1076,10 @@ BaseCache::calculateTargetCompressionLatency(const PacketPtr tgt_pkt,
     } else if (!tgt_pkt->isWholeLineWrite(blkSize)) {
         // Partial write target requires decompression of the existing block
         // before modification, as well as recompression of the updated block.
-        const uint64_t *data = blk->data ?
-            reinterpret_cast<const uint64_t *>(blk->data) :
-            (tgt_pkt->hasData() ? tgt_pkt->getConstPtr<uint64_t>() : nullptr);
+        const uint64_t *data =
+            blk->data ? reinterpret_cast<const uint64_t *>(blk->data)
+                      : (tgt_pkt->hasData() ? tgt_pkt->getConstPtr<uint64_t>()
+                                            : nullptr);
         Cycles comp_lat = Cycles(0);
         Cycles decomp_lat = Cycles(0);
         if (data) {

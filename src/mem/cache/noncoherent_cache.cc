@@ -265,8 +265,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
-            Cycles comp_lat =
-                calculateTargetCompressionLatency(tgt_pkt, blk);
+            Cycles comp_lat = calculateTargetCompressionLatency(tgt_pkt, blk);
 
             satisfyRequest(tgt_pkt, blk, writebacks);
 

@@ -750,7 +750,7 @@ class BaseCache : public ClockedObject
      * @return Compression/decompression latency in cycles.
      */
     Cycles calculateTargetCompressionLatency(const PacketPtr tgt_pkt,
-                                              const CacheBlk *blk);
+                                             const CacheBlk *blk);
 
     bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                                PacketList &writebacks);
