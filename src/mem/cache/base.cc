@@ -1065,7 +1065,7 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
 
 bool
 BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
-                                 PacketList &writebacks)
+                                 PacketList &writebacks, Cycles *recomp_lat)
 {
     // tempBlock does not exist in the tags, so don't do anything for it.
     if (blk == tempBlock) {
@@ -1205,12 +1205,17 @@ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
     compression_blk->setSizeBits(compression_size);
     compression_blk->setDecompressionLatency(decompression_lat);
 
+    if (recomp_lat) {
+        *recomp_lat += compression_lat;
+    }
+
     return true;
 }
 
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                          bool, bool)
+                          bool deferred_response, bool pending_downgrade,
+                          Cycles *recomp_lat)
 {
     assert(pkt->isRequest());
 
@@ -1264,7 +1269,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, recomp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1288,7 +1293,7 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         if (compressor) {
             if (!updateCompressionData(
                     blk, reinterpret_cast<const uint64_t *>(blk->data),
-                    writebacks)) {
+                    writebacks, recomp_lat)) {
                 invalidateBlock(blk);
             }
         }
@@ -1619,7 +1624,11 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
 
-        satisfyRequest(pkt, blk, writebacks);
+        Cycles recomp_lat(0);
+        satisfyRequest(pkt, blk, writebacks, false, false, &recomp_lat);
+        if (compressor) {
+            lat += recomp_lat;
+        }
         maintainClusivity(pkt->fromCache(), blk);
 
         return true;
