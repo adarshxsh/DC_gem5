@@ -465,7 +465,8 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
 
     // Prefetch demand-protection guard logic verification:
     // If request is prefetch AND superblock has valid demand AND
-    // (target_cf < current_cf || new_num_valid > target_cf), co-allocation is disallowed.
+    // (target_cf < current_cf || new_num_valid > target_cf), co-allocation is
+    // disallowed.
     bool is_prefetch = true;
     bool co_alloc_allowed_for_prefetch =
         superBlk.canCoAllocate(new_size) &&
@@ -487,7 +488,8 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationFactorGuard)
 
 TEST_F(SuperBlkTestFixture, PrefetchCoAllocationCapacityGuard)
 {
-    // Insert two demand sub-blocks into superBlk with size 200 bits each (CF = 2, numValid = 2)
+    // Insert two demand sub-blocks into superBlk with size 200 bits each (CF =
+    // 2, numValid = 2)
     subBlks[0].insert({0x7000, false});
     subBlks[0].setSizeBits(200);
     subBlks[1].insert({0x7000, false});
@@ -497,9 +499,11 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationCapacityGuard)
     ASSERT_EQ(superBlk.getNumValid(), 2);
     ASSERT_EQ(superBlk.getCompressionFactor(), 2);
 
-    // Evaluate co-allocation of a prefetch block of small size 32 bits (CF = 8)
+    // Evaluate co-allocation of a prefetch block of small size 32 bits (CF =
+    // 8)
     const std::size_t new_size = 32;
-    ASSERT_TRUE(superBlk.canCoAllocate(new_size)); // canCoAllocate checks total bits (432 <= 512)
+    ASSERT_TRUE(superBlk.canCoAllocate(
+        new_size)); // canCoAllocate checks total bits (432 <= 512)
 
     const uint8_t new_blk_cf = superBlk.calculateCompressionFactor(new_size);
     const uint8_t current_cf = superBlk.getCompressionFactor();
@@ -509,9 +513,11 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationCapacityGuard)
     ASSERT_EQ(new_blk_cf, 8);
     ASSERT_EQ(target_cf, 2);
     ASSERT_FALSE(target_cf < current_cf); // No CF degradation!
-    ASSERT_GT(new_num_valid, target_cf);  // 3 > 2: Exceeds target CF subblock capacity bound!
+    ASSERT_GT(new_num_valid,
+              target_cf); // 3 > 2: Exceeds target CF subblock capacity bound!
 
-    // Verify prefetch co-allocation is rejected due to new_num_valid > target_cf
+    // Verify prefetch co-allocation is rejected due to new_num_valid >
+    // target_cf
     bool is_prefetch = true;
     bool co_alloc_allowed_for_prefetch =
         superBlk.canCoAllocate(new_size) &&
@@ -520,7 +526,8 @@ TEST_F(SuperBlkTestFixture, PrefetchCoAllocationCapacityGuard)
 
     ASSERT_FALSE(co_alloc_allowed_for_prefetch);
 
-    // Verify demand co-allocation (is_prefetch = false) is not rejected by this guard
+    // Verify demand co-allocation (is_prefetch = false) is not rejected by
+    // this guard
     is_prefetch = false;
     bool co_alloc_allowed_for_demand =
         superBlk.canCoAllocate(new_size) &&
