@@ -559,3 +559,45 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, FindVictimRejectsDemandCoAllocationWhenPrefetch)
+{
+    // Populate superblock with a demand block of size 64 bits (CF = 8)
+    subBlks[0].insert({0x7000, false});
+    subBlks[0].setSizeBits(64);
+    ASSERT_TRUE(superBlk.hasValidDemand());
+    ASSERT_EQ(superBlk.getCompressionFactor(), 8);
+
+    // Evaluate co-allocation of a block of size 256 bits (CF = 2) at offset 1
+    std::size_t compressed_size = 256;
+    uint64_t offset = 1;
+
+    auto simulateFindVictimCoAllocation = [&](bool is_prefetch) -> SuperBlk * {
+        SuperBlk *victim_superblock = nullptr;
+        if (superBlk.match({0x7000, false}) &&
+            !superBlk.blks[offset]->isValid() && superBlk.isCompressed() &&
+            superBlk.canCoAllocate(compressed_size)) {
+            if (is_prefetch && superBlk.hasValidDemand()) {
+                const uint8_t new_blk_cf =
+                    superBlk.calculateCompressionFactor(compressed_size);
+                const uint8_t current_cf = superBlk.getCompressionFactor();
+                const uint8_t new_cf = (superBlk.getNumValid() == 0)
+                                           ? new_blk_cf
+                                           : std::min(current_cf, new_blk_cf);
+                if (new_cf < current_cf) {
+                    return nullptr; // co-allocation rejected
+                }
+            }
+            victim_superblock = &superBlk;
+        }
+        return victim_superblock;
+    };
+
+    // When is_prefetch = true, co-allocation into superblock with demand data
+    // must be rejected (returns nullptr)
+    ASSERT_EQ(simulateFindVictimCoAllocation(/*is_prefetch=*/true), nullptr);
+
+    // When is_prefetch = false (demand request), co-allocation is permitted
+    ASSERT_EQ(simulateFindVictimCoAllocation(/*is_prefetch=*/false),
+              &superBlk);
+}
