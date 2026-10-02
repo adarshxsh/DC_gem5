@@ -57,7 +57,8 @@ class MockCompressor : public compression::Base
     {}
 
     std::unique_ptr<compression::Base::CompressionData>
-    compress(const std::vector<Chunk>& chunks, Cycles &comp_lat, Cycles &decomp_lat) override
+    compress(const std::vector<Chunk> &chunks, Cycles &comp_lat,
+             Cycles &decomp_lat) override
     {
         comp_lat = compLat;
         decomp_lat = decompLat;
@@ -114,7 +115,8 @@ TEST(BaseCacheRecompressionTest, RecompressionLatencyAccumulation)
     EXPECT_EQ(recomp_lat, Cycles(5));
 
     // Access latency calculation for compressed write hits:
-    // Partial write hit = AccessLatency + DecompressionLatency + RecompressionLatency
+    // Partial write hit = AccessLatency + DecompressionLatency +
+    // RecompressionLatency
     Cycles access_lat(1);
     Cycles decomp_lat(2);
     Cycles total_partial_write_lat = access_lat + decomp_lat + recomp_lat;
