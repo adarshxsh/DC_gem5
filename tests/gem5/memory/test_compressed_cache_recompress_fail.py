@@ -62,4 +62,6 @@ exit_event = m5.simulate()
 print(f"Exiting @ tick {m5.curTick()} because {exit_event.getCause()}.")
 
 assert exit_event.getCause() == "maximum number of loads reached"
-print("Test completed successfully: Store data preserved during recompression failures.")
+print(
+    "Test completed successfully: Store data preserved during recompression failures."
+)
