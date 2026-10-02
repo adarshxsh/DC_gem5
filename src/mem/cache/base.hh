@@ -741,6 +741,17 @@ class BaseCache : public ClockedObject
      * @param writebacks List for any writebacks that need to be performed.
      * @return Whether operation is successful or not.
      */
+    /**
+     * Calculate compression/decompression latency for a target serviced by
+     * the cache.
+     *
+     * @param tgt_pkt Target packet being serviced.
+     * @param blk Cache block associated with the target.
+     * @return Compression/decompression latency in cycles.
+     */
+    Cycles calculateTargetCompressionLatency(const PacketPtr tgt_pkt,
+                                              const CacheBlk *blk);
+
     bool updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                                PacketList &writebacks);
 

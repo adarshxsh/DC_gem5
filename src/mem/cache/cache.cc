@@ -797,6 +797,9 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
             // either); otherwise we use the packet data.
             if (blk && blk->isValid() &&
                 (!mshr->isForward || !pkt->hasData())) {
+                Cycles comp_lat =
+                    calculateTargetCompressionLatency(tgt_pkt, blk);
+
                 satisfyRequest(tgt_pkt, blk, writebacks, true,
                                mshr->hasPostDowngrade());
 
@@ -813,6 +816,8 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
                 // the core.
                 completion_time += clockEdge(responseLatency) +
                     (transfer_offset ? pkt->payloadDelay : 0);
+
+                completion_time += cyclesToTicks(comp_lat);
 
                 assert(!tgt_pkt->req->isUncacheable());
 

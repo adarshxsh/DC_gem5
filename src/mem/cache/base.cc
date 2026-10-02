@@ -1063,6 +1063,33 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
     return true;
 }
 
+Cycles
+BaseCache::calculateTargetCompressionLatency(const PacketPtr tgt_pkt,
+                                             const CacheBlk *blk)
+{
+    if (!compressor || !blk) {
+        return Cycles(0);
+    }
+
+    if (tgt_pkt->isRead()) {
+        return compressor->getDecompressionLatency(blk);
+    } else if (!tgt_pkt->isWholeLineWrite(blkSize)) {
+        // Partial write target requires decompression of the existing block
+        // before modification, as well as recompression of the updated block.
+        const uint64_t *data = blk->data ?
+            reinterpret_cast<const uint64_t *>(blk->data) :
+            (tgt_pkt->hasData() ? tgt_pkt->getConstPtr<uint64_t>() : nullptr);
+        Cycles comp_lat = Cycles(0);
+        Cycles decomp_lat = Cycles(0);
+        if (data) {
+            compressor->compress(data, comp_lat, decomp_lat);
+        }
+        return compressor->getDecompressionLatency(blk) + comp_lat;
+    }
+
+    return Cycles(0);
+}
+
 bool
 BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                                  PacketList &writebacks)
