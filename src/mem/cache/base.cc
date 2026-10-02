@@ -1781,9 +1781,11 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         partitionManager->readPacketPartitionID(pkt) : 0;
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
+    const bool is_pf = pkt->cmd.isPrefetch() ||
+                       (pkt->req && pkt->req->isPrefetch());
     CacheBlk *victim =
         tags->findVictim({addr, is_secure}, blk_size_bits, evict_blks,
-                         partition_id, pkt->cmd.isPrefetch());
+                         partition_id, is_pf);
 
     // It is valid to return nullptr if there is no victim
     if (!victim)

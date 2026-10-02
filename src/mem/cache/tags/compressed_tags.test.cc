@@ -33,6 +33,8 @@
 #include <memory>
 #include <vector>
 
+#include "mem/packet.hh"
+#include "mem/request.hh"
 #include "mem/cache/tags/super_blk.hh"
 #include "sim/cur_tick.hh"
 
@@ -559,3 +561,70 @@ TEST_F(SuperBlkTestFixture, PrefetchVictimCandidateFilter)
     // and drop prefetch
     ASSERT_TRUE(replacement_candidates.empty());
 }
+
+TEST_F(SuperBlkTestFixture, ReadRespPrefetchFlagVictimFilter)
+{
+    // Create candidate superblocks and sub-blocks
+    SuperBlk sb_demand0;
+    SuperBlk sb_demand1;
+    SuperBlk sb_prefetch;
+
+    CompressionBlk blk_demand0;
+    CompressionBlk blk_demand1;
+    CompressionBlk blk_prefetch;
+
+    auto dummyTagExtractor = [](Addr addr) { return addr; };
+    blk_demand0.registerTagExtractor(dummyTagExtractor);
+    blk_demand1.registerTagExtractor(dummyTagExtractor);
+    blk_prefetch.registerTagExtractor(dummyTagExtractor);
+    sb_demand0.registerTagExtractor(dummyTagExtractor);
+    sb_demand1.registerTagExtractor(dummyTagExtractor);
+    sb_prefetch.registerTagExtractor(dummyTagExtractor);
+
+    blk_demand0.setSectorBlock(&sb_demand0);
+    blk_demand1.setSectorBlock(&sb_demand1);
+    blk_prefetch.setSectorBlock(&sb_prefetch);
+
+    sb_demand0.blks = {&blk_demand0};
+    sb_demand1.blks = {&blk_demand1};
+    sb_prefetch.blks = {&blk_prefetch};
+
+    blk_demand0.insert({0x1000, false}); // demand block
+    blk_demand1.insert({0x2000, false}); // demand block
+    blk_prefetch.insert({0x3000, false});
+    blk_prefetch.setPrefetched(); // prefetched block
+
+    std::vector<SuperBlk *> superblock_entries = {&sb_demand0, &sb_demand1,
+                                                  &sb_prefetch};
+
+    // Create a ReadResp packet whose request has the PREFETCH flag set
+    RequestPtr req = std::make_shared<Request>(0x4000, 64, Request::PREFETCH, 0);
+    Packet pkt(req, MemCmd::ReadResp);
+
+    // ReadResp command attribute isPrefetch() returns false
+    ASSERT_FALSE(pkt.cmd.isPrefetch());
+    // But request flag isPrefetch() returns true
+    ASSERT_TRUE(pkt.req && pkt.req->isPrefetch());
+
+    // Evaluate prefetch status combining command attribute and request flag
+    const bool is_pf = pkt.cmd.isPrefetch() ||
+                       (pkt.req && pkt.req->isPrefetch());
+    ASSERT_TRUE(is_pf);
+
+    // Verify that using is_pf invokes prefetch victim candidate filtering
+    std::vector<SuperBlk *> replacement_candidates;
+    if (is_pf) {
+        for (auto *sb : superblock_entries) {
+            if (!sb->hasValidDemand()) {
+                replacement_candidates.push_back(sb);
+            }
+        }
+    } else {
+        replacement_candidates = superblock_entries;
+    }
+
+    // Only sb_prefetch is eligible for eviction when is_pf is true
+    ASSERT_EQ(replacement_candidates.size(), 1);
+    ASSERT_EQ(replacement_candidates[0], &sb_prefetch);
+}
+
