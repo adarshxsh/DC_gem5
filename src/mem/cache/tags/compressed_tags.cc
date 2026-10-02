@@ -154,10 +154,9 @@ CompressedTags::findVictim(const CacheBlk::KeyType &key,
                 const uint8_t new_blk_cf =
                     superblock->calculateCompressionFactor(compressed_size);
                 const uint8_t current_cf = superblock->getCompressionFactor();
-                const uint8_t new_cf = (superblock->getNumValid() == 0)
-                                           ? new_blk_cf
-                                           : std::min(current_cf, new_blk_cf);
-                if (new_cf < current_cf) {
+                const uint8_t target_cf = std::min(current_cf, new_blk_cf);
+                const uint8_t new_num_valid = superblock->getNumValid() + 1;
+                if (target_cf < current_cf || new_num_valid > target_cf) {
                     continue;
                 }
             }
