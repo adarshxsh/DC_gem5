@@ -265,6 +265,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // packet comes from it, charged on headerDelay.
             completion_time = pkt->headerDelay;
 
+            Cycles comp_lat = calculateTargetCompressionLatency(tgt_pkt, blk);
+
             satisfyRequest(tgt_pkt, blk, writebacks);
 
             // How many bytes past the first request is this one
@@ -279,6 +281,8 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
             // the core.
             completion_time += clockEdge(responseLatency) +
                 (transfer_offset ? pkt->payloadDelay : 0);
+
+            completion_time += cyclesToTicks(comp_lat);
 
             assert(tgt_pkt->req->requestorId() < system->maxRequestors());
             stats.cmdStats(tgt_pkt).missLatency[tgt_pkt->req->requestorId()] +=
