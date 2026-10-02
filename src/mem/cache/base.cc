@@ -1482,16 +1482,6 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             }
 
             blk->setCoherenceBits(CacheBlk::ReadableBit);
-        } else if (compressor) {
-            // This is an overwrite to an existing block, therefore we need
-            // to check for data expansion (i.e., block was compressed with
-            // a smaller size, and now it doesn't fit the entry anymore).
-            // If that is the case we might need to evict blocks.
-            if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                writebacks)) {
-                invalidateBlock(blk);
-                return false;
-            }
         }
 
         // only mark the block dirty if we got a writeback command,
@@ -1510,6 +1500,20 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         assert(!pkt->needsResponse());
 
         updateBlockData(blk, pkt, has_old_data);
+
+        if (compressor) {
+            // This is an overwrite to an existing block, therefore we need
+            // to check for data expansion (i.e., block was compressed with
+            // a smaller size, and now it doesn't fit the entry anymore).
+            // If that is the case we might need to evict blocks.
+            if (!updateCompressionData(
+                    blk, reinterpret_cast<const uint64_t *>(blk->data),
+                    writebacks)) {
+                invalidateBlock(blk);
+                return false;
+            }
+        }
+
         DPRINTF(Cache, "%s new state is %s\n", __func__, blk->print());
         incHitCount(pkt);
 
@@ -1561,13 +1565,29 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
                 blk->setCoherenceBits(CacheBlk::ReadableBit);
             }
-        } else if (compressor) {
+        }
+
+        // at this point either this is a writeback or a write-through
+        // write clean operation and the block is already in this
+        // cache, we need to update the data and the block flags
+        assert(blk);
+        // TODO: the coherent cache can assert that the dirty bit is set
+        if (!pkt->writeThrough()) {
+            blk->setCoherenceBits(CacheBlk::DirtyBit);
+        }
+        // nothing else to do; writeback doesn't expect response
+        assert(!pkt->needsResponse());
+
+        updateBlockData(blk, pkt, has_old_data);
+
+        if (compressor) {
             // This is an overwrite to an existing block, therefore we need
             // to check for data expansion (i.e., block was compressed with
             // a smaller size, and now it doesn't fit the entry anymore).
             // If that is the case we might need to evict blocks.
-            if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
-                writebacks)) {
+            if (!updateCompressionData(
+                    blk, reinterpret_cast<const uint64_t *>(blk->data),
+                    writebacks)) {
                 invalidateBlock(blk);
                 return false;
             }
